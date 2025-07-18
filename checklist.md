@@ -23,12 +23,12 @@ This checklist tracks progress for the MCP Voice/Text-Controlled Q-SYS Demo impl
 
 ### 1.2 Core Infrastructure
 - [x] Implement logger utility with Winston
-- [ ] Create logger configuration for different environments
-- [ ] Set up environment configuration system
+- [x] Create logger configuration for different environments
+- [x] Set up environment configuration system
 - [x] Create .env.example file
-- [ ] Create TypeScript type definitions structure
-- [ ] Implement base error classes
-- [ ] Create error handling framework
+- [x] Create TypeScript type definitions structure
+- [x] Implement base error classes
+- [x] Create error handling framework
 - [x] Set up shared utilities folder
 
 ### 1.3 QRWC Client
