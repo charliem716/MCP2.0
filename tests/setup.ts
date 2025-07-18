@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 // Global test utilities
-global.testUtils = {
+(globalThis as any).testUtils = {
   // Add common test utilities here
   delay: (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms)),
   mockLogger: {
@@ -38,25 +38,24 @@ global.testUtils = {
 };
 
 // Mock environment variables for tests
-process.env.NODE_ENV = 'test';
-process.env.LOG_LEVEL = 'error';
-process.env.QSYS_HOST = 'localhost';
-process.env.QSYS_PORT = '8443';
-process.env.OPENAI_API_KEY = 'test-key';
+process.env['NODE_ENV'] = 'test';
+process.env['LOG_LEVEL'] = 'error';
+process.env['QSYS_HOST'] = 'localhost';
+process.env['QSYS_PORT'] = '8443';
+process.env['OPENAI_API_KEY'] = 'test-key';
 
 // Type declarations for global test utilities
 declare global {
-  namespace NodeJS {
-    interface Global {
-      testUtils: {
-        delay: (ms: number) => Promise<void>;
-        mockLogger: {
-          info: jest.Mock;
-          error: jest.Mock;
-          warn: jest.Mock;
-          debug: jest.Mock;
-        };
-      };
-    }
-  }
-} 
+  var testUtils: {
+    delay: (ms: number) => Promise<void>;
+    mockLogger: {
+      info: jest.Mock;
+      error: jest.Mock;
+      warn: jest.Mock;
+      debug: jest.Mock;
+    };
+  };
+}
+
+// Make this an external module to allow global augmentation
+export {}; 

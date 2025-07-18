@@ -3,6 +3,7 @@
  */
 
 import type { ID, Timestamp } from './common.js';
+import type { MCPError } from './errors.js';
 
 /**
  * MCP JSON-RPC version
@@ -81,26 +82,7 @@ export interface MCPNotification {
   params?: Record<string, any>;
 }
 
-/**
- * MCP error object
- */
-export interface MCPError {
-  code: number;
-  message: string;
-  data?: any;
-}
 
-/**
- * MCP error codes
- */
-export enum MCPErrorCode {
-  PARSE_ERROR = -32700,
-  INVALID_REQUEST = -32600,
-  METHOD_NOT_FOUND = -32601,
-  INVALID_PARAMS = -32602,
-  INTERNAL_ERROR = -32603,
-  SERVER_ERROR = -32000,
-}
 
 /**
  * MCP initialization parameters

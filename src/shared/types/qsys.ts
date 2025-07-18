@@ -138,6 +138,8 @@ export enum QSysMethod {
   // Control methods
   CONTROL_GET = 'Control.Get',
   CONTROL_SET = 'Control.Set',
+  CONTROL_GET_MULTIPLE = 'Control.GetMultiple',
+  CONTROL_SET_MULTIPLE = 'Control.SetMultiple',
   
   // Mixer methods
   MIXER_GET_INPUTS = 'Mixer.GetInputs',
@@ -150,6 +152,7 @@ export enum QSysMethod {
   // Snapshot methods
   SNAPSHOT_LOAD = 'Snapshot.Load',
   SNAPSHOT_SAVE = 'Snapshot.Save',
+  SNAPSHOT_GET = 'Snapshot.Get',
   SNAPSHOT_GET_BANKS = 'Snapshot.GetBanks',
   SNAPSHOT_GET_SNAPSHOTS = 'Snapshot.GetSnapshots',
   
@@ -301,45 +304,7 @@ export interface QSysEngineStatus {
   isEmulator: boolean;
 }
 
-/**
- * Q-SYS error codes
- */
-export enum QSysErrorCode {
-  // Authentication errors
-  INVALID_CREDENTIALS = -32001,
-  INSUFFICIENT_PRIVILEGES = -32002,
-  
-  // Component errors
-  INVALID_COMPONENT = -32003,
-  COMPONENT_NOT_FOUND = -32004,
-  INVALID_CONTROL = -32005,
-  CONTROL_NOT_FOUND = -32006,
-  
-  // Value errors
-  INVALID_VALUE = -32007,
-  OUT_OF_RANGE = -32008,
-  
-  // Change group errors
-  CHANGE_GROUP_NOT_FOUND = -32009,
-  CHANGE_GROUP_INVALID = -32010,
-  
-  // Snapshot errors
-  SNAPSHOT_NOT_FOUND = -32011,
-  SNAPSHOT_LOAD_FAILED = -32012,
-  SNAPSHOT_SAVE_FAILED = -32013,
-  
-  // System errors
-  SYSTEM_ERROR = -32014,
-  TIMEOUT = -32015,
-  CONNECTION_ERROR = -32016,
-  
-  // JSON-RPC errors
-  PARSE_ERROR = -32700,
-  INVALID_REQUEST = -32600,
-  METHOD_NOT_FOUND = -32601,
-  INVALID_PARAMS = -32602,
-  INTERNAL_ERROR = -32603,
-}
+
 
 /**
  * Q-SYS client interface

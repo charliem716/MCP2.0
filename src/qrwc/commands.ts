@@ -70,6 +70,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.COMPONENT_GET,
         params: { Name: name }
       });
@@ -101,6 +102,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.COMPONENT_GET_CONTROLS,
         params: { Name: componentName }
       });
@@ -133,6 +135,7 @@ export class QRCCommands {
       }
       
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CONTROL_GET,
         params
       });
@@ -174,6 +177,7 @@ export class QRCCommands {
       }
       
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CONTROL_SET,
         params
       });
@@ -204,6 +208,7 @@ export class QRCCommands {
       };
       
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CONTROL_GET_MULTIPLE,
         params
       });
@@ -237,6 +242,7 @@ export class QRCCommands {
       };
       
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CONTROL_SET_MULTIPLE,
         params
       });
@@ -264,6 +270,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.MIXER_GET_INPUTS,
         params: { Name: mixerName }
       });
@@ -287,6 +294,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.MIXER_GET_OUTPUTS,
         params: { Name: mixerName }
       });
@@ -310,6 +318,7 @@ export class QRCCommands {
     
     try {
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.MIXER_SET_CROSSPOINT_MUTE,
         params: {
           Name: mixerName,
@@ -338,6 +347,7 @@ export class QRCCommands {
     
     try {
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.MIXER_SET_CROSSPOINT_GAIN,
         params: {
           Name: mixerName,
@@ -366,6 +376,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.MIXER_GET_CROSSPOINT_MUTE,
         params: {
           Name: mixerName,
@@ -393,6 +404,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.MIXER_GET_CROSSPOINT_GAIN,
         params: {
           Name: mixerName,
@@ -429,6 +441,7 @@ export class QRCCommands {
       }
       
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.SNAPSHOT_LOAD,
         params
       });
@@ -457,6 +470,7 @@ export class QRCCommands {
       }
       
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.SNAPSHOT_SAVE,
         params
       });
@@ -480,6 +494,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.SNAPSHOT_GET_BANKS,
         params: {}
       });
@@ -503,6 +518,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.SNAPSHOT_GET,
         params: { Bank: bank }
       });
@@ -530,6 +546,7 @@ export class QRCCommands {
     
     try {
       const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.STATUS_GET,
         params: {}
       });
@@ -562,6 +579,7 @@ export class QRCCommands {
       }
       
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CHANGE_GROUP_ADD_CONTROL,
         params
       });
@@ -590,6 +608,7 @@ export class QRCCommands {
       }
       
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CHANGE_GROUP_REMOVE_CONTROL,
         params
       });
@@ -613,6 +632,7 @@ export class QRCCommands {
     
     try {
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CHANGE_GROUP_CLEAR,
         params: {}
       });
@@ -636,6 +656,7 @@ export class QRCCommands {
     
     try {
       await this.client.sendCommand({
+        jsonrpc: '2.0',
         method: QSysMethod.CHANGE_GROUP_INVALIDATE,
         params: {}
       });

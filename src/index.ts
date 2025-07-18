@@ -4,8 +4,7 @@
  */
 
 import 'dotenv/config';
-import type { Logger } from 'winston';
-import { createLogger } from './shared/utils/logger.js';
+import { createLogger, type Logger } from './shared/utils/logger.js';
 
 const logger: Logger = createLogger('Main');
 
@@ -48,7 +47,7 @@ process.on('uncaughtException', (error: Error) => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-  logger.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('💥 Unhandled Rejection', { promise, reason });
   process.exit(1);
 });
 

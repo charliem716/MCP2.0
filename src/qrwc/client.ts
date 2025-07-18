@@ -438,7 +438,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   private clearTimers(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = undefined;
+      this.reconnectTimer = undefined as any;
     }
     
     this.clearHeartbeatTimers();
@@ -450,12 +450,12 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   private clearHeartbeatTimers(): void {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = undefined;
+      this.heartbeatTimer = undefined as any;
     }
     
     if (this.heartbeatTimeout) {
       clearTimeout(this.heartbeatTimeout);
-      this.heartbeatTimeout = undefined;
+      this.heartbeatTimeout = undefined as any;
     }
   }
 
@@ -467,7 +467,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
       clearTimeout(pending.timeout);
       pending.reject(new QSysError(
         'Connection closed',
-        'CONNECTION_CLOSED',
+        QSysErrorCode.CONNECTION_CLOSED,
         { requestId: id }
       ));
     });
@@ -691,6 +691,25 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         params: {}
       });
     }
+    
+    async setAutoPolling(enabled: boolean, rate?: number) {
+      const params: any = { Enabled: enabled };
+      if (rate) params.Rate = rate;
+      await this.client.sendCommand({
+        jsonrpc: '2.0',
+        method: 'ChangeGroup.AutoPoll',
+        params
+      });
+    }
+    
+    async poll() {
+      const result = await this.client.sendCommand({
+        jsonrpc: '2.0',
+        method: 'ChangeGroup.Poll',
+        params: {}
+      });
+      return result.changes || [];
+    }
   })(this);
 
   // Delegate to QRC commands
@@ -716,4 +735,6 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   async removeControlFromChangeGroup(control: string, component?: string) { return this.qrcCommands.removeControlFromChangeGroup(control, component); }
   async clearChangeGroup() { return this.qrcCommands.clearChangeGroup(); }
   async invalidateChangeGroup() { return this.qrcCommands.invalidateChangeGroup(); }
+  async setAutoPolling(enabled: boolean, rate?: number) { return this.qrcCommands.setAutoPolling(enabled, rate); }
+  async poll() { return this.qrcCommands.poll(); }
 } 
