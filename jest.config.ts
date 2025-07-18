@@ -29,6 +29,7 @@ const config: Config = {
     },
   },
   moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@/shared/(.*)$': '<rootDir>/src/shared/$1',
     '^@/mcp/(.*)$': '<rootDir>/src/mcp/$1',
