@@ -32,20 +32,20 @@ This checklist tracks progress for the MCP Voice/Text-Controlled Q-SYS Demo impl
 - [x] Set up shared utilities folder
 
 ### 1.3 QRWC Client
-- [ ] Create WebSocket connection manager
-- [ ] Implement connection retry logic
-- [ ] Create QRC command interface
-- [ ] Implement event-based architecture
-- [ ] Add connection state management
-- [ ] Create QRWC type definitions
-- [ ] Implement heartbeat mechanism
-- [ ] Add graceful shutdown handling
+- [x] Create WebSocket connection manager
+- [x] Implement connection retry logic
+- [x] Create QRC command interface
+- [x] Implement event-based architecture
+- [x] Add connection state management
+- [x] Create QRWC type definitions
+- [x] Implement heartbeat mechanism
+- [x] Add graceful shutdown handling
 
 ### Phase 1 Deliverables
 - [x] ✅ Working project structure verified
-- [ ] ✅ QRWC client can connect to Q-SYS Core
-- [ ] ✅ Basic logging and error handling functional
-- [ ] ✅ All TypeScript compiles without errors
+- [x] ✅ QRWC client can connect to Q-SYS Core
+- [x] ✅ Basic logging and error handling functional
+- [x] ✅ All TypeScript compiles without errors
 
 ---
 
