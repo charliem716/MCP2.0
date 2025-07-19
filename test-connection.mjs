@@ -37,12 +37,15 @@ endpoints.forEach((endpoint, i) => {
   console.log(`   ${i + 1}. ws://${host}:${port}${endpoint}`);
 });
 
-// Start with the official endpoint
-let wsUrl = `ws://${host}:${port}/qrc-public-api/v0`;
-console.log(`\n🚀 Attempting: ${wsUrl}`);
+// Try both WS and WSS protocols
+const protocols = ['wss', 'ws'];
+let wsUrl = `wss://${host}:${port}/qrc-public-api/v0`;
+console.log(`\n🚀 Attempting WSS (Secure WebSocket): ${wsUrl}`);
 
-// Create WebSocket connection
-const socket = new WebSocket(wsUrl);
+// Create WebSocket connection with SSL options for self-signed certificates
+const socket = new WebSocket(wsUrl, {
+  rejectUnauthorized: false // Allow self-signed certificates
+});
 let qrwc;
 
 socket.on('open', async () => {

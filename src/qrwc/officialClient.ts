@@ -79,8 +79,10 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     });
 
     try {
-      const url = `ws://${this.options.host}:${this.options.port}/qrc-public-api/v0`;
-      this.ws = new WebSocket(url);
+      const url = `wss://${this.options.host}:${this.options.port}/qrc-public-api/v0`;
+      this.ws = new WebSocket(url, {
+        rejectUnauthorized: false // Allow self-signed certificates
+      });
 
       // Wait for WebSocket to open
       await this.waitForConnection();
