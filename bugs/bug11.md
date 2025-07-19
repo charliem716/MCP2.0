@@ -1,4 +1,5 @@
 # BUG-011: File Size Violations in Phase 1 Components
+*Consolidates and supersedes BUG-006*
 
 ## Status
 🔴 **OPEN**
