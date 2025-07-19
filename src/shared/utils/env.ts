@@ -31,11 +31,11 @@ const envSchema = z.object({
   QSYS_RECONNECT_INTERVAL: z.coerce.number().min(1000).default(5000),
   QSYS_HEARTBEAT_INTERVAL: z.coerce.number().min(1000).default(30000),
 
-  // OpenAI Configuration
-  OPENAI_API_KEY: z.string().min(1).startsWith('sk-'),
+  // OpenAI Configuration (Phase 3 - Optional for now)
+  OPENAI_API_KEY: z.string().min(1).startsWith('sk-').optional(),
   OPENAI_ORGANIZATION: z.string().startsWith('org-').optional(),
-  OPENAI_MODEL: z.string().default('gpt-4'),
-  OPENAI_VOICE: z.enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']).default('nova'),
+  OPENAI_MODEL: z.string().default('gpt-4').optional(),
+  OPENAI_VOICE: z.enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']).default('nova').optional(),
 
   // Security Configuration
   JWT_SECRET: z.string().min(32).default('your-super-secret-jwt-key-change-this-in-production'),
@@ -149,8 +149,8 @@ export const config = {
   openai: {
     apiKey: env.OPENAI_API_KEY,
     organization: env.OPENAI_ORGANIZATION,
-    model: env.OPENAI_MODEL,
-    voice: env.OPENAI_VOICE
+    model: env.OPENAI_MODEL ?? 'gpt-4',
+    voice: env.OPENAI_VOICE ?? 'nova'
   },
 
   security: {

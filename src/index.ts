@@ -6,14 +6,12 @@
 import 'dotenv/config';
 import { createLogger, type Logger } from './shared/utils/logger.js';
 import { validateConfig, config } from './shared/utils/env.js';
-import { QRWCClient } from './qrwc/client.js';
-import { QRCCommands } from './qrwc/commands.js';
+import { OfficialQRWCClient } from './qrwc/officialClient.js';
 
 const logger: Logger = createLogger('Main');
 
 // Global references for cleanup
-let qrwcClient: QRWCClient | null = null;
-let qrcCommands: QRCCommands | null = null;
+let qrwcClient: OfficialQRWCClient | null = null;
 
 async function main(): Promise<void> {
   try {
@@ -23,30 +21,23 @@ async function main(): Promise<void> {
     validateConfig();
     logger.info('✅ Configuration validated');
     
-    // Initialize QRWC client with configuration
+    // Initialize Official QRWC client with configuration
     const clientOptions = {
       host: config.qsys.host,
       port: config.qsys.port,
-      username: config.qsys.username,
-      password: config.qsys.password,
+      pollingInterval: 350,
       reconnectInterval: config.qsys.reconnectInterval,
-      heartbeatInterval: config.qsys.heartbeatInterval,
       maxReconnectAttempts: 5,
       connectionTimeout: 10000,
-      enableHeartbeat: true,
       enableAutoReconnect: true
     };
     
-    qrwcClient = new QRWCClient(clientOptions);
-    logger.info('✅ QRWC client initialized');
+    qrwcClient = new OfficialQRWCClient(clientOptions);
+    logger.info('✅ Official QRWC client initialized');
     
     // Connect to Q-SYS Core
     await qrwcClient.connect();
-    logger.info('✅ Connected to Q-SYS Core');
-    
-    // Initialize QRC commands
-    qrcCommands = new QRCCommands(qrwcClient);
-    logger.info('✅ QRC commands initialized');
+    logger.info('✅ Connected to Q-SYS Core using official @q-sys/qrwc library');
     
     // Setup graceful shutdown
     const shutdownHandler = (): void => {
@@ -78,16 +69,10 @@ function cleanup(): void {
   logger.info('🧹 Cleaning up resources...');
   
   try {
-    // Dispose of QRC commands if initialized
-    if (qrcCommands) {
-      qrcCommands.dispose();
-      logger.info('✅ QRC commands disposed');
-    }
-    
-    // Disconnect QRWC client if connected
+    // Disconnect Official QRWC client if connected
     if (qrwcClient?.isConnected()) {
       qrwcClient.disconnect();
-      logger.info('✅ QRWC client disconnected');
+      logger.info('✅ Official QRWC client disconnected');
     }
     
     logger.info('✅ Cleanup completed');
