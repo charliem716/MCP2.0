@@ -69,8 +69,8 @@ const envSchema = z.object({
   // Q-SYS Core Configuration (JSON config takes precedence over env vars)
   QSYS_HOST: z.string().ip().default(qsysConfig?.host ?? '192.168.1.100'),
   QSYS_PORT: z.coerce.number().min(1).max(65535).default(qsysConfig?.port ?? 443),
-  QSYS_USERNAME: z.string().min(1).default(qsysConfig?.username ?? 'admin'),
-  QSYS_PASSWORD: z.string().min(1).default(qsysConfig?.password ?? 'admin'),
+  QSYS_USERNAME: z.string().default(qsysConfig?.username ?? ''),
+  QSYS_PASSWORD: z.string().default(qsysConfig?.password ?? ''),
   QSYS_RECONNECT_INTERVAL: z.coerce.number().min(1000).default(qsysConfig?.connectionSettings?.reconnectInterval ?? 5000),
   QSYS_HEARTBEAT_INTERVAL: z.coerce.number().min(1000).default(qsysConfig?.connectionSettings?.heartbeatInterval ?? 30000),
 
