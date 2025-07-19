@@ -224,24 +224,7 @@ export interface QSysChangeGroupWithMeta extends QSysChangeGroup {
   accessCount: number;
 }
 
-/**
- * Change group manager configuration
- */
-export interface ChangeGroupManagerConfig {
-  maxChangeGroups: number;
-  defaultTtl: number;
-  cleanupInterval: number;
-  enablePersistence: boolean;
-}
 
-/**
- * Change group persistence interface
- */
-export interface ChangeGroupPersistence {
-  save(groups: Map<string, QSysChangeGroupWithMeta>): Promise<void>;
-  load(): Promise<Map<string, QSysChangeGroupWithMeta>>;
-  clear(): Promise<void>;
-}
 
 /**
  * Change group metrics
