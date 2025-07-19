@@ -7,12 +7,55 @@ import { z } from 'zod';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync, existsSync } from 'fs';
 
 // Load environment variables from .env file
 dotenv.config({
   path: ['.env.local', '.env'],
   debug: process.env['NODE_ENV'] === 'development'
 });
+
+/**
+ * Load Q-SYS Core configuration from JSON file if available
+ * This allows users to configure their Core connection easily
+ */
+interface QSysConfigJSON {
+  qsysCore: {
+    host: string;
+    port: number;
+    username?: string;
+    password?: string;
+    connectionSettings?: {
+      timeout?: number;
+      reconnectInterval?: number;
+      maxReconnectAttempts?: number;
+      heartbeatInterval?: number;
+      pollingInterval?: number;
+      enableAutoReconnect?: boolean;
+    };
+  };
+}
+
+function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
+  const configPath = 'qsys-core.config.json';
+  
+  if (!existsSync(configPath)) {
+    return null;
+  }
+
+  try {
+    const configContent = readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(configContent) as QSysConfigJSON;
+    console.log('📋 Loaded Q-SYS Core configuration from qsys-core.config.json');
+    return config.qsysCore;
+  } catch (error) {
+    console.warn('⚠️  Failed to load qsys-core.config.json:', error);
+    return null;
+  }
+}
+
+// Load Q-SYS config from JSON if available
+const qsysConfig = loadQSysConfigFromJSON();
 
 /**
  * Environment schema using Zod for validation
@@ -23,13 +66,13 @@ const envSchema = z.object({
   PORT: z.coerce.number().min(1).max(65535).default(443),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
 
-  // Q-SYS Core Configuration
-  QSYS_HOST: z.string().ip().default('192.168.1.100'),
-  QSYS_PORT: z.coerce.number().min(1).max(65535).default(443),
-  QSYS_USERNAME: z.string().min(1).default('admin'),
-  QSYS_PASSWORD: z.string().min(1).default('admin'),
-  QSYS_RECONNECT_INTERVAL: z.coerce.number().min(1000).default(5000),
-  QSYS_HEARTBEAT_INTERVAL: z.coerce.number().min(1000).default(30000),
+  // Q-SYS Core Configuration (JSON config takes precedence over env vars)
+  QSYS_HOST: z.string().ip().default(qsysConfig?.host ?? '192.168.1.100'),
+  QSYS_PORT: z.coerce.number().min(1).max(65535).default(qsysConfig?.port ?? 443),
+  QSYS_USERNAME: z.string().min(1).default(qsysConfig?.username ?? 'admin'),
+  QSYS_PASSWORD: z.string().min(1).default(qsysConfig?.password ?? 'admin'),
+  QSYS_RECONNECT_INTERVAL: z.coerce.number().min(1000).default(qsysConfig?.connectionSettings?.reconnectInterval ?? 5000),
+  QSYS_HEARTBEAT_INTERVAL: z.coerce.number().min(1000).default(qsysConfig?.connectionSettings?.heartbeatInterval ?? 30000),
 
   // OpenAI Configuration (Phase 3 - Optional for now)
   OPENAI_API_KEY: z.string().min(1).startsWith('sk-').optional(),

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Q-SYS Core Configuration",
+  "description": "Configuration file for connecting to your Q-SYS Core",
+  
+  "qsysCore": {
+    "_comment": "Replace these values with your actual Q-SYS Core details",
+    "host": "192.168.1.100",
+    "port": 443,
+    "username": "admin", 
+    "password": "admin",
+    "connectionSettings": {
+      "timeout": 10000,
+      "reconnectInterval": 5000,
+      "maxReconnectAttempts": 5,
+      "heartbeatInterval": 30000,
+      "pollingInterval": 350,
+      "enableAutoReconnect": true
+    }
+  },
+
+  "examples": {
+    "_comment": "Example configurations for different scenarios",
+    
+    "localEmulator": {
+      "host": "127.0.0.1",
+      "port": 1710,
+      "username": "",
+      "password": ""
+    },
+    
+    "productionCore": {
+      "host": "10.0.1.50", 
+      "port": 443,
+      "username": "your-username",
+      "password": "your-password"
+    },
+    
+    "testCore": {
+      "host": "192.168.100.10",
+      "port": 1710,
+      "username": "test-user",
+      "password": "test-pass"
+    }
+  },
+
+  "instructions": {
+    "step1": "Update the 'qsysCore' section with your actual Core details",
+    "step2": "Ensure your Q-SYS Core has QRWC (Remote Control) enabled",
+    "step3": "Check that the Core is reachable on your network",
+    "step4": "Run 'npm run dev' to test the connection",
+    "troubleshooting": {
+      "connectionTimeout": "Check host/port and network connectivity",
+      "authenticationFailed": "Verify username and password",
+      "portBlocked": "Ensure firewall allows access to the specified port"
+    }
+  }
+} 
