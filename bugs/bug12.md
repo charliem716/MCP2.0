@@ -1,4 +1,5 @@
 # BUG-012: Premature Creation of Phase 2-4 Components
+*Consolidates and supersedes BUG-010*
 
 ## Status
 🔴 **OPEN**
