@@ -1001,7 +1001,7 @@ router.get('/health/detailed', async (req, res) => {
 ```bash
 # .env.example
 # Q-SYS Configuration
-QSYS_HOST=192.168.1.100
+QSYS_HOST=your-qsys-core-ip
 QSYS_PORT=443
 QSYS_USERNAME=admin
 QSYS_PASSWORD=admin

@@ -318,7 +318,7 @@ function sendCommand(command) {
 }
 
 // Connect and login
-socket.connect(1710, '192.168.1.100', () => {
+socket.connect(1710, 'your-qsys-core-ip', () => {
   sendCommand({
     "jsonrpc": "2.0",
     "method": "Logon",

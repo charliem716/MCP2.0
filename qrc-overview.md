@@ -58,7 +58,7 @@ Q-SYS Remote WebSocket Control (QRWC) is the **modern web-based protocol** for e
 ```javascript
 // QRWC Connection Details (Used by this system)
 const QRWC_CONFIG = {
-  host: "192.168.1.100",  // Q-SYS Core IP
+  host: "192.168.50.150",  // Q-SYS Core IP (update with your Core's IP)
   port: 443,              // HTTPS/WSS port (NOT 1710!)
   protocol: "wss",        // WebSocket Secure
   endpoint: "/qrc-public-api/v0"
@@ -137,7 +137,7 @@ const coreUrl = `wss://${host}:443/qrc-public-api/v0`;
 ### Step 1: Establish WebSocket Connection
 ```javascript
 const WebSocket = require('ws');
-const socket = new WebSocket('wss://192.168.1.100:443/qrc-public-api/v0', {
+const socket = new WebSocket('wss://192.168.50.150:443/qrc-public-api/v0', {
   rejectUnauthorized: false // For self-signed certificates
 });
 
@@ -245,7 +245,7 @@ function sendCommand(command) {
 }
 
 // Connect to Q-SYS Core via QRWC
-const socket = new WebSocket('wss://192.168.1.100:443/qrc-public-api/v0', {
+const socket = new WebSocket('wss://192.168.50.150:443/qrc-public-api/v0', {
   rejectUnauthorized: false
 });
 

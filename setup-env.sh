@@ -8,9 +8,59 @@ echo "🔧 Setting up environment configuration..."
 
 # Check if .env exists
 if [ ! -f ".env" ]; then
-    echo "📋 Creating .env file from .env.example..."
-    cp .env.example .env
-    echo "✅ .env file created"
+    echo "📋 Creating .env file (OpenAI & environment settings only)..."
+    cat > .env << 'EOF'
+# =============================================================================
+# MCP Voice/Text-Controlled Q-SYS Demo - Environment Variables
+# =============================================================================
+# This file contains ONLY environment-specific and secret configuration
+# Q-SYS Core settings are in qsys-core.config.json (NO DUPLICATION!)
+
+# Node.js Environment
+NODE_ENV=development
+PORT=443
+LOG_LEVEL=info
+
+# =============================================================================
+# Q-SYS Configuration - MOVED TO qsys-core.config.json
+# =============================================================================
+# ❌ Q-SYS settings are NOT in this file - they're in qsys-core.config.json
+# ✅ This eliminates duplication and confusion
+# 
+# For Q-SYS Core IP, port, credentials, connection settings:
+# → Edit qsys-core.config.json instead!
+
+# =============================================================================
+# OpenAI Configuration (Phase 3 - AI Integration)
+# =============================================================================
+# Get your API key from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-your-actual-api-key-here
+OPENAI_ORGANIZATION=org-your-org-id-here
+OPENAI_MODEL=gpt-4
+OPENAI_VOICE=nova
+
+# =============================================================================
+# Security Configuration
+# =============================================================================
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-12345678
+SESSION_SECRET=your-super-secret-session-key-change-this-in-production-12345678
+CORS_ORIGIN=http://localhost:3000
+
+# =============================================================================
+# Rate Limiting
+# =============================================================================
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# =============================================================================
+# Feature Flags
+# =============================================================================
+VERBOSE_LOGGING=false
+ENABLE_SWAGGER=true
+ENABLE_METRICS=true
+ENABLE_HEALTH_CHECK=true
+EOF
+    echo "✅ .env file created (OpenAI & environment settings only)"
 else
     echo "📋 .env file already exists"
 fi

@@ -52,38 +52,38 @@ This checklist tracks progress for the MCP Voice/Text-Controlled Q-SYS Demo impl
 ## Phase 2: MCP Server (Week 1)
 
 ### 2.1 MCP Protocol Implementation
-- [ ] Set up stdio transport
-- [ ] Implement JSON-RPC 2.0 handler
-- [ ] Create method registry pattern
-- [ ] Implement error response handling
-- [ ] Add request/response logging
-- [ ] Create MCP type definitions
-- [ ] Implement protocol version negotiation
+- [x] Set up stdio transport
+- [x] Implement JSON-RPC 2.0 handler
+- [x] Create method registry pattern
+- [x] Implement error response handling
+- [x] Add request/response logging
+- [x] Create MCP type definitions
+- [x] Implement protocol version negotiation
 
 ### 2.2 Q-SYS Tools Implementation
-- [ ] Create base tool class
-- [ ] Implement `list_components` tool
-- [ ] Implement `list_controls` tool
-- [ ] Implement `get_control_values` tool
-- [ ] Implement `set_control_values` tool
-- [ ] Implement `query_core_status` tool
-- [ ] Create tool registry system
-- [ ] Add tool parameter validation with Zod
+- [x] Create base tool class
+- [x] Implement `list_components` tool
+- [x] Implement `list_controls` tool
+- [x] Implement `get_control_values` tool
+- [x] Implement `set_control_values` tool
+- [x] Implement `query_core_status` tool
+- [x] Create tool registry system
+- [x] Add tool parameter validation with Zod
 
 ### 2.3 State Management
-- [ ] Implement control state caching
-- [ ] Create change group implementation
-- [ ] Add state synchronization logic
-- [ ] Implement cache invalidation
-- [ ] Create state repository interface
-- [ ] Add LRU cache eviction
-- [ ] Implement state persistence (optional)
+- [x] Implement control state caching
+- [x] Create change group implementation
+- [x] Add state synchronization logic
+- [x] Implement cache invalidation
+- [x] Create state repository interface
+- [x] Add LRU cache eviction
+- [x] Implement state persistence (optional)
 
 ### Phase 2 Deliverables
-- [ ] ✅ Functional MCP server responding to stdio
+- [x] ✅ Functional MCP server responding to stdio
 - [ ] ✅ All Q-SYS control tools working
-- [ ] ✅ State management system operational
-- [ ] ✅ MCP server can be called by agents
+- [x] ✅ State management system operational
+- [x] ✅ MCP server can be called by agents
 
 ---
 

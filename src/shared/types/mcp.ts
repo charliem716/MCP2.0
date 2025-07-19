@@ -395,6 +395,15 @@ export interface MCPServerConfig {
   resources?: MCPResourceHandler[];
   prompts?: MCPPromptHandler[];
   logLevel?: MCPLogLevel;
+  qrwc: {
+    host: string;
+    port?: number;
+    username?: string;
+    password?: string;
+    secure?: boolean;
+    reconnectInterval?: number;
+    heartbeatInterval?: number;
+  };
 }
 
 /**
@@ -410,4 +419,13 @@ export interface MCPContext {
     version: string;
   };
   progressToken?: string | number;
+}
+
+/**
+ * MCP Error Response for JSON-RPC 2.0 compliance
+ */
+export interface MCPErrorResponse {
+  code: number;
+  message: string;
+  data?: unknown;
 } 

@@ -66,15 +66,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().min(1).max(65535).default(443),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
 
-  // Q-SYS Core Configuration - PRIMARY SOURCE: qsys-core.config.json
-  // These env vars are fallbacks only - JSON config file takes precedence
-  // Users should edit qsys-core.config.json instead of .env for Q-SYS settings
-  QSYS_HOST: z.string().ip().default(qsysConfig?.host ?? '192.168.1.100'),
-  QSYS_PORT: z.coerce.number().min(1).max(65535).default(qsysConfig?.port ?? 443),
-  QSYS_USERNAME: z.string().default(qsysConfig?.username ?? ''),
-  QSYS_PASSWORD: z.string().default(qsysConfig?.password ?? ''),
-  QSYS_RECONNECT_INTERVAL: z.coerce.number().min(1000).default(qsysConfig?.connectionSettings?.reconnectInterval ?? 5000),
-  QSYS_HEARTBEAT_INTERVAL: z.coerce.number().min(1000).default(qsysConfig?.connectionSettings?.heartbeatInterval ?? 30000),
+  // Q-SYS Core Configuration - REMOVED FROM ENVIRONMENT
+  // Q-SYS settings are now ONLY in qsys-core.config.json (no duplication!)
+  // This eliminates confusion and ensures single source of truth
 
   // OpenAI Configuration (Phase 3 - Optional for now)
   OPENAI_API_KEY: z.string().min(1).startsWith('sk-').optional(),
@@ -183,12 +177,12 @@ export const config = {
   },
   
   qsys: {
-    host: env.QSYS_HOST,
-    port: env.QSYS_PORT,
-    username: env.QSYS_USERNAME,
-    password: env.QSYS_PASSWORD,
-    reconnectInterval: env.QSYS_RECONNECT_INTERVAL,
-    heartbeatInterval: env.QSYS_HEARTBEAT_INTERVAL
+    host: qsysConfig?.host ?? 'localhost',
+    port: qsysConfig?.port ?? 443,
+    username: qsysConfig?.username ?? '',
+    password: qsysConfig?.password ?? '',
+    reconnectInterval: qsysConfig?.connectionSettings?.reconnectInterval ?? 5000,
+    heartbeatInterval: qsysConfig?.connectionSettings?.heartbeatInterval ?? 30000
   },
 
   openai: {
@@ -239,7 +233,7 @@ export function validateConfig(): void {
   console.log(`🔧 Environment: ${env.NODE_ENV}`);
   console.log(`🚀 Port: ${env.PORT}`);
   console.log(`📝 Log Level: ${env.LOG_LEVEL}`);
-  console.log(`🎯 Q-SYS Core: ${env.QSYS_HOST}:${env.QSYS_PORT}`);
+  console.log(`🎯 Q-SYS Core: ${qsysConfig?.host ?? 'localhost'}:${qsysConfig?.port ?? 443} (from JSON config)`);
   console.log(`🤖 OpenAI Model: ${env.OPENAI_MODEL}`);
   console.log(`🔐 Security: ${env.JWT_SECRET.length} char JWT secret`);
   

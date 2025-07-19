@@ -6,12 +6,13 @@
 import 'dotenv/config';
 import { createLogger, type Logger } from './shared/utils/logger.js';
 import { validateConfig, config } from './shared/utils/env.js';
-import { OfficialQRWCClient } from './qrwc/officialClient.js';
+import { MCPServer } from './mcp/server.js';
+import type { MCPServerConfig } from './shared/types/mcp.js';
 
 const logger: Logger = createLogger('Main');
 
 // Global references for cleanup
-let qrwcClient: OfficialQRWCClient | null = null;
+let mcpServer: MCPServer | null = null;
 
 async function main(): Promise<void> {
   try {
@@ -21,23 +22,27 @@ async function main(): Promise<void> {
     validateConfig();
     logger.info('✅ Configuration validated');
     
-    // Initialize Official QRWC client with configuration
-    const clientOptions = {
-      host: config.qsys.host,
-      port: config.qsys.port,
-      pollingInterval: 350,
-      reconnectInterval: config.qsys.reconnectInterval,
-      maxReconnectAttempts: 5,
-      connectionTimeout: 10000,
-      enableAutoReconnect: true
+    // Create MCP server configuration
+    const mcpConfig: MCPServerConfig = {
+      name: "qsys-mcp-server",
+      version: "1.0.0",
+      transport: "stdio",
+      qrwc: {
+        host: config.qsys.host,
+        port: config.qsys.port,
+        reconnectInterval: config.qsys.reconnectInterval,
+        heartbeatInterval: 30000
+      }
     };
     
-    qrwcClient = new OfficialQRWCClient(clientOptions);
-    logger.info('✅ Official QRWC client initialized');
+    // Initialize and start MCP server
+    mcpServer = new MCPServer(mcpConfig);
+    logger.info('✅ MCP server initialized');
     
-    // Connect to Q-SYS Core
-    await qrwcClient.connect();
-    logger.info('✅ Connected to Q-SYS Core using official @q-sys/qrwc library');
+    // Start MCP server (this includes QRWC connection)
+    await mcpServer.start();
+    logger.info('✅ MCP server started and listening on stdio');
+    logger.info('✅ Connected to Q-SYS Core via MCP server');
     
     // Setup graceful shutdown
     const shutdownHandler = (): void => {
@@ -49,11 +54,11 @@ async function main(): Promise<void> {
     process.on('SIGINT', shutdownHandler);
     process.on('SIGTERM', shutdownHandler);
     
-    logger.info('✅ Phase 1 components initialized successfully');
-    logger.info('🎯 Application is ready and running');
+    logger.info('✅ MCP Voice/Text-Controlled Q-SYS Demo is ready');
+    logger.info('🎯 AI agents can now control Q-SYS via stdio');
     
-    // Keep process alive
-    process.stdin.resume();
+    // Keep process alive - MCP server handles stdio
+    // No need to resume stdin as MCP handles it
     
   } catch (error) {
     logger.error('❌ Failed to start application:', error);
@@ -69,10 +74,12 @@ function cleanup(): void {
   logger.info('🧹 Cleaning up resources...');
   
   try {
-    // Disconnect Official QRWC client if connected
-    if (qrwcClient?.isConnected()) {
-      qrwcClient.disconnect();
-      logger.info('✅ Official QRWC client disconnected');
+    // Shutdown MCP server if running
+    if (mcpServer) {
+      mcpServer.shutdown().catch((error) => {
+        logger.error('❌ Error shutting down MCP server:', error);
+      });
+      logger.info('✅ MCP server shutdown initiated');
     }
     
     logger.info('✅ Cleanup completed');
