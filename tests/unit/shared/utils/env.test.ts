@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/unbound-method */
+ 
 import { env, appRoot, config } from '../../../../src/shared/utils/env.js';
 
 // Mock zod
