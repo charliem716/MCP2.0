@@ -84,11 +84,27 @@ Edit `qsys-core.config.json`:
 }
 ```
 
-### **Environment Variables**
-Copy `.env.example` to `.env` and configure as needed:
+### **Configuration Setup (No Duplication!)**
+
+We use **separate files** for different configuration:
+
 ```bash
-cp .env.example .env
+# Q-SYS Core settings (IP, port, credentials):
+# → Edit qsys-core.config.json
+
+# OpenAI API key and environment settings:  
+# → Edit .env file
+
+# Setup both files:
+./setup-env.sh
 ```
+
+| File | Purpose |
+|------|---------|
+| **`qsys-core.config.json`** | Q-SYS Core connection settings |
+| **`.env`** | OpenAI API key, environment variables |
+
+**See [`OPENAI_SETUP.md`](OPENAI_SETUP.md) for complete setup instructions.**
 
 ## 📊 **Project Status**
 
@@ -179,6 +195,7 @@ npm run type-check
 ### **Setup & Configuration**
 - [**QRWC Setup Guide**](QRWC_SETUP_GUIDE.md) - Complete Q-SYS Core configuration
 - [**Q-SYS Setup**](QSYS_SETUP.md) - Quick setup instructions  
+- [**OpenAI Setup**](OPENAI_SETUP.md) - OpenAI API key configuration for Phase 3
 - [**Run Instructions**](RUN_INSTRUCTIONS.md) - Development setup
 
 ### **Technical Documentation**

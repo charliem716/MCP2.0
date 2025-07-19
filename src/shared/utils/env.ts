@@ -66,7 +66,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().min(1).max(65535).default(443),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
 
-  // Q-SYS Core Configuration (JSON config takes precedence over env vars)
+  // Q-SYS Core Configuration - PRIMARY SOURCE: qsys-core.config.json
+  // These env vars are fallbacks only - JSON config file takes precedence
+  // Users should edit qsys-core.config.json instead of .env for Q-SYS settings
   QSYS_HOST: z.string().ip().default(qsysConfig?.host ?? '192.168.1.100'),
   QSYS_PORT: z.coerce.number().min(1).max(65535).default(qsysConfig?.port ?? 443),
   QSYS_USERNAME: z.string().default(qsysConfig?.username ?? ''),
