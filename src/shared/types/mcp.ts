@@ -60,7 +60,7 @@ export interface MCPRequest {
   jsonrpc: MCPVersion;
   id: ID;
   method: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 }
 
 /**
@@ -69,7 +69,7 @@ export interface MCPRequest {
 export interface MCPResponse {
   jsonrpc: MCPVersion;
   id: ID;
-  result?: any;
+  result?: unknown;
   error?: MCPError;
 }
 
@@ -79,7 +79,7 @@ export interface MCPResponse {
 export interface MCPNotification {
   jsonrpc: MCPVersion;
   method: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 }
 
 
@@ -115,15 +115,15 @@ export interface MCPClientCapabilities {
   roots?: {
     listChanged?: boolean;
   };
-  sampling?: {};
-  experimental?: Record<string, any>;
+  sampling?: Record<string, unknown>;
+  experimental?: Record<string, unknown>;
 }
 
 /**
  * MCP server capabilities
  */
 export interface MCPServerCapabilities {
-  logging?: {};
+  logging?: Record<string, unknown>;
   prompts?: {
     listChanged?: boolean;
   };
@@ -134,7 +134,7 @@ export interface MCPServerCapabilities {
   tools?: {
     listChanged?: boolean;
   };
-  experimental?: Record<string, any>;
+  experimental?: Record<string, unknown>;
 }
 
 /**
@@ -145,7 +145,7 @@ export interface MCPTool {
   description?: string;
   inputSchema: {
     type: 'object';
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     required?: string[];
   };
 }
@@ -155,7 +155,7 @@ export interface MCPTool {
  */
 export interface MCPToolCallRequest {
   name: string;
-  arguments?: Record<string, any>;
+  arguments?: Record<string, unknown>;
 }
 
 /**
@@ -180,7 +180,7 @@ export interface MCPResource {
   description?: string;
   mimeType?: string;
   annotations?: {
-    audience?: ('human' | 'assistant')[];
+    audience?: Array<'human' | 'assistant'>;
     priority?: number;
   };
 }
@@ -264,7 +264,7 @@ export type MCPLogLevel = 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'c
  */
 export interface MCPLoggingRequest {
   level: MCPLogLevel;
-  data?: any;
+  data?: unknown;
   logger?: string;
 }
 
@@ -317,7 +317,7 @@ export interface MCPServer {
   
   // Prompt methods
   listPrompts(): Promise<{ prompts: MCPPrompt[] }>;
-  getPrompt(name: string, args?: Record<string, any>): Promise<MCPPromptGetResult>;
+  getPrompt(name: string, args?: Record<string, unknown>): Promise<MCPPromptGetResult>;
   
   // Completion methods
   complete(params: MCPCompletionRequest): Promise<MCPCompletionResult>;
@@ -332,7 +332,7 @@ export interface MCPServer {
   on(event: 'close', listener: () => void): void;
   
   // Notification methods
-  sendNotification(method: string, params?: Record<string, any>): Promise<void>;
+  sendNotification(method: string, params?: Record<string, unknown>): Promise<void>;
   sendProgress(token: string | number, progress: number, total?: number): Promise<void>;
   sendCancelled(requestId: ID, reason?: string): Promise<void>;
   
@@ -350,10 +350,10 @@ export interface MCPToolHandler {
   description?: string;
   inputSchema: {
     type: 'object';
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     required?: string[];
   };
-  execute(args: Record<string, any>): Promise<MCPToolCallResult>;
+  execute(args: Record<string, unknown>): Promise<MCPToolCallResult>;
 }
 
 /**
@@ -380,7 +380,7 @@ export interface MCPPromptHandler {
     description?: string;
     required?: boolean;
   }>;
-  execute(args?: Record<string, any>): Promise<MCPPromptGetResult>;
+  execute(args?: Record<string, unknown>): Promise<MCPPromptGetResult>;
 }
 
 /**
@@ -403,7 +403,7 @@ export interface MCPServerConfig {
 export interface MCPContext {
   requestId: ID;
   method: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
   timestamp: Timestamp;
   clientInfo?: {
     name: string;

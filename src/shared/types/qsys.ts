@@ -93,7 +93,7 @@ export interface QSysCoreStatus {
 export interface QSysRequest {
   jsonrpc: '2.0';
   method: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
   id: ID;
 }
 
@@ -102,11 +102,11 @@ export interface QSysRequest {
  */
 export interface QSysResponse {
   jsonrpc: '2.0';
-  result?: any;
+  result?: unknown;
   error?: {
     code: number;
     message: string;
-    data?: any;
+    data?: unknown;
   };
   id: ID;
 }
@@ -117,7 +117,7 @@ export interface QSysResponse {
 export interface QSysNotification {
   jsonrpc: '2.0';
   method: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 }
 
 /**
@@ -211,6 +211,56 @@ export interface QSysChangeGroup {
     control: string;
   }>;
   autoPoll: boolean;
+  pollRate?: number;
+}
+
+/**
+ * Enhanced Q-SYS change group with metadata for lifecycle management
+ */
+export interface QSysChangeGroupWithMeta extends QSysChangeGroup {
+  createdAt: number;
+  lastAccessed: number;
+  ttl?: number;
+  accessCount: number;
+}
+
+/**
+ * Change group manager configuration
+ */
+export interface ChangeGroupManagerConfig {
+  maxChangeGroups: number;
+  defaultTtl: number;
+  cleanupInterval: number;
+  enablePersistence: boolean;
+}
+
+/**
+ * Change group persistence interface
+ */
+export interface ChangeGroupPersistence {
+  save(groups: Map<string, QSysChangeGroupWithMeta>): Promise<void>;
+  load(): Promise<Map<string, QSysChangeGroupWithMeta>>;
+  clear(): Promise<void>;
+}
+
+/**
+ * Change group metrics
+ */
+export interface ChangeGroupMetrics {
+  totalGroups: number;
+  activeGroups: number;
+  totalAccesses: number;
+  averageGroupSize: number;
+  oldestGroupAge: number;
+  memoryUsageBytes: number;
+}
+
+/**
+ * Change group creation options
+ */
+export interface ChangeGroupCreateOptions {
+  ttl?: number;
+  autoPoll?: boolean;
   pollRate?: number;
 }
 
@@ -360,6 +410,6 @@ export interface QSysClient {
   on(event: 'componentChange', listener: (change: QSysComponentChange) => void): void;
   on(event: 'engineStatus', listener: (status: QSysEngineStatus) => void): void;
   
-  off(event: string, listener: (...args: any[]) => void): void;
+  off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 } 

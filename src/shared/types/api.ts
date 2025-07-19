@@ -2,9 +2,9 @@
  * API types for REST endpoints and middleware
  */
 
-import type { ID, Timestamp, HttpStatus, HttpMethod, PaginationParams, PaginationResult } from './common.js';
+import type { ID, Timestamp, HttpStatus, HttpMethod } from './common.js';
 import type { QSysComponent, QSysControl, QSysSnapshot, QSysCoreStatus } from './qsys.js';
-import type { OpenAIChatMessage, OpenAIConversationContext } from './openai.js';
+import type { OpenAIChatMessage } from './openai.js';
 
 /**
  * API request metadata
@@ -31,13 +31,13 @@ export interface APIResponseMetadata {
 /**
  * Generic API response wrapper
  */
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   meta: APIResponseMetadata;
 }
@@ -48,7 +48,7 @@ export interface APIResponse<T = any> {
 export interface APIError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
   path?: string;
   statusCode: HttpStatus;
 }
@@ -62,7 +62,7 @@ export interface APIValidationError extends APIError {
     fields: Array<{
       field: string;
       message: string;
-      value?: any;
+      value?: unknown;
     }>;
   };
 }
@@ -101,7 +101,7 @@ export interface HealthCheckResponse {
 export interface ChatSendRequest {
   message: string;
   conversationId?: ID;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   stream?: boolean;
 }
 
@@ -320,7 +320,7 @@ export interface SystemLogsResponse {
     level: string;
     message: string;
     service: string;
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
   }>;
   total: number;
   hasMore: boolean;
@@ -334,7 +334,7 @@ export interface RateLimitOptions {
   maxRequests: number;
   skipSuccessfulRequests?: boolean;
   skipFailedRequests?: boolean;
-  keyGenerator?: (req: any) => string;
+  keyGenerator?: (req: unknown) => string;
 }
 
 export interface AuthenticationContext {
@@ -366,14 +366,14 @@ export interface RequestLoggingOptions {
 export interface APIRoute {
   path: string;
   method: HttpMethod;
-  handler: (req: any, res: any, next: any) => Promise<void>;
-  middleware?: Array<(req: any, res: any, next: any) => Promise<void>>;
+  handler: (req: unknown, res: unknown, next: unknown) => Promise<void>;
+  middleware?: Array<(req: unknown, res: unknown, next: unknown) => Promise<void>>;
   auth?: boolean;
   rateLimit?: RateLimitOptions;
   validation?: {
-    body?: any;
-    params?: any;
-    query?: any;
+    body?: unknown;
+    params?: unknown;
+    query?: unknown;
   };
 }
 
@@ -426,17 +426,17 @@ export interface OpenAPISpec {
     url: string;
     description?: string;
   }>;
-  paths: Record<string, any>;
+  paths: Record<string, unknown>;
   components?: {
-    schemas?: Record<string, any>;
-    responses?: Record<string, any>;
-    parameters?: Record<string, any>;
-    examples?: Record<string, any>;
-    requestBodies?: Record<string, any>;
-    headers?: Record<string, any>;
-    securitySchemes?: Record<string, any>;
+    schemas?: Record<string, unknown>;
+    responses?: Record<string, unknown>;
+    parameters?: Record<string, unknown>;
+    examples?: Record<string, unknown>;
+    requestBodies?: Record<string, unknown>;
+    headers?: Record<string, unknown>;
+    securitySchemes?: Record<string, unknown>;
   };
-  security?: Array<Record<string, any>>;
+  security?: Array<Record<string, unknown>>;
   tags?: Array<{
     name: string;
     description?: string;

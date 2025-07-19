@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { QRWCClient } from '../../../src/qrwc/client.js';
 import { ConnectionState } from '../../../src/shared/types/common.js';
-import { QSysErrorCode } from '../../../src/shared/types/errors.js';
 import WebSocket from 'ws';
 
 // Mock WebSocket
@@ -46,12 +46,18 @@ describe('QRWCClient', () => {
       on: jest.fn(),
       send: jest.fn(),
       close: jest.fn(),
-      readyState: WebSocket.CONNECTING,
       CONNECTING: WebSocket.CONNECTING,
       OPEN: WebSocket.OPEN,
       CLOSING: WebSocket.CLOSING,
       CLOSED: WebSocket.CLOSED,
     } as any;
+    
+    // Define readyState as a writable property
+    Object.defineProperty(mockWebSocket, 'readyState', {
+      value: WebSocket.CONNECTING,
+      writable: true,
+      configurable: true
+    });
 
     MockedWebSocket.mockImplementation(() => mockWebSocket);
     
@@ -67,6 +73,11 @@ describe('QRWCClient', () => {
     client.disconnect();
   });
 
+  // Helper function to set readyState on mock
+  const setMockReadyState = (state: number) => {
+    (mockWebSocket as any).readyState = state;
+  };
+
   describe('constructor', () => {
     it('should initialize with default options', () => {
       const defaultClient = new QRWCClient();
@@ -79,8 +90,7 @@ describe('QRWCClient', () => {
         port: 9443,
         username: 'custom-user',
         password: 'custom-pass',
-        ssl: false,
-        timeout: 10000
+        connectionTimeout: 10000
       });
       expect(customClient).toBeInstanceOf(QRWCClient);
     });
@@ -88,14 +98,14 @@ describe('QRWCClient', () => {
 
   describe('connection management', () => {
     describe('connect', () => {
-      it('should establish WebSocket connection', async () => {
+      it('should establish WebSocket connection', () => {
         const connectPromise = client.connect();
         
         // Simulate successful connection
-        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
+        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
         expect(openHandler).toBeDefined();
         
-        mockWebSocket.readyState = WebSocket.OPEN;
+        setMockReadyState(WebSocket.OPEN);
         openHandler();
 
         await connectPromise;
@@ -106,7 +116,7 @@ describe('QRWCClient', () => {
         );
       });
 
-      it('should handle connection timeout', async () => {
+      it('should handle connection timeout', () => {
         const connectPromise = client.connect();
         
         // Simulate timeout
@@ -115,14 +125,14 @@ describe('QRWCClient', () => {
         await expect(connectPromise).rejects.toThrow('Connection timeout');
       });
 
-      it('should emit connected event on successful connection', async () => {
+      it('should emit connected event on successful connection', () => {
         const connectedSpy = jest.fn();
         client.on('connected', connectedSpy);
 
         const connectPromise = client.connect();
         
-        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-        mockWebSocket.readyState = WebSocket.OPEN;
+        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+        setMockReadyState(WebSocket.OPEN);
         openHandler();
 
         await connectPromise;
@@ -130,11 +140,11 @@ describe('QRWCClient', () => {
         expect(connectedSpy).toHaveBeenCalled();
       });
 
-      it('should not connect if already connected', async () => {
+      it('should not connect if already connected', () => {
         // First connection
         const connectPromise1 = client.connect();
-        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-        mockWebSocket.readyState = WebSocket.OPEN;
+        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+        setMockReadyState(WebSocket.OPEN);
         openHandler();
         await connectPromise1;
 
@@ -148,39 +158,39 @@ describe('QRWCClient', () => {
     });
 
     describe('disconnect', () => {
-      it('should close WebSocket connection', async () => {
+      it('should close WebSocket connection', () => {
         // Establish connection first
         const connectPromise = client.connect();
-        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-        mockWebSocket.readyState = WebSocket.OPEN;
+        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+        setMockReadyState(WebSocket.OPEN);
         openHandler();
         await connectPromise;
 
         // Disconnect
-        await client.disconnect();
+        client.disconnect();
 
         expect(mockWebSocket.close).toHaveBeenCalled();
       });
 
-      it('should emit disconnected event', async () => {
+      it('should emit disconnected event', () => {
         const disconnectedSpy = jest.fn();
         client.on('disconnected', disconnectedSpy);
 
         // Establish connection first
         const connectPromise = client.connect();
-        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-        mockWebSocket.readyState = WebSocket.OPEN;
+        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+        setMockReadyState(WebSocket.OPEN);
         openHandler();
         await connectPromise;
 
         // Disconnect
-        const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1] as Function;
+        const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1] as () => void;
         closeHandler();
 
         expect(disconnectedSpy).toHaveBeenCalled();
       });
 
-      it('should handle graceful shutdown', async () => {
+      it('should handle graceful shutdown', () => {
         const shutdownSpy = jest.spyOn(process, 'on');
         
         new QRWCClient();
@@ -196,10 +206,10 @@ describe('QRWCClient', () => {
         expect(client.isConnected()).toBe(false);
       });
 
-      it('should return true when connected', async () => {
+      it('should return true when connected', () => {
         const connectPromise = client.connect();
-        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-        mockWebSocket.readyState = WebSocket.OPEN;
+        const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+        setMockReadyState(WebSocket.OPEN);
         openHandler();
         await connectPromise;
 
@@ -229,10 +239,10 @@ describe('QRWCClient', () => {
       jest.useRealTimers();
     });
 
-    it('should retry with exponential backoff', async () => {
-      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as Function;
+    it('should retry with exponential backoff', () => {
+      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as () => void;
       
-      client.connect();
+      void client.connect();
       
       // Simulate connection error
       errorHandler(new Error('Connection failed'));
@@ -249,13 +259,13 @@ describe('QRWCClient', () => {
       expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 2000); // Second retry: 2s
     });
 
-    it('should respect max retry attempts', async () => {
-      const client = new QRWCClient({ retryAttempts: 2 });
-      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as Function;
+    it('should respect max retry attempts', () => {
+      const client = new QRWCClient({ maxReconnectAttempts: 2 });
+      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as () => void;
       const errorSpy = jest.fn();
       
       client.on('error', errorSpy);
-      client.connect();
+      void client.connect();
       
       // Simulate max retry attempts
       for (let i = 0; i < 3; i++) {
@@ -271,17 +281,17 @@ describe('QRWCClient', () => {
       );
     });
 
-    it('should reset retry attempts on successful connection', async () => {
-      client.connect();
+    it('should reset retry attempts on successful connection', () => {
+      void client.connect();
       
       // Simulate error and retry
-      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as Function;
+      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as () => void;
       errorHandler(new Error('Connection failed'));
       jest.advanceTimersByTime(1000);
       
       // Simulate successful connection
-      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-      mockWebSocket.readyState = WebSocket.OPEN;
+      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+      setMockReadyState(WebSocket.OPEN);
       openHandler();
       
       const state = client.getState();
@@ -299,10 +309,10 @@ describe('QRWCClient', () => {
       jest.useRealTimers();
     });
 
-    it('should start heartbeat after connection', async () => {
+    it('should start heartbeat after connection', () => {
       const connectPromise = client.connect();
-      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-      mockWebSocket.readyState = WebSocket.OPEN;
+      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+      setMockReadyState(WebSocket.OPEN);
       openHandler();
       await connectPromise;
 
@@ -310,10 +320,10 @@ describe('QRWCClient', () => {
       expect(setInterval).toHaveBeenCalledWith(expect.any(Function), 30000);
     });
 
-    it('should send ping messages', async () => {
+    it('should send ping messages', () => {
       const connectPromise = client.connect();
-      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-      mockWebSocket.readyState = WebSocket.OPEN;
+      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+      setMockReadyState(WebSocket.OPEN);
       openHandler();
       await connectPromise;
 
@@ -325,14 +335,14 @@ describe('QRWCClient', () => {
       );
     });
 
-    it('should handle pong responses', async () => {
+    it('should handle pong responses', () => {
       const connectPromise = client.connect();
-      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-      mockWebSocket.readyState = WebSocket.OPEN;
+      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+      setMockReadyState(WebSocket.OPEN);
       openHandler();
       await connectPromise;
 
-      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as Function;
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
       
       // Simulate pong response
       messageHandler(JSON.stringify({
@@ -345,10 +355,10 @@ describe('QRWCClient', () => {
       expect(mockWebSocket.close).not.toHaveBeenCalled();
     });
 
-    it('should disconnect on heartbeat timeout', async () => {
+    it('should disconnect on heartbeat timeout', () => {
       const connectPromise = client.connect();
-      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-      mockWebSocket.readyState = WebSocket.OPEN;
+      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+      setMockReadyState(WebSocket.OPEN);
       openHandler();
       await connectPromise;
 
@@ -365,7 +375,7 @@ describe('QRWCClient', () => {
       const errorSpy = jest.fn();
       client.on('error', errorSpy);
 
-      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as Function;
+      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1] as () => void;
       const testError = new Error('Test error');
       
       errorHandler(testError);
@@ -377,7 +387,7 @@ describe('QRWCClient', () => {
       const disconnectedSpy = jest.fn();
       client.on('disconnected', disconnectedSpy);
 
-      const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1] as Function;
+      const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1] as () => void;
       
       closeHandler(1000, 'Normal closure');
 
@@ -388,7 +398,7 @@ describe('QRWCClient', () => {
       const errorSpy = jest.fn();
       client.on('error', errorSpy);
 
-      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as Function;
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
       
       messageHandler('invalid json');
 
@@ -401,15 +411,15 @@ describe('QRWCClient', () => {
   });
 
   describe('sendCommand', () => {
-    beforeEach(async () => {
+    beforeEach(() => {
       const connectPromise = client.connect();
-      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-      mockWebSocket.readyState = WebSocket.OPEN;
+      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+      setMockReadyState(WebSocket.OPEN);
       openHandler();
       await connectPromise;
     });
 
-    it('should send JSON-RPC commands', async () => {
+    it('should send JSON-RPC commands', () => {
       const responsePromise = client.sendCommand({
         jsonrpc: '2.0',
         method: 'Component.GetComponents',
@@ -417,7 +427,7 @@ describe('QRWCClient', () => {
       });
 
       // Simulate response
-      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as Function;
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
       messageHandler(JSON.stringify({
         jsonrpc: '2.0',
         result: { components: [] },
@@ -428,7 +438,7 @@ describe('QRWCClient', () => {
       expect(result).toEqual({ components: [] });
     });
 
-    it('should handle command errors', async () => {
+    it('should handle command errors', () => {
       const responsePromise = client.sendCommand({
         jsonrpc: '2.0',
         method: 'InvalidMethod',
@@ -436,7 +446,7 @@ describe('QRWCClient', () => {
       });
 
       // Simulate error response
-      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as Function;
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
       messageHandler(JSON.stringify({
         jsonrpc: '2.0',
         error: {
@@ -449,7 +459,7 @@ describe('QRWCClient', () => {
       await expect(responsePromise).rejects.toThrow('Method not found');
     });
 
-    it('should timeout on no response', async () => {
+    it('should timeout on no response', () => {
       jest.useFakeTimers();
 
       const responsePromise = client.sendCommand({
@@ -466,8 +476,8 @@ describe('QRWCClient', () => {
       jest.useRealTimers();
     });
 
-    it('should reject commands when not connected', async () => {
-      await client.disconnect();
+    it('should reject commands when not connected', () => {
+      void client.disconnect();
 
       const responsePromise = client.sendCommand({
         jsonrpc: '2.0',
@@ -480,18 +490,18 @@ describe('QRWCClient', () => {
   });
 
   describe('QSysClient interface implementation', () => {
-    beforeEach(async () => {
+    beforeEach(() => {
       const connectPromise = client.connect();
-      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as Function;
-      mockWebSocket.readyState = WebSocket.OPEN;
+      const openHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'open')?.[1] as () => void;
+      setMockReadyState(WebSocket.OPEN);
       openHandler();
       await connectPromise;
     });
 
-    it('should implement getComponents method', async () => {
+    it('should implement getComponents method', () => {
       const responsePromise = client.getComponents();
 
-      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as Function;
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
       messageHandler(JSON.stringify({
         jsonrpc: '2.0',
         result: { components: [{ name: 'test', type: 'gain' }] },
@@ -502,10 +512,10 @@ describe('QRWCClient', () => {
       expect(result).toEqual([{ name: 'test', type: 'gain' }]);
     });
 
-    it('should implement setAutoPolling method', async () => {
+    it('should implement setAutoPolling method', () => {
       const responsePromise = client.setAutoPolling(true, 1000);
 
-      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as Function;
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
       messageHandler(JSON.stringify({
         jsonrpc: '2.0',
         result: {},
@@ -519,10 +529,10 @@ describe('QRWCClient', () => {
       );
     });
 
-    it('should implement poll method', async () => {
+    it('should implement poll method', () => {
       const responsePromise = client.poll();
 
-      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as Function;
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
       messageHandler(JSON.stringify({
         jsonrpc: '2.0',
         result: { changes: [] },
@@ -531,6 +541,157 @@ describe('QRWCClient', () => {
 
       const result = await responsePromise;
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('Request ID Overflow Protection', () => {
+    beforeEach(() => {
+      client = new QRWCClient({
+        host: 'localhost',
+        port: 8443,
+        username: 'test',
+        password: 'test'
+      });
+    });
+
+    it('should handle request ID overflow safely', () => {
+      // Access private requestId for testing
+      const clientAny = client as any;
+      
+      // Set requestId close to MAX_SAFE_INTEGER
+      clientAny.requestId = Number.MAX_SAFE_INTEGER - 500;
+      
+      // Mock successful connection
+      clientAny.connectionState = ConnectionState.CONNECTED;
+      clientAny.isAuthenticated = true;
+      clientAny.ws = mockWebSocket;
+      
+      // Mock response for the first request
+      const responsePromise = client.sendCommand({
+        jsonrpc: '2.0',
+        method: 'Component.GetComponents',
+        params: {}
+      });
+      
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
+      messageHandler(JSON.stringify({
+        jsonrpc: '2.0',
+        result: {},
+        id: 1 // ID should wrap around to 1
+      }));
+      
+      await responsePromise;
+      
+      // requestId should have wrapped around
+      expect(clientAny.requestId).toBeLessThan(1000);
+      expect(clientAny.requestId).toBeGreaterThan(0);
+    });
+
+    it('should avoid ID collisions with pending requests', () => {
+      const clientAny = client as any;
+      
+      // Mock successful connection
+      clientAny.connectionState = ConnectionState.CONNECTED;
+      clientAny.isAuthenticated = true;
+      clientAny.ws = mockWebSocket;
+      
+      // Set requestId to a known value
+      clientAny.requestId = 1;
+      
+      // Add a pending request with ID 2
+      clientAny.pendingRequests.set(2, {
+        resolve: jest.fn(),
+        reject: jest.fn(),
+        timeout: setTimeout(() => { void 0; }, 1000)
+      });
+      
+      // Send a command - should get ID 3, not 2
+      const responsePromise = client.sendCommand({
+        jsonrpc: '2.0',
+        method: 'Component.GetComponents',
+        params: {}
+      });
+      
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
+      messageHandler(JSON.stringify({
+        jsonrpc: '2.0',
+        result: {},
+        id: 3
+      }));
+      
+      await responsePromise;
+      
+      // Should have skipped ID 2 and used ID 3
+      expect(clientAny.requestId).toBe(3);
+    });
+
+    it('should never use 0 as a request ID', () => {
+      const clientAny = client as any;
+      
+      // Mock successful connection
+      clientAny.connectionState = ConnectionState.CONNECTED;
+      clientAny.isAuthenticated = true;
+      clientAny.ws = mockWebSocket;
+      
+      // Set requestId to -1 to test 0 avoidance
+      clientAny.requestId = -1;
+      
+      const responsePromise = client.sendCommand({
+        jsonrpc: '2.0',
+        method: 'Component.GetComponents',
+        params: {}
+      });
+      
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
+      messageHandler(JSON.stringify({
+        jsonrpc: '2.0',
+        result: {},
+        id: 1
+      }));
+      
+      await responsePromise;
+      
+      // Should have used ID 1, not 0
+      expect(clientAny.requestId).toBe(1);
+    });
+
+    it('should handle edge case when all IDs are pending', () => {
+      const clientAny = client as any;
+      
+      // Mock successful connection
+      clientAny.connectionState = ConnectionState.CONNECTED;
+      clientAny.isAuthenticated = true;
+      clientAny.ws = mockWebSocket;
+      
+      // Set requestId near limit and fill pending requests
+      clientAny.requestId = Number.MAX_SAFE_INTEGER - 1005;
+      
+      // Add pending requests for a range of IDs
+      for (let i = 1; i <= 10; i++) {
+        clientAny.pendingRequests.set(i, {
+          resolve: jest.fn(),
+          reject: jest.fn(),
+          timeout: setTimeout(() => { void 0; }, 1000)
+        });
+      }
+      
+      const responsePromise = client.sendCommand({
+        jsonrpc: '2.0',
+        method: 'Component.GetComponents',
+        params: {}
+      });
+      
+      const messageHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'message')?.[1] as () => void;
+      messageHandler(JSON.stringify({
+        jsonrpc: '2.0',
+        result: {},
+        id: 11
+      }));
+      
+      await responsePromise;
+      
+      // Should have found an available ID
+      expect(clientAny.requestId).toBe(11);
     });
   });
 }); 

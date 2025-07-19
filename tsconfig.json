@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "allowJs": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -36,31 +37,18 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "types": [
-      "node",
-      "jest"
-    ],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@/shared/*": ["src/shared/*"],
-      "@/mcp/*": ["src/mcp/*"],
-      "@/agent/*": ["src/agent/*"],
-      "@/api/*": ["src/api/*"],
-      "@/web/*": ["src/web/*"]
-    }
+    "types": ["node", "jest"]
   },
   "include": [
     "src/**/*",
-    "tests/**/*"
+    "jest.config.ts",
+    "tests/**/*.ts",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "coverage",
-    "*.config.js",
-    "*.config.mjs",
-    "jest.config.js"
+    "dist"
   ],
   "ts-node": {
     "esm": true,

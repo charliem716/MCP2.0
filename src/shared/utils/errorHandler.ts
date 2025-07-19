@@ -3,16 +3,7 @@
  * Provides global error handling, recovery mechanisms, and error reporting
  */
 
-import type { Logger } from './logger.js';
-import { createLogger } from './logger.js';
-import type { 
-  ErrorContext, 
-  ErrorHandler, 
-  ErrorRecovery, 
-  ErrorTransform,
-  ErrorSeverity,
-  ErrorCategory 
-} from '../types/errors.js';
+import { createLogger, type Logger } from './logger.js';
 import {
   BaseError,
   ValidationError,
@@ -22,12 +13,12 @@ import {
   ConflictError,
   RateLimitError,
   ExternalAPIError,
-  QSysError,
-  OpenAIError,
-  MCPError,
-  ConfigurationError,
-  NetworkError,
-  DatabaseError
+  ErrorSeverity,
+  ErrorCategory,
+  type ErrorContext, 
+  type ErrorHandler, 
+  type ErrorRecovery, 
+  type ErrorTransform
 } from '../types/errors.js';
 
 /**
@@ -78,9 +69,9 @@ export interface RecoveryResult<T> {
 export class GlobalErrorHandler {
   private logger: Logger;
   private config: ErrorHandlerConfig;
-  private handlers: Map<string, ErrorHandler> = new Map();
-  private recoveryStrategies: Map<string, ErrorRecovery<any>> = new Map();
-  private transformers: Map<string, ErrorTransform> = new Map();
+  private handlers = new Map<string, ErrorHandler>();
+  private recoveryStrategies = new Map<string, ErrorRecovery<unknown>>();
+  private transformers = new Map<string, ErrorTransform>();
   private reportQueue: ErrorReport[] = [];
   private isReporting = false;
 
@@ -107,26 +98,28 @@ export class GlobalErrorHandler {
    * Handle an error with full processing pipeline
    */
   async handleError(error: Error, context?: ErrorContext): Promise<void> {
-    try {
-      // Transform error to structured format
-      const structuredError = this.transformError(error, context);
+    return Promise.resolve().then(() => {
+      try {
+        // Transform error to structured format
+        const structuredError = this.transformError(error, context);
 
-      // Log the error
-      if (this.config.logErrors) {
-        this.logError(structuredError, context);
+        // Log the error
+        if (this.config.logErrors) {
+          this.logError(structuredError, context);
+        }
+
+        // Execute specific error handler
+        this.executeHandler(structuredError, context);
+
+        // Report error if enabled
+        if (this.config.enableReporting && this.shouldReport(structuredError)) {
+          this.reportError(structuredError, context);
+        }
+      } catch (handlingError) {
+        // Prevent infinite error loops
+        this.logger.error('Error in error handler:', handlingError);
       }
-
-      // Execute specific error handler
-      await this.executeHandler(structuredError, context);
-
-      // Report error if enabled
-      if (this.config.enableReporting && this.shouldReport(structuredError)) {
-        await this.reportError(structuredError, context);
-      }
-    } catch (handlingError) {
-      // Prevent infinite error loops
-      this.logger.error('Error in error handler:', handlingError);
-    }
+    });
   }
 
   /**
@@ -160,22 +153,10 @@ export class GlobalErrorHandler {
           context
         });
 
-        // Try recovery if available
-        if (this.config.enableRecovery) {
-          const recoveryStrategy = this.recoveryStrategies.get(errorType);
-          if (recoveryStrategy) {
-            try {
-              const recoveryResult = await recoveryStrategy(lastError, context);
-              return {
-                success: true,
-                result: recoveryResult,
-                attemptsUsed: attempts,
-                recoveryMethod: errorType
-              };
-            } catch (recoveryError) {
-              this.logger.warn('Recovery strategy failed:', recoveryError);
-            }
-          }
+        // Try recovery
+        const recoveryResult = await this.attemptRecovery<T>(lastError, errorType, context, attempts);
+        if (recoveryResult) {
+          return recoveryResult;
         }
 
         // Wait before retry (except on last attempt)
@@ -187,7 +168,7 @@ export class GlobalErrorHandler {
 
     // All attempts failed
     if (lastError) {
-      await this.handleError(lastError, context);
+      void this.handleError(lastError, context);
     }
 
     return {
@@ -195,6 +176,38 @@ export class GlobalErrorHandler {
       error: lastError,
       attemptsUsed: attempts
     };
+  }
+
+  /**
+   * Attempt recovery for an error
+   */
+  private async attemptRecovery<T>(
+    error: Error,
+    errorType: string,
+    context?: ErrorContext,
+    attempts?: number
+  ): Promise<RecoveryResult<T> | null> {
+    if (!this.config.enableRecovery) {
+      return null;
+    }
+
+    const recoveryStrategy = this.recoveryStrategies.get(errorType);
+    if (!recoveryStrategy) {
+      return null;
+    }
+
+    try {
+      const recoveryResult = await recoveryStrategy(error, context);
+      return {
+        success: true,
+        result: recoveryResult as T,
+        attemptsUsed: attempts ?? 1,
+        recoveryMethod: errorType
+      };
+    } catch (recoveryError) {
+      this.logger.warn('Recovery strategy failed:', recoveryError);
+      return null;
+    }
   }
 
   /**
@@ -225,14 +238,15 @@ export class GlobalErrorHandler {
    * Create error middleware for Express.js
    */
   createExpressMiddleware() {
-    return async (error: Error, req: any, res: any, next: any): Promise<void> => {
+    return async (error: Error, req: unknown, res: unknown, _next: unknown): Promise<void> => {
+      const reqSafe = req as Record<string, unknown>;
       const context: ErrorContext = {
-        url: req.url,
-        method: req.method,
-        userAgent: req.get('User-Agent'),
-        ipAddress: req.ip,
-        userId: req.user?.id,
-        sessionId: req.sessionID
+        url: reqSafe['url'] as string,
+        method: reqSafe['method'] as string,
+        userAgent: (reqSafe['get'] as ((name: string) => string) | undefined)?.('User-Agent'),
+        ipAddress: reqSafe['ip'] as string,
+        userId: (reqSafe['user'] as Record<string, unknown> | undefined)?.['id'] as string | undefined,
+        sessionId: reqSafe['sessionID'] as string | undefined
       };
 
       await this.handleError(error, context);
@@ -240,7 +254,9 @@ export class GlobalErrorHandler {
       // Transform error for API response
       const structuredError = this.transformError(error, context);
       
-      res.status(this.getHttpStatus(structuredError)).json({
+      const resSafe = res as { status: (code: number) => { json: (data: unknown) => void } };
+      
+      resSafe.status(this.getHttpStatus(structuredError)).json({
         success: false,
         error: {
           code: structuredError.code,
@@ -248,7 +264,7 @@ export class GlobalErrorHandler {
           details: process.env['NODE_ENV'] === 'development' ? structuredError.stack : undefined
         },
         meta: {
-          requestId: context['requestId'] || 'unknown',
+          requestId: (context as Record<string, unknown>)['requestId'] as string || 'unknown',
           timestamp: Date.now()
         }
       });
@@ -265,13 +281,15 @@ export class GlobalErrorHandler {
     }
 
     // Check for custom transformer
-    const transformer = this.transformers.get(error.name) || this.transformers.get('default');
+    const transformer = this.transformers.get(error.name) ?? this.transformers.get('default');
     if (transformer) {
       return transformer(error, context);
     }
 
     // Default transformation
-    return new (class extends BaseError {})(
+    return new (class extends BaseError {
+      // Anonymous error class for default transformation
+    })(
       error.message,
       error.name.toUpperCase().replace(/ /g, '_'),
       'medium' as ErrorSeverity,
@@ -289,20 +307,20 @@ export class GlobalErrorHandler {
       code: error.code,
       severity: error.severity,
       category: error.category,
-      context: error.context || context
+      context: error.context ?? context
     };
 
     switch (error.severity) {
-      case 'critical':
+      case ErrorSeverity.CRITICAL:
         this.logger.error(`CRITICAL: ${error.message}`, logContext);
         break;
-      case 'high':
+      case ErrorSeverity.HIGH:
         this.logger.error(error.message, logContext);
         break;
-      case 'medium':
+      case ErrorSeverity.MEDIUM:
         this.logger.warn(error.message, logContext);
         break;
-      case 'low':
+      case ErrorSeverity.LOW:
         this.logger.info(error.message, logContext);
         break;
       default:
@@ -313,14 +331,14 @@ export class GlobalErrorHandler {
   /**
    * Execute specific error handler
    */
-  private async executeHandler(error: BaseError, context?: ErrorContext): Promise<void> {
-    const handler = this.handlers.get(error.code) || 
-                   this.handlers.get(error.category) || 
+  private executeHandler(error: BaseError, context?: ErrorContext): void {
+    const handler = this.handlers.get(error.code) ?? 
+                   this.handlers.get(error.category) ?? 
                    this.handlers.get('default');
 
     if (handler) {
       try {
-        await handler(error, context);
+        handler(error, context);
       } catch (handlerError) {
         this.logger.error('Error handler failed:', handlerError);
       }
@@ -332,27 +350,27 @@ export class GlobalErrorHandler {
    */
   private shouldReport(error: BaseError): boolean {
     return !this.config.excludeFromReporting.includes(error.code) &&
-           error.severity !== 'low';
+           error.severity !== ErrorSeverity.LOW;
   }
 
   /**
    * Report error to external service
    */
-  private async reportError(error: BaseError, context?: ErrorContext): Promise<void> {
+  private reportError(error: BaseError, context?: ErrorContext): void {
     const report: ErrorReport = {
       id: String(error.id),
       error,
-      context: context || {},
+      context: context ?? {},
       timestamp: error.timestamp,
       stackTrace: error.stack,
-      environment: process.env['NODE_ENV'] || 'unknown',
-      version: process.env['npm_package_version'] || 'unknown'
+      environment: process.env['NODE_ENV'] ?? 'unknown',
+      version: process.env['npm_package_version'] ?? 'unknown'
     };
 
     this.reportQueue.push(report);
     
     if (!this.isReporting) {
-      this.processReportQueue();
+      void this.processReportQueue();
     }
   }
 
@@ -385,12 +403,13 @@ export class GlobalErrorHandler {
    */
   private async sendReport(report: ErrorReport): Promise<void> {
     if (!this.config.reportingEndpoint) {
-      return;
+      return Promise.resolve();
     }
 
     // Implementation would depend on specific reporting service
     // This is a placeholder for the actual reporting logic
     this.logger.debug('Sending error report:', { reportId: report.id });
+    return Promise.resolve();
   }
 
   /**
@@ -398,14 +417,14 @@ export class GlobalErrorHandler {
    */
   private getHttpStatus(error: BaseError): number {
     switch (error.category) {
-      case 'validation': return 400;
-      case 'authentication': return 401;
-      case 'authorization': return 403;
-      case 'not_found': return 404;
-      case 'conflict': return 409;
-      case 'rate_limit': return 429;
-      case 'external_api': return 502;
-      case 'configuration': return 500;
+      case ErrorCategory.VALIDATION: return 400;
+      case ErrorCategory.AUTHENTICATION: return 401;
+      case ErrorCategory.AUTHORIZATION: return 403;
+      case ErrorCategory.NOT_FOUND: return 404;
+      case ErrorCategory.CONFLICT: return 409;
+      case ErrorCategory.RATE_LIMIT: return 429;
+      case ErrorCategory.EXTERNAL_API: return 502;
+      case ErrorCategory.CONFIGURATION: return 500;
       default: return 500;
     }
   }
@@ -415,17 +434,17 @@ export class GlobalErrorHandler {
    */
   private setupDefaultHandlers(): void {
     // Default handler
-    this.handlers.set('default', (error: Error, context?: ErrorContext) => {
+    this.handlers.set('default', (_error: Error, _context?: ErrorContext) => {
       // Default handling - already logged above
     });
 
     // Validation errors
-    this.handlers.set('validation', (error: Error, context?: ErrorContext) => {
+    this.handlers.set('validation', (_error: Error, _context?: ErrorContext) => {
       // Could notify user about validation issues
     });
 
     // Critical errors
-    this.handlers.set('critical', async (error: Error, context?: ErrorContext) => {
+    this.handlers.set('critical', (_error: Error, _context?: ErrorContext) => {
       // Could send alerts, notifications, etc.
       this.logger.error('CRITICAL ERROR DETECTED - May require immediate attention');
     });
@@ -436,14 +455,14 @@ export class GlobalErrorHandler {
    */
   private setupDefaultRecoveryStrategies(): void {
     // Network error recovery
-    this.recoveryStrategies.set('network', async (error: Error, context?: ErrorContext) => {
+    this.recoveryStrategies.set('network', async (error: Error, _context?: ErrorContext) => {
       // Wait and retry with exponential backoff
       await this.delay(2000);
       throw error; // Re-attempt the original operation
     });
 
     // Rate limit recovery
-    this.recoveryStrategies.set('rate_limit', async (error: Error, context?: ErrorContext) => {
+    this.recoveryStrategies.set('rate_limit', async (error: Error, _context?: ErrorContext) => {
       if (error instanceof RateLimitError && error.retryAfter) {
         await this.delay(error.retryAfter * 1000);
         throw error; // Re-attempt the original operation
@@ -457,7 +476,9 @@ export class GlobalErrorHandler {
    */
   private setupDefaultTransformers(): void {
     this.transformers.set('default', (error: Error, context?: ErrorContext): BaseError => {
-      return new (class extends BaseError {})(
+      return new (class extends BaseError {
+        // Anonymous error class for default transformer
+      })(
         error.message,
         error.name.toUpperCase().replace(/ /g, '_'),
         'medium' as ErrorSeverity,
@@ -472,11 +493,11 @@ export class GlobalErrorHandler {
    */
   private setupGlobalHandlers(): void {
     // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
+    process.on('unhandledRejection', (reason, _promise) => {
       const error = reason instanceof Error ? reason : new Error(String(reason));
-      this.handleError(error, { 
+      void this.handleError(error, { 
         source: 'unhandledRejection',
-        promise: promise.toString()
+        promise: 'Promise object'
       });
     });
 
@@ -489,6 +510,9 @@ export class GlobalErrorHandler {
         if (process.env['NODE_ENV'] === 'production') {
           process.exit(1);
         }
+      }).catch(() => {
+        // Ignore errors during cleanup
+        return;
       });
     });
   }
@@ -496,7 +520,7 @@ export class GlobalErrorHandler {
   /**
    * Utility delay function
    */
-  private delay(ms: number): Promise<void> {
+  private async delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
@@ -531,7 +555,7 @@ export const ErrorUtils = {
   /**
    * Wrap function with error handling
    */
-  wrapWithErrorHandling<T extends (...args: any[]) => Promise<any>>(
+  wrapWithErrorHandling<T extends (...args: unknown[]) => Promise<unknown>>(
     fn: T,
     errorContext?: ErrorContext
   ): T {

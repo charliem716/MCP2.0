@@ -52,6 +52,7 @@ export type OpenAIMessageRole =
 export interface OpenAIFunctionCall {
   name: string;
   arguments: string;
+  required?: string[];
 }
 
 /**
@@ -83,7 +84,7 @@ export interface OpenAIFunction {
   description: string;
   parameters: {
     type: 'object';
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     required?: string[];
   };
 }
@@ -93,7 +94,7 @@ export interface OpenAIFunction {
  */
 export interface OpenAITool {
   type: 'function';
-  function: OpenAIFunction;
+  function: (...args: unknown[]) => unknown;
 }
 
 /**
@@ -249,7 +250,7 @@ export interface OpenAIConversationContext {
   functions?: OpenAIFunction[];
   tools?: OpenAITool[];
   systemPrompt?: string;
-  userContext?: Record<string, any>;
+  userContext?: Record<string, unknown>;
   created: Timestamp;
   updated: Timestamp;
   tokensUsed: number;
@@ -273,7 +274,7 @@ export interface OpenAIRealtimeConfig {
   maxOutputTokens?: number;
   tools?: OpenAITool[];
   toolChoice?: 'auto' | 'none' | 'required';
-  modalities?: ('text' | 'audio')[];
+  modalities?: Array<'text' | 'audio'>;
 }
 
 /**
@@ -283,7 +284,7 @@ export interface OpenAIRealtimeSession {
   id: string;
   object: 'realtime.session';
   model: string;
-  modalities: ('text' | 'audio')[];
+  modalities: Array<'text' | 'audio'>;
   instructions: string;
   voice: OpenAIVoice;
   inputAudioFormat: string;
@@ -333,7 +334,7 @@ export interface OpenAIRealtimeInputAudioBufferAppendEvent extends OpenAIRealtim
 export interface OpenAIRealtimeResponseCreateEvent extends OpenAIRealtimeEventBase {
   type: 'response.create';
   response?: {
-    modalities?: ('text' | 'audio')[];
+    modalities?: Array<'text' | 'audio'>;
     instructions?: string;
     voice?: OpenAIVoice;
     outputAudioFormat?: string;
@@ -433,13 +434,13 @@ export interface OpenAIAgent {
   
   // Conversation management
   createConversation(systemPrompt?: string): Promise<OpenAIConversationContext>;
-  sendMessage(conversationId: ID, message: string, context?: Record<string, any>): Promise<OpenAIChatMessage>;
-  sendMessageStream(conversationId: ID, message: string, context?: Record<string, any>): AsyncIterableIterator<OpenAIChatCompletionChunk>;
+  sendMessage(conversationId: ID, message: string, context?: Record<string, unknown>): Promise<OpenAIChatMessage>;
+  sendMessageStream(conversationId: ID, message: string, context?: Record<string, unknown>): AsyncIterableIterator<OpenAIChatCompletionChunk>;
   
   // Tool management
   registerTool(tool: OpenAITool): void;
   unregisterTool(name: string): void;
-  executeTool(name: string, args: Record<string, any>): Promise<any>;
+  executeTool(name: string, args: Record<string, unknown>): Promise<unknown>;
   
   // Voice capabilities
   textToSpeech(text: string, voice?: OpenAIVoice): Promise<ArrayBuffer>;

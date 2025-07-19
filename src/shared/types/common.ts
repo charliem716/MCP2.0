@@ -27,9 +27,7 @@ export type Nullable<T> = T | null;
 /**
  * Make all properties optional
  */
-export type PartialRecord<K extends keyof any, T> = {
-  [P in K]?: T;
-};
+export type PartialRecord<K extends keyof unknown, T> = Partial<Record<K, T>>;
 
 /**
  * Deep partial type
@@ -76,7 +74,7 @@ export type Callback<T = void> = (error?: Error, result?: T) => void;
 /**
  * Event listener type
  */
-export type EventListener<T = any> = (event: T) => void;
+export type EventListener<T = unknown> = (event: T) => void;
 
 /**
  * Cleanup function type
@@ -86,21 +84,17 @@ export type CleanupFunction = () => void;
 /**
  * Constructor type
  */
-export type Constructor<T = any> = new (...args: any[]) => T;
+export type Constructor<T = unknown> = new (...args: unknown[]) => T;
 
 /**
  * Generic configuration object
  */
-export interface Config {
-  [key: string]: any;
-}
+export type Config = Record<string, unknown>;
 
 /**
  * Generic metadata object
  */
-export interface Metadata {
-  [key: string]: any;
-}
+export type Metadata = Record<string, unknown>;
 
 /**
  * Health check status
@@ -154,9 +148,7 @@ export interface SortParams {
 /**
  * Filter parameters
  */
-export interface FilterParams {
-  [key: string]: any;
-}
+export type FilterParams = Record<string, unknown>;
 
 /**
  * Search parameters
@@ -251,7 +243,7 @@ export enum ConnectionState {
 /**
  * Generic event type
  */
-export interface Event<T = any> {
+export interface Event<T = unknown> {
   type: string;
   data: T;
   timestamp: Timestamp;
@@ -261,7 +253,7 @@ export interface Event<T = any> {
 /**
  * Generic command type
  */
-export interface Command<T = any> {
+export interface Command<T = unknown> {
   id: string;
   type: string;
   payload: T;
@@ -271,7 +263,7 @@ export interface Command<T = any> {
 /**
  * Generic response type
  */
-export interface Response<T = any> {
+export interface Response<T = unknown> {
   id: string;
   success: boolean;
   data?: T;

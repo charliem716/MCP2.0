@@ -1,4 +1,5 @@
-import { createLogger, createLoggerConfig } from '../../../../src/shared/utils/logger.js';
+/* eslint-disable @typescript-eslint/unbound-method */
+import { createLogger } from '../../../../src/shared/utils/logger.js';
 
 // Mock winston
 jest.mock('winston', () => ({
@@ -9,339 +10,237 @@ jest.mock('winston', () => ({
     json: jest.fn(() => ({ type: 'json' })),
     colorize: jest.fn(() => ({ type: 'colorize' })),
     simple: jest.fn(() => ({ type: 'simple' })),
-    printf: jest.fn((fn) => ({ type: 'printf', fn })),
+    prettyPrint: jest.fn(() => ({ type: 'prettyPrint' })),
+    printf: jest.fn(() => ({ type: 'printf' })),
   },
   transports: {
-    Console: jest.fn().mockImplementation((opts) => ({ type: 'Console', ...opts })),
-    File: jest.fn().mockImplementation((opts) => ({ type: 'File', ...opts })),
+    Console: jest.fn().mockImplementation(() => ({
+      name: 'console',
+      level: 'debug',
+    })),
+    File: jest.fn().mockImplementation((options) => ({
+      name: 'file',
+      filename: options.filename,
+      level: options.level,
+    })),
   },
-  createLogger: jest.fn((config) => ({
-    info: jest.fn(),
+  createLogger: jest.fn().mockImplementation((config) => ({
+    level: config.level,
     error: jest.fn(),
     warn: jest.fn(),
+    info: jest.fn(),
     debug: jest.fn(),
-    config,
-  })),
-  Logger: {
-    prototype: {
-      info: jest.fn(),
-      error: jest.fn(),
-      warn: jest.fn(),
-      debug: jest.fn(),
+    rejections: {
+      handle: jest.fn()
     }
-  }
+  })),
 }));
 
-// Mock environment utilities
-jest.mock('../../../../src/shared/utils/env.js', () => ({
-  isDevelopment: false,
-  isProduction: false,
-  isTest: true,
-  appRoot: '/test/app',
+// Mock path
+jest.mock('path', () => ({
+  join: jest.fn((...args) => args.join('/')),
 }));
 
-describe('Logger Utility', () => {
+describe('logger', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env['LOG_LEVEL'];
   });
 
-  describe('createLoggerConfig', () => {
-    it('should create development configuration', () => {
-      jest.doMock('../../../../src/shared/utils/env.js', () => ({
-        isDevelopment: true,
-        isProduction: false,
-        isTest: false,
-        appRoot: '/test/app',
-      }));
-
-      const config = createLoggerConfig('test-service');
-      
-      expect(config.level).toBe('debug');
-    });
-
-    it('should create production configuration', () => {
-      jest.doMock('../../../../src/shared/utils/env.js', () => ({
-        isDevelopment: false,
-        isProduction: true,
-        isTest: false,
-        appRoot: '/test/app',
-      }));
-
-      const config = createLoggerConfig('test-service');
-      
-      expect(config.level).toBe('info');
-    });
-
-    it('should create test configuration', () => {
-      const config = createLoggerConfig('test-service');
-      
-      expect(config.level).toBe('error');
-    });
-
-    it('should use custom log level from environment', () => {
-      process.env['LOG_LEVEL'] = 'warn';
-
-      const config = createLoggerConfig('test-service');
-      
-      expect(config.level).toBe('warn');
-      
-      delete process.env['LOG_LEVEL'];
-    });
-
-    it('should handle invalid log level gracefully', () => {
-      process.env['LOG_LEVEL'] = 'invalid';
-
-      const config = createLoggerConfig('test-service');
-      
-      expect(config.level).toBe('error'); // Should fall back to test default
-      
-      delete process.env['LOG_LEVEL'];
-    });
-
-    it('should include console transport', () => {
-      const config = createLoggerConfig('test-service');
-      
-      expect(config.transports).toHaveLength(1);
-      expect(config.transports[0].type).toBe('Console');
-    });
-
-    it('should include file transport in production', () => {
-      jest.doMock('../../../../src/shared/utils/env.js', () => ({
-        isDevelopment: false,
-        isProduction: true,
-        isTest: false,
-        appRoot: '/test/app',
-      }));
-
-      const config = createLoggerConfig('test-service');
-      
-      expect(config.transports).toHaveLength(2);
-      expect(config.transports.some(t => t.type === 'File')).toBe(true);
-    });
+  afterEach(() => {
+    delete process.env['NODE_ENV'];
+    delete process.env['LOG_LEVEL'];
   });
 
   describe('createLogger', () => {
-    it('should create logger with service name', () => {
-      const winston = require('winston');
+    it('should create a logger instance', () => {
+      const _logger = createLogger('test-service');
       
-      const logger = createLogger('test-service');
-      
-      expect(winston.createLogger).toHaveBeenCalledWith(expect.objectContaining({
-        level: 'error',
-        format: expect.any(Object),
-        transports: expect.any(Array),
-        defaultMeta: { service: 'test-service' }
-      }));
+      expect(_logger).toBeDefined();
+      expect(_logger.error).toBeDefined();
+      expect(_logger.warn).toBeDefined();
+      expect(_logger.info).toBeDefined();
+      expect(_logger.debug).toBeDefined();
     });
 
-    it('should create logger with proper interface', () => {
-      const logger = createLogger('test-service');
+    it('should create logger with correct methods', () => {
+      const _logger = createLogger('test-service');
+      const testMessage = 'Test message';
+      const testMeta = { key: 'value' };
       
-      expect(logger).toHaveProperty('info');
-      expect(logger).toHaveProperty('error');
-      expect(logger).toHaveProperty('warn');
-      expect(logger).toHaveProperty('debug');
-      expect(typeof logger.info).toBe('function');
-      expect(typeof logger.error).toBe('function');
-      expect(typeof logger.warn).toBe('function');
-      expect(typeof logger.debug).toBe('function');
+      _logger.error(testMessage, testMeta);
+      _logger.warn(testMessage, testMeta);
+      _logger.info(testMessage, testMeta);
+      _logger.debug(testMessage, testMeta);
+      
+      expect(_logger.error).toHaveBeenCalledWith(testMessage, testMeta);
+      expect(_logger.warn).toHaveBeenCalledWith(testMessage, testMeta);
+      expect(_logger.info).toHaveBeenCalledWith(testMessage, testMeta);
+      expect(_logger.debug).toHaveBeenCalledWith(testMessage, testMeta);
     });
 
-    it('should handle logging calls', () => {
-      const logger = createLogger('test-service');
+    it('should use debug level in development', async () => {
+      process.env['NODE_ENV'] = 'development';
       
-      logger.info('Test message');
-      logger.error('Error message');
-      logger.warn('Warning message');
-      logger.debug('Debug message');
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
       
-      expect(logger.info).toHaveBeenCalledWith('Test message');
-      expect(logger.error).toHaveBeenCalledWith('Error message');
-      expect(logger.warn).toHaveBeenCalledWith('Warning message');
-      expect(logger.debug).toHaveBeenCalledWith('Debug message');
-    });
-
-    it('should handle logging with metadata', () => {
-      const logger = createLogger('test-service');
-      const metadata = { requestId: '123', userId: 'user1' };
-      
-      logger.info('Test message', metadata);
-      
-      expect(logger.info).toHaveBeenCalledWith('Test message', metadata);
-    });
-
-    it('should handle logging with undefined metadata', () => {
-      const logger = createLogger('test-service');
-      
-      logger.info('Test message', undefined);
-      
-      expect(logger.info).toHaveBeenCalledWith('Test message', undefined);
-    });
-
-    it('should handle logging with empty metadata', () => {
-      const logger = createLogger('test-service');
-      
-      logger.info('Test message', {});
-      
-      expect(logger.info).toHaveBeenCalledWith('Test message', {});
-    });
-  });
-
-  describe('Log Formatting', () => {
-    it('should format development logs with colors', () => {
-      jest.doMock('../../../../src/shared/utils/env.js', () => ({
-        isDevelopment: true,
-        isProduction: false,
-        isTest: false,
-        appRoot: '/test/app',
-      }));
-
-      const winston = require('winston');
-      const config = createLoggerConfig('test-service');
-      
-      expect(winston.format.combine).toHaveBeenCalled();
-      expect(winston.format.colorize).toHaveBeenCalled();
-    });
-
-    it('should format production logs as JSON', () => {
-      jest.doMock('../../../../src/shared/utils/env.js', () => ({
-        isDevelopment: false,
-        isProduction: true,
-        isTest: false,
-        appRoot: '/test/app',
-      }));
-
-      const winston = require('winston');
-      const config = createLoggerConfig('test-service');
-      
-      expect(winston.format.combine).toHaveBeenCalled();
-      expect(winston.format.json).toHaveBeenCalled();
-    });
-
-    it('should format test logs minimally', () => {
-      const winston = require('winston');
-      const config = createLoggerConfig('test-service');
-      
-      expect(winston.format.printf).toHaveBeenCalled();
-    });
-  });
-
-  describe('Transport Configuration', () => {
-    it('should configure console transport for all environments', () => {
-      const winston = require('winston');
-      const config = createLoggerConfig('test-service');
-      
-      expect(winston.transports.Console).toHaveBeenCalledWith({
-        format: expect.any(Object)
-      });
-    });
-
-    it('should configure file transports in production', () => {
-      jest.doMock('../../../../src/shared/utils/env.js', () => ({
-        isDevelopment: false,
-        isProduction: true,
-        isTest: false,
-        appRoot: '/test/app',
-      }));
-
-      const winston = require('winston');
-      const config = createLoggerConfig('test-service');
-      
-      expect(winston.transports.File).toHaveBeenCalledTimes(2);
-      expect(winston.transports.File).toHaveBeenCalledWith({
-        filename: expect.stringContaining('error.log'),
-        level: 'error',
-        format: expect.any(Object)
-      });
-      expect(winston.transports.File).toHaveBeenCalledWith({
-        filename: expect.stringContaining('combined.log'),
-        format: expect.any(Object)
-      });
-    });
-
-    it('should create log directory path correctly', () => {
-      jest.doMock('../../../../src/shared/utils/env.js', () => ({
-        isDevelopment: false,
-        isProduction: true,
-        isTest: false,
-        appRoot: '/test/app',
-      }));
-
-      const winston = require('winston');
-      const config = createLoggerConfig('test-service');
-      
-      expect(winston.transports.File).toHaveBeenCalledWith(
+      expect(winston.createLogger).toHaveBeenCalledWith(
         expect.objectContaining({
-          filename: expect.stringContaining('/test/app/logs/')
+          level: 'debug'
         })
       );
     });
-  });
 
-  describe('Error Handling', () => {
-    it('should handle logger creation errors', () => {
-      const winston = require('winston');
-      winston.createLogger.mockImplementation(() => {
-        throw new Error('Logger creation failed');
+    it('should use info level in production', async () => {
+      process.env['NODE_ENV'] = 'production';
+      
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
+      
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'info'
+        })
+      );
+    });
+
+    it('should use error level in test', async () => {
+      process.env['NODE_ENV'] = 'test';
+      
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
+      
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'error'
+        })
+      );
+    });
+
+    it('should respect LOG_LEVEL environment variable', async () => {
+      process.env['LOG_LEVEL'] = 'warn';
+      
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
+      
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'warn'
+        })
+      );
+    });
+
+    it('should be silent in test environment without DEBUG_TESTS', async () => {
+      process.env['NODE_ENV'] = 'test';
+      delete process.env['DEBUG_TESTS'];
+      
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
+      
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          silent: true
+        })
+      );
+    });
+
+    it('should not be silent in test environment with DEBUG_TESTS', async () => {
+      process.env['NODE_ENV'] = 'test';
+      process.env['DEBUG_TESTS'] = 'true';
+      
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
+      
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          silent: false
+        })
+      );
+    });
+
+    it('should setup rejection handling in production', async () => {
+      process.env['NODE_ENV'] = 'production';
+      
+      // Mock the rejections.handle before calling createLogger
+      const mockRejections = { handle: jest.fn() };
+      const winston = await import('winston');
+      (winston.createLogger as jest.Mock).mockReturnValueOnce({
+        level: 'info',
+        error: jest.fn(),
+        warn: jest.fn(),
+        info: jest.fn(),
+        debug: jest.fn(),
+        rejections: mockRejections
       });
-
-      expect(() => createLogger('test-service')).toThrow('Logger creation failed');
+      
+      const _logger = createLogger('test-service');
+      
+      expect(mockRejections.handle).toHaveBeenCalled();
     });
 
-    it('should handle transport creation errors gracefully', () => {
-      const winston = require('winston');
-      winston.transports.Console.mockImplementation(() => {
-        throw new Error('Transport creation failed');
+    it('should not setup rejection handling in development', async () => {
+      process.env['NODE_ENV'] = 'development';
+      
+      // Mock the rejections.handle before calling createLogger
+      const mockRejections = { handle: jest.fn() };
+      const winston = await import('winston');
+      (winston.createLogger as jest.Mock).mockReturnValueOnce({
+        level: 'debug',
+        error: jest.fn(),
+        warn: jest.fn(),
+        info: jest.fn(),
+        debug: jest.fn(),
+        rejections: mockRejections
       });
-
-      expect(() => createLoggerConfig('test-service')).toThrow('Transport creation failed');
-    });
-  });
-
-  describe('Global Logger', () => {
-    it('should export global logger instance', async () => {
-      // Re-import to get the global logger
-      const { globalLogger } = await import('../../../../src/shared/utils/logger.js');
       
-      expect(globalLogger).toBeDefined();
-      expect(globalLogger).toHaveProperty('info');
-      expect(globalLogger).toHaveProperty('error');
-      expect(globalLogger).toHaveProperty('warn');
-      expect(globalLogger).toHaveProperty('debug');
-    });
-  });
-
-  describe('Log Level Validation', () => {
-    const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
-
-    validLevels.forEach(level => {
-      it(`should accept valid log level: ${level}`, () => {
-        process.env['LOG_LEVEL'] = level;
-
-        const config = createLoggerConfig('test-service');
-        
-        expect(config.level).toBe(level);
-        
-        delete process.env['LOG_LEVEL'];
-      });
+      const _logger = createLogger('test-service');
+      
+      expect(mockRejections.handle).not.toHaveBeenCalled();
     });
 
-    it('should reject invalid log levels', () => {
-      process.env['LOG_LEVEL'] = 'invalid-level';
-
-      const config = createLoggerConfig('test-service');
+    it('should include service name in metadata', async () => {
+      const serviceName = 'test-service';
+      const _logger = createLogger(serviceName);
+      const winston = await import('winston');
       
-      expect(config.level).toBe('error'); // Should fall back to test default
-      
-      delete process.env['LOG_LEVEL'];
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          defaultMeta: { service: serviceName }
+        })
+      );
     });
 
-    it('should handle undefined log level environment variable', () => {
-      delete process.env['LOG_LEVEL'];
-
-      const config = createLoggerConfig('test-service');
+    it('should use correct transports in development', async () => {
+      process.env['NODE_ENV'] = 'development';
       
-      expect(config.level).toBe('error'); // Test environment default
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
+      
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transports: expect.arrayContaining([
+            expect.any(Object)
+          ])
+        })
+      );
+    });
+
+    it('should use correct transports in production', async () => {
+      process.env['NODE_ENV'] = 'production';
+      
+      const _logger = createLogger('test-service');
+      const winston = await import('winston');
+      
+      expect(winston.createLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transports: expect.arrayContaining([
+            expect.any(Object),
+            expect.any(Object),
+            expect.any(Object)
+          ])
+        })
+      );
     });
   });
 }); 

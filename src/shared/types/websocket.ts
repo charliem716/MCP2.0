@@ -4,7 +4,7 @@
 
 import type { ID, Timestamp, WebSocketState, ConnectionState } from './common.js';
 import type { QSysControlChange, QSysComponentChange, QSysEngineStatus } from './qsys.js';
-import type { OpenAIChatMessage, OpenAIRealtimeSession } from './openai.js';
+import type { OpenAIChatMessage } from './openai.js';
 
 /**
  * WebSocket message types
@@ -55,7 +55,7 @@ export enum WebSocketMessageType {
 /**
  * Base WebSocket message structure
  */
-export interface WebSocketMessage<T = any> {
+export interface WebSocketMessage<T = unknown> {
   id: ID;
   type: WebSocketMessageType;
   data: T;
@@ -98,7 +98,7 @@ export interface WebSocketConnectionStatus {
 export interface ChatMessageData {
   conversationId: ID;
   message: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   stream?: boolean;
 }
 
@@ -119,7 +119,7 @@ export interface ChatErrorData {
   conversationId?: ID;
   error: string;
   code: string;
-  details?: any;
+  details?: unknown;
 }
 
 /**
@@ -171,7 +171,7 @@ export interface VoiceErrorData {
   sessionId: ID;
   error: string;
   code: string;
-  details?: any;
+  details?: unknown;
 }
 
 /**
@@ -204,7 +204,7 @@ export interface QSysConnectionStatusData {
 export interface QSysErrorData {
   error: string;
   code: string;
-  details?: any;
+  details?: unknown;
   timestamp: Timestamp;
 }
 
@@ -246,7 +246,7 @@ export interface SystemErrorData {
   error: string;
   code: string;
   service?: string;
-  details?: any;
+  details?: unknown;
   timestamp: Timestamp;
 }
 
@@ -258,7 +258,7 @@ export interface SystemNotificationData {
   actions?: Array<{
     label: string;
     action: string;
-    data?: any;
+    data?: unknown;
   }>;
 }
 
@@ -309,7 +309,7 @@ export interface RealtimeTranscriptData {
 export interface RealtimeFunctionCallData {
   sessionId: ID;
   functionName: string;
-  arguments: Record<string, any>;
+  arguments: Record<string, unknown>;
   callId: string;
 }
 
@@ -317,7 +317,7 @@ export interface RealtimeErrorData {
   sessionId: ID;
   error: string;
   code: string;
-  details?: any;
+  details?: unknown;
 }
 
 /**
@@ -326,20 +326,20 @@ export interface RealtimeErrorData {
 export interface WebSocketSubscription {
   id: ID;
   type: string;
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
   clientId: ID;
   createdAt: Timestamp;
 }
 
 export interface WebSocketSubscriptionRequest {
   type: string;
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
 }
 
 export interface WebSocketSubscriptionResponse {
   subscriptionId: ID;
   type: string;
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
   success: boolean;
   error?: string;
 }
@@ -364,10 +364,10 @@ export interface WebSocketClient {
   send<T>(type: WebSocketMessageType, data: T): Promise<void>;
   sendMessage(message: WebSocketMessage): Promise<void>;
   onMessage<T>(type: WebSocketMessageType, handler: (data: T) => void): void;
-  offMessage(type: WebSocketMessageType, handler?: Function): void;
+  offMessage(type: WebSocketMessageType, handler?: (...args: unknown[]) => void): void;
   
   // Subscription management
-  subscribe(type: string, filter?: Record<string, any>): Promise<WebSocketSubscription>;
+  subscribe(type: string, filter?: Record<string, unknown>): Promise<WebSocketSubscription>;
   unsubscribe(subscriptionId: ID): Promise<void>;
   listSubscriptions(): WebSocketSubscription[];
   
@@ -377,7 +377,7 @@ export interface WebSocketClient {
   on(event: 'error', listener: (error: Error) => void): void;
   on(event: 'message', listener: (message: WebSocketMessage) => void): void;
   
-  off(event: string, listener: Function): void;
+  off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 }
 
@@ -405,7 +405,7 @@ export interface WebSocketServer {
   on(event: 'error', listener: (error: Error) => void): void;
   on(event: 'message', listener: (client: WebSocketClient, message: WebSocketMessage) => void): void;
   
-  off(event: string, listener: Function): void;
+  off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 }
 
@@ -425,7 +425,7 @@ export interface WebSocketServerConfig {
   verifyClient?: (info: {
     origin: string;
     secure: boolean;
-    req: any;
+    req: unknown;
   }) => boolean;
   authentication?: {
     enabled: boolean;

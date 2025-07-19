@@ -71,6 +71,7 @@ function parseEnvironment(): Environment {
   const result = envSchema.safeParse(process.env);
   
   if (!result.success) {
+    /* eslint-disable no-console */
     console.error('❌ Invalid environment configuration:');
     console.error(result.error.format());
     
@@ -82,8 +83,14 @@ function parseEnvironment(): Environment {
       console.error('• Check that port numbers are valid (1-65535)');
       console.error('• Verify IP addresses are in correct format');
     }
+    /* eslint-enable no-console */
     
-    throw new Error('Invalid environment configuration');
+    // Exit with error code for scripts/CI
+    if (process.env['NODE_ENV'] !== 'test') {
+      process.exit(1);
+    } else {
+      throw new Error('Invalid environment configuration');
+    }
   }
 
   return result.data;
@@ -183,6 +190,7 @@ export const config = {
  * Validate configuration at startup
  */
 export function validateConfig(): void {
+  /* eslint-disable no-console */
   console.log(`🔧 Environment: ${env.NODE_ENV}`);
   console.log(`🚀 Port: ${env.PORT}`);
   console.log(`📝 Log Level: ${env.LOG_LEVEL}`);
@@ -201,6 +209,7 @@ export function validateConfig(): void {
   }
   
   console.log('✅ Environment configuration validated');
+  /* eslint-enable no-console */
 }
 
 /**

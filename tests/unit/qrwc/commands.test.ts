@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { QRCCommands } from '../../../src/qrwc/commands.js';
 import { QRWCClient } from '../../../src/qrwc/client.js';
 import { QSysMethod } from '../../../src/shared/types/qsys.js';
@@ -38,7 +39,7 @@ describe('QRCCommands', () => {
 
   describe('Component Methods', () => {
     describe('getComponents', () => {
-      it('should retrieve all components', async () => {
+      it('should retrieve all components', () => {
         const mockComponents = [
           { name: 'Gain1', type: 'gain' },
           { name: 'Mixer1', type: 'mixer' }
@@ -56,7 +57,7 @@ describe('QRCCommands', () => {
         expect(result).toEqual(mockComponents);
       });
 
-      it('should return empty array when no components', async () => {
+      it('should return empty array when no components', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         const result = await commands.getComponents();
@@ -64,7 +65,7 @@ describe('QRCCommands', () => {
         expect(result).toEqual([]);
       });
 
-      it('should handle errors', async () => {
+      it('should handle errors', () => {
         mockClient.sendCommand.mockRejectedValue(new Error('Network error'));
 
         await expect(commands.getComponents()).rejects.toThrow('Failed to get components');
@@ -72,7 +73,7 @@ describe('QRCCommands', () => {
     });
 
     describe('getComponent', () => {
-      it('should retrieve specific component', async () => {
+      it('should retrieve specific component', () => {
         const mockComponent = { name: 'Gain1', type: 'gain', controls: [] };
         mockClient.sendCommand.mockResolvedValue({ component: mockComponent });
 
@@ -86,7 +87,7 @@ describe('QRCCommands', () => {
         expect(result).toEqual(mockComponent);
       });
 
-      it('should throw error when component not found', async () => {
+      it('should throw error when component not found', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await expect(commands.getComponent('NonExistent')).rejects.toThrow('Component not found');
@@ -94,7 +95,7 @@ describe('QRCCommands', () => {
     });
 
     describe('getControls', () => {
-      it('should retrieve component controls', async () => {
+      it('should retrieve component controls', () => {
         const mockControls = [
           { name: 'gain', type: 'float', value: 0.5 },
           { name: 'mute', type: 'boolean', value: false }
@@ -111,7 +112,7 @@ describe('QRCCommands', () => {
         expect(result).toEqual(mockControls);
       });
 
-      it('should return empty array when no controls', async () => {
+      it('should return empty array when no controls', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         const result = await commands.getControls('EmptyComponent');
@@ -123,7 +124,7 @@ describe('QRCCommands', () => {
 
   describe('Control Value Methods', () => {
     describe('getControlValue', () => {
-      it('should get control value with component', async () => {
+      it('should get control value with component', () => {
         mockClient.sendCommand.mockResolvedValue({ value: 0.75 });
 
         const result = await commands.getControlValue('gain', 'Gain1');
@@ -136,7 +137,7 @@ describe('QRCCommands', () => {
         expect(result).toBe(0.75);
       });
 
-      it('should get control value without component', async () => {
+      it('should get control value without component', () => {
         mockClient.sendCommand.mockResolvedValue({ value: true });
 
         const result = await commands.getControlValue('mute');
@@ -149,7 +150,7 @@ describe('QRCCommands', () => {
         expect(result).toBe(true);
       });
 
-      it('should handle invalid control', async () => {
+      it('should handle invalid control', () => {
         mockClient.sendCommand.mockRejectedValue(new Error('Control not found'));
 
         await expect(commands.getControlValue('invalid')).rejects.toThrow('Failed to get control value');
@@ -157,7 +158,7 @@ describe('QRCCommands', () => {
     });
 
     describe('setControlValue', () => {
-      it('should set control value with component', async () => {
+      it('should set control value with component', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.setControlValue('gain', 0.8, 'Gain1');
@@ -169,7 +170,7 @@ describe('QRCCommands', () => {
         });
       });
 
-      it('should set control value without component', async () => {
+      it('should set control value without component', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.setControlValue('mute', true);
@@ -181,7 +182,7 @@ describe('QRCCommands', () => {
         });
       });
 
-      it('should handle ramp parameter', async () => {
+      it('should handle ramp parameter', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.setControlValue('gain', 0.5, 'Gain1', 2000);
@@ -195,10 +196,10 @@ describe('QRCCommands', () => {
     });
 
     describe('getControlValues', () => {
-      it('should get multiple control values', async () => {
+      it('should get multiple control values', () => {
         const mockControls = [
-          { Name: 'gain', Component: 'Gain1' },
-          { Name: 'mute', Component: 'Gain1' }
+          { control: 'gain', component: 'Gain1' },
+          { control: 'mute', component: 'Gain1' }
         ];
         const mockResult = { controls: [{ value: 0.5 }, { value: false }] };
         mockClient.sendCommand.mockResolvedValue(mockResult);
@@ -213,7 +214,7 @@ describe('QRCCommands', () => {
         expect(result).toEqual([{ value: 0.5 }, { value: false }]);
       });
 
-      it('should return empty array when no controls', async () => {
+      it('should return empty array when no controls', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         const result = await commands.getControlValues([]);
@@ -223,10 +224,10 @@ describe('QRCCommands', () => {
     });
 
     describe('setControlValues', () => {
-      it('should set multiple control values', async () => {
+      it('should set multiple control values', () => {
         const mockControls = [
-          { Name: 'gain', Value: 0.5, Component: 'Gain1' },
-          { Name: 'mute', Value: true, Component: 'Gain1' }
+          { control: 'gain', value: 0.5, component: 'Gain1' },
+          { control: 'mute', value: true, component: 'Gain1' }
         ];
         mockClient.sendCommand.mockResolvedValue({});
 
@@ -243,7 +244,7 @@ describe('QRCCommands', () => {
 
   describe('Mixer Methods', () => {
     describe('getMixerInputs', () => {
-      it('should get mixer inputs', async () => {
+      it('should get mixer inputs', () => {
         const mockInputs = [
           { name: 'Input 1', gain: 0.5 },
           { name: 'Input 2', gain: 0.3 }
@@ -262,7 +263,7 @@ describe('QRCCommands', () => {
     });
 
     describe('getMixerOutputs', () => {
-      it('should get mixer outputs', async () => {
+      it('should get mixer outputs', () => {
         const mockOutputs = [
           { name: 'Output 1', gain: 0.7 },
           { name: 'Output 2', gain: 0.8 }
@@ -276,7 +277,7 @@ describe('QRCCommands', () => {
     });
 
     describe('setCrosspointMute', () => {
-      it('should set crosspoint mute', async () => {
+      it('should set crosspoint mute', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.setCrosspointMute('Mixer1', 1, 2, true);
@@ -290,7 +291,7 @@ describe('QRCCommands', () => {
     });
 
     describe('setCrosspointGain', () => {
-      it('should set crosspoint gain', async () => {
+      it('should set crosspoint gain', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.setCrosspointGain('Mixer1', 1, 2, 0.5);
@@ -304,7 +305,7 @@ describe('QRCCommands', () => {
     });
 
     describe('getCrosspointMute', () => {
-      it('should get crosspoint mute state', async () => {
+      it('should get crosspoint mute state', () => {
         mockClient.sendCommand.mockResolvedValue({ mute: true });
 
         const result = await commands.getCrosspointMute('Mixer1', 1, 2);
@@ -314,7 +315,7 @@ describe('QRCCommands', () => {
     });
 
     describe('getCrosspointGain', () => {
-      it('should get crosspoint gain value', async () => {
+      it('should get crosspoint gain value', () => {
         mockClient.sendCommand.mockResolvedValue({ gain: 0.6 });
 
         const result = await commands.getCrosspointGain('Mixer1', 1, 2);
@@ -326,7 +327,7 @@ describe('QRCCommands', () => {
 
   describe('Snapshot Methods', () => {
     describe('loadSnapshot', () => {
-      it('should load snapshot without ramp', async () => {
+      it('should load snapshot without ramp', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.loadSnapshot(1, 5);
@@ -338,7 +339,7 @@ describe('QRCCommands', () => {
         });
       });
 
-      it('should load snapshot with ramp', async () => {
+      it('should load snapshot with ramp', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.loadSnapshot(1, 5, 2000);
@@ -352,7 +353,7 @@ describe('QRCCommands', () => {
     });
 
     describe('saveSnapshot', () => {
-      it('should save snapshot without name', async () => {
+      it('should save snapshot without name', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.saveSnapshot(1, 5);
@@ -364,7 +365,7 @@ describe('QRCCommands', () => {
         });
       });
 
-      it('should save snapshot with name', async () => {
+      it('should save snapshot with name', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.saveSnapshot(1, 5, 'Test Snapshot');
@@ -378,7 +379,7 @@ describe('QRCCommands', () => {
     });
 
     describe('getSnapshotBanks', () => {
-      it('should get snapshot banks', async () => {
+      it('should get snapshot banks', () => {
         const mockBanks = [
           { id: 1, name: 'Bank 1', snapshots: 10 },
           { id: 2, name: 'Bank 2', snapshots: 5 }
@@ -392,7 +393,7 @@ describe('QRCCommands', () => {
     });
 
     describe('getSnapshots', () => {
-      it('should get snapshots for bank', async () => {
+      it('should get snapshots for bank', () => {
         const mockSnapshots = [
           { id: 1, name: 'Snapshot 1' },
           { id: 2, name: 'Snapshot 2' }
@@ -408,7 +409,7 @@ describe('QRCCommands', () => {
 
   describe('Status Methods', () => {
     describe('getStatus', () => {
-      it('should get core status', async () => {
+      it('should get core status', () => {
         const mockStatus = {
           isRedundant: false,
           isEmulator: false,
@@ -431,7 +432,7 @@ describe('QRCCommands', () => {
 
   describe('Change Group Methods', () => {
     describe('addControlToChangeGroup', () => {
-      it('should add control with component to change group', async () => {
+      it('should add control with component to change group', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.addControlToChangeGroup('gain', 'Gain1');
@@ -443,7 +444,7 @@ describe('QRCCommands', () => {
         });
       });
 
-      it('should add control without component to change group', async () => {
+      it('should add control without component to change group', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.addControlToChangeGroup('mute');
@@ -457,7 +458,7 @@ describe('QRCCommands', () => {
     });
 
     describe('removeControlFromChangeGroup', () => {
-      it('should remove control from change group', async () => {
+      it('should remove control from change group', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.removeControlFromChangeGroup('gain', 'Gain1');
@@ -471,7 +472,7 @@ describe('QRCCommands', () => {
     });
 
     describe('clearChangeGroup', () => {
-      it('should clear change group', async () => {
+      it('should clear change group', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.clearChangeGroup();
@@ -485,7 +486,7 @@ describe('QRCCommands', () => {
     });
 
     describe('invalidateChangeGroup', () => {
-      it('should invalidate change group', async () => {
+      it('should invalidate change group', () => {
         mockClient.sendCommand.mockResolvedValue({});
 
         await commands.invalidateChangeGroup();
@@ -507,11 +508,11 @@ describe('QRCCommands', () => {
           { control: 'mute', component: 'Gain1' }
         ];
 
-        const changeGroup = commands.createChangeGroup('testGroup', controls);
+        const changeGroup = await commands.createChangeGroup('testGroup', controls);
 
         expect(changeGroup).toEqual({
           id: 'testGroup',
-          controls: controls,
+          controls,
           autoPoll: false
         });
       });
@@ -520,12 +521,12 @@ describe('QRCCommands', () => {
     describe('getChangeGroup', () => {
       it('should retrieve stored change group', () => {
         const controls = [{ control: 'gain', component: 'Gain1' }];
-        commands.createChangeGroup('testGroup', controls);
+        await commands.createChangeGroup('testGroup', controls);
 
         const changeGroup = commands.getChangeGroup('testGroup');
 
-        expect(changeGroup?.id).toBe('testGroup');
-        expect(changeGroup?.controls).toEqual(controls);
+        expect(changeGroup.id).toBe('testGroup');
+        expect(changeGroup.controls).toEqual(controls);
       });
 
       it('should return undefined for non-existent change group', () => {
@@ -538,34 +539,34 @@ describe('QRCCommands', () => {
     describe('deleteChangeGroup', () => {
       it('should delete stored change group', () => {
         const controls = [{ control: 'gain', component: 'Gain1' }];
-        commands.createChangeGroup('testGroup', controls);
+        await commands.createChangeGroup('testGroup', controls);
 
-        const deleted = commands.deleteChangeGroup('testGroup');
+        const deleted = await commands.deleteChangeGroup('testGroup');
 
         expect(deleted).toBe(true);
         expect(commands.getChangeGroup('testGroup')).toBeUndefined();
       });
 
       it('should return false for non-existent change group', () => {
-        const deleted = commands.deleteChangeGroup('nonExistent');
+        const deleted = await commands.deleteChangeGroup('nonExistent');
 
         expect(deleted).toBe(false);
       });
     });
 
-    describe('listChangeGroups', () => {
+    describe('getAllChangeGroups', () => {
       it('should list all change groups', () => {
-        commands.createChangeGroup('group1', [{ control: 'gain', component: 'Gain1' }]);
-        commands.createChangeGroup('group2', [{ control: 'mute', component: 'Gain1' }]);
+        await commands.createChangeGroup('group1', [{ control: 'gain', component: 'Gain1' }]);
+        await commands.createChangeGroup('group2', [{ control: 'mute', component: 'Gain1' }]);
 
-        const groups = commands.listChangeGroups();
+        const groups = commands.getAllChangeGroups();
 
         expect(groups).toHaveLength(2);
-        expect(groups.map(g => g.id)).toEqual(['group1', 'group2']);
+        expect(groups.map((g: any) => g.id as string)).toEqual(['group1', 'group2']);
       });
 
       it('should return empty array when no change groups', () => {
-        const groups = commands.listChangeGroups();
+        const groups = commands.getAllChangeGroups();
 
         expect(groups).toEqual([]);
       });
@@ -573,32 +574,32 @@ describe('QRCCommands', () => {
   });
 
   describe('Parameter Validation', () => {
-    it('should validate required parameters', async () => {
+    it('should validate required parameters', () => {
       await expect(commands.getComponent('')).rejects.toThrow();
       await expect(commands.getControls('')).rejects.toThrow();
       await expect(commands.getControlValue('')).rejects.toThrow();
     });
 
-    it('should validate numeric parameters', async () => {
+    it('should validate numeric parameters', () => {
       await expect(commands.loadSnapshot(-1, 1)).rejects.toThrow();
       await expect(commands.loadSnapshot(1, -1)).rejects.toThrow();
       await expect(commands.setCrosspointGain('Mixer1', 1, 2, 2.0)).rejects.toThrow(); // Gain > 1
     });
 
-    it('should validate mixer parameters', async () => {
+    it('should validate mixer parameters', () => {
       await expect(commands.getMixerInputs('')).rejects.toThrow();
       await expect(commands.setCrosspointMute('', 1, 2, true)).rejects.toThrow();
     });
   });
 
   describe('Error Handling', () => {
-    it('should handle network errors', async () => {
+    it('should handle network errors', () => {
       mockClient.sendCommand.mockRejectedValue(new Error('Network timeout'));
 
       await expect(commands.getComponents()).rejects.toThrow('Failed to get components');
     });
 
-    it('should handle Q-SYS errors', async () => {
+    it('should handle Q-SYS errors', () => {
       mockClient.sendCommand.mockRejectedValue({
         code: QSysErrorCode.INVALID_COMPONENT,
         message: 'Component not found'
@@ -607,7 +608,7 @@ describe('QRCCommands', () => {
       await expect(commands.getComponent('Invalid')).rejects.toThrow();
     });
 
-    it('should handle malformed responses', async () => {
+    it('should handle malformed responses', () => {
       mockClient.sendCommand.mockResolvedValue(null);
 
       await expect(commands.getComponents()).rejects.toThrow();

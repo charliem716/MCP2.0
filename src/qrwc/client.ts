@@ -3,20 +3,14 @@
  * Modern WebSocket client with retry logic, heartbeat, and event-driven architecture
  */
 
-import WebSocket from 'ws';
 import { EventEmitter } from 'events';
-import type { Logger } from '../shared/utils/logger.js';
-import { createLogger } from '../shared/utils/logger.js';
-import { globalErrorHandler } from '../shared/utils/errorHandler.js';
-import { config } from '../shared/utils/env.js';
-import type {
-  QSysConnectionConfig,
-  QSysConnectionState,
-  QSysRequest,
-  QSysResponse,
+import WebSocket from 'ws';
+import { createLogger, type Logger } from '../shared/utils/logger.js';
+import type { 
+  QSysRequest, 
+  QSysResponse, 
   QSysNotification,
-  QSysMethod,
-  QSysClient
+  QSysConnectionState
 } from '../shared/types/qsys.js';
 import { QSysError, QSysErrorCode } from '../shared/types/errors.js';
 import { ConnectionState } from '../shared/types/common.js';
@@ -29,7 +23,7 @@ export interface QRWCClientEvents {
   'disconnected': [reason: string];
   'reconnecting': [attempt: number];
   'error': [error: Error];
-  'message': [data: any];
+  'message': [data: unknown];
   'response': [response: QSysResponse];
   'notification': [notification: QSysNotification];
   'state_change': [state: ConnectionState];
@@ -54,7 +48,7 @@ export interface QRWCClientOptions {
 /**
  * QRWC Client implementation with modern WebSocket patterns
  */
-export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysClient {
+export class QRWCClient extends EventEmitter<QRWCClientEvents> {
   private ws?: WebSocket;
   private logger: Logger;
   private options: QRWCClientOptions;
@@ -65,40 +59,48 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   private heartbeatTimeout?: NodeJS.Timeout;
   private requestId = 0;
   private pendingRequests = new Map<number, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolve: (value: any) => void;
-    reject: (error: Error) => void;
+    reject: (reason?: unknown) => void;
     timeout: NodeJS.Timeout;
   }>();
   private isAlive = false;
   private shutdownInProgress = false;
+  private isAuthenticated = false;
 
-  constructor(options: Partial<QRWCClientOptions> = {}) {
+  constructor(options: QRWCClientOptions) {
     super();
-    this.logger = createLogger('QRWCClient');
-    this.options = {
-      host: options.host || config.qsys.host,
-      port: options.port || config.qsys.port,
-      username: options.username || config.qsys.username,
-      password: options.password || config.qsys.password,
-      reconnectInterval: options.reconnectInterval || config.qsys.reconnectInterval,
-      heartbeatInterval: options.heartbeatInterval || config.qsys.heartbeatInterval,
-      maxReconnectAttempts: options.maxReconnectAttempts || 10,
-      connectionTimeout: options.connectionTimeout || 10000,
-      enableHeartbeat: options.enableHeartbeat ?? true,
-      enableAutoReconnect: options.enableAutoReconnect ?? true
+    const baseOptions = {
+      host: options.host,
+      port: options.port,
+      reconnectInterval: options.reconnectInterval,
+      heartbeatInterval: options.heartbeatInterval,
+      maxReconnectAttempts: options.maxReconnectAttempts,
+      connectionTimeout: options.connectionTimeout,
+      enableHeartbeat: options.enableHeartbeat,
+      enableAutoReconnect: options.enableAutoReconnect
     };
-
+    
+    // Only add optional properties if they're defined
+    this.options = {
+      ...baseOptions,
+      ...(options.username !== undefined && { username: options.username }),
+      ...(options.password !== undefined && { password: options.password })
+    };
+    
+    this.logger = createLogger(`qrwc-client-${options.host}`);
     this.setupGracefulShutdown();
   }
 
   /**
    * Connect to Q-SYS Core
    */
+  /* eslint-disable max-statements */
   async connect(): Promise<void> {
     if (this.connectionState === ConnectionState.CONNECTING || this.connectionState === ConnectionState.CONNECTED) {
       return;
     }
-
+    
     this.setState(ConnectionState.CONNECTING);
     this.logger.info('Connecting to Q-SYS Core', {
       host: this.options.host,
@@ -119,14 +121,17 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
       this.reconnectAttempts = 0;
       this.isAlive = true;
       
+      // Authenticate with Q-SYS Core
+      await this.authenticate();
+      
       // Start heartbeat if enabled
       if (this.options.enableHeartbeat) {
         this.startHeartbeat();
       }
-
-      this.logger.info('Successfully connected to Q-SYS Core');
+      
+      this.logger.info('Successfully connected and authenticated to Q-SYS Core');
       this.emit('connected');
-
+      
     } catch (error) {
       this.setState(ConnectionState.DISCONNECTED);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -138,16 +143,16 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
       
       throw new QSysError(
         'Failed to connect to Q-SYS Core',
-        QSysErrorCode.CONNECTION_FAILED,
-        { host: this.options.host, port: this.options.port, error: errorMsg }
+        QSysErrorCode.CONNECTION_FAILED
       );
     }
   }
+  /* eslint-enable max-statements */
 
   /**
    * Disconnect from Q-SYS Core
    */
-  async disconnect(): Promise<void> {
+  disconnect(): void {
     this.logger.info('Disconnecting from Q-SYS Core');
     this.shutdownInProgress = true;
     
@@ -157,10 +162,13 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
     // Cancel pending requests
     this.cancelPendingRequests();
     
+    // Reset authentication state
+    this.isAuthenticated = false;
+    
     // Close WebSocket connection
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
-      this.ws = undefined as any;
+      delete this.ws;
     }
     
     this.setState(ConnectionState.DISCONNECTED);
@@ -180,16 +188,122 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   getState(): QSysConnectionState {
     return {
       state: this.connectionState,
-      reconnectAttempts: this.reconnectAttempts,
-      lastConnected: undefined as any,
-      lastDisconnected: undefined as any
+      reconnectAttempts: this.reconnectAttempts
     };
   }
 
   /**
-   * Send a command to Q-SYS Core
+   * Check if client is authenticated
    */
-  async sendCommand<T = any>(request: Omit<QSysRequest, 'id'>): Promise<T> {
+  isAuthenticatedClient(): boolean {
+    return this.isAuthenticated;
+  }
+
+  /**
+   * Get next request ID with overflow protection and collision avoidance
+   */
+  private getNextRequestId(): number {
+    // Check if we're approaching the safe integer limit
+    if (this.requestId >= Number.MAX_SAFE_INTEGER - 1000) {
+      this.requestId = 0;
+    }
+    
+    // Increment and get candidate ID
+    let candidateId = ++this.requestId;
+    
+    // Ensure we never use 0 as an ID
+    if (candidateId === 0) {
+      candidateId = ++this.requestId;
+    }
+    
+    // Check for collision with pending requests
+    while (this.pendingRequests.has(candidateId)) {
+      candidateId = ++this.requestId;
+      
+      // If we've wrapped around again, reset to 1
+      if (candidateId >= Number.MAX_SAFE_INTEGER - 1000) {
+        this.requestId = 0;
+        candidateId = ++this.requestId;
+      }
+    }
+    
+    this.requestId = candidateId;
+    return candidateId;
+  }
+
+  /**
+   * Authenticate with Q-SYS Core using username and password
+   */
+  private async authenticate(): Promise<void> {
+    if (!this.options.username || !this.options.password) {
+      throw new QSysError(
+        'Username and password are required for authentication',
+        QSysErrorCode.AUTHENTICATION_FAILED,
+        { hasUsername: !!this.options.username, hasPassword: !!this.options.password }
+      );
+    }
+
+    this.logger.debug('Authenticating with Q-SYS Core', { 
+      username: this.options.username,
+      hasPassword: !!this.options.password 
+    });
+
+    try {
+      const response = await this.sendCommand({
+        jsonrpc: '2.0',
+        method: 'Logon',
+        params: {
+          User: this.options.username,
+          Password: this.options.password
+        }
+      });
+
+      // Check if authentication was successful
+      // Q-SYS returns different response formats, check for common success indicators
+      const responseObj = response as Record<string, unknown>;
+      const isSuccess = response === 'login_success' || 
+                       responseObj['result'] === 'login_success' ||
+                       responseObj['success'] === true ||
+                       !responseObj['error'];
+
+      if (!isSuccess) {
+        throw new QSysError(
+          'Authentication failed - invalid credentials',
+          QSysErrorCode.AUTHENTICATION_FAILED,
+          { username: this.options.username, response }
+        );
+      }
+
+      this.isAuthenticated = true;
+      this.logger.info('Successfully authenticated with Q-SYS Core', { 
+        username: this.options.username 
+      });
+
+    } catch (error) {
+      this.isAuthenticated = false;
+      
+      if (error instanceof QSysError) {
+        throw error;
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown authentication error';
+      this.logger.error('Authentication failed', { 
+        username: this.options.username,
+        error: errorMessage 
+      });
+      
+      throw new QSysError(
+        `Authentication failed: ${errorMessage}`,
+        QSysErrorCode.AUTHENTICATION_FAILED,
+        { username: this.options.username, error: errorMessage }
+      );
+    }
+  }
+
+  /**
+   * Send a command to the Q-SYS Core and await the response
+   */
+  async sendCommand<T = unknown>(request: Omit<QSysRequest, 'id'>): Promise<T> {
     if (!this.isConnected()) {
       throw new QSysError(
         'Not connected to Q-SYS Core',
@@ -198,7 +312,16 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
       );
     }
 
-    const id = ++this.requestId;
+    // Check authentication for all commands except Logon and NoOp
+    if (request.method !== 'Logon' && request.method !== 'NoOp' && !this.isAuthenticated) {
+      throw new QSysError(
+        'Not authenticated with Q-SYS Core',
+        QSysErrorCode.AUTHENTICATION_FAILED,
+        { method: request.method, authenticated: this.isAuthenticated }
+      );
+    }
+
+    const id = this.getNextRequestId();
     const fullRequest: QSysRequest = { ...request, id };
 
     return new Promise((resolve, reject) => {
@@ -214,8 +337,14 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
       this.pendingRequests.set(id, { resolve, reject, timeout });
 
       try {
-        this.ws!.send(JSON.stringify(fullRequest));
-        this.logger.debug('Sent command', { id, method: request.method });
+        if (this.ws) {
+          this.ws.send(JSON.stringify(fullRequest));
+          this.logger.debug('Sent command', { id, method: request.method });
+        } else {
+          this.pendingRequests.delete(id);
+          reject(new QSysError('WebSocket connection not available', QSysErrorCode.CONNECTION_FAILED));
+          return;
+        }
       } catch (error) {
         this.pendingRequests.delete(id);
         clearTimeout(timeout);
@@ -252,11 +381,12 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
       });
       
       this.isAlive = false;
+      this.isAuthenticated = false; // Reset authentication state on connection loss
       this.clearTimers();
       
       if (this.connectionState === ConnectionState.CONNECTED) {
         this.setState(ConnectionState.DISCONNECTED);
-        this.emit('disconnected', `Connection closed: ${code} ${reason}`);
+        this.emit('disconnected', `Connection closed: ${code} ${String(reason)}`);
       }
       
       if (!this.shutdownInProgress && this.options.enableAutoReconnect) {
@@ -280,48 +410,53 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   }
 
   /**
-   * Handle incoming WebSocket messages
+   * Handle incoming message
    */
-  private handleMessage(data: WebSocket.Data): void {
-    try {
-      const message = JSON.parse(data.toString());
-      this.logger.debug('Received message', { message });
+  private handleMessage(data: unknown): void {
+    this.logger.debug('Handling message:', data);
+    
+    const message = data as Record<string, unknown>;
+    
+    // Handle response
+    if (typeof message['id'] === 'number' && this.pendingRequests.has(message['id'])) {
+      const messageId = message['id'];
+      const pendingRequest = this.pendingRequests.get(messageId);
       
-      this.emit('message', message);
-
-      // Handle responses to pending requests
-      if (message.id && this.pendingRequests.has(message.id)) {
-        const pending = this.pendingRequests.get(message.id)!;
-        this.pendingRequests.delete(message.id);
-        clearTimeout(pending.timeout);
-
-        if (message.error) {
-          pending.reject(new QSysError(
-            message.error.message || 'Q-SYS error',
-            message.error.code || 'QSYS_ERROR',
-            { requestId: message.id, error: message.error }
-          ));
-        } else {
-          pending.resolve(message.result);
-        }
-        
-        this.emit('response', message);
-      } else if (!message.id) {
-        // Handle notifications (messages without ID)
-        this.emit('notification', message);
+      if (!pendingRequest) {
+        this.logger.warn('Pending request not found', { messageId });
+        return;
       }
-    } catch (error) {
-      this.logger.error('Failed to parse message', { 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: data.toString() 
-      });
+      
+      const { resolve, reject, timeout } = pendingRequest;
+      
+      clearTimeout(timeout);
+      this.pendingRequests.delete(messageId);
+      
+      if (message['error']) {
+        const errorData = message['error'] as Record<string, unknown>;
+        const error = new QSysError(
+          (errorData['message'] as string | null | undefined) ?? 'Unknown error', 
+          (errorData['code'] as QSysErrorCode | null | undefined) ?? QSysErrorCode.COMMAND_FAILED
+        );
+        reject(error);
+      } else {
+        resolve(message['result']);
+      }
+      
+      this.emit('response', message as unknown as QSysResponse);
+    } else if (message['id'] === null) {
+      // Handle notification
+      this.emit('notification', message as unknown as QSysNotification);
+    } else {
+      // Handle unknown message
+      this.logger.warn('Unknown message:', message);
     }
   }
 
   /**
    * Wait for WebSocket connection to open
    */
-  private waitForConnection(): Promise<void> {
+  private async waitForConnection(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.ws) {
         reject(new Error('WebSocket not initialized'));
@@ -414,7 +549,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
     this.emit('reconnecting', this.reconnectAttempts);
 
     this.reconnectTimer = setTimeout(() => {
-      this.connect().catch((error) => {
+      this.connect().catch((error: unknown) => {
         this.logger.error('Reconnection attempt failed', { error });
       });
     }, delay);
@@ -438,7 +573,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   private clearTimers(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = undefined as any;
+      delete this.reconnectTimer;
     }
     
     this.clearHeartbeatTimers();
@@ -450,12 +585,12 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   private clearHeartbeatTimers(): void {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = undefined as any;
+      delete this.heartbeatTimer;
     }
     
     if (this.heartbeatTimeout) {
       clearTimeout(this.heartbeatTimeout);
-      this.heartbeatTimeout = undefined as any;
+      delete this.heartbeatTimeout;
     }
   }
 
@@ -478,9 +613,8 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
    * Set up graceful shutdown handlers
    */
   private setupGracefulShutdown(): void {
-    const shutdown = async () => {
-      this.logger.info('Graceful shutdown initiated');
-      await this.disconnect();
+    const shutdown = (): void => {
+      this.disconnect();
     };
 
     process.on('SIGTERM', shutdown);
@@ -498,7 +632,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Component.GetComponents',
         params: {}
       });
-      return result.components || [];
+      return (result as {components?: unknown[]}).components ?? [];
     }
     
     async getComponent(name: string) {
@@ -507,7 +641,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Component.Get',
         params: { Name: name }
       });
-      return result.component;
+      return (result as {component?: unknown}).component;
     }
     
     async getControls(component: string) {
@@ -516,23 +650,23 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Component.GetControls',
         params: { Name: component }
       });
-      return result.controls || [];
+      return (result as {controls?: unknown[]}).controls ?? [];
     }
     
     async getControlValue(control: string, component?: string) {
-      const params: any = { Name: control };
-      if (component) params.Component = component;
+      const params: Record<string, unknown> = { Name: control };
+      if (component) params['Component'] = component;
       const result = await this.client.sendCommand({
         jsonrpc: '2.0',
-        method: 'Control.Get',
+        method: 'Component.GetControlValue',
         params
       });
-      return result.value;
+      return (result as {value?: unknown}).value;
     }
     
-    async setControlValue(control: string, value: any, component?: string) {
-      const params: any = { Name: control, Value: value };
-      if (component) params.Component = component;
+    async setControlValue(control: string, value: unknown, component?: string) {
+      const params: Record<string, unknown> = { Name: control, Value: value };
+      if (component) params['Component'] = component;
       await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'Control.Set',
@@ -540,16 +674,16 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
       });
     }
     
-    async getControlValues(controls: any[]) {
+    async getControlValues(controls: Array<{Name: string; Component?: string}>) {
       const result = await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'Control.GetMultiple',
         params: { Controls: controls }
       });
-      return result.controls || [];
+      return (result as {controls?: unknown[]}).controls ?? [];
     }
     
-    async setControlValues(controls: any[]) {
+    async setControlValues(controls: Array<{Name: string; Value: unknown; Component?: string}>) {
       await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'Control.SetMultiple',
@@ -563,7 +697,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Mixer.GetInputs',
         params: { Name: mixer }
       });
-      return result.inputs || [];
+      return (result as {inputs?: unknown[]}).inputs ?? [];
     }
     
     async getMixerOutputs(mixer: string) {
@@ -572,7 +706,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Mixer.GetOutputs',
         params: { Name: mixer }
       });
-      return result.outputs || [];
+      return (result as {outputs?: unknown[]}).outputs ?? [];
     }
     
     async setCrosspointMute(mixer: string, input: number, output: number, mute: boolean) {
@@ -597,7 +731,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Mixer.GetCrosspointMute',
         params: { Name: mixer, Input: input, Output: output }
       });
-      return result.mute;
+      return (result as {mute?: boolean}).mute ?? false;
     }
     
     async getCrosspointGain(mixer: string, input: number, output: number) {
@@ -606,12 +740,12 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Mixer.GetCrosspointGain',
         params: { Name: mixer, Input: input, Output: output }
       });
-      return result.gain;
+      return (result as {gain?: number}).gain ?? 0;
     }
     
     async loadSnapshot(bank: number, snapshot: number, ramp?: number) {
-      const params: any = { Bank: bank, Snapshot: snapshot };
-      if (ramp !== undefined) params.Ramp = ramp;
+      const params: Record<string, unknown> = { Bank: bank, Snapshot: snapshot };
+      if (ramp !== undefined) params['Ramp'] = ramp;
       await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'Snapshot.Load',
@@ -620,8 +754,8 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
     }
     
     async saveSnapshot(bank: number, snapshot: number, name?: string) {
-      const params: any = { Bank: bank, Snapshot: snapshot };
-      if (name) params.Name = name;
+      const params: Record<string, unknown> = { Bank: bank, Snapshot: snapshot };
+      if (name) params['Name'] = name;
       await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'Snapshot.Save',
@@ -635,7 +769,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Snapshot.GetBanks',
         params: {}
       });
-      return result.banks || [];
+      return (result as {banks?: unknown[]}).banks ?? [];
     }
     
     async getSnapshots(bank: number) {
@@ -644,7 +778,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Snapshot.Get',
         params: { Bank: bank }
       });
-      return result.snapshots || [];
+      return (result as {snapshots?: unknown[]}).snapshots ?? [];
     }
     
     async getStatus() {
@@ -653,12 +787,12 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'Status.Get',
         params: {}
       });
-      return result.status;
+      return (result as {status?: unknown}).status;
     }
     
     async addControlToChangeGroup(control: string, component?: string) {
-      const params: any = { Name: control };
-      if (component) params.Component = component;
+      const params: Record<string, unknown> = { Name: control };
+      if (component) params['Component'] = component;
       await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'ChangeGroup.AddControl',
@@ -667,8 +801,8 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
     }
     
     async removeControlFromChangeGroup(control: string, component?: string) {
-      const params: any = { Name: control };
-      if (component) params.Component = component;
+      const params: Record<string, unknown> = { Name: control };
+      if (component) params['Component'] = component;
       await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'ChangeGroup.RemoveControl',
@@ -693,8 +827,8 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
     }
     
     async setAutoPolling(enabled: boolean, rate?: number) {
-      const params: any = { Enabled: enabled };
-      if (rate) params.Rate = rate;
+      const params: Record<string, unknown> = { Enabled: enabled };
+      if (rate) params['Rate'] = rate;
       await this.client.sendCommand({
         jsonrpc: '2.0',
         method: 'ChangeGroup.AutoPoll',
@@ -708,7 +842,7 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
         method: 'ChangeGroup.Poll',
         params: {}
       });
-      return result.changes || [];
+      return (result as {changes?: unknown[]}).changes ?? [];
     }
   })(this);
 
@@ -717,9 +851,9 @@ export class QRWCClient extends EventEmitter<QRWCClientEvents> implements QSysCl
   async getComponent(name: string) { return this.qrcCommands.getComponent(name); }
   async getControls(component: string) { return this.qrcCommands.getControls(component); }
   async getControlValue(control: string, component?: string) { return this.qrcCommands.getControlValue(control, component); }
-  async setControlValue(control: string, value: any, component?: string) { return this.qrcCommands.setControlValue(control, value, component); }
-  async getControlValues(controls: any[]) { return this.qrcCommands.getControlValues(controls); }
-  async setControlValues(controls: any[]) { return this.qrcCommands.setControlValues(controls); }
+  async setControlValue(control: string, value: unknown, component?: string) { return this.qrcCommands.setControlValue(control, value, component); }
+  async getControlValues(controls: Array<{Name: string; Component?: string}>) { return this.qrcCommands.getControlValues(controls); }
+  async setControlValues(controls: Array<{Name: string; Value: unknown; Component?: string}>) { return this.qrcCommands.setControlValues(controls); }
   async getMixerInputs(mixer: string) { return this.qrcCommands.getMixerInputs(mixer); }
   async getMixerOutputs(mixer: string) { return this.qrcCommands.getMixerOutputs(mixer); }
   async setCrosspointMute(mixer: string, input: number, output: number, mute: boolean) { return this.qrcCommands.setCrosspointMute(mixer, input, output, mute); }

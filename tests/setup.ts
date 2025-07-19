@@ -28,7 +28,7 @@ afterEach(() => {
 // Global test utilities
 (globalThis as any).testUtils = {
   // Add common test utilities here
-  delay: (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms)),
+  delay: async (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms)),
   mockLogger: {
     info: jest.fn(),
     error: jest.fn(),

@@ -3,7 +3,7 @@
  */
 
 import type { ID, Timestamp } from './common.js';
-import type { OpenAIModel, OpenAIVoice, OpenAITool, OpenAIChatMessage, OpenAIConversationContext } from './openai.js';
+import type { OpenAIModel, OpenAIVoice, OpenAITool, OpenAIChatMessage } from './openai.js';
 import type { MCPToolHandler } from './mcp.js';
 import type { QSysClient } from './qsys.js';
 
@@ -132,7 +132,7 @@ export interface AgentConversationState {
   tokensUsed: number;
   currentTool?: string;
   pendingAction?: PendingAction;
-  context: Record<string, any>;
+  context: Record<string, unknown>;
 }
 
 /**
@@ -142,7 +142,7 @@ export interface PendingAction {
   id: ID;
   type: 'qsys_control' | 'snapshot_load' | 'system_command';
   description: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   confirmationRequired: boolean;
   expiresAt: Timestamp;
   riskLevel: 'low' | 'medium' | 'high';
@@ -157,7 +157,7 @@ export interface AgentResponse {
   message: OpenAIChatMessage;
   actions?: AgentAction[];
   suggestions?: string[];
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   tokensUsed: number;
   responseTime: number;
   timestamp: Timestamp;
@@ -170,9 +170,9 @@ export interface AgentAction {
   id: ID;
   type: 'qsys_control' | 'snapshot' | 'system' | 'information';
   description: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   status: 'pending' | 'executing' | 'completed' | 'failed';
-  result?: any;
+  result?: unknown;
   error?: string;
   timestamp: Timestamp;
 }
@@ -185,7 +185,7 @@ export interface AgentToolContext {
   userId?: ID;
   sessionId?: ID;
   toolName: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   timestamp: Timestamp;
   riskLevel: 'low' | 'medium' | 'high';
   requiresConfirmation: boolean;
@@ -196,12 +196,12 @@ export interface AgentToolContext {
  */
 export interface AgentToolResult {
   success: boolean;
-  result?: any;
+  result?: unknown;
   error?: string;
   message?: string;
   actions?: AgentAction[];
   suggestions?: string[];
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -211,8 +211,8 @@ export interface AgentMemory {
   userId?: ID;
   sessionId?: ID;
   conversationId?: ID;
-  shortTerm: Record<string, any>;
-  longTerm: Record<string, any>;
+  shortTerm: Record<string, unknown>;
+  longTerm: Record<string, unknown>;
   preferences: UserPreferences;
   recentActions: AgentAction[];
   frequentCommands: Array<{
@@ -253,7 +253,7 @@ export interface AgentMetrics {
 export interface AgentLearningData {
   userBehavior: {
     commonCommands: string[];
-    preferredSettings: Record<string, any>;
+    preferredSettings: Record<string, unknown>;
     usagePatterns: Record<string, number>;
   };
   systemPatterns: {
@@ -284,7 +284,7 @@ export interface Agent {
   // Conversation management
   startConversation(userId?: ID, sessionId?: ID): Promise<AgentConversationState>;
   endConversation(conversationId: ID): Promise<void>;
-  sendMessage(conversationId: ID, message: string, context?: Record<string, any>): Promise<AgentResponse>;
+  sendMessage(conversationId: ID, message: string, context?: Record<string, unknown>): Promise<AgentResponse>;
   getConversationHistory(conversationId: ID, limit?: number): Promise<OpenAIChatMessage[]>;
   
   // Voice capabilities
@@ -294,15 +294,15 @@ export interface Agent {
   // Tool management
   registerTool(handler: MCPToolHandler): void;
   unregisterTool(name: string): void;
-  executeTool(name: string, parameters: Record<string, any>, context: AgentToolContext): Promise<AgentToolResult>;
+  executeTool(name: string, parameters: Record<string, unknown>, context: AgentToolContext): Promise<AgentToolResult>;
   
   // Q-SYS integration
   setQSysClient(client: QSysClient): void;
   getQSysStatus(): Promise<SystemState['qsysCore']>;
   
   // Memory and learning
-  updateMemory(conversationId: ID, data: Record<string, any>): Promise<void>;
-  getMemory(conversationId: ID): Promise<Record<string, any>>;
+  updateMemory(conversationId: ID, data: Record<string, unknown>): Promise<void>;
+  getMemory(conversationId: ID): Promise<Record<string, unknown>>;
   learn(data: AgentLearningData): Promise<void>;
   
   // Metrics and monitoring
@@ -315,9 +315,9 @@ export interface Agent {
   on(event: 'message_received', listener: (conversationId: ID, message: string) => void): void;
   on(event: 'message_sent', listener: (response: AgentResponse) => void): void;
   on(event: 'tool_executed', listener: (result: AgentToolResult) => void): void;
-  on(event: 'error', listener: (error: Error, context?: Record<string, any>) => void): void;
+  on(event: 'error', listener: (error: Error, context?: Record<string, unknown>) => void): void;
   
-  off(event: string, listener: Function): void;
+  off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 }
 
@@ -350,6 +350,6 @@ export interface AgentManager {
   on(event: 'agent_removed', listener: (agentId: ID) => void): void;
   on(event: 'global_error', listener: (error: Error, agentId?: ID) => void): void;
   
-  off(event: string, listener: Function): void;
+  off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 } 

@@ -34,9 +34,7 @@ export enum ErrorCategory {
 /**
  * Error context information
  */
-export interface ErrorContext {
-  [key: string]: any;
-}
+export type ErrorContext = Record<string, unknown>;
 
 /**
  * Structured error information
@@ -60,7 +58,7 @@ export interface ValidationErrorField {
   field: string;
   message: string;
   code: string;
-  value?: any;
+  value?: unknown;
 }
 
 /**
@@ -78,7 +76,7 @@ export interface APIErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
     timestamp: Timestamp;
     requestId?: string;
   };
@@ -138,7 +136,7 @@ export abstract class BaseError extends Error {
     code: string,
     severity: ErrorSeverity = ErrorSeverity.MEDIUM,
     category: ErrorCategory = ErrorCategory.INTERNAL,
-    context?: ErrorContext | undefined
+    context?: ErrorContext  
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -150,7 +148,7 @@ export abstract class BaseError extends Error {
     this.context = context;
 
     // Ensure the error stack is captured
-    if (Error.captureStackTrace) {
+    if (typeof Error.captureStackTrace === 'function') {
       Error.captureStackTrace(this, this.constructor);
     }
   }
@@ -206,7 +204,7 @@ export class NotFoundError extends BaseError {
  * Unauthorized error class
  */
 export class UnauthorizedError extends BaseError {
-  constructor(message: string = 'Unauthorized', context?: ErrorContext) {
+  constructor(message = 'Unauthorized', context?: ErrorContext) {
     super(message, 'UNAUTHORIZED', ErrorSeverity.HIGH, ErrorCategory.AUTHENTICATION, context);
   }
 }
@@ -215,7 +213,7 @@ export class UnauthorizedError extends BaseError {
  * Forbidden error class
  */
 export class ForbiddenError extends BaseError {
-  constructor(message: string = 'Forbidden', context?: ErrorContext) {
+  constructor(message = 'Forbidden', context?: ErrorContext) {
     super(message, 'FORBIDDEN', ErrorSeverity.HIGH, ErrorCategory.AUTHORIZATION, context);
   }
 }
@@ -235,7 +233,7 @@ export class ConflictError extends BaseError {
 export class RateLimitError extends BaseError {
   public readonly retryAfter?: number | undefined;
 
-  constructor(message: string = 'Rate limit exceeded', retryAfter?: number | undefined, context?: ErrorContext | undefined) {
+  constructor(message = 'Rate limit exceeded', retryAfter?: number  , context?: ErrorContext  ) {
     super(message, 'RATE_LIMIT_EXCEEDED', ErrorSeverity.MEDIUM, ErrorCategory.RATE_LIMIT, context);
     this.retryAfter = retryAfter;
   }
@@ -246,13 +244,13 @@ export class RateLimitError extends BaseError {
  */
 export class ExternalAPIError extends BaseError {
   public readonly statusCode?: number | undefined;
-  public readonly responseBody?: any;
+  public readonly responseBody?: unknown;
 
   constructor(
     message: string,
-    statusCode?: number | undefined,
-    responseBody?: any,
-    context?: ErrorContext | undefined
+    statusCode?: number  ,
+    responseBody?: unknown,
+    context?: ErrorContext  
   ) {
     super(message, 'EXTERNAL_API_ERROR', ErrorSeverity.HIGH, ErrorCategory.EXTERNAL_API, context);
     this.statusCode = statusCode;
