@@ -11,8 +11,8 @@
     "password": "",
     "connectionSettings": {
       "timeout": 10000,
-      "reconnectInterval": 5000,
-      "maxReconnectAttempts": 5,
+      "reconnectInterval": 10000,
+      "maxReconnectAttempts": 10,
       "heartbeatInterval": 30000,
       "pollingInterval": 350,
       "enableAutoReconnect": true

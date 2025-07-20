@@ -27,7 +27,7 @@ export interface OfficialQRWCClientOptions {
  * Events emitted by the Official QRWC Client
  */
 export interface OfficialQRWCClientEvents {
-  'connected': [];
+  'connected': [data: { requiresCacheInvalidation: boolean; downtimeMs: number }];
   'disconnected': [reason: string];
   'reconnecting': [attempt: number];
   'error': [error: Error];
@@ -46,6 +46,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   private reconnectAttempts = 0;
   private reconnectTimer?: NodeJS.Timeout;
   private shutdownInProgress = false;
+  private disconnectTime: Date | null = null;
 
   constructor(options: OfficialQRWCClientOptions) {
     super();
@@ -96,10 +97,29 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       this.setState(ConnectionState.CONNECTED);
       this.reconnectAttempts = 0;
       
+      // Calculate downtime and emit appropriate event
+      const downtime = this.disconnectTime ? 
+        Date.now() - this.disconnectTime.getTime() : 0;
+      
+      if (downtime > 0) {
+        this.logger.info('Q-SYS Core reconnected after downtime', {
+          downtimeMs: downtime,
+          requiresCacheInvalidation: downtime > 30000
+        });
+      }
+      
       this.setupWebSocketHandlers();
       
       this.logger.info('Successfully connected to Q-SYS Core using official QRWC library');
-      this.emit('connected');
+      
+      // Emit appropriate event based on downtime
+      if (downtime > 30000) {
+        this.emit('connected', { requiresCacheInvalidation: true, downtimeMs: downtime });
+      } else {
+        this.emit('connected', { requiresCacheInvalidation: false, downtimeMs: downtime });
+      }
+      
+      this.disconnectTime = null;
       
     } catch (error) {
       this.setState(ConnectionState.DISCONNECTED);
@@ -353,6 +373,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       
       if (this.connectionState === ConnectionState.CONNECTED) {
         this.setState(ConnectionState.DISCONNECTED);
+        this.disconnectTime = new Date();
         this.emit('disconnected', `Connection closed: ${code} ${String(reason)}`);
       }
       
@@ -371,8 +392,26 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   private scheduleReconnect(): void {
     if (this.shutdownInProgress) return;
     
+    // Switch to long-term reconnection mode after initial attempts
     if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-      this.logger.error('Max reconnection attempts reached');
+      this.logger.warn('Switching to long-term reconnection mode');
+      const longTermDelay = 60000; // 1 minute intervals
+      
+      this.logger.info('Scheduling long-term reconnection attempt', {
+        nextAttempt: new Date(Date.now() + longTermDelay).toISOString()
+      });
+      
+      this.emit('reconnecting', this.reconnectAttempts + 1);
+      
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectAttempts++; // Continue counting attempts
+        this.connect().catch((error: unknown) => {
+          this.logger.error('Long-term reconnection attempt failed', { 
+            error,
+            attempt: this.reconnectAttempts 
+          });
+        });
+      }, longTermDelay);
       return;
     }
 

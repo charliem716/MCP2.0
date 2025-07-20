@@ -793,4 +793,18 @@ export class QRWCClientAdapter implements QRWCClientInterface {
       throw error;
     }
   }
+
+  /**
+   * Clear all caches (should be called after long disconnections)
+   */
+  clearAllCaches(): void {
+    // Clear control index
+    this.invalidateControlIndex();
+    
+    // Clear any other cached data
+    // Note: The actual component cache is maintained in the official client,
+    // so we just need to clear our local index
+    
+    logger.info('All caches cleared due to long disconnection');
+  }
 } 

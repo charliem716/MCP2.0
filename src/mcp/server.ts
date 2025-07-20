@@ -178,6 +178,9 @@ export class MCPServer {
       // Initialize QRWC client first
       await this.officialQrwcClient.connect();
       logger.info("QRWC client connected");
+      
+      // Set up reconnection handlers
+      this.setupReconnectionHandlers();
 
       // Initialize tool registry
       await this.toolRegistry.initialize();
@@ -197,6 +200,38 @@ export class MCPServer {
       logger.error("Failed to start MCP server", { error });
       throw error;
     }
+  }
+
+  /**
+   * Set up reconnection handlers for Q-SYS Core connection
+   */
+  private setupReconnectionHandlers(): void {
+    // Handle connection events
+    this.officialQrwcClient.on('connected', (data) => {
+      if (data.requiresCacheInvalidation) {
+        logger.warn('Long disconnection detected - clearing caches', {
+          downtimeMs: data.downtimeMs
+        });
+        
+        // Clear adapter caches
+        this.qrwcClientAdapter.clearAllCaches();
+        
+        // Re-initialize tool registry to refresh component data
+        this.toolRegistry.initialize().catch((error) => {
+          logger.error('Failed to re-initialize tool registry after reconnection', { error });
+        });
+      } else {
+        logger.info('Q-SYS Core reconnected', { downtimeMs: data.downtimeMs });
+      }
+    });
+
+    this.officialQrwcClient.on('disconnected', (reason) => {
+      logger.warn('Q-SYS Core disconnected', { reason });
+    });
+
+    this.officialQrwcClient.on('reconnecting', (attempt) => {
+      logger.info('Attempting to reconnect to Q-SYS Core', { attempt });
+    });
   }
 
   /**
