@@ -45,7 +45,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     super(
       qrwcClient,
       "list_controls", 
-      "List all available controls in Q-SYS components with optional filtering",
+      "List controls (parameters like gain, mute, crosspoint levels) from Q-SYS components. Control names follow patterns like 'gain', 'mute', 'input.1.gain', 'crosspoint.1.3'. Specify component='Main Mixer' for one component or omit for all. Filter by controlType: 'gain', 'mute', 'position', 'string', 'trigger'. Returns control names and metadata.",
       ListControlsParamsSchema
     );
   }
@@ -174,7 +174,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
     super(
       qrwcClient,
       "get_control_values",
-      "Get current values of specified Q-SYS controls",
+      "Get current values of Q-SYS controls. Specify full control paths like 'Main Mixer.gain', 'APM 1.input.mute', 'Delay.delay_ms'. Returns numeric values (e.g., -10.5 for gain in dB), booleans (mute), or strings. Use includeMetadata=true for min/max ranges and position info. Max 100 controls per request.",
       GetControlValuesParamsSchema
     );
   }
@@ -271,7 +271,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     super(
       qrwcClient,
       "set_control_values",
-      "Set values for specified Q-SYS controls with optional ramping",
+      "Set Q-SYS control values. Examples: {'Main Mixer.gain': -10} sets gain to -10dB, {'APM 1.input.mute': true} mutes input. Ramp creates smooth transitions - use 2.5 for 2.5-second fade. Values: gains in dB (-100 to 20), mutes as boolean, positions 0-1. Multiple controls supported. Changes are immediate unless ramp specified.",
       SetControlValuesParamsSchema
     );
   }

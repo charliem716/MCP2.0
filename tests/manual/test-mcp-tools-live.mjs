@@ -5,9 +5,9 @@
  * Tests all MCP tools against a real Q-SYS Core to verify functionality
  */
 
-import { OfficialQRWCClient } from './dist/qrwc/officialClient.js';
-import { QRWCClientAdapter } from './dist/mcp/qrwc/adapter.js';
-import { MCPToolRegistry } from './dist/mcp/handlers/index.js';
+import { OfficialQRWCClient } from '../../dist/src/qrwc/officialClient.js';
+import { QRWCClientAdapter } from '../../dist/src/mcp/qrwc/adapter.js';
+import { MCPToolRegistry } from '../../dist/src/mcp/handlers/index.js';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load config
-const configPath = join(__dirname, 'qsys-core.config.json');
+const configPath = join(__dirname, '../../qsys-core.config.json');
 if (!fs.existsSync(configPath)) {
   console.error('❌ Config file not found. Run ./setup-env.sh first!');
   process.exit(1);
@@ -154,12 +154,102 @@ async function testMCPTools() {
       console.error('   ❌ Exception:', error.message);
     }
 
-    // Test 5: Set Control Values (interactive - only if safe)
+    // Test 5: Get Component Controls
+    console.log('\\n🎛️  TEST: get_component_controls');
+    try {
+      // First get a component to test with
+      const listResult = await registry.callTool('list_components', {});
+      if (!listResult.isError) {
+        // Extract first component name from the result
+        const componentMatch = listResult.content[0].text.match(/• ([^(]+) \(/);
+        if (componentMatch) {
+          const componentName = componentMatch[1].trim();
+          console.log(`   Testing with component: ${componentName}`);
+          
+          const result = await registry.callTool('get_component_controls', {
+            componentName: componentName,
+            includeValues: true
+          });
+          
+          if (result.isError) {
+            console.error('   ❌ Error:', result.content[0].text);
+          } else {
+            console.log('   ✅ Success!');
+            const lines = result.content[0].text.split('\\n');
+            console.log('   ' + lines.slice(0, 5).join('\\n   '));
+          }
+        } else {
+          console.log('   ⚠️  No components found to test');
+        }
+      }
+    } catch (error) {
+      console.error('   ❌ Exception:', error.message);
+    }
+
+    // Test 6: Get All Controls
+    console.log('\\n📊 TEST: get_all_controls');
+    try {
+      const result = await registry.callTool('get_all_controls', {
+        limit: 5,
+        offset: 0,
+        includeValues: true,
+        includeMetadata: true
+      });
+      
+      if (result.isError) {
+        console.error('   ❌ Error:', result.content[0].text);
+      } else {
+        console.log('   ✅ Success!');
+        const lines = result.content[0].text.split('\\n');
+        console.log('   ' + lines.slice(0, 10).join('\\n   '));
+      }
+    } catch (error) {
+      console.error('   ❌ Exception:', error.message);
+    }
+
+    // Test 7: Query Q-SYS API
+    console.log('\\n🌐 TEST: query_qsys_api');
+    try {
+      const result = await registry.callTool('query_qsys_api', {
+        endpoint: '/api/v0/cores',
+        method: 'GET'
+      });
+      
+      if (result.isError) {
+        console.error('   ❌ Error:', result.content[0].text);
+      } else {
+        console.log('   ✅ Success!');
+        const lines = result.content[0].text.split('\\n');
+        console.log('   ' + lines.slice(0, 5).join('\\n   '));
+      }
+    } catch (error) {
+      console.error('   ❌ Exception:', error.message);
+    }
+
+    // Test 8: Send Raw Command (safe read-only command)
+    console.log('\\n📡 TEST: send_raw_command');
+    try {
+      const result = await registry.callTool('send_raw_command', {
+        command: 'cgp',
+        params: []
+      });
+      
+      if (result.isError) {
+        console.error('   ❌ Error:', result.content[0].text);
+      } else {
+        console.log('   ✅ Success!');
+        console.log('   Command executed successfully');
+      }
+    } catch (error) {
+      console.error('   ❌ Exception:', error.message);
+    }
+
+    // Test 9: Set Control Values (interactive - only if safe)
     console.log('\\n🎚️  TEST: set_control_values');
     console.log('   ⚠️  Skipping set_control_values to avoid changing live system');
     console.log('   💡 To test manually, use: npm run mcp-client');
 
-    // Test 6: Echo tool (always safe)
+    // Test 10: Echo tool (always safe)
     console.log('\\n🔊 TEST: echo');
     try {
       const result = await registry.callTool('echo', {

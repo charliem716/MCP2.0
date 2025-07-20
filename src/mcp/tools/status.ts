@@ -29,7 +29,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     super(
       qrwcClient,
       "query_core_status",
-      "Query Q-SYS Core system status and health information",
+      "Get Q-SYS Core status including CPU/memory usage, active design, uptime. Use includeDetails=true for firmware version and platform info. Use includeNetworkInfo=true for IP configuration. Use includePerformance=true for detailed metrics. Returns health indicators - Status.Code 0 means OK, non-zero indicates issues.",
       QueryCoreStatusParamsSchema
     );
   }

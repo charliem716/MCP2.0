@@ -3,7 +3,7 @@ import { globalLogger as logger } from "../../shared/utils/logger.js";
 import type { QRWCClientInterface } from "../qrwc/adapter.js";
 
 // Import all Q-SYS tools
-import { createListComponentsTool } from "../tools/components.js";
+import { createListComponentsTool, createGetComponentControlsTool } from "../tools/components.js";
 import { 
   createListControlsTool,
   createGetControlValuesTool,
@@ -11,6 +11,8 @@ import {
 } from "../tools/controls.js";
 import { createQueryCoreStatusTool } from "../tools/status.js";
 import { createSendRawCommandTool } from "../tools/raw-command.js";
+import { createGetAllControlsTool } from "../tools/discovery.js";
+import { createQueryQSysAPITool } from "../tools/qsys-api.js";
 import type { BaseQSysTool, ToolExecutionResult } from "../tools/base.js";
 
 /**
@@ -88,11 +90,14 @@ export class MCPToolRegistry {
   private registerQSysTools(): void {
     const qsysTools: Array<BaseQSysTool<any>> = [
       createListComponentsTool(this.qrwcClient),
+      createGetComponentControlsTool(this.qrwcClient),
       createListControlsTool(this.qrwcClient),
       createGetControlValuesTool(this.qrwcClient),
       createSetControlValuesTool(this.qrwcClient),
       createQueryCoreStatusTool(this.qrwcClient),
       createSendRawCommandTool(this.qrwcClient),
+      createGetAllControlsTool(this.qrwcClient),
+      createQueryQSysAPITool(this.qrwcClient),
     ];
 
     qsysTools.forEach(tool => {

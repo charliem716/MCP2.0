@@ -55,21 +55,33 @@ npm test -- --coverage --testPathPattern="(tests/unit/mcp|tests/integration/mcp)
 npm run test:mcp:live
 
 # Or directly
-node tests/integration/mcp/test-mcp-tools-live.mjs
+node tests/manual/test-mcp-tools-live.mjs
+
+# Run comprehensive test with all tools
+node tests/manual/test-mcp-tools-comprehensive-v2.mjs
 ```
 
 ## Live Test Features
 
-The live test (`tests/integration/mcp/test-mcp-tools-live.mjs`) validates:
+The live test (`tests/manual/test-mcp-tools-live.mjs`) validates:
 
 1. **Connection**: Establishes secure WebSocket connection to Q-SYS Core
 2. **Tool Registry**: Initializes all MCP tools
-3. **Read Operations**:
+3. **Component Operations**:
    - `list_components` - Lists all components with properties
-   - `query_core_status` - Gets full system status
+   - `get_component_controls` - Gets controls for specific components
+4. **Control Operations**:
    - `list_controls` - Lists all available controls
    - `get_control_values` - Reads current control values
-4. **Safety**: Skips `set_control_values` to avoid changing live system
+   - `get_all_controls` - Gets all controls with full details
+   - `set_control_values` - Sets control values (skipped for safety)
+5. **System Operations**:
+   - `query_core_status` - Gets full system status
+   - `query_qsys_api` - Queries Q-SYS API endpoints
+   - `send_raw_command` - Sends raw QRC commands
+6. **Utility Operations**:
+   - `echo` - Test tool for MCP connectivity
+7. **Safety**: Skips write operations to avoid changing live system
 
 ## Expected Live Test Output
 
@@ -85,14 +97,18 @@ The live test (`tests/integration/mcp/test-mcp-tools-live.mjs`) validates:
    ✅ Connected successfully!
 
 2️⃣ Setting up MCP Tool Registry...
-   ✅ Registry initialized with 6 tools
+   ✅ Registry initialized with 10 tools
 
 3️⃣ Available MCP Tools:
    • list_components: List all components in the Q-SYS design
+   • get_component_controls: Get controls for a specific Q-SYS component
    • list_controls: List all available controls in Q-SYS
    • get_control_values: Get current values of specified Q-SYS controls
    • set_control_values: Set values for specified Q-SYS controls
    • query_core_status: Query Q-SYS Core system status
+   • send_raw_command: Send a raw QRC command to Q-SYS Core
+   • get_all_controls: Get all controls with detailed metadata and values
+   • query_qsys_api: Query Q-SYS Core API endpoints
    • echo: Echo back the provided message
 
 4️⃣ Testing MCP Tools:
@@ -136,4 +152,18 @@ The live test (`tests/integration/mcp/test-mcp-tools-live.mjs`) validates:
 
 - **Achieved**: 95.92% line coverage, 100% function coverage
 - **Requirement**: >80% coverage (exceeded)
+
+## Latest Test Results
+
+### Comprehensive send_raw_command Test Suite
+- **Total Tests**: 14
+- **Passed**: 14 ✅
+- **Failed**: 0
+- **Success Rate**: 100%
+
+The `send_raw_command` tool has been fully fixed and tested:
+- Fixed QRWC interference by implementing separate WebSocket connection
+- Handled Q-SYS null ID bug with FIFO matching
+- All raw commands now execute in 5-50ms (previously timing out)
+- Full API documentation available in QSYS_API_REFERENCE.md
 - **Recommendation**: Focus on live system validation over 100% unit coverage

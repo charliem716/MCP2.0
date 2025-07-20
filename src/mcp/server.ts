@@ -29,6 +29,8 @@ export class MCPServer {
   private isConnected = false;
   private serverName: string;
   private serverVersion: string;
+  private signalHandlers: Map<NodeJS.Signals, () => void> = new Map();
+  private errorHandlers: Map<string, (...args: any[]) => void> = new Map();
 
   constructor(private config: MCPServerConfig) {
     this.serverName = config.name || "qsys-mcp-server";
@@ -138,15 +140,21 @@ export class MCPServer {
     };
 
     // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
+    const uncaughtHandler = (error: Error) => {
       logger.error("Uncaught exception in MCP server", { error });
       this.shutdown().catch(() => {});
       process.exit(1);
-    });
-
-    process.on('unhandledRejection', (reason, promise) => {
+    };
+    
+    const unhandledHandler = (reason: any, promise: Promise<any>) => {
       logger.error("Unhandled rejection in MCP server", { reason, promise });
-    });
+    };
+    
+    this.errorHandlers.set('uncaughtException', uncaughtHandler);
+    this.errorHandlers.set('unhandledRejection', unhandledHandler);
+    
+    process.on('uncaughtException', uncaughtHandler);
+    process.on('unhandledRejection', unhandledHandler);
   }
 
   /**
@@ -198,13 +206,16 @@ export class MCPServer {
     const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGUSR2'];
     
     signals.forEach(signal => {
-      process.on(signal, () => {
+      const handler = () => {
         logger.info(`Received ${signal}, shutting down gracefully...`);
         this.shutdown().catch((error) => {
           logger.error("Error during shutdown", { error });
           process.exit(1);
         });
-      });
+      };
+      
+      this.signalHandlers.set(signal, handler);
+      process.on(signal, handler);
     });
   }
 
@@ -217,6 +228,18 @@ export class MCPServer {
     logger.info("Shutting down MCP server...");
     
     try {
+      // Remove signal handlers first to prevent duplicate shutdowns
+      for (const [signal, handler] of this.signalHandlers) {
+        process.removeListener(signal, handler);
+      }
+      this.signalHandlers.clear();
+      
+      // Remove error handlers
+      for (const [event, handler] of this.errorHandlers) {
+        process.removeListener(event as any, handler);
+      }
+      this.errorHandlers.clear();
+      
       // Close transport
       if (this.transport) {
         await this.transport.close();

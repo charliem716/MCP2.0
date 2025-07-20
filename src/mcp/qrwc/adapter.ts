@@ -8,6 +8,7 @@
 
 import { globalLogger as logger } from "../../shared/utils/logger.js";
 import type { OfficialQRWCClient } from "../../qrwc/officialClient.js";
+import { RawCommandClient } from "../../qrwc/rawCommandClient.js";
 
 /**
  * Interface that MCP tools expect from a QRWC client
@@ -15,7 +16,7 @@ import type { OfficialQRWCClient } from "../../qrwc/officialClient.js";
 export interface QRWCClientInterface {
   isConnected(): boolean;
   sendCommand(command: string, params?: Record<string, unknown>): Promise<unknown>;
-  sendRawCommand(method: string, params?: any): Promise<any>;
+  sendRawCommand(method: string, params?: any, timeout?: number): Promise<any>;
 }
 
 /**
@@ -33,8 +34,12 @@ export interface RetryOptions {
 export class QRWCClientAdapter implements QRWCClientInterface {
   private controlIndex = new Map<string, {componentName: string, controlName: string}>();
   private indexBuilt = false;
+  private rawCommandClient?: RawCommandClient;
 
-  constructor(private readonly officialClient: OfficialQRWCClient) {}
+  constructor(private readonly officialClient: OfficialQRWCClient) {
+    // Extract host and port from the official client if possible
+    // We'll initialize the raw command client lazily when needed
+  }
 
   /**
    * Build control index for O(1) lookups
@@ -174,12 +179,17 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           const componentNames = Object.keys(qrwc.components);
           const components = componentNames.map(name => {
             const component = qrwc.components[name];
-            const controlCount = component && component.controls ? Object.keys(component.controls).length : 0;
+            
+            // Extract component type from state
+            const componentType = component?.state?.Type || "Component";
+            
+            // Extract properties from state
+            const properties = component?.state?.Properties || [];
             
             return {
               Name: name,
-              Type: "Component", // Generic type since specific type not available
-              Controls: controlCount
+              Type: componentType,
+              Properties: properties
             };
           });
           
@@ -217,8 +227,21 @@ export class QRWCClientAdapter implements QRWCClientInterface {
         case "Control.GetValues":
         case "ControlGetValues":
         case "Control.GetMultiple":
-          const controls = params?.['Controls'] || params?.['Names'] || [];
-          const controlsList = Array.isArray(controls) ? controls : [controls];
+          let controlsList: any[];
+          
+          // Support both formats
+          if (Array.isArray(params)) {
+            // Direct array format (API spec)
+            controlsList = params;
+          } else if (params?.['Controls']) {
+            // Object wrapped format (current)
+            controlsList = Array.isArray(params['Controls']) ? params['Controls'] : [params['Controls']];
+          } else if (params?.['Names']) {
+            // Alternative naming
+            controlsList = Array.isArray(params['Names']) ? params['Names'] : [params['Names']];
+          } else {
+            controlsList = [];
+          }
           
           // Build index on first use if not already built
           if (!this.indexBuilt && this.officialClient.isConnected()) {
@@ -285,8 +308,24 @@ export class QRWCClientAdapter implements QRWCClientInterface {
         case "Control.Set":
         case "Control.SetValues":
         case "ControlSetValues":
-          const setControls = params?.['Controls'] || [];
-          const setControlsArray = Array.isArray(setControls) ? setControls : [];
+          let setControlsArray: any[];
+          
+          // Support both single control and array formats
+          if (params?.['Controls']) {
+            // Current array format
+            setControlsArray = Array.isArray(params['Controls']) ? params['Controls'] : [params['Controls']];
+          } else if (params?.['Name'] !== undefined && params?.['Value'] !== undefined) {
+            // Single control format (API spec)
+            setControlsArray = [{
+              Name: params['Name'],
+              Value: params['Value'],
+              Ramp: params['Ramp']
+            }];
+          } else {
+            // Empty or invalid params
+            setControlsArray = [];
+          }
+          
           const setResults = [];
           
           for (const ctrl of setControlsArray) {
@@ -354,9 +393,10 @@ export class QRWCClientAdapter implements QRWCClientInterface {
 
         case "StatusGet":
         case "Status.Get":
-          // Query actual Core status using raw command
+          // Query actual Core status using raw command with extended timeout
           try {
-            const statusResponse = await this.officialClient.sendRawCommand("StatusGet", {});
+            // StatusGet can be slow on busy systems, use 15 second timeout
+            const statusResponse = await this.sendRawCommand("StatusGet", {}, 15000);
             
             // Map the Q-SYS response to the expected format
             const result = statusResponse.result || {};
@@ -724,17 +764,30 @@ export class QRWCClientAdapter implements QRWCClientInterface {
    * @param params The parameters for the method
    * @returns The raw response from Q-SYS Core
    */
-  async sendRawCommand(method: string, params?: any): Promise<any> {
+  async sendRawCommand(method: string, params?: any, timeout?: number): Promise<any> {
     if (!this.isConnected()) {
       throw new Error("QRWC client not connected");
     }
 
-    logger.info(`Sending raw command: ${method}`, { method, params });
+    logger.info(`Sending raw command: ${method}`, { method, params, timeout });
 
     try {
-      const response = await this.officialClient.sendRawCommand(method, params);
+      // Initialize raw command client if needed
+      if (!this.rawCommandClient) {
+        // Get host and port from the official client
+        const { host, port } = this.officialClient.getConnectionOptions();
+        
+        this.rawCommandClient = new RawCommandClient(host, port);
+        logger.debug('Created RawCommandClient for raw commands', { host, port });
+      }
+
+      // Use the raw command client to bypass QRWC interference
+      // Pass the timeout parameter if provided, otherwise use default
+      const response = await this.rawCommandClient.sendCommand(method, params, timeout);
       logger.debug("Raw command response received", { method, response });
-      return response;
+      
+      // Return response in consistent format
+      return { result: response };
     } catch (error) {
       logger.error("Raw command failed", { method, error });
       throw error;

@@ -149,6 +149,9 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     this.emit('disconnected', 'Client disconnect');
     
     this.logger.info('Disconnected successfully from Q-SYS Core');
+    
+    // Reset shutdown flag to allow future connections
+    this.shutdownInProgress = false;
   }
 
   /**
@@ -223,6 +226,16 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    */
   getConnectionState(): ConnectionState {
     return this.connectionState;
+  }
+
+  /**
+   * Get connection options (host and port)
+   */
+  getConnectionOptions(): { host: string; port: number } {
+    return {
+      host: this.options.host,
+      port: this.options.port
+    };
   }
 
   /**
