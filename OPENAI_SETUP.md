@@ -72,7 +72,7 @@ After updating the `.env` file:
 npm run dev
 
 # The Q-SYS connection should work (OpenAI is optional for Phase 1)
-node test-connection.mjs
+npm run test:connection
 ```
 
 ### **5. OpenAI Models Recommended**

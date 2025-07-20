@@ -58,10 +58,7 @@ const config: Config = {
   globals: {
     'ts-jest': {
       useESM: true,
-      tsconfig: {
-        module: 'esnext',
-        target: 'es2022',
-      },
+      tsconfig: 'tsconfig.test.json',
     },
   },
   extensionsToTreatAsEsm: ['.ts'],

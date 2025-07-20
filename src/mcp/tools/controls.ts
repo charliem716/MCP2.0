@@ -79,81 +79,90 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
   }
 
   private parseControlsResponse(response: any, params: ListControlsParams): QSysControl[] {
-    // Mock realistic Q-SYS controls for Phase 2.2
-    const allControls: QSysControl[] = [
-      {
-        name: "MainMixer.input.1.gain",
-        component: "MainMixer",
-        type: "gain",
-        value: -12.5,
-        metadata: { min: -100, max: 20, units: "dB", step: 0.1 }
-      },
-      {
-        name: "MainMixer.input.1.mute",
-        component: "MainMixer", 
-        type: "mute",
-        value: false,
-        metadata: { values: ["false", "true"] }
-      },
-      {
-        name: "ZoneAmpControl.output.1.gain",
-        component: "ZoneAmpControl",
-        type: "gain", 
-        value: -6.0,
-        metadata: { min: -80, max: 12, units: "dB", step: 0.5 }
-      },
-      {
-        name: "AudioRouter.input_select",
-        component: "AudioRouter",
-        type: "input_select",
-        value: 3,
-        metadata: { min: 1, max: 16, step: 1 }
-      },
-      {
-        name: "SystemGains.zone_1_gain",
-        component: "SystemGains",
-        type: "gain",
-        value: 0.0,
-        metadata: { min: -60, max: 12, units: "dB", step: 0.1 }
-      }
-    ];
-
-    // Filter by component if specified
-    let filteredControls = params.component
-      ? allControls.filter(ctrl => ctrl.component === params.component)
-      : allControls;
-
-    // Filter by control type if specified
-    if (params.controlType && params.controlType !== 'all') {
-      filteredControls = filteredControls.filter(ctrl => ctrl.type === params.controlType);
+    this.logger.debug("Parsing controls response", { response });
+    
+    // Parse actual response from Q-SYS
+    if (!response?.result || !Array.isArray(response.result)) {
+      this.logger.warn("No controls in response", { response });
+      return [];
     }
-
+    
+    const controls = response.result.map((ctrl: any) => {
+      // Extract control type from Name or Properties
+      const controlType = this.inferControlType(ctrl);
+      
+      return {
+        name: ctrl.Name || ctrl.name,
+        component: ctrl.Component || this.extractComponentFromName(ctrl.Name || ctrl.name),
+        type: controlType,
+        value: ctrl.Value !== undefined ? ctrl.Value : ctrl.value,
+        metadata: this.extractMetadata(ctrl)
+      };
+    });
+    
+    // Apply filters
+    let filteredControls = controls;
+    if (params.component) {
+      filteredControls = filteredControls.filter((c: QSysControl) => c.component === params.component);
+    }
+    if (params.controlType && params.controlType !== 'all') {
+      filteredControls = filteredControls.filter((c: QSysControl) => c.type === params.controlType);
+    }
+    
     return filteredControls;
   }
 
-  private formatControlsResponse(controls: QSysControl[], params: ListControlsParams): string {
-    if (controls.length === 0) {
-      const filter = params.component ? ` for component "${params.component}"` : "";
-      const typeFilter = params.controlType && params.controlType !== 'all' ? ` of type "${params.controlType}"` : "";
-      return `No controls found${filter}${typeFilter}`;
-    }
-
-    const header = `Found ${controls.length} control${controls.length > 1 ? 's' : ''}:`;
+  private inferControlType(control: any): string {
+    const name = control.Name || control.name || '';
+    const lowerName = name.toLowerCase();
     
-    const controlsList = controls.map(ctrl => {
-      let result = `• ${ctrl.name} (${ctrl.type}): ${ctrl.value}`;
-      
-      if ((params.includeMetadata ?? false) && ctrl.metadata) {
-        const meta = Object.entries(ctrl.metadata)
-          .map(([key, val]) => `${key}: ${val}`)
-          .join(', ');
-        result += `\n  Metadata: ${meta}`;
-      }
-      
-      return result;
-    }).join('\n');
+    // Infer type from control name patterns
+    if (lowerName.includes('gain') || lowerName.includes('level')) return 'gain';
+    if (lowerName.includes('mute')) return 'mute';
+    if (lowerName.includes('input_select') || lowerName.includes('input.select')) return 'input_select';
+    if (lowerName.includes('output_select') || lowerName.includes('output.select')) return 'output_select';
+    
+    // Check Properties for type hints
+    if (control.Properties) {
+      if (control.Properties.Type) return control.Properties.Type;
+      if (control.Properties.ValueType === 'Boolean') return 'mute';
+      if (control.Properties.ValueType === 'Float' && control.Properties.Units === 'dB') return 'gain';
+    }
+    
+    return 'unknown';
+  }
 
-    return `${header}\n\n${controlsList}`;
+  private extractComponentFromName(name: string | undefined): string {
+    // Extract component name from control name (e.g., "MainMixer.input.1.gain" -> "MainMixer")
+    if (!name) return 'Unknown';
+    const parts = name.split('.');
+    return parts.length > 0 && parts[0] ? parts[0] : 'Unknown';
+  }
+
+  private extractMetadata(control: any): Record<string, unknown> {
+    const metadata: Record<string, unknown> = {};
+    
+    if (control.Properties) {
+      // Extract relevant properties as metadata
+      if (control.Properties.MinValue !== undefined) metadata['min'] = control.Properties.MinValue;
+      if (control.Properties.MaxValue !== undefined) metadata['max'] = control.Properties.MaxValue;
+      if (control.Properties.Units) metadata['units'] = control.Properties.Units;
+      if (control.Properties.Step !== undefined) metadata['step'] = control.Properties.Step;
+      if (control.Properties.Values) metadata['values'] = control.Properties.Values;
+    }
+    
+    // Also check for direct properties on the control
+    if (control.MinValue !== undefined) metadata['min'] = control.MinValue;
+    if (control.MaxValue !== undefined) metadata['max'] = control.MaxValue;
+    if (control.Units) metadata['units'] = control.Units;
+    if (control.Step !== undefined) metadata['step'] = control.Step;
+    
+    return metadata;
+  }
+
+  private formatControlsResponse(controls: QSysControl[], params: ListControlsParams): string {
+    // Return JSON string for MCP protocol compliance
+    return JSON.stringify(controls);
   }
 }
 
@@ -196,28 +205,61 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
   }
 
   private parseControlValuesResponse(response: any, requestedControls: string[]): ControlValue[] {
-    // Mock response for Phase 2.2
-    return requestedControls.map(controlName => ({
-      name: controlName,
-      value: this.getMockControlValue(controlName),
-      timestamp: new Date().toISOString()
-    }));
-  }
+    this.logger.debug("Parsing control values response", { response, requestedControls });
 
-  private getMockControlValue(controlName: string): number | string | boolean {
-    // Generate realistic mock values based on control name
-    if (controlName.includes('gain')) return Math.round((Math.random() * 30 - 15) * 10) / 10;
-    if (controlName.includes('mute')) return Math.random() > 0.5;
-    if (controlName.includes('select')) return Math.floor(Math.random() * 8) + 1;
-    return Math.round(Math.random() * 100);
+    // Handle different response formats from QRWC client
+    let controls: any[] = [];
+    
+    if (response?.controls && Array.isArray(response.controls)) {
+      controls = response.controls;
+    } else if (response?.result && Array.isArray(response.result)) {
+      controls = response.result;
+    } else if (Array.isArray(response)) {
+      controls = response;
+    } else {
+      this.logger.warn("No controls found in response, returning empty values", { response });
+      // Return empty/fallback values for requested controls if no data available
+      return requestedControls.map(controlName => ({
+        name: controlName,
+        value: "N/A",
+        error: "Control not found",
+        timestamp: new Date().toISOString()
+      }));
+    }
+
+    // Map QRWC response to our format
+    const controlMap = new Map<string, any>();
+    controls.forEach((ctrl: any) => {
+      const name = ctrl.Name || ctrl.name;
+      if (name) {
+        controlMap.set(name, ctrl);
+      }
+    });
+
+    // Return values for requested controls
+    return requestedControls.map(controlName => {
+      const control = controlMap.get(controlName);
+      if (control) {
+        return {
+          name: controlName,
+          value: control.Value !== undefined ? control.Value : control.value,
+          string: control.String || control.string,
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        return {
+          name: controlName,
+          value: "N/A",
+          error: "Control not found",
+          timestamp: new Date().toISOString()
+        };
+      }
+    });
   }
 
   private formatControlValuesResponse(values: ControlValue[]): string {
-    const valuesList = values.map(cv => 
-      `• ${cv.name}: ${cv.value}${cv.timestamp ? ` (updated: ${cv.timestamp})` : ''}`
-    ).join('\n');
-
-    return `Control Values:\n\n${valuesList}`;
+    // Return JSON string for MCP protocol compliance
+    return JSON.stringify(values);
   }
 }
 
@@ -239,16 +281,65 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      const results = await Promise.allSettled(
-        params.controls.map(control => this.setIndividualControl(control))
-      );
+      // Separate controls into named controls and component controls
+      const namedControls: typeof params.controls = [];
+      const componentControlsMap = new Map<string, typeof params.controls>();
+
+      for (const control of params.controls) {
+        if (control.name.includes('.')) {
+          // This is a component control (e.g., "Main Output Gain.mute")
+          const parts = control.name.split('.');
+          const componentName = parts[0];
+          const controlName = parts.slice(1).join('.');
+          
+          if (!componentName) {
+            // Invalid control name format, treat as named control
+            namedControls.push(control);
+            continue;
+          }
+          
+          if (!componentControlsMap.has(componentName)) {
+            componentControlsMap.set(componentName, []);
+          }
+          
+          const controls = componentControlsMap.get(componentName)!;
+          controls.push({
+            ...control,
+            name: controlName // Store just the control name part
+          });
+        } else {
+          // This is a named control
+          namedControls.push(control);
+        }
+      }
+
+      // Execute all operations
+      const allResults: Array<{ control: typeof params.controls[0], result: PromiseSettledResult<any> }> = [];
+
+      // Set named controls individually
+      for (const control of namedControls) {
+        const result = await Promise.allSettled([this.setNamedControl(control)]);
+        allResults.push({ control, result: result[0] });
+      }
+
+      // Set component controls grouped by component
+      for (const [componentName, controls] of componentControlsMap) {
+        const result = await Promise.allSettled([this.setComponentControls(componentName, controls)]);
+        // Add results for each control in the component
+        for (const control of controls) {
+          allResults.push({ 
+            control: { ...control, name: `${componentName}.${control.name}` }, 
+            result: result[0] 
+          });
+        }
+      }
 
       return {
         content: [{
           type: 'text',
-          text: this.formatSetControlsResponse(results, params.controls)
+          text: this.formatSetControlsResponseNew(allResults)
         }],
-        isError: results.some(r => r.status === 'rejected')
+        isError: allResults.some(r => r.result.status === 'rejected')
       };
 
     } catch (error) {
@@ -257,42 +348,66 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     }
   }
 
-  private async setIndividualControl(control: { name: string; value: number | string | boolean; ramp?: number | undefined }) {
+  private async setNamedControl(control: { name: string; value: number | string | boolean; ramp?: number | undefined }) {
+    // Convert boolean to 0/1 for Q-SYS
+    let value = control.value;
+    if (typeof value === 'boolean') {
+      value = value ? 1 : 0;
+    }
+    
     const commandParams: any = {
       Name: control.name,
-      Value: control.value
+      Value: value
     };
 
     if (control.ramp !== undefined) {
       commandParams.Ramp = control.ramp;
     }
 
-    return await this.qrwcClient.sendCommand("Control.SetValue", commandParams);
+    return await this.qrwcClient.sendCommand("Control.Set", commandParams);
   }
 
-  private formatSetControlsResponse(
-    results: PromiseSettledResult<any>[],
-    controls: SetControlValuesParams['controls']
-  ): string {
-    const responses = results.map((result, index) => {
-      const control = controls[index];
-      if (!control) {
-        return `✗ Unknown control: Index ${index} missing`;
+  private async setComponentControls(componentName: string, controls: Array<{ name: string; value: number | string | boolean; ramp?: number | undefined }>) {
+    const controlsArray = controls.map(control => {
+      // Convert boolean to 0/1 for Q-SYS
+      let value = control.value;
+      if (typeof value === 'boolean') {
+        value = value ? 1 : 0;
       }
       
-      if (result.status === 'fulfilled') {
-        const rampText = control.ramp ? ` (ramped over ${control.ramp}s)` : '';
-        return `✓ ${control.name}: ${control.value}${rampText}`;
-      } else {
-        return `✗ ${control.name}: Failed - ${result.reason}`;
+      const controlParams: any = {
+        Name: control.name,
+        Value: value
+      };
+      
+      if (control.ramp !== undefined) {
+        controlParams.Ramp = control.ramp;
       }
+      
+      return controlParams;
     });
 
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    const totalCount = results.length;
+    return await this.qrwcClient.sendCommand("Component.Set", {
+      Name: componentName,
+      Controls: controlsArray
+    });
+  }
 
-    const header = `Set ${successCount}/${totalCount} controls successfully:`;
-    return `${header}\n\n${responses.join('\n')}`;
+  private formatSetControlsResponseNew(
+    results: Array<{ control: SetControlValuesParams['controls'][0], result: PromiseSettledResult<any> }>
+  ): string {
+    // Return JSON string for MCP protocol compliance
+    const formattedResults = results.map(({ control, result }) => ({
+      name: control.name,
+      value: control.value,
+      success: result.status === 'fulfilled',
+      error: result.status === 'rejected' ? 
+        (result.reason instanceof Error ? result.reason.message : String(result.reason)) : 
+        undefined,
+      rampTime: control.ramp
+    }));
+    
+    return JSON.stringify(formattedResults);
   }
 }
 
@@ -310,6 +425,8 @@ interface QSysControl {
 interface ControlValue {
   name: string;
   value: number | string | boolean;
+  string?: string;
+  error?: string;
   timestamp?: string;
 }
 

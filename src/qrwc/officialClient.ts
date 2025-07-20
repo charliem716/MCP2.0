@@ -122,6 +122,11 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Disconnect from Q-SYS Core
    */
   disconnect(): void {
+    // Prevent multiple disconnect calls
+    if (this.shutdownInProgress || this.connectionState === ConnectionState.DISCONNECTED) {
+      return;
+    }
+    
     this.logger.info('Disconnecting from Q-SYS Core');
     this.shutdownInProgress = true;
     
@@ -142,6 +147,8 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     
     this.setState(ConnectionState.DISCONNECTED);
     this.emit('disconnected', 'Client disconnect');
+    
+    this.logger.info('Disconnected successfully from Q-SYS Core');
   }
 
   /**
@@ -158,6 +165,57 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    */
   getQrwc(): Qrwc<Record<string, string>> | undefined {
     return this.qrwc;
+  }
+
+  /**
+   * Send a raw command through the WebSocket
+   * Used for commands not directly supported by the QRWC library
+   */
+  async sendRawCommand(method: string, params: any): Promise<any> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new QSysError('WebSocket not connected', QSysErrorCode.CONNECTION_FAILED);
+    }
+
+    return new Promise((resolve, reject) => {
+      const id = Date.now();
+      const message = JSON.stringify({
+        jsonrpc: '2.0',
+        method,
+        params,
+        id
+      });
+
+      const timeout = setTimeout(() => {
+        reject(new QSysError(`Command timeout: ${method}`, QSysErrorCode.COMMAND_FAILED));
+      }, 5000);
+
+      const messageHandler = (data: WebSocket.Data) => {
+        try {
+          const response = JSON.parse(data.toString());
+          if (response.id === id) {
+            clearTimeout(timeout);
+            this.ws?.off('message', messageHandler);
+            
+            if (response.error) {
+              reject(new QSysError(
+                `Command failed: ${response.error.message}`,
+                QSysErrorCode.COMMAND_FAILED,
+                response.error
+              ));
+            } else {
+              resolve(response.result);
+            }
+          }
+        } catch (error) {
+          // Ignore parsing errors for other messages
+        }
+      };
+
+      this.ws!.on('message', messageHandler);
+      this.ws!.send(message);
+      
+      this.logger.debug('Sent raw command', { method, params });
+    });
   }
 
   /**

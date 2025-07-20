@@ -92,7 +92,7 @@ const socket = new WebSocket('wss://192.168.50.150:443/qrc-public-api/v0', {
 
 ## 📊 **LIVE CONNECTION TEST RESULTS**
 
-### **Connection Test (`test-connection.mjs`)**
+### **Connection Test (`tests/integration/qsys/test-connection.mjs`)**
 ```bash
 🔌 WebSocket connected successfully!
 🏗️ Creating QRWC instance...
@@ -100,7 +100,7 @@ const socket = new WebSocket('wss://192.168.50.150:443/qrc-public-api/v0', {
 📦 Components found: 42
 ```
 
-### **Component Control Test (`test-component-control.mjs`)**
+### **Component Control Test (`tests/integration/qsys/test-component-control.mjs`)**
 ```bash
 📊 GAIN COMPONENT: "Main Output Gain"
    Controls available: 4
@@ -238,8 +238,8 @@ The system is now ready for:
 - ✅ [`qsys-core.config.json`](qsys-core.config.json) - Configuration examples
 
 ### **Testing Scripts**
-- ✅ [`test-connection.mjs`](test-connection.mjs) - Connection verification
-- ✅ [`test-component-control.mjs`](test-component-control.mjs) - Component interaction
+- ✅ [`test-connection.mjs`](tests/integration/qsys/test-connection.mjs) - Connection verification
+- ✅ [`test-component-control.mjs`](tests/integration/qsys/test-component-control.mjs) - Component interaction
 
 ### **Technical Documentation**
 - ✅ [`README.md`](README.md) - Updated with breakthrough results

@@ -62,50 +62,34 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
   }
 
   /**
-   * Parse the Q-SYS component response
+   * Parse the QRWC response for components
    */
   private parseComponentsResponse(response: any): QSysComponent[] {
-    // For Phase 2.2, we'll simulate a realistic response
-    // This will be replaced with actual QRWC parsing in production
-    const mockComponents: QSysComponent[] = [
-      {
-        Name: "MainMixer",
-        Type: "mixer",
-        Properties: {
-          inputs: 8,
-          outputs: 2,
-          location: "Living Room"
-        }
-      },
-      {
-        Name: "ZoneAmpControl",
-        Type: "amplifier_control", 
-        Properties: {
-          channels: 4,
-          power: "300W",
-          location: "Equipment Room"
-        }
-      },
-      {
-        Name: "AudioRouter",
-        Type: "router",
-        Properties: {
-          inputs: 16,
-          outputs: 32,
-          location: "Core Room"
-        }
-      },
-      {
-        Name: "SystemGains",
-        Type: "gain_control",
-        Properties: {
-          channels: 12,
-          location: "Virtual"
-        }
-      }
-    ];
+    this.logger.debug("Parsing components response", { response });
 
-    return mockComponents;
+    // Handle different response formats from QRWC client
+    let components: any[] = [];
+    
+    if (response?.result && Array.isArray(response.result)) {
+      components = response.result;
+    } else if (Array.isArray(response)) {
+      components = response;
+    } else if (response?.components && Array.isArray(response.components)) {
+      components = response.components;
+    } else {
+      this.logger.warn("No components found in response", { response });
+      return [];
+    }
+
+    return components.map((comp: any) => ({
+      Name: comp.name || comp.Name || "Unknown Component",
+      Type: comp.type || comp.Type || "unknown",
+      Properties: {
+        controls: comp.controls || comp.Controls || 0,
+        location: comp.location || "Unknown",
+        ...comp.Properties
+      }
+    }));
   }
 
   /**
@@ -125,26 +109,8 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
     components: QSysComponent[], 
     params: ListComponentsParams
   ): string {
-    if (components.length === 0) {
-      return "No components found" + (params.filter ? ` matching filter: ${params.filter}` : "");
-    }
-
-    const header = `Found ${components.length} component${components.length > 1 ? 's' : ''}:`;
-    
-    const componentsList = components.map(comp => {
-      let result = `• ${comp.Name} (${comp.Type})`;
-      
-      if ((params.includeProperties ?? false) && comp.Properties) {
-        const props = Object.entries(comp.Properties)
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(', ');
-        result += `\n  Properties: ${props}`;
-      }
-      
-      return result;
-    }).join('\n');
-
-    return `${header}\n\n${componentsList}`;
+    // Return JSON string for MCP protocol compliance
+    return JSON.stringify(components);
   }
 }
 

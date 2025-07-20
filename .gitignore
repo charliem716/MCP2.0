@@ -147,4 +147,9 @@ Thumbs.db
 # Add any project-specific patterns here
 uploads/
 temp/
-*.local 
+*.local
+
+# Exclude compiled JS files from source directory
+src/**/*.js
+!src/**/*.mjs
+!src/**/*.cjs 

@@ -51,14 +51,10 @@ class CacheNode<K, V> {
 }
 
 /**
- * Eviction policies supported by the LRU cache
+ * Eviction policy (simplified to LRU only)
  */
 export enum EvictionPolicy {
-  LRU = 'lru',           // Least Recently Used
-  LFU = 'lfu',           // Least Frequently Used  
-  TTL = 'ttl',           // Time To Live
-  SIZE = 'size',         // Memory size based
-  RANDOM = 'random'      // Random eviction
+  LRU = 'lru'            // Least Recently Used
 }
 
 /**
@@ -74,11 +70,11 @@ export enum CacheEvent {
 }
 
 /**
- * High-performance LRU Cache with configurable eviction policies
+ * High-performance LRU Cache (simplified)
  * 
  * Features:
  * - O(1) get, set, delete operations using HashMap + doubly-linked list
- * - Multiple eviction policies (LRU, LFU, TTL, SIZE, RANDOM)
+ * - LRU eviction policy for simplicity and performance
  * - Memory usage tracking and limits
  * - TTL (Time To Live) support
  * - Comprehensive statistics and monitoring
@@ -376,32 +372,8 @@ export class LRUCache<K, V> extends EventEmitter {
   }
 
   private evictOne(): CacheNode<K, V> | null {
-    let nodeToEvict: CacheNode<K, V> | null = null;
-
-    switch (this.evictionPolicy) {
-      case EvictionPolicy.LRU:
-        nodeToEvict = this.tail.prev !== this.head ? this.tail.prev : null;
-        break;
-
-      case EvictionPolicy.LFU:
-        nodeToEvict = this.findLeastFrequentlyUsed();
-        break;
-
-      case EvictionPolicy.TTL:
-        nodeToEvict = this.findMostExpired();
-        break;
-
-      case EvictionPolicy.SIZE:
-        nodeToEvict = this.findLargestNode();
-        break;
-
-      case EvictionPolicy.RANDOM:
-        nodeToEvict = this.findRandomNode();
-        break;
-
-      default:
-        nodeToEvict = this.tail.prev !== this.head ? this.tail.prev : null;
-    }
+    // Use LRU eviction (simplified)
+    const nodeToEvict = this.tail.prev !== this.head ? this.tail.prev : null;
 
     if (nodeToEvict && nodeToEvict !== this.head && nodeToEvict !== this.tail) {
       this.cache.delete(nodeToEvict.key);
@@ -416,58 +388,7 @@ export class LRUCache<K, V> extends EventEmitter {
     return null;
   }
 
-  private findLeastFrequentlyUsed(): CacheNode<K, V> | null {
-    let lfu: CacheNode<K, V> | null = null;
-    let minAccessCount = Infinity;
 
-    for (const node of this.cache.values()) {
-      if (node.accessCount < minAccessCount) {
-        minAccessCount = node.accessCount;
-        lfu = node;
-      }
-    }
-
-    return lfu;
-  }
-
-  private findMostExpired(): CacheNode<K, V> | null {
-    let oldest: CacheNode<K, V> | null = null;
-    let oldestTime = Infinity;
-
-    for (const node of this.cache.values()) {
-      if (node.timestamp < oldestTime) {
-        oldestTime = node.timestamp;
-        oldest = node;
-      }
-    }
-
-    return oldest;
-  }
-
-  private findLargestNode(): CacheNode<K, V> | null {
-    let largest: CacheNode<K, V> | null = null;
-    let maxSize = 0;
-
-    for (const node of this.cache.values()) {
-      if (node.memorySize > maxSize) {
-        maxSize = node.memorySize;
-        largest = node;
-      }
-    }
-
-    return largest;
-  }
-
-  private findRandomNode(): CacheNode<K, V> | null {
-    const keys = Array.from(this.cache.keys());
-    if (keys.length === 0) return null;
-    
-    const randomIndex = Math.floor(Math.random() * keys.length);
-    const randomKey = keys[randomIndex];
-    if (randomKey === undefined) return null;
-    
-    return this.cache.get(randomKey) || null;
-  }
 
   private isExpired(node: CacheNode<K, V>): boolean {
     return Date.now() > (node.timestamp + this.ttlMs);

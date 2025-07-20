@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EventEmitter } from "events";
 import type { globalLogger as logger } from "../../shared/utils/logger.js";
 
 /**
@@ -72,7 +73,7 @@ export interface CacheConfig {
  * - Cache invalidation and synchronization
  * - Performance monitoring and statistics
  */
-export interface IStateRepository {
+export interface IStateRepository extends EventEmitter {
   /**
    * Initialize the repository with configuration
    */
@@ -296,6 +297,13 @@ export class StateUtils {
     return state1.name === state2.name && 
            state1.value === state2.value &&
            state1.source === state2.source;
+  }
+
+  /**
+   * Compare two control values for equality
+   */
+  static areValuesEqual(value1: ControlState['value'], value2: ControlState['value']): boolean {
+    return value1 === value2;
   }
 
   /**

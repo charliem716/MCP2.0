@@ -28,10 +28,10 @@ Your Q-SYS system includes:
 ### **Test the Q-SYS Connection**
 ```bash
 # Test basic connection
-node test-connection.mjs
+npm run test:connection
 
 # Test component interaction  
-node test-component-control.mjs
+node tests/integration/qsys/test-component-control.mjs
 
 # Run main application
 npm run dev
@@ -161,8 +161,8 @@ scripts/                    # Build and utility scripts
 
 # Configuration & Testing
 qsys-core.config.json      # Q-SYS Core connection configuration
-test-connection.mjs        # Basic connection test script
-test-component-control.mjs  # Component interaction test script
+tests/integration/qsys/test-connection.mjs        # Basic connection test script
+tests/integration/qsys/test-component-control.mjs  # Component interaction test script
 ```
 
 ## 🧪 **Testing & Verification**
@@ -170,11 +170,11 @@ test-component-control.mjs  # Component interaction test script
 ### **Connection Tests**
 ```bash
 # Test Q-SYS Core connection
-node test-connection.mjs
+npm run test:connection
 # Expected: ✅ 42 components discovered
 
 # Test component control  
-node test-component-control.mjs
+node tests/integration/qsys/test-component-control.mjs
 # Expected: ✅ Real-time component interaction working
 ```
 

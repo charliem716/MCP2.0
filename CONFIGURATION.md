@@ -166,10 +166,10 @@ npm run dev
 ### **Connection Tests:**
 ```bash
 # Test Q-SYS connection (uses JSON config)
-node test-connection.mjs
+npm run test:connection
 
 # Test component control (uses JSON config)  
-node test-component-control.mjs
+node tests/integration/qsys/test-component-control.mjs
 
 # Test main application (uses both configs)
 npm run dev

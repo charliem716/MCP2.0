@@ -113,7 +113,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       return {
         content: [{
           type: 'text',
-          text: this.formatErrorMessage(error)
+          text: this.formatErrorResponse(error)
         }],
         isError: true,
         executionTimeMs: executionTime,
@@ -149,7 +149,32 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
   ): Promise<ToolCallResult>;
 
   /**
+   * Format successful response data as JSON string
+   * Ensures all tool responses are consistent JSON format
+   */
+  protected formatResponse(data: any): string {
+    // Always return JSON stringified data for MCP protocol compliance
+    return JSON.stringify(data);
+  }
+
+  /**
+   * Format error response as JSON string
+   * Provides consistent error structure across all tools
+   */
+  protected formatErrorResponse(error: unknown): string {
+    const errorObj = {
+      error: true,
+      toolName: this.name,
+      message: error instanceof Error ? error.message : String(error),
+      code: (error as any)?.code || 'UNKNOWN_ERROR',
+      timestamp: new Date().toISOString()
+    };
+    return JSON.stringify(errorObj);
+  }
+
+  /**
    * Format error message for user-friendly display
+   * @deprecated Use formatErrorResponse for JSON compliance
    */
   protected formatErrorMessage(error: unknown): string {
     if (error instanceof Error) {

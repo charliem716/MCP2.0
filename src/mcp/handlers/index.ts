@@ -1,4 +1,4 @@
-import type { MCPTool, MCPToolCallRequest } from "../../shared/types/mcp.js";
+import type { MCPTool } from "../../shared/types/mcp.js";
 import { globalLogger as logger } from "../../shared/utils/logger.js";
 import type { QRWCClientInterface } from "../qrwc/adapter.js";
 
@@ -10,8 +10,8 @@ import {
   createSetControlValuesTool 
 } from "../tools/controls.js";
 import { createQueryCoreStatusTool } from "../tools/status.js";
-import type { BaseQSysTool } from "../tools/base.js";
-import type { ToolExecutionResult } from "../tools/base.js";
+import { createSendRawCommandTool } from "../tools/raw-command.js";
+import type { BaseQSysTool, ToolExecutionResult } from "../tools/base.js";
 
 /**
  * Tool call result structure (legacy compatibility)
@@ -33,7 +33,7 @@ export interface BaseTool {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: MCPTool['inputSchema'];
-  execute(args: Record<string, unknown>): Promise<ToolCallResult>;
+  execute(args: Record<string, unknown>): Promise<ToolCallResult | ToolExecutionResult>;
 }
 
 /**
@@ -86,12 +86,13 @@ export class MCPToolRegistry {
    * Register all Q-SYS control tools
    */
   private registerQSysTools(): void {
-    const qsysTools: BaseQSysTool<any>[] = [
+    const qsysTools: Array<BaseQSysTool<any>> = [
       createListComponentsTool(this.qrwcClient),
       createListControlsTool(this.qrwcClient),
       createGetControlValuesTool(this.qrwcClient),
       createSetControlValuesTool(this.qrwcClient),
       createQueryCoreStatusTool(this.qrwcClient),
+      createSendRawCommandTool(this.qrwcClient),
     ];
 
     qsysTools.forEach(tool => {
@@ -109,7 +110,7 @@ export class MCPToolRegistry {
       name: qsysTool.name,
       description: qsysTool.description,
       inputSchema: qsysTool.inputSchema,
-      execute: async (args: Record<string, unknown>): Promise<ToolCallResult> => {
+      execute: async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
         const result: ToolExecutionResult = await qsysTool.execute(args);
         
         // Log execution metrics
@@ -120,11 +121,8 @@ export class MCPToolRegistry {
           });
         }
 
-                 // Return legacy-compatible result
-         return {
-           content: result.content,
-           isError: result.isError ?? false
-         };
+        // Return full result with metadata
+        return result;
       }
     };
 
@@ -194,7 +192,7 @@ export class MCPToolRegistry {
   /**
    * Execute a tool by name
    */
-  async callTool(name: string, args?: Record<string, unknown>): Promise<ToolCallResult> {
+  async callTool(name: string, args?: Record<string, unknown>): Promise<ToolCallResult | ToolExecutionResult> {
     if (!this.initialized) {
       throw new Error("Tool registry not initialized");
     }
@@ -209,13 +207,22 @@ export class MCPToolRegistry {
       logger.debug(`Executing tool: ${name}`, { args });
       const startTime = Date.now();
       
-      const result = await tool.execute(args || {});
+      const result = await tool.execute(args ?? {});
       const executionTime = Date.now() - startTime;
       
-      logger.debug(`Tool execution completed: ${name}`, { 
-        executionTimeMs: executionTime,
-        success: !result.isError 
-      });
+      // Check if result has extended metadata
+      if ('executionTimeMs' in result && 'context' in result) {
+        logger.debug(`Tool execution completed: ${name}`, { 
+          executionTimeMs: result.executionTimeMs,
+          context: result.context,
+          success: !result.isError 
+        });
+      } else {
+        logger.debug(`Tool execution completed: ${name}`, { 
+          executionTimeMs: executionTime,
+          success: !result.isError 
+        });
+      }
       
       return result;
     } catch (error) {
