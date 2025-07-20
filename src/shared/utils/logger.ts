@@ -29,6 +29,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const isDevelopment = process.env['NODE_ENV'] === 'development';
   const isProduction = process.env['NODE_ENV'] === 'production';
   const isTest = process.env['NODE_ENV'] === 'test';
+  const isMCPMode = process.env['MCP_MODE'] === 'true';
 
   const level = (process.env['LOG_LEVEL'] as LogLevel | undefined) ?? 
     (isDevelopment ? 'debug' : isProduction ? 'info' : 'error');
@@ -84,7 +85,26 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   // Configure transports based on environment
   const transports: winston.transport[] = [];
 
-  if (isTest) {
+  // In MCP mode, only use file transports to avoid polluting stdout
+  if (isMCPMode) {
+    // MCP mode: Only file logging, no console output
+    transports.push(
+      new winston.transports.File({
+        filename: path.join('logs', 'mcp-error.log'),
+        level: 'error',
+        format: prodFormat,
+        maxsize: 5242880, // 5MB
+        maxFiles: 5
+      }),
+      new winston.transports.File({
+        filename: path.join('logs', 'mcp-combined.log'),
+        level: level,
+        format: prodFormat,
+        maxsize: 5242880, // 5MB
+        maxFiles: 5
+      })
+    );
+  } else if (isTest) {
     // In test environment, only log errors to console
     transports.push(
       new winston.transports.Console({

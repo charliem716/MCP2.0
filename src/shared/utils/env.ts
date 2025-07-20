@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'fs';
 // Load environment variables from .env file
 dotenv.config({
   path: ['.env.local', '.env'],
-  debug: process.env['NODE_ENV'] === 'development'
+  debug: process.env['NODE_ENV'] === 'development' && process.env['MCP_MODE'] !== 'true'
 });
 
 /**
@@ -46,10 +46,14 @@ function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
   try {
     const configContent = readFileSync(configPath, 'utf-8');
     const config = JSON.parse(configContent) as QSysConfigJSON;
-    console.log('📋 Loaded Q-SYS Core configuration from qsys-core.config.json');
+    if (process.env['MCP_MODE'] !== 'true') {
+      console.log('📋 Loaded Q-SYS Core configuration from qsys-core.config.json');
+    }
     return config.qsysCore;
   } catch (error) {
-    console.warn('⚠️  Failed to load qsys-core.config.json:', error);
+    if (process.env['MCP_MODE'] !== 'true') {
+      console.warn('⚠️  Failed to load qsys-core.config.json:', error);
+    }
     return null;
   }
 }
@@ -230,6 +234,11 @@ export const config = {
  */
 export function validateConfig(): void {
   /* eslint-disable no-console */
+  // Skip console output in MCP mode to avoid polluting stdout
+  if (process.env['MCP_MODE'] === 'true') {
+    return;
+  }
+  
   console.log(`🔧 Environment: ${env.NODE_ENV}`);
   console.log(`🚀 Port: ${env.PORT}`);
   console.log(`📝 Log Level: ${env.LOG_LEVEL}`);
