@@ -17,7 +17,9 @@ export class QSysSyncAdapter {
     const result = new Map<string, ControlState>();
     
     try {
-      const components = await this.qrwcClient.sendCommand('Component.GetComponents') as any;
+      const components = await this.qrwcClient.sendCommand('Component.GetComponents') as {
+        result?: Array<{ Name: string; Type?: string }>
+      };
       
       if (!components?.result || !Array.isArray(components.result)) {
         logger.warn('No components returned from Q-SYS');
@@ -46,17 +48,23 @@ export class QSysSyncAdapter {
     try {
       const response = await this.qrwcClient.sendCommand('Control.GetValues', {
         Names: names
-      }) as any;
+      }) as {
+        controls?: Array<{ Name: string; Value: unknown }>
+      };
       
       if (response?.controls && Array.isArray(response.controls)) {
         for (const ctrl of response.controls) {
           if (ctrl.Name && ctrl.Value !== undefined) {
-            result.set(ctrl.Name, {
-              name: ctrl.Name,
-              value: ctrl.Value,
-              timestamp: new Date(),
-              source: 'qsys'
-            });
+            const value = ctrl.Value;
+            // Validate that the value is of the expected type
+            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+              result.set(ctrl.Name, {
+                name: ctrl.Name,
+                value: value,
+                timestamp: new Date(),
+                source: 'qsys'
+              });
+            }
           }
         }
       }
@@ -77,17 +85,23 @@ export class QSysSyncAdapter {
     try {
       const response = await this.qrwcClient.sendCommand('Component.GetControls', {
         Name: componentName
-      }) as any;
+      }) as {
+        result?: Array<{ Name: string; Value: unknown }>
+      };
       
       if (response?.result && Array.isArray(response.result)) {
         for (const ctrl of response.result) {
           const controlName = `${componentName}.${ctrl.Name}`;
-          result.set(controlName, {
-            name: controlName,
-            value: ctrl.Value,
-            timestamp: new Date(),
-            source: 'qsys'
-          });
+          const value = ctrl.Value;
+          // Validate that the value is of the expected type
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            result.set(controlName, {
+              name: controlName,
+              value: value,
+              timestamp: new Date(),
+              source: 'qsys'
+            });
+          }
         }
       }
       

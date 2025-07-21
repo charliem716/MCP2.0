@@ -51,6 +51,6 @@ export interface PersistedState {
   controls: Record<string, ControlState>;
   metadata?: {
     cacheConfig?: Partial<CacheConfig>;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }

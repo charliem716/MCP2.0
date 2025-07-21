@@ -143,15 +143,18 @@ export class QRWCClientAdapter implements QRWCClientInterface {
   /**
    * Check if an error is retryable
    */
-  private isRetryableError(error: any): boolean {
+  private isRetryableError(error: unknown): boolean {
     if (!error) return false;
     
+    // Type guard for error objects
+    const err = error as { code?: string; message?: string };
+    
     // Network errors, timeouts, and specific Q-SYS errors
-    const errorMessage = error.message?.toLowerCase() || '';
-    return error.code === 'ETIMEDOUT' || 
-           error.code === 'ECONNRESET' ||
-           error.code === 'ECONNREFUSED' ||
-           error.code === 'ENOTFOUND' ||
+    const errorMessage = err.message?.toLowerCase() || '';
+    return err.code === 'ETIMEDOUT' || 
+           err.code === 'ECONNRESET' ||
+           err.code === 'ECONNREFUSED' ||
+           err.code === 'ENOTFOUND' ||
            errorMessage.includes('timeout') ||
            errorMessage.includes('network') ||
            errorMessage.includes('connection');
@@ -224,7 +227,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
         case "Control.GetValues":
         case "ControlGetValues":
         case "Control.GetMultiple":
-          let controlsList: any[];
+          let controlsList: unknown[];
           
           // Support both formats
           if (Array.isArray(params)) {
@@ -246,8 +249,9 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           }
           
           return {
-            result: controlsList.map((ctrl: any) => {
-              const name = typeof ctrl === 'string' ? ctrl : (ctrl.Name || ctrl.name);
+            result: controlsList.map((ctrl: unknown) => {
+              const controlObj = ctrl as Record<string, unknown>;
+              const name = typeof ctrl === 'string' ? ctrl : String(controlObj['Name'] || controlObj['name'] || '');
               
               try {
                 const qrwc = this.officialClient.getQrwc();
@@ -305,7 +309,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
         case "Control.Set":
         case "Control.SetValues":
         case "ControlSetValues":
-          let setControlsArray: any[];
+          let setControlsArray: unknown[];
           
           // Support both single control and array formats
           if (params?.['Controls']) {
@@ -327,9 +331,10 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           
           for (const ctrl of setControlsArray) {
             try {
-              const name = ctrl.Name || ctrl.name;
-              const value = ctrl.Value !== undefined ? ctrl.Value : ctrl.value;
-              const ramp = ctrl.Ramp || ctrl.ramp;
+              const controlObj = ctrl as Record<string, unknown>;
+              const name = String(controlObj['Name'] || controlObj['name'] || '');
+              const value = controlObj['Value'] !== undefined ? controlObj['Value'] : controlObj['value'];
+              const ramp = controlObj['Ramp'] || controlObj['ramp'];
               const dotIndex = name.indexOf('.');
               const [compName, ctrlName] = dotIndex > -1 ? 
                 [name.substring(0, dotIndex), name.substring(dotIndex + 1)] : 
@@ -365,21 +370,21 @@ export class QRWCClientAdapter implements QRWCClientInterface {
               
               if (compName) {
                 await this.retryOperation(
-                  () => this.officialClient.setControlValue(compName, ctrlName, validatedValue),
+                  () => this.officialClient.setControlValue(compName, ctrlName, validatedValue as string | number | boolean),
                   options
                 );
               } else {
                 await this.retryOperation(
-                  () => this.officialClient.setControlValue('', name, validatedValue),
+                  () => this.officialClient.setControlValue('', name, validatedValue as string | number | boolean),
                   options
                 );
               }
               
               setResults.push({ Name: name, Result: "Success" });
             } catch (error) {
-              logger.error(`Failed to set control value`, { ctrl, error });
+              logger.error(`Failed to set control value`, { control: name, error });
               setResults.push({ 
-                Name: ctrl.Name || ctrl.name, 
+                Name: name || '', 
                 Result: "Error",
                 Error: error instanceof Error ? error.message : String(error)
               });
@@ -438,7 +443,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             throw new Error("QRWC instance not available");
           }
           
-          const allControls: any[] = [];
+          const allControls: unknown[] = [];
           const allComponentNames = Object.keys(qrwcInstance.components);
           
           for (const componentName of allComponentNames) {
@@ -465,7 +470,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
 
         case "Component.Get":
           const getComponentName = params?.['Name'];
-          const getControlsList = (params?.['Controls'] || []) as any[];
+          const getControlsList = (params?.['Controls'] || []) as unknown[];
           
           if (!getComponentName || typeof getComponentName !== 'string') {
             throw new Error("Component name is required");
@@ -477,8 +482,9 @@ export class QRWCClientAdapter implements QRWCClientInterface {
               throw new Error(`Component '${getComponentName}' not found or has no controls`);
             }
             
-            const controlResults = getControlsList.map((ctrlSpec: any) => {
-              const controlName = ctrlSpec.Name || ctrlSpec.name;
+            const controlResults = getControlsList.map((ctrlSpec: unknown) => {
+              const spec = ctrlSpec as { Name?: string; name?: string };
+              const controlName = spec.Name || spec.name || '';
               const control = component.controls?.[controlName];
               
               if (!control) {
@@ -513,19 +519,25 @@ export class QRWCClientAdapter implements QRWCClientInterface {
 
         case "Component.Set":
           const setComponentName = params?.['Name'];
-          const setControlsList = (params?.['Controls'] || []) as any[];
+          const setControlsList = (params?.['Controls'] || []) as unknown[];
           
           if (!setComponentName || typeof setComponentName !== 'string') {
             throw new Error("Component name is required");
           }
           
-          const componentSetResults: any[] = [];
+          const componentSetResults: unknown[] = [];
           
           for (const ctrlSpec of setControlsList) {
+            let controlName = '';
             try {
-              const controlName = ctrlSpec.Name || ctrlSpec.name;
-              const value = ctrlSpec.Value !== undefined ? ctrlSpec.Value : ctrlSpec.value;
-              const ramp = ctrlSpec.Ramp || ctrlSpec.ramp;
+              if (!ctrlSpec || typeof ctrlSpec !== 'object') {
+                throw new Error("Invalid control specification");
+              }
+              
+              const ctrl = ctrlSpec as Record<string, unknown>;
+              controlName = String(ctrl['Name'] || ctrl['name'] || '');
+              const value = ctrl['Value'] !== undefined ? ctrl['Value'] : ctrl['value'];
+              const ramp = ctrl['Ramp'] || ctrl['ramp'];
               
               // Get control info for validation
               const component = this.officialClient.getComponent(setComponentName);
@@ -545,7 +557,8 @@ export class QRWCClientAdapter implements QRWCClientInterface {
               }
               
               // Set the control value
-              await this.officialClient.setControlValue(setComponentName, controlName, validation.value!);
+              const controlNameStr = typeof controlName === 'string' ? controlName : String(controlName);
+              await this.officialClient.setControlValue(setComponentName, controlNameStr, validation.value as string | number | boolean);
               
               // Note: The official client doesn't support ramp parameter directly
               // If ramp support is needed, we would need to extend the official client
@@ -568,7 +581,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
                 error 
               });
               componentSetResults.push({
-                Name: ctrlSpec.Name || ctrlSpec.name,
+                Name: controlName,
                 Result: "Error",
                 Error: error instanceof Error ? error.message : String(error)
               });
@@ -597,15 +610,16 @@ export class QRWCClientAdapter implements QRWCClientInterface {
    */
   private validateControlValue(
     controlName: string,
-    value: any,
-    controlInfo?: any
-  ): { valid: boolean; value?: any; error?: string } {
+    value: unknown,
+    controlInfo?: unknown
+  ): { valid: boolean; value?: unknown; error?: string } {
     // If no control info provided, pass through (backwards compatibility)
     if (!controlInfo) {
       return { valid: true, value };
     }
 
-    const type = controlInfo.type || controlInfo.Type;
+    const info = controlInfo as { type?: string; Type?: string; min?: number; max?: number };
+    const type = info.type || info.Type;
     
     switch (type) {
       case 'Boolean':
@@ -637,16 +651,16 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           };
         }
         // Check range if available
-        if (controlInfo.min !== undefined && num < controlInfo.min) {
+        if (info.min !== undefined && num < info.min) {
           return { 
             valid: false, 
-            error: `Value ${num} below minimum ${controlInfo.min}` 
+            error: `Value ${num} below minimum ${info.min}` 
           };
         }
-        if (controlInfo.max !== undefined && num > controlInfo.max) {
+        if (info.max !== undefined && num > info.max) {
           return { 
             valid: false, 
-            error: `Value ${num} above maximum ${controlInfo.max}` 
+            error: `Value ${num} above maximum ${info.max}` 
           };
         }
         return { valid: true, value: num };
@@ -660,7 +674,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             error: `String control expects text, got ${typeof value}` 
           };
         }
-        const maxLength = controlInfo.maxLength || 255;
+        const maxLength = (controlInfo as Record<string, unknown>)['maxLength'] || 255;
         if (stringValue.length > maxLength) {
           return { 
             valid: false, 

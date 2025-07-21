@@ -152,7 +152,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    * Format successful response data as JSON string
    * Ensures all tool responses are consistent JSON format
    */
-  protected formatResponse(data: any): string {
+  protected formatResponse(data: unknown): string {
     // Always return JSON stringified data for MCP protocol compliance
     return JSON.stringify(data);
   }
@@ -166,7 +166,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       error: true,
       toolName: this.name,
       message: error instanceof Error ? error.message : String(error),
-      code: (error as any)?.code || 'UNKNOWN_ERROR',
+      code: (error as { code?: string })?.code || 'UNKNOWN_ERROR',
       timestamp: new Date().toISOString()
     };
     return JSON.stringify(errorObj);
@@ -199,7 +199,12 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    */
   private getSchemaProperties(): Record<string, unknown> {
     // This is a simplified conversion - for production, consider using zod-to-json-schema
-    const shape = (this.paramsSchema as any)._def?.shape?.();
+    // Check if schema is a ZodObject before accessing shape
+    if (!(this.paramsSchema instanceof z.ZodObject)) {
+      return {};
+    }
+    
+    const shape = this.paramsSchema.shape;
     if (!shape) return {};
 
     const properties: Record<string, unknown> = {};
@@ -216,7 +221,12 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    * Get required fields from Zod schema
    */
   private getRequiredFields(): string[] {
-    const shape = (this.paramsSchema as any)._def?.shape?.();
+    // Check if schema is a ZodObject before accessing shape
+    if (!(this.paramsSchema instanceof z.ZodObject)) {
+      return [];
+    }
+    
+    const shape = this.paramsSchema.shape;
     if (!shape) return [];
 
     const required: string[] = [];
@@ -235,7 +245,8 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    * Convert Zod schema to basic JSON Schema (simplified)
    */
   private zodSchemaToJsonSchema(schema: z.ZodSchema): unknown {
-    const def = (schema as any)._def;
+    // Access Zod internal definition - required for schema introspection
+    const def = (schema as z.ZodTypeAny)._def;
     
     switch (def.typeName) {
       case 'ZodString':

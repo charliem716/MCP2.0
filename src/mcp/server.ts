@@ -30,7 +30,7 @@ export class MCPServer {
   private serverName: string;
   private serverVersion: string;
   private signalHandlers: Map<NodeJS.Signals, () => void> = new Map();
-  private errorHandlers: Map<string, (...args: any[]) => void> = new Map();
+  private errorHandlers: Map<string, (...args: unknown[]) => void> = new Map();
 
   constructor(private config: MCPServerConfig) {
     this.serverName = config.name || "qsys-mcp-server";
@@ -140,13 +140,15 @@ export class MCPServer {
     };
 
     // Handle uncaught exceptions
-    const uncaughtHandler = (error: Error) => {
+    const uncaughtHandler = (...args: unknown[]) => {
+      const error = args[0];
       logger.error("Uncaught exception in MCP server", { error });
       this.shutdown().catch(() => {});
       process.exit(1);
     };
     
-    const unhandledHandler = (reason: any, promise: Promise<any>) => {
+    const unhandledHandler = (...args: unknown[]) => {
+      const [reason, promise] = args;
       logger.error("Unhandled rejection in MCP server", { reason, promise });
     };
     
@@ -160,7 +162,7 @@ export class MCPServer {
   /**
    * Create a properly formatted MCP error response
    */
-  private createMCPError(code: number, message: string, data?: any) {
+  private createMCPError(code: number, message: string, data?: unknown) {
     return {
       code,
       message,
@@ -271,7 +273,7 @@ export class MCPServer {
       
       // Remove error handlers
       for (const [event, handler] of this.errorHandlers) {
-        process.removeListener(event as any, handler);
+        process.removeListener(event as NodeJS.Signals | 'uncaughtException' | 'unhandledRejection', handler);
       }
       this.errorHandlers.clear();
       

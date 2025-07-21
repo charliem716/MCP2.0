@@ -36,7 +36,7 @@ class CacheNode<K, V> {
     return this.memorySize;
   }
 
-  private getObjectMemorySize(obj: any): number {
+  private getObjectMemorySize(obj: unknown): number {
     if (obj === null || obj === undefined) return 4;
     if (typeof obj === 'boolean') return 4;
     if (typeof obj === 'number') return 8;
@@ -106,8 +106,11 @@ export class LRUCache<K, V> extends EventEmitter {
     super();
     
     // Initialize doubly-linked list with sentinel nodes
-    this.head = new CacheNode<K, V>(null as any, null as any, 0);
-    this.tail = new CacheNode<K, V>(null as any, null as any, 0);
+    // Use symbols for sentinel keys to ensure uniqueness and type safety
+    const SENTINEL_HEAD = Symbol('SENTINEL_HEAD') as unknown as K;
+    const SENTINEL_TAIL = Symbol('SENTINEL_TAIL') as unknown as K;
+    this.head = new CacheNode<K, V>(SENTINEL_HEAD, null as unknown as V, 0);
+    this.tail = new CacheNode<K, V>(SENTINEL_TAIL, null as unknown as V, 0);
     this.head.next = this.tail;
     this.tail.prev = this.head;
 

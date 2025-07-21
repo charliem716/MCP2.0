@@ -3,13 +3,28 @@
  * Provides structured API documentation for the query_qsys_api tool
  */
 
+export interface APIMethodExample {
+  method: string;
+  params?: Record<string, unknown> | unknown[];
+  description?: string;
+  response?: unknown;
+  alternativeExamples?: APIMethodExample[];
+}
+
 export interface APIMethod {
   name: string;
   description: string;
   category: string;
   params: Record<string, string>;
-  example?: any;
+  example?: APIMethodExample;
   componentTypes?: string[];
+}
+
+export interface APIMethodFilters {
+  component_type?: string;
+  method_category?: string;
+  search?: string;
+  method_name?: string;
 }
 
 export class QSysAPIReference {
@@ -126,7 +141,7 @@ export class QSysAPIReference {
       description: "Set control values on a component (single or multiple controls)",
       params: {
         "Name": "string - Component name",
-        "Controls": "array - [{Name: string, Value: any, Ramp?: number}]"
+        "Controls": "array - [{Name: string, Value: number | string | boolean, Ramp?: number}]"
       },
       example: {
         method: "Component.Set",
@@ -353,7 +368,7 @@ export class QSysAPIReference {
     { type: "invert", description: "Phase invert control" }
   ];
 
-  queryMethods(filters: any): APIMethod[] {
+  queryMethods(filters: APIMethodFilters): APIMethod[] {
     let results = [...this.methods];
     
     if (filters.component_type) {
@@ -390,13 +405,13 @@ export class QSysAPIReference {
     return this.controlTypes;
   }
 
-  getExamples(methodName?: string) {
+  getExamples(methodName?: string): APIMethodExample[] {
     if (methodName) {
       const method = this.methods.find(m => m.name === methodName);
       if (!method?.example) return [];
       
       // Return all examples for this method (including alternative examples)
-      const examples = [method.example];
+      const examples: APIMethodExample[] = [method.example];
       if (method.example.alternativeExamples) {
         examples.push(...method.example.alternativeExamples);
       }
@@ -404,7 +419,7 @@ export class QSysAPIReference {
     }
     
     // Return all examples from all methods
-    const allExamples: any[] = [];
+    const allExamples: APIMethodExample[] = [];
     this.methods.forEach(method => {
       if (method.example) {
         allExamples.push(method.example);

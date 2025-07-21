@@ -194,7 +194,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Send a raw command through the WebSocket
    * Used for commands not directly supported by the QRWC library
    */
-  async sendRawCommand(method: string, params: any): Promise<any> {
+  async sendRawCommand(method: string, params: unknown): Promise<unknown> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new QSysError('WebSocket not connected', QSysErrorCode.CONNECTION_FAILED);
     }

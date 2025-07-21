@@ -7,7 +7,7 @@ import type {
   CacheStatistics
 } from "../repository.js";
 import { CoreCache } from "./core-cache.js";
-import { ChangeGroupManager } from "./change-groups.js";
+import { CacheChangeGroupManager } from "./change-groups.js";
 import { CacheSyncManager } from "./cache-sync.js";
 import type { CacheInvalidationManager } from "../invalidation.js";
 import type { StatePersistenceManager } from "../persistence/index.js";
@@ -26,12 +26,12 @@ import type { StateSynchronizer } from "../synchronizer.js";
  * - Comprehensive statistics and performance metrics
  */
 export class ControlStateCache extends CoreCache implements IStateRepository {
-  private changeGroupManager: ChangeGroupManager;
+  private changeGroupManager: CacheChangeGroupManager;
   private cacheSyncManager: CacheSyncManager;
 
   constructor() {
     super();
-    this.changeGroupManager = new ChangeGroupManager(this);
+    this.changeGroupManager = new CacheChangeGroupManager(this);
     this.cacheSyncManager = new CacheSyncManager(this);
     logger.debug('ControlStateCache created');
   }

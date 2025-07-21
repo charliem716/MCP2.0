@@ -135,7 +135,7 @@ export class BackupManager {
    */
   async recoverFromBackup(
     readJSON: (path: string) => Promise<PersistedState>,
-    validateState: (state: any) => void
+    validateState: (state: unknown) => void
   ): Promise<Map<string, ControlState> | null> {
     const backupPath = await this.getMostRecentBackup();
     if (!backupPath) {

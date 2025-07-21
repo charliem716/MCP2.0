@@ -123,10 +123,16 @@ export class ChangeGroupExecutor {
       try {
         const currentState = await this.qrwcClient.sendCommand('Control.GetValues', {
           Names: [control.name]
-        }) as any;
+        }) as {
+          controls?: Array<{ Value: unknown }>
+        };
         
         if (currentState?.controls?.[0]?.Value !== undefined) {
-          previousValue = currentState.controls[0].Value;
+          const value = currentState.controls[0].Value;
+          // Validate that the value is of the expected type
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            previousValue = value;
+          }
         }
       } catch (error) {
         logger.warn('Failed to get previous value', {

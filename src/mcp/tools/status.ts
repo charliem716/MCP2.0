@@ -2,6 +2,8 @@ import { z } from "zod";
 import { BaseQSysTool, BaseToolParamsSchema } from "./base.js";
 import type { ToolCallResult } from "../handlers/index.js";
 import type { ToolExecutionContext } from "./base.js";
+import type { QRWCClientInterface } from "../qrwc/adapter.js";
+import type { QSysStatusGetResponse } from "../types/qsys-api-responses.js";
 
 /**
  * Parameters for the query_core_status tool
@@ -25,7 +27,7 @@ export type QueryCoreStatusParams = z.infer<typeof QueryCoreStatusParamsSchema>;
  * - Performance metrics
  */
 export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
-  constructor(qrwcClient: any) {
+  constructor(qrwcClient: QRWCClientInterface) {
     super(
       qrwcClient,
       "query_core_status",
@@ -65,71 +67,72 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   /**
    * Parse the QRWC response for status information
    */
-  private parseStatusResponse(response: any, params: QueryCoreStatusParams): QSysCoreStatus {
+  private parseStatusResponse(response: unknown, params: QueryCoreStatusParams): QSysCoreStatus {
     this.logger.debug("Parsing status response", { response });
 
     // Extract status information from response
-    const result = response.result || response;
+    const resp = response as { result?: QSysStatusGetResponse };
+    const result = resp.result || response as QSysStatusGetResponse;
     
     // Build comprehensive status object
     return {
       coreInfo: {
-        name: result.name || "Unknown Core",
-        version: result.version || "Unknown",
-        model: result.model || "Unknown",
-        platform: result.platform || "Unknown",
-        serialNumber: result.serialNumber || "Unknown",
-        firmwareVersion: result.firmwareVersion || "Unknown",
-        buildTime: result.buildTime || "Unknown",
-        designName: result.designName || "No Design Loaded"
+        name: String(result.Platform || "Unknown Core"),
+        version: String(result.Version || "Unknown"),
+        model: String(result.Platform || "Unknown"),
+        platform: String(result.Platform || "Unknown"),
+        serialNumber: String(result.Platform || "Unknown"),
+        firmwareVersion: String(result.Version || "Unknown"),
+        buildTime: String("Unknown"),
+        designName: String(result.DesignName || "No Design Loaded")
       },
       connectionStatus: {
-        connected: result.connected ?? true,
-        uptime: result.uptime || "Unknown",
+        connected: Boolean(result.IsConnected ?? true),
+        uptime: String("Unknown"),
         lastSeen: new Date().toISOString()
       },
       systemHealth: {
-        status: result.status || "unknown",
-        temperature: result.temperature || 0,
-        fanSpeed: result.fanSpeed || 0,
-        powerSupplyStatus: result.powerSupplyStatus || "unknown"
+        status: String(result.Status?.String || "unknown"),
+        temperature: Number(0),
+        fanSpeed: Number(0),
+        powerSupplyStatus: String("unknown")
       },
       designInfo: {
-        designCompiled: result.designCompiled ?? false,
-        compileTime: result.compileTime || "Unknown",
-        processingLoad: result.processingLoad || 0,
-        componentCount: result.componentCount || 0,
-        snapshotCount: result.snapshotCount || 0,
-        activeServices: result.activeServices || []
+        designCompiled: Boolean(result.State === "Active"),
+        compileTime: String("Unknown"),
+        processingLoad: Number(0),
+        componentCount: Number(0),
+        snapshotCount: Number(0),
+        activeServices: []
       },
       networkInfo: {
-        ipAddress: result.ipAddress || "Unknown",
-        macAddress: result.macAddress || "Unknown",
-        gateway: result.gateway || "Unknown",
-        dnsServers: result.dnsServers || [],
-        ntpServer: result.ntpServer || "Unknown",
-        networkMode: result.networkMode || "Unknown"
+        ipAddress: String("Unknown"),
+        macAddress: String("Unknown"),
+        gateway: String("Unknown"),
+        dnsServers: [],
+        ntpServer: String("Unknown"),
+        networkMode: String("Unknown")
       },
       performanceMetrics: {
-        cpuUsage: result.cpuUsage || 0,
-        memoryUsage: result.memoryUsage || 0,
-        memoryUsedMB: result.memoryUsedMB || 0,
-        memoryTotalMB: result.memoryTotalMB || 0,
-        audioLatency: result.audioLatency || 0,
-        networkLatency: result.networkLatency || 0,
-        fanSpeed: result.fanSpeed || 0
+        cpuUsage: Number(0),
+        memoryUsage: Number(0),
+        memoryUsedMB: Number(0),
+        memoryTotalMB: Number(0),
+        audioLatency: Number(0),
+        networkLatency: Number(0),
+        fanSpeed: Number(0)
       },
       // Additional fields from Q-SYS response
-      Platform: result.Platform || result.platform || "Unknown",
-      Version: result.Version || result.version || "Unknown",
-      DesignName: result.DesignName || result.designName || "Unknown",
-      DesignCode: result.DesignCode || result.designCode || "",
+      Platform: result.Platform,
+      Version: result.Version || "Unknown",
+      DesignName: result.DesignName,
+      DesignCode: result.DesignCode,
       Status: {
-        Name: result.Status?.String || result.status || "Unknown",
-        Code: result.Status?.Code ?? result.statusCode ?? -1,
-        PercentCPU: result.Status?.PercentCPU || result.cpuUsage || 0
+        Name: result.Status.String,
+        Code: result.Status.Code,
+        PercentCPU: Number(0)
       },
-      IsConnected: result.IsConnected ?? result.connected ?? true
+      IsConnected: result.IsConnected ?? true
     };
   }
 
@@ -208,5 +211,5 @@ interface QSysCoreStatus {
 /**
  * Factory function to create the tool
  */
-export const createQueryCoreStatusTool = (qrwcClient: any) => 
+export const createQueryCoreStatusTool = (qrwcClient: QRWCClientInterface) => 
   new QueryCoreStatusTool(qrwcClient);

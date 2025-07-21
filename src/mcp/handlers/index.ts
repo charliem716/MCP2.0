@@ -87,7 +87,7 @@ export class MCPToolRegistry {
    * Register all Q-SYS control tools
    */
   private registerQSysTools(): void {
-    const qsysTools: Array<BaseQSysTool<any>> = [
+    const qsysTools: Array<BaseQSysTool<unknown>> = [
       createListComponentsTool(this.qrwcClient),
       createGetComponentControlsTool(this.qrwcClient),
       createListControlsTool(this.qrwcClient),
@@ -108,7 +108,7 @@ export class MCPToolRegistry {
   /**
    * Register a Q-SYS tool (adapts to legacy interface)
    */
-  private registerQSysTool(qsysTool: BaseQSysTool<any>): void {
+  private registerQSysTool(qsysTool: BaseQSysTool<unknown>): void {
     const adaptedTool: BaseTool = {
       name: qsysTool.name,
       description: qsysTool.description,

@@ -258,19 +258,21 @@ export class StateSynchronizer extends EventEmitter {
    */
   private setupEventListeners(): void {
     // Listen for cache updates to mark as dirty
-    this.repository.on(StateRepositoryEvent.StateChanged, (data: any) => {
-      if (data.newState?.source === 'user') {
-        this.markDirty([data.controlName]);
+    this.repository.on(StateRepositoryEvent.StateChanged, (data: unknown) => {
+      const changeData = data as { controlName?: string; newState?: { source?: string } };
+      if (changeData.newState?.source === 'user') {
+        this.markDirty([changeData.controlName || '']);
       }
     });
     
     // For batch updates, we'll need to handle them differently
     // since there's no BATCH_UPDATE event
-    this.repository.on(StateRepositoryEvent.StateChanged, (data: any) => {
-      if (!data.updates) return;
-      const userUpdates = data.updates
-        .filter((u: any) => u.newState?.source === 'user')
-        .map((u: any) => u.controlName);
+    this.repository.on(StateRepositoryEvent.StateChanged, (data: unknown) => {
+      const batchData = data as { updates?: Array<{ controlName?: string; newState?: { source?: string } }> };
+      if (!batchData.updates) return;
+      const userUpdates = batchData.updates
+        .filter((u) => u.newState?.source === 'user')
+        .map((u) => u.controlName || '');
       
       if (userUpdates.length > 0) {
         this.markDirty(userUpdates);

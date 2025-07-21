@@ -249,31 +249,33 @@ export class StatePersistenceManager {
   /**
    * Validate persisted state structure
    */
-  private validatePersistedState(state: any): void {
+  private validatePersistedState(state: unknown): void {
     if (!state || typeof state !== 'object') {
       throw new Error('Invalid state: not an object');
     }
+    
+    const stateObj = state as Record<string, unknown>;
 
-    if (!state.version || typeof state.version !== 'string') {
+    if (!stateObj['version'] || typeof stateObj['version'] !== 'string') {
       throw new Error('Invalid state: missing or invalid version');
     }
 
-    if (!state.timestamp) {
+    if (!stateObj['timestamp']) {
       throw new Error('Invalid state: missing timestamp');
     }
 
-    if (typeof state.controlCount !== 'number' || state.controlCount < 0) {
+    if (typeof stateObj['controlCount'] !== 'number' || stateObj['controlCount'] < 0) {
       throw new Error('Invalid state: invalid control count');
     }
 
-    if (!state.controls || typeof state.controls !== 'object') {
+    if (!stateObj['controls'] || typeof stateObj['controls'] !== 'object') {
       throw new Error('Invalid state: missing or invalid controls');
     }
 
     // Validate control count matches
-    const actualCount = Object.keys(state.controls).length;
-    if (actualCount !== state.controlCount) {
-      throw new Error(`Invalid state: control count mismatch (expected ${state.controlCount}, got ${actualCount})`);
+    const actualCount = Object.keys(stateObj['controls'] as Record<string, unknown>).length;
+    if (actualCount !== stateObj['controlCount']) {
+      throw new Error(`Invalid state: control count mismatch (expected ${stateObj['controlCount']}, got ${actualCount})`);
     }
   }
 }

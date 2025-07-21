@@ -3,6 +3,7 @@ import { BaseQSysTool } from "./base.js";
 import type { ToolCallResult } from "../handlers/index.js";
 import type { ToolExecutionContext } from "./base.js";
 import { QSysAPIReference } from "./api-reference.js";
+import type { QRWCClientInterface } from "../qrwc/adapter.js";
 
 /**
  * Parameters for the query_qsys_api tool
@@ -31,7 +32,7 @@ export type QueryQSysAPIParams = z.infer<typeof QueryQSysAPIParamsSchema>;
 export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
   private apiReference: QSysAPIReference;
   
-  constructor(qrwcClient: any) {
+  constructor(qrwcClient: QRWCClientInterface) {
     super(
       qrwcClient,
       "query_qsys_api",
@@ -47,7 +48,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      let response: any = {};
+      let response: Record<string, unknown> = {};
       
       switch (params.query_type) {
         case 'tools':
@@ -307,5 +308,5 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
 /**
  * Export the tool factory function
  */
-export const createQueryQSysAPITool = (qrwcClient: any) => 
+export const createQueryQSysAPITool = (qrwcClient: QRWCClientInterface) => 
   new QueryQSysAPITool(qrwcClient);

@@ -2,6 +2,8 @@ import { z } from "zod";
 import { BaseQSysTool, BaseToolParamsSchema } from "./base.js";
 import type { ToolCallResult } from "../handlers/index.js";
 import type { ToolExecutionContext } from "./base.js";
+import type { QRWCClientInterface } from "../qrwc/adapter.js";
+import type { QSysComponentInfo, QSysComponentGetResponse } from "../types/qsys-api-responses.js";
 
 /**
  * Parameters for the list_components tool
@@ -21,7 +23,7 @@ export type ListComponentsParams = z.infer<typeof ListComponentsParamsSchema>;
  * and understanding the system architecture.
  */
 export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
-  constructor(qrwcClient: any) {
+  constructor(qrwcClient: QRWCClientInterface) {
     super(
       qrwcClient,
       "list_components",
@@ -64,32 +66,32 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
   /**
    * Parse the QRWC response for components
    */
-  private parseComponentsResponse(response: any): QSysComponent[] {
+  private parseComponentsResponse(response: unknown): QSysComponent[] {
     this.logger.debug("Parsing components response", { response });
 
     // Handle different response formats from QRWC client
-    let components: any[] = [];
+    let components: QSysComponentInfo[] = [];
+    const resp = response as { result?: QSysComponentInfo[] };
     
-    if (response?.result && Array.isArray(response.result)) {
-      components = response.result;
+    if (resp?.result && Array.isArray(resp.result)) {
+      components = resp.result;
     } else if (Array.isArray(response)) {
-      components = response;
-    } else if (response?.components && Array.isArray(response.components)) {
-      components = response.components;
+      components = response as QSysComponentInfo[];
     } else {
       this.logger.warn("No components found in response", { response });
       return [];
     }
 
-    return components.map((comp: any) => ({
-      Name: comp.name || comp.Name || "Unknown Component",
-      Type: comp.type || comp.Type || "unknown",
-      Properties: {
-        controls: comp.controls || comp.Controls || 0,
-        location: comp.location || "Unknown",
-        ...comp.Properties
-      }
-    }));
+    return components.map((comp: QSysComponentInfo) => {
+      return ({
+        Name: comp.Name,
+        Type: comp.Type,
+        Properties: comp.Properties.reduce((acc, prop) => {
+          acc[prop.Name] = prop.Value;
+          return acc;
+        }, {} as Record<string, unknown>)
+      });
+    });
   }
 
   /**
@@ -126,7 +128,7 @@ interface QSysComponent {
 /**
  * Export the tool factory function for registration
  */
-export const createListComponentsTool = (qrwcClient: any) => 
+export const createListComponentsTool = (qrwcClient: QRWCClientInterface) => 
   new ListComponentsTool(qrwcClient);
 
 /**
@@ -146,7 +148,7 @@ export type GetComponentControlsParams = z.infer<typeof GetComponentControlsPara
  * this allows getting specific controls from a component in a single request.
  */
 export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsParams> {
-  constructor(qrwcClient: any) {
+  constructor(qrwcClient: QRWCClientInterface) {
     super(
       qrwcClient,
       "qsys_component_get",
@@ -169,7 +171,7 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
         throw new Error("Invalid response from Component.Get");
       }
 
-      const result = response.result as any;
+      const result = (response as any).result as QSysComponentGetResponse;
       if (!result?.Controls || !Array.isArray(result.Controls)) {
         throw new Error("Invalid response format: missing Controls array");
       }
@@ -177,13 +179,15 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
       const controls = result.Controls;
       
       // Format as JSON for consistent MCP protocol compliance
-      const formattedControls = controls.map((ctrl: any) => ({
-        name: ctrl.Name,
-        value: ctrl.Value,
-        string: ctrl.String,
-        position: ctrl.Position,
-        error: ctrl.Error
-      }));
+      const formattedControls = controls.map((ctrl) => {
+        return ({
+          name: ctrl.Name,
+          value: ctrl.Value,
+          string: ctrl.String,
+          position: ctrl.Position,
+          error: undefined
+        });
+      });
 
       return {
         content: [{
@@ -212,5 +216,5 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
 /**
  * Export the tool factory function for registration
  */
-export const createGetComponentControlsTool = (qrwcClient: any) => 
+export const createGetComponentControlsTool = (qrwcClient: QRWCClientInterface) => 
   new GetComponentControlsTool(qrwcClient); 

@@ -5,11 +5,13 @@ import { StateRepositoryEvent, StateRepositoryError } from "../repository.js";
 import type { CoreCache } from "./core-cache.js";
 
 /**
- * Change Group Management for Cache
+ * Cache Change Group Manager
  * 
- * Handles change group operations for batch control updates
+ * Handles change group operations specifically for cache layer batch control updates.
+ * This is a lightweight implementation for cache-specific operations, distinct from
+ * the transaction-based ChangeGroupManager in the state management layer.
  */
-export class ChangeGroupManager {
+export class CacheChangeGroupManager {
   private changeGroups = new Map<string, ChangeGroup>();
   private changeGroupCleanupTimer?: NodeJS.Timeout;
   
@@ -37,7 +39,7 @@ export class ChangeGroupManager {
       controlCount: controls.length
     });
     
-    (this.coreCache as any).emit(StateRepositoryEvent.ChangeGroupCreated, {
+    this.coreCache.emit(StateRepositoryEvent.ChangeGroupCreated, {
       changeGroup,
       timestamp: new Date()
     });

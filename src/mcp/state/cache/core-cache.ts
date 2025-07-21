@@ -218,6 +218,23 @@ export class CoreCache extends EventEmitter {
   }
 
   /**
+   * Remove a specific control from cache
+   * @internal For use by CacheSyncManager
+   */
+  async removeControl(controlName: string): Promise<boolean> {
+    this.ensureInitialized();
+    return this.cache.delete(controlName);
+  }
+
+  /**
+   * Get the current cache configuration
+   * @internal For use by CacheSyncManager
+   */
+  getCacheConfig(): CacheConfig {
+    return this.config;
+  }
+
+  /**
    * Get all control names
    */
   async getKeys(): Promise<string[]> {

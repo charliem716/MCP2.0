@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BaseQSysTool } from "./base.js";
 import type { ToolCallResult } from "../handlers/index.js";
 import type { ToolExecutionContext } from "./base.js";
+import type { QRWCClientInterface } from "../qrwc/adapter.js";
 
 /**
  * Parameters for the qsys_get_all_controls tool
@@ -33,7 +34,7 @@ export type GetAllControlsParams = z.infer<typeof GetAllControlsParamsSchema>;
  * { includeValues: true, componentFilter: "APM" }
  */
 export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
-  constructor(qrwcClient: any) {
+  constructor(qrwcClient: QRWCClientInterface) {
     super(
       qrwcClient,
       "qsys_get_all_controls",
@@ -53,7 +54,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
         throw new Error("Invalid response from Component.GetAllControls");
       }
 
-      const result = response.result as any;
+      const result = response.result as unknown[];
       if (!Array.isArray(result)) {
         throw new Error("Invalid response format: expected array of controls");
       }
@@ -63,15 +64,17 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
       // Apply component filter if provided
       if (params.componentFilter) {
         const regex = new RegExp(params.componentFilter, 'i');
-        controls = controls.filter((ctrl: any) => 
-          regex.test(ctrl.Component)
-        );
+        controls = controls.filter((ctrl: unknown) => {
+          const control = ctrl as { Component?: string };
+          return regex.test(control.Component || '');
+        });
       }
 
       // Group by component for better organization
-      const byComponent: Record<string, any[]> = {};
-      controls.forEach((ctrl: any) => {
-        const componentName = ctrl.Component || 'Unknown';
+      const byComponent: Record<string, unknown[]> = {};
+      controls.forEach((ctrl: unknown) => {
+        const control = ctrl as { Component?: string; Name?: string; Value?: unknown; String?: string; Type?: string };
+        const componentName = control.Component || 'Unknown';
         if (!byComponent[componentName]) {
           byComponent[componentName] = [];
         }
@@ -85,12 +88,18 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
         components: Object.entries(byComponent).map(([name, ctrls]) => ({
           name,
           controlCount: ctrls.length,
-          controls: params.includeValues !== false ? ctrls.map(c => ({
-            name: c.Name,
-            value: c.Value,
-            string: c.String,
-            type: c.Type
-          })) : ctrls.map(c => ({ name: c.Name }))
+          controls: params.includeValues !== false ? ctrls.map((c: unknown) => {
+            const ctrl = c as { Name?: string; Value?: unknown; String?: string; Type?: string };
+            return {
+              name: ctrl.Name,
+              value: ctrl.Value,
+              string: ctrl.String,
+              type: ctrl.Type
+            };
+          }) : ctrls.map((c: unknown) => {
+            const ctrl = c as { Name?: string };
+            return { name: ctrl.Name };
+          })
         }))
       };
 
@@ -117,5 +126,5 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 /**
  * Export the tool factory function for registration
  */
-export const createGetAllControlsTool = (qrwcClient: any) => 
+export const createGetAllControlsTool = (qrwcClient: QRWCClientInterface) => 
   new GetAllControlsTool(qrwcClient);
