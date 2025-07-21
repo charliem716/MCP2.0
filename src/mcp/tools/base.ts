@@ -199,12 +199,26 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    */
   private getSchemaProperties(): Record<string, unknown> {
     // This is a simplified conversion - for production, consider using zod-to-json-schema
-    // Check if schema is a ZodObject before accessing shape
-    if (!(this.paramsSchema instanceof z.ZodObject)) {
+    // Check if schema has shape property (indicating it's a ZodObject)
+    if (!this.paramsSchema || typeof this.paramsSchema !== 'object') {
       return {};
     }
     
-    const shape = this.paramsSchema.shape;
+    // Type guard to check if this is a ZodObject
+    // Define interface for Zod schema with internal properties
+    interface ZodSchemaWithInternals {
+      _def?: {
+        typeName?: string;
+      };
+      shape?: Record<string, unknown>;
+    }
+    
+    const schemaWithShape = this.paramsSchema as unknown as ZodSchemaWithInternals;
+    if (!schemaWithShape._def || schemaWithShape._def.typeName !== z.ZodFirstPartyTypeKind.ZodObject) {
+      return {};
+    }
+    
+    const shape = schemaWithShape.shape;
     if (!shape) return {};
 
     const properties: Record<string, unknown> = {};

@@ -13,6 +13,7 @@ const logger: Logger = createLogger('Main');
 
 // Global references for cleanup
 let mcpServer: MCPServer | null = null;
+let isShuttingDown = false;
 
 async function main(): Promise<void> {
   try {
@@ -44,15 +45,7 @@ async function main(): Promise<void> {
     logger.info('✅ MCP server started and listening on stdio');
     logger.info('✅ Connected to Q-SYS Core via MCP server');
     
-    // Setup graceful shutdown
-    const shutdownHandler = (): void => {
-      logger.info('🛑 Received shutdown signal');
-      cleanup();
-      process.exit(0);
-    };
-    
-    process.on('SIGINT', shutdownHandler);
-    process.on('SIGTERM', shutdownHandler);
+    // Setup graceful shutdown handlers
     
     logger.info('✅ MCP Voice/Text-Controlled Q-SYS Demo is ready');
     logger.info('🎯 AI agents can now control Q-SYS via stdio');
@@ -70,16 +63,20 @@ async function main(): Promise<void> {
 /**
  * Cleanup function for graceful shutdown
  */
-function cleanup(): void {
+async function cleanup(): Promise<void> {
+  if (isShuttingDown) {
+    logger.info('⚠️  Already shutting down...');
+    return;
+  }
+  
+  isShuttingDown = true;
   logger.info('🧹 Cleaning up resources...');
   
   try {
     // Shutdown MCP server if running
     if (mcpServer) {
-      mcpServer.shutdown().catch((error) => {
-        logger.error('❌ Error shutting down MCP server:', error);
-      });
-      logger.info('✅ MCP server shutdown initiated');
+      await mcpServer.shutdown();
+      logger.info('✅ MCP server shutdown completed');
     }
     
     logger.info('✅ Cleanup completed');
@@ -88,35 +85,45 @@ function cleanup(): void {
   }
 }
 
+/**
+ * Graceful shutdown handler
+ */
+async function gracefulShutdown(signal: string): Promise<void> {
+  logger.info(`🛑 ${signal} received, shutting down gracefully...`);
+  
+  try {
+    await cleanup();
+    process.exit(0);
+  } catch (error) {
+    logger.error('❌ Error during graceful shutdown:', error);
+    process.exit(1);
+  }
+}
+
 // Graceful shutdown handlers
-process.on('SIGTERM', () => {
-  logger.info('🛑 SIGTERM received, shutting down gracefully...');
-  cleanup();
-  process.exit(0);
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-process.on('SIGINT', () => {
-  logger.info('🛑 SIGINT received, shutting down gracefully...');
-  cleanup();
-  process.exit(0);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error: Error) => {
+// Handle uncaught exceptions - try to recover if possible
+process.on('uncaughtException', async (error: Error) => {
   logger.error('💥 Uncaught Exception:', error);
-  cleanup();
-  process.exit(1);
+  
+  // Only exit for fatal errors
+  if (error.message.includes('EADDRINUSE') || error.message.includes('EACCES')) {
+    await gracefulShutdown('UNCAUGHT_EXCEPTION');
+  } else {
+    logger.warn('⚠️  Attempting to continue after uncaught exception');
+  }
 });
 
-// Handle unhandled promise rejections
+// Handle unhandled promise rejections - log but don't exit
 process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-  logger.error('💥 Unhandled Rejection', { promise, reason });
-  cleanup();
-  process.exit(1);
+  logger.error('💥 Unhandled Rejection', { reason, promise });
+  logger.warn('⚠️  Continuing after unhandled rejection - consider fixing the root cause');
 });
 
-main().catch((error: Error) => {
+main().catch(async (error: Error) => {
   logger.error('💥 Application failed to start:', error);
-  cleanup();
+  await cleanup();
   process.exit(1);
 }); 

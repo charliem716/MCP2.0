@@ -103,13 +103,13 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         processingLoad: Number(0),
         componentCount: Number(0),
         snapshotCount: Number(0),
-        activeServices: []
+        activeServices: [] as string[]
       },
       networkInfo: {
         ipAddress: String("Unknown"),
         macAddress: String("Unknown"),
         gateway: String("Unknown"),
-        dnsServers: [],
+        dnsServers: [] as string[],
         ntpServer: String("Unknown"),
         networkMode: String("Unknown")
       },
@@ -123,16 +123,16 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         fanSpeed: Number(0)
       },
       // Additional fields from Q-SYS response
-      Platform: result.Platform,
-      Version: result.Version || "Unknown",
-      DesignName: result.DesignName,
-      DesignCode: result.DesignCode,
+      Platform: String(result.Platform || "Unknown"),
+      Version: String(result.Version || "Unknown"),
+      DesignName: String(result.DesignName || "Unknown"),
+      DesignCode: String(result.DesignCode || ""),
       Status: {
-        Name: result.Status.String,
-        Code: result.Status.Code,
+        Name: String(result.Status?.String || "Unknown"),
+        Code: Number(result.Status?.Code ?? -1),
         PercentCPU: Number(0)
       },
-      IsConnected: result.IsConnected ?? true
+      IsConnected: Boolean(result.IsConnected ?? true)
     };
   }
 

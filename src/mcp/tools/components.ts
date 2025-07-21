@@ -171,7 +171,8 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
         throw new Error("Invalid response from Component.Get");
       }
 
-      const result = (response as any).result as QSysComponentGetResponse;
+      const typedResponse = response as { result: QSysComponentGetResponse };
+      const result = typedResponse.result;
       if (!result?.Controls || !Array.isArray(result.Controls)) {
         throw new Error("Invalid response format: missing Controls array");
       }

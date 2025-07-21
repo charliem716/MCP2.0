@@ -333,6 +333,9 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             try {
               const controlObj = ctrl as Record<string, unknown>;
               const name = String(controlObj['Name'] || controlObj['name'] || '');
+              if (!name) {
+                throw new Error('Control name is required');
+              }
               const value = controlObj['Value'] !== undefined ? controlObj['Value'] : controlObj['value'];
               const ramp = controlObj['Ramp'] || controlObj['ramp'];
               const dotIndex = name.indexOf('.');
@@ -370,12 +373,18 @@ export class QRWCClientAdapter implements QRWCClientInterface {
               
               if (compName) {
                 await this.retryOperation(
-                  () => this.officialClient.setControlValue(compName, ctrlName, validatedValue as string | number | boolean),
+                  async () => {
+                    await this.officialClient.setControlValue(compName, ctrlName, validatedValue as string | number | boolean);
+                    return true;
+                  },
                   options
                 );
               } else {
                 await this.retryOperation(
-                  () => this.officialClient.setControlValue('', name, validatedValue as string | number | boolean),
+                  async () => {
+                    await this.officialClient.setControlValue('', name, validatedValue as string | number | boolean);
+                    return true;
+                  },
                   options
                 );
               }
@@ -384,7 +393,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             } catch (error) {
               logger.error(`Failed to set control value`, { control: name, error });
               setResults.push({ 
-                Name: name || '', 
+                Name: name, 
                 Result: "Error",
                 Error: error instanceof Error ? error.message : String(error)
               });
@@ -395,45 +404,21 @@ export class QRWCClientAdapter implements QRWCClientInterface {
 
         case "StatusGet":
         case "Status.Get":
-          // Return status based on connection state and available information
-          // Note: Without raw command access, we can't query full Q-SYS status
-          // This is a simplified implementation until proper status API is available
-          return {
-            result: {
-              // Core identification - simplified without raw command
-              Platform: "Q-SYS Core",
-              Version: "Unknown",
-              
-              // Design information - not available through QRWC
-              DesignName: "Unknown",
-              DesignCode: "",
-              
-              // Status information
-              Status: {
-                Name: this.officialClient.isConnected() ? "OK" : "Disconnected",
-                Code: this.officialClient.isConnected() ? 0 : -1,
-                PercentCPU: 0,
-                PercentMemory: 0
-              },
-              
-              // Connection and system info
-              IsConnected: this.officialClient.isConnected(),
-              IsRedundant: false,
-              IsEmulator: false,
-              State: this.officialClient.isConnected() ? "Active" : "Disconnected",
-              
-              // Additional fields for compatibility
-              name: `Q-SYS-Core-${this.officialClient.isConnected() ? 'Connected' : 'Disconnected'}`,
-              version: "Unknown",
-              uptime: "Unknown",
-              status: this.officialClient.isConnected() ? "OK" : "Disconnected",
-              connected: this.officialClient.isConnected(),
-              client: "official-qrwc",
-              
-              // Note about limited functionality
-              note: "Limited status information available without raw command access"
-            }
-          };
+          // Use sendRawCommand to get actual Q-SYS Core status
+          try {
+            const statusResponse = await this.officialClient.sendRawCommand("Status.Get", {});
+            logger.debug("Received actual Status.Get response", { response: statusResponse });
+            
+            // Return the actual status response from Q-SYS Core
+            return { result: statusResponse };
+          } catch (error) {
+            // Fail gracefully without fallback
+            logger.error("Failed to get Q-SYS Core status", { error });
+            throw new Error(
+              `Unable to retrieve Q-SYS Core status: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
+              `The Status.Get command may not be supported by your Q-SYS Core firmware version.`
+            );
+          }
 
         case "Component.GetAllControls":
         case "ComponentGetAllControls":
@@ -675,7 +660,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           };
         }
         const maxLength = (controlInfo as Record<string, unknown>)['maxLength'] || 255;
-        if (stringValue.length > maxLength) {
+        if (typeof maxLength === 'number' && stringValue.length > maxLength) {
           return { 
             valid: false, 
             error: `String too long (${stringValue.length} > ${maxLength})` 

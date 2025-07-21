@@ -5,6 +5,9 @@ import type { ToolExecutionContext } from "./base.js";
 import type { QRWCClientInterface } from "../qrwc/adapter.js";
 import type { QSysComponentControlsResponse, QSysControlGetResponse } from "../types/qsys-api-responses.js";
 
+// Extract the control type from the existing interface
+type QSysControlInfo = QSysComponentControlsResponse['Controls'][0];
+
 /**
  * Parameters for the list_controls tool
  */
@@ -90,7 +93,11 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       return [];
     }
     
-    const controls = resp.result.Controls.map((ctrl) => {
+    // Store result in a const to ensure TypeScript knows it's defined
+    const result = resp.result;
+    const componentName = result.Name || 'unknown';
+    
+    const controls = result.Controls.map((ctrl) => {
       // Extract control type from Name or Properties
       const controlType = this.inferControlType(ctrl);
       
@@ -106,7 +113,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       
       return {
         name: ctrl.Name,
-        component: resp.result.Name,
+        component: componentName,
         type: controlType || ctrl.Type || 'unknown',
         value: value,
         metadata: this.extractMetadata(ctrl)
@@ -125,7 +132,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     return filteredControls;
   }
 
-  private inferControlType(control: any): string {
+  private inferControlType(control: QSysControlInfo): string {
     const name = control.Name || '';
     const lowerName = name.toLowerCase();
     
@@ -149,7 +156,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     return parts.length > 0 && parts[0] ? parts[0] : 'Unknown';
   }
 
-  private extractMetadata(control: any): Record<string, unknown> {
+  private extractMetadata(control: QSysControlInfo): Record<string, unknown> {
     const metadata: Record<string, unknown> = {};
     
     // Extract from Q-SYS API response format
@@ -389,7 +396,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       commandParams.Ramp = control.ramp;
     }
 
-    return await this.qrwcClient.sendCommand("Control.Set", commandParams);
+    return await this.qrwcClient.sendCommand("Control.Set", commandParams as unknown as Record<string, unknown>);
   }
 
   private async setComponentControls(componentName: string, controls: Array<{ name: string; value: number | string | boolean; ramp?: number | undefined }>) {
