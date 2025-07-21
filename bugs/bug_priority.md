@@ -1,101 +1,120 @@
- Critical Priority (P1) - Fix Immediately
+# Bug Priority List
 
-  These bugs block all core functionality and must be fixed first:
+Last Updated: 2025-01-20
 
-  1. LIVE_TEST_BUG_SUMMARY - Response Format Issues
+## Critical Priority (P1) - Fix Immediately
 
-  - Impact: CRITICAL - All MCP tools return human-readable text instead of JSON
-  - Code Quality: Breaks all tool parsing and AI agent integration
-  - Fix Complexity: Low-Medium (format changes)
-  - Note: Contains 5 high-priority bugs (BUG-042 through BUG-046)
+These bugs block core functionality and must be fixed first:
 
-  High Priority (P2) - Major Functionality Issues
+### 1. BUG-035: Duplicate ChangeGroupManager Implementations
+- Impact: HIGH - Multiple duplicate implementations violating DRY principles
+- Code Quality: Maintenance overhead, confusion, inconsistent behavior
+- Fix Complexity: Medium (consolidation and refactoring)
 
-  2. BUG-041: Missing Generic QRWC Send Tool
+### 2. BUG-036: Widespread Use of 'any' Type Violating TypeScript Standards
+- Impact: HIGH - Multiple instances of 'any' type usage throughout codebase
+- Code Quality: Violates project's strict type safety standards
+- Fix Complexity: Medium (type definitions and refactoring)
 
-  - Impact: HIGH - Limits AI agent flexibility, prevents access to many Q-SYS commands
-  - Code Quality: Blocks extensibility and testing capabilities
-  - Fix Complexity: Low (single tool implementation)
+### 3. BUG-041: Missing Unit Tests for State Management Components
+- Impact: HIGH - Critical components lack unit test coverage
+- Code Quality: Risks bugs and regressions in core functionality
+- Fix Complexity: Medium-High (comprehensive test suite creation)
 
-  3. BUG-034: Change Group Methods Not Implemented
+### 4. BUG-044: Missing Integration Tests for Critical User Workflows
+- Impact: HIGH - No end-to-end testing for essential workflows
+- Code Quality: Integration issues only discovered in production
+- Fix Complexity: High (integration test framework and scenarios)
 
-  - Impact: HIGH - Missing core Q-SYS efficiency features for control monitoring
-  - Code Quality: Incomplete API implementation, affects performance
-  - Fix Complexity: Medium-High (multiple method implementations)
+### 5. BUG-034: Change Group Methods Not Implemented
+- Impact: HIGH - Missing core Q-SYS efficiency features for control monitoring
+- Code Quality: Incomplete API implementation, affects performance
+- Fix Complexity: Medium-High (multiple method implementations)
 
-  4. BUG-046: Excessive Disconnect Logging
+### 6. BUG-012: Premature Phase Creation
+- Impact: HIGH - Project organization issue, violates phased implementation
+- Code Quality: Violates implementation methodology
+- Fix Complexity: Low (directory cleanup)
 
-  - Impact: MEDIUM-HIGH - Causes 200MB+ log spam, potential memory issues
-  - Code Quality: System instability, debugging difficulties
-  - Fix Complexity: Medium (state management and event cleanup)
+## Medium Priority (P2) - Code Quality & Architecture
 
-  Medium Priority (P3) - API Completeness
+### 7. BUG-037: Missing Q-SYS Protocol Version Negotiation
+- Impact: MEDIUM - No version negotiation with Q-SYS Core
+- Code Quality: Risks compatibility issues with different versions
+- Fix Complexity: Medium (protocol implementation)
 
-  5. BUG-047: Create Q-SYS API Discovery Tool
+### 8. BUG-038: Over-Engineered Synchronizer Implementation
+- Impact: MEDIUM - Unnecessarily complex for simple polling task
+- Code Quality: Violates YAGNI principle
+- Fix Complexity: Low-Medium (simplification)
 
-  - Impact: MEDIUM - Improves AI agent usability and discoverability
-  - Code Quality: Enhances developer experience and reduces trial-and-error
-  - Fix Complexity: Medium (documentation parsing and structuring)
+### 9. BUG-039: Overly Complex LRU Cache Implementation
+- Impact: MEDIUM - Includes unused features (TTL, events, serialization)
+- Code Quality: Adds unnecessary complexity
+- Fix Complexity: Low-Medium (simplification)
 
-  6. BUG-039: Missing Component.Get MCP Tool
+### 10. BUG-040: Adapter.ts File Exceeds Maintainable Size Limits
+- Impact: MEDIUM - 500+ lines handling multiple responsibilities
+- Code Quality: Violates single responsibility principle
+- Fix Complexity: Medium (modularization)
 
-  - Impact: MEDIUM - Missing efficient component control access
-  - Code Quality: Forces inefficient 2-step workflows
-  - Fix Complexity: Low (single tool implementation)
+### 11. BUG-043: Inconsistent Error Handling Patterns Across Codebase
+- Impact: MEDIUM - Multiple different error handling approaches
+- Code Quality: Makes debugging difficult
+- Fix Complexity: Medium (standardization)
 
-  7. BUG-040: Missing Component.GetAllControls MCP Tool
+### 12. BUG-025: Hardcoded Configuration Values
+- Impact: MEDIUM - Deployment inflexibility
+- Code Quality: Reduces configurability and maintainability
+- Fix Complexity: Low-Medium (environment variable setup)
 
-  - Impact: MEDIUM - Missing system-wide control discovery
-  - Code Quality: Forces multiple API calls for system monitoring
-  - Fix Complexity: Low (single tool implementation)
+## Low Priority (P3) - Polish and Standards
 
-  8. BUG-035: Parameter Format Incompatibility
+### 13. BUG-042: Unnecessary Re-export Files Creating Circular Dependencies
+- Impact: LOW - Multiple index.ts files only re-exporting
+- Code Quality: Adds complexity and circular dependency risk
+- Fix Complexity: Low (cleanup and direct imports)
 
-  - Impact: MEDIUM - API compatibility issues with Q-SYS specification
-  - Code Quality: Non-standard parameter handling
-  - Fix Complexity: Medium (parameter parsing logic)
+### 14. BUG-023: Console.log in Production Code
+- Impact: LOW - Violates logging standards
+- Code Quality: Inconsistent logging, potential production issues
+- Fix Complexity: Low (replace console statements with logger)
 
-  Low Priority (P4) - Polish and Standards
+## Recommended Implementation Order
 
-  9. BUG-025: Hardcoded Configuration Values
+1. **Immediate (Week 1)**:
+   - BUG-035 - Consolidate duplicate implementations
+   - BUG-036 - Fix type safety violations
+   - BUG-012 - Clean up premature phase creation
+   
+2. **Testing Sprint (Week 2)**:
+   - BUG-041 - Add unit tests for state management
+   - BUG-044 - Add integration tests
+   
+3. **Core Functionality (Week 3)**:
+   - BUG-034 - Implement Change Group methods
+   - BUG-037 - Add protocol negotiation
+   
+4. **Code Quality Sprint (Week 4)**:
+   - BUG-038 - Simplify Synchronizer
+   - BUG-039 - Simplify LRU Cache
+   - BUG-040 - Split adapter.ts
+   - BUG-043 - Standardize error handling
+   
+5. **Polish Sprint (Week 5+)**:
+   - BUG-025 - Configuration management
+   - BUG-042 - Remove unnecessary re-exports
+   - BUG-023 - Fix console.log usage
 
-  - Impact: LOW-MEDIUM - Deployment inflexibility
-  - Code Quality: Reduces configurability and maintainability
-  - Fix Complexity: Low-Medium (environment variable setup)
+## Summary
 
-  10. BUG-036: Incomplete Component Response Format
+- **Total Bugs**: 14
+- **Critical (P1)**: 6
+- **Medium (P2)**: 6
+- **Low (P3)**: 2
 
-  - Impact: LOW - Missing component properties in responses
-  - Code Quality: Incomplete API specification compliance
-  - Fix Complexity: Low-Medium (response format enhancement)
-
-  11. BUG-023: Console.log in Production Code
-
-  - Impact: LOW - Violates logging standards
-  - Code Quality: Inconsistent logging, potential production issues
-  - Fix Complexity: Low (replace console statements with logger)
-
-  12. BUG-028: Missing Event Listener Cleanup
-
-  - Impact: LOW - Memory leaks in specific scenarios
-  - Code Quality: Resource management issue
-  - Fix Complexity: Low (event handler cleanup)
-
-  13. BUG-012: Premature Phase Creation
-
-  - Impact: LOW - Project organization issue
-  - Code Quality: Violates implementation methodology
-  - Fix Complexity: Low (directory cleanup)
-
-  Recommended Implementation Order:
-
-  1. Start with LIVE_TEST_BUG_SUMMARY - Fix response formats first (blocks everything else)
-  2. BUG-041 + BUG-046 - Add generic tool and fix logging (high impact, medium effort)
-  3. BUG-034 - Implement Change Group methods (major functionality)
-  4. BUG-039 + BUG-040 - Add missing component tools (quick wins)
-  5. BUG-047 - API discovery tool (improves everything else)
-  6. BUG-035 - Fix parameter compatibility
-  7. Remaining bugs - Polish and standards compliance
-
-  The top 4-5 bugs will have the most significant impact on system stability and functionality.
-
+Priority based on:
+- Impact on functionality
+- Code quality implications
+- Fix complexity
+- Dependencies between bugs

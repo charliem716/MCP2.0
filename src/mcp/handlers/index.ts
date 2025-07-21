@@ -10,7 +10,6 @@ import {
   createSetControlValuesTool 
 } from "../tools/controls.js";
 import { createQueryCoreStatusTool } from "../tools/status.js";
-import { createSendRawCommandTool } from "../tools/raw-command.js";
 import { createGetAllControlsTool } from "../tools/discovery.js";
 import { createQueryQSysAPITool } from "../tools/qsys-api.js";
 import type { BaseQSysTool, ToolExecutionResult } from "../tools/base.js";
@@ -95,7 +94,6 @@ export class MCPToolRegistry {
       createGetControlValuesTool(this.qrwcClient),
       createSetControlValuesTool(this.qrwcClient),
       createQueryCoreStatusTool(this.qrwcClient),
-      createSendRawCommandTool(this.qrwcClient),
       createGetAllControlsTool(this.qrwcClient),
       createQueryQSysAPITool(this.qrwcClient),
     ];

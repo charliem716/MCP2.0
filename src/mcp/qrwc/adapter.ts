@@ -8,7 +8,6 @@
 
 import { globalLogger as logger } from "../../shared/utils/logger.js";
 import type { OfficialQRWCClient } from "../../qrwc/officialClient.js";
-import { RawCommandClient } from "../../qrwc/rawCommandClient.js";
 
 /**
  * Interface that MCP tools expect from a QRWC client
@@ -16,7 +15,6 @@ import { RawCommandClient } from "../../qrwc/rawCommandClient.js";
 export interface QRWCClientInterface {
   isConnected(): boolean;
   sendCommand(command: string, params?: Record<string, unknown>): Promise<unknown>;
-  sendRawCommand(method: string, params?: any, timeout?: number): Promise<any>;
 }
 
 /**
@@ -34,7 +32,6 @@ export interface RetryOptions {
 export class QRWCClientAdapter implements QRWCClientInterface {
   private controlIndex = new Map<string, {componentName: string, controlName: string}>();
   private indexBuilt = false;
-  private rawCommandClient?: RawCommandClient;
 
   constructor(private readonly officialClient: OfficialQRWCClient) {
     // Extract host and port from the official client if possible
@@ -393,83 +390,45 @@ export class QRWCClientAdapter implements QRWCClientInterface {
 
         case "StatusGet":
         case "Status.Get":
-          // Query actual Core status using raw command with extended timeout
-          try {
-            // StatusGet can be slow on busy systems, use 15 second timeout
-            const statusResponse = await this.sendRawCommand("StatusGet", {}, 15000);
-            
-            // Map the Q-SYS response to the expected format
-            const result = statusResponse.result || {};
-            
-            return {
-              result: {
-                // Core identification
-                Platform: result.Platform || "Unknown",
-                Version: result.Version || "Unknown",
-                
-                // Design information
-                DesignName: result.DesignName || "No Design Loaded",
-                DesignCode: result.DesignCode || "",
-                
-                // Status information
-                Status: {
-                  Name: result.Status?.String || result.State || "Unknown",
-                  Code: result.Status?.Code ?? 0,
-                  PercentCPU: result.Status?.PercentCPU || 0,
-                  PercentMemory: result.Status?.PercentMemory || 0
-                },
-                
-                // Connection and system info
-                IsConnected: this.officialClient.isConnected(),
-                IsRedundant: result.IsRedundant || false,
-                IsEmulator: result.IsEmulator || false,
-                State: result.State || "Unknown",
-                
-                // Additional fields for compatibility
-                name: `Q-SYS-Core-${this.officialClient.isConnected() ? 'Connected' : 'Disconnected'}`,
-                version: result.Version || "Unknown",
-                uptime: result.Uptime || "Unknown",
-                status: result.Status?.String || result.State || "Unknown",
-                connected: this.officialClient.isConnected(),
-                client: "official-qrwc",
-                
-                // Network info if available
-                Network: result.Network ? {
-                  IP: result.Network.IP || "Unknown",
-                  MAC: result.Network.MAC || "Unknown"
-                } : undefined
-              }
-            };
-          } catch (error) {
-            logger.error("Failed to get Q-SYS Core status", { error });
-            
-            // Fall back to minimal status on error
-            return {
-              result: {
-                Platform: "Unknown",
-                Version: "Unknown",
-                DesignName: "Error",
-                DesignCode: "",
-                Status: {
-                  Name: "Error",
-                  Code: -1,
-                  PercentCPU: 0,
-                  PercentMemory: 0
-                },
-                IsConnected: this.officialClient.isConnected(),
-                IsRedundant: false,
-                IsEmulator: false,
-                State: "Error",
-                name: `Q-SYS-Core-${this.officialClient.isConnected() ? 'Connected' : 'Disconnected'}`,
-                version: "Unknown",
-                uptime: "Unknown",
-                status: "Error",
-                connected: this.officialClient.isConnected(),
-                client: "official-qrwc",
-                error: error instanceof Error ? error.message : String(error)
-              }
-            };
-          }
+          // Return status based on connection state and available information
+          // Note: Without raw command access, we can't query full Q-SYS status
+          // This is a simplified implementation until proper status API is available
+          return {
+            result: {
+              // Core identification - simplified without raw command
+              Platform: "Q-SYS Core",
+              Version: "Unknown",
+              
+              // Design information - not available through QRWC
+              DesignName: "Unknown",
+              DesignCode: "",
+              
+              // Status information
+              Status: {
+                Name: this.officialClient.isConnected() ? "OK" : "Disconnected",
+                Code: this.officialClient.isConnected() ? 0 : -1,
+                PercentCPU: 0,
+                PercentMemory: 0
+              },
+              
+              // Connection and system info
+              IsConnected: this.officialClient.isConnected(),
+              IsRedundant: false,
+              IsEmulator: false,
+              State: this.officialClient.isConnected() ? "Active" : "Disconnected",
+              
+              // Additional fields for compatibility
+              name: `Q-SYS-Core-${this.officialClient.isConnected() ? 'Connected' : 'Disconnected'}`,
+              version: "Unknown",
+              uptime: "Unknown",
+              status: this.officialClient.isConnected() ? "OK" : "Disconnected",
+              connected: this.officialClient.isConnected(),
+              client: "official-qrwc",
+              
+              // Note about limited functionality
+              note: "Limited status information available without raw command access"
+            }
+          };
 
         case "Component.GetAllControls":
         case "ComponentGetAllControls":
@@ -757,42 +716,6 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     throw lastError;
   }
 
-  /**
-   * Send a raw command directly to Q-SYS Core
-   * 
-   * @param method The Q-SYS method name (e.g., 'Status.Get', 'Component.Set')
-   * @param params The parameters for the method
-   * @returns The raw response from Q-SYS Core
-   */
-  async sendRawCommand(method: string, params?: any, timeout?: number): Promise<any> {
-    if (!this.isConnected()) {
-      throw new Error("QRWC client not connected");
-    }
-
-    logger.info(`Sending raw command: ${method}`, { method, params, timeout });
-
-    try {
-      // Initialize raw command client if needed
-      if (!this.rawCommandClient) {
-        // Get host and port from the official client
-        const { host, port } = this.officialClient.getConnectionOptions();
-        
-        this.rawCommandClient = new RawCommandClient(host, port);
-        logger.debug('Created RawCommandClient for raw commands', { host, port });
-      }
-
-      // Use the raw command client to bypass QRWC interference
-      // Pass the timeout parameter if provided, otherwise use default
-      const response = await this.rawCommandClient.sendCommand(method, params, timeout);
-      logger.debug("Raw command response received", { method, response });
-      
-      // Return response in consistent format
-      return { result: response };
-    } catch (error) {
-      logger.error("Raw command failed", { method, error });
-      throw error;
-    }
-  }
 
   /**
    * Clear all caches (should be called after long disconnections)

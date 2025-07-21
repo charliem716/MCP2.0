@@ -9,8 +9,8 @@ import { QSysAPIReference } from "./api-reference.js";
  */
 export const QueryQSysAPIParamsSchema = z.object({
   requestId: z.string().uuid().optional().describe("Optional request ID for tracking"),
-  query_type: z.enum(['methods', 'components', 'controls', 'examples', 'raw_commands'])
-    .describe("Type of query to perform. Use 'raw_commands' for complete raw command reference"),
+  query_type: z.enum(['tools', 'methods', 'components', 'controls', 'examples'])
+    .describe("Type of query to perform. Use 'tools' for available MCP tools and their usage"),
   component_type: z.enum(['mixer', 'gain', 'router', 'snapshot', 'delay', 'eq']).optional()
     .describe("Filter methods by component type"),
   method_category: z.enum(['Authentication', 'Component', 'Mixer', 'Control', 'Snapshot', 'ChangeGroup', 'Status']).optional()
@@ -35,7 +35,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     super(
       qrwcClient,
       "query_qsys_api",
-      "Query Q-SYS API reference. IMPORTANT: Use query_type='raw_commands' for send_raw_command documentation! Shows naming conventions (camelCase vs dot notation), common commands, examples. Other types: 'methods' (find commands), 'components' (component types), 'controls' (control types), 'examples' (usage). Examples: {query_type:'raw_commands'} for raw command guide, {query_type:'methods',search:'gain'} for gain methods, {query_type:'examples',method_name:'Component.Set'} for examples.",
+      "Query Q-SYS API reference and MCP tools documentation. Types: 'tools' (available MCP tools with examples), 'methods' (Q-SYS commands), 'components' (component types), 'controls' (control types), 'examples' (usage). Examples: {query_type:'tools'} for all MCP tools, {query_type:'methods',search:'gain'} for gain methods, {query_type:'examples',method_name:'Component.Set'} for examples.",
       QueryQSysAPIParamsSchema
     );
     
@@ -50,6 +50,9 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
       let response: any = {};
       
       switch (params.query_type) {
+        case 'tools':
+          response = this.queryMCPTools();
+          break;
         case 'methods':
           response = this.queryMethods(params);
           break;
@@ -61,9 +64,6 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           break;
         case 'examples':
           response = this.queryExamples(params);
-          break;
-        case 'raw_commands':
-          response = this.queryRawCommands(params);
           break;
       }
       
@@ -135,102 +135,172 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     };
   }
   
-  private queryRawCommands(params: QueryQSysAPIParams) {
-    const rawCommandsGuide = {
-      query_type: 'raw_commands',
+  private queryMCPTools() {
+    return {
+      query_type: 'tools',
       overview: {
-        description: "Q-SYS JSON-RPC API Reference for send_raw_command tool",
-        important_notes: [
-          "Q-SYS uses INCONSISTENT naming: some methods use camelCase (StatusGet, NoOp), others use dot notation (Control.Set, Component.Get)",
-          "Always check the exact method name format in this reference",
-          "Q-SYS has a bug where responses have 'id: null' - this is handled automatically"
-        ]
+        description: "Available MCP Tools for Q-SYS Control",
+        note: "The send_raw_command tool has been deprecated for stability. Use these dedicated tools instead."
       },
-      naming_conventions: {
-        camelCase: ["StatusGet", "NoOp", "Logon", "ComponentGetComponents", "ComponentGetControls"],
-        dot_notation: ["Control.Get", "Control.Set", "Component.Get", "Component.Set", "ChangeGroup.*", "Snapshot.*"]
-      },
-      common_commands: [
+      tools: [
         {
-          name: "StatusGet",
-          description: "Get Core status",
-          format: "camelCase",
-          example: { method: "StatusGet", params: {} }
+          name: "list_components",
+          description: "Lists all available Q-SYS components in the current design",
+          usage: "No parameters required",
+          example: {
+            tool: "list_components",
+            arguments: {}
+          },
+          returns: "Array of components with their names, types, and properties"
         },
         {
-          name: "NoOp",
-          description: "Ping/keep-alive",
-          format: "camelCase",
-          example: { method: "NoOp", params: {} }
+          name: "qsys_component_get",
+          description: "Get specific control values from a Q-SYS component",
+          parameters: {
+            component_name: "Name of the component (e.g., 'Main Gain')",
+            controls: "Array of control names to retrieve (e.g., ['gain', 'mute'])"
+          },
+          example: {
+            tool: "qsys_component_get",
+            arguments: {
+              component_name: "Main Gain",
+              controls: ["gain", "mute"]
+            }
+          },
+          returns: "Control values with their current state"
         },
         {
-          name: "Control.Get",
-          description: "Get Named Control values",
-          format: "dot notation",
-          example: { method: "Control.Get", params: ["Volume1", "Mute1"] }
+          name: "list_controls",
+          description: "Lists all controls for a specific component",
+          parameters: {
+            component_name: "Name of the component to inspect"
+          },
+          example: {
+            tool: "list_controls",
+            arguments: {
+              component_name: "Zone 1 Gain"
+            }
+          },
+          returns: "Array of control names and their properties"
         },
         {
-          name: "Control.Set",
-          description: "Set Named Control value",
-          format: "dot notation",
-          example: { method: "Control.Set", params: { Name: "Volume1", Value: -10, Ramp: 2.0 } }
+          name: "get_control_values",
+          description: "Get values for specific controls by their full names",
+          parameters: {
+            controls: "Array of control names (can be 'ControlName' or 'Component.ControlName' format)"
+          },
+          example: {
+            tool: "get_control_values",
+            arguments: {
+              controls: ["Main Gain.gain", "Zone 1 Gain.mute", "Master Volume"]
+            }
+          },
+          returns: "Current values for each requested control"
         },
         {
-          name: "Component.Get",
-          description: "Get component control values",
-          format: "dot notation",
-          example: { 
-            method: "Component.Get", 
-            params: { 
-              Name: "Mixer1", 
-              Controls: [{ Name: "gain" }, { Name: "mute" }] 
-            } 
+          name: "set_control_values",
+          description: "Set values for Q-SYS controls with optional ramp time",
+          parameters: {
+            controls: "Array of control objects with name, value, and optional ramp"
+          },
+          examples: [
+            {
+              tool: "set_control_values",
+              arguments: {
+                controls: [
+                  { name: "Main Gain.gain", value: -10 },
+                  { name: "Zone 1 Gain.mute", value: true }
+                ]
+              }
+            },
+            {
+              tool: "set_control_values",
+              arguments: {
+                controls: [
+                  { name: "Master Volume", value: -20, ramp: 2.5 }
+                ]
+              },
+              note: "Ramp creates a smooth 2.5-second transition"
+            }
+          ],
+          value_ranges: {
+            gain: "Typically -100 to 20 (dB)",
+            mute: "true/false (converted to 1/0 for Q-SYS)",
+            position: "0.0 to 1.0",
+            crosspoint: "Input number for router selection"
           }
         },
         {
-          name: "Component.Set",
-          description: "Set component control values",
-          format: "dot notation",
-          example: { 
-            method: "Component.Set", 
-            params: { 
-              Name: "Mixer1", 
-              Controls: [
-                { Name: "gain", Value: -10, Ramp: 2.0 },
-                { Name: "mute", Value: true }
-              ] 
-            } 
+          name: "query_core_status",
+          description: "Get Q-SYS Core connection status and basic information",
+          usage: "No parameters required",
+          example: {
+            tool: "query_core_status",
+            arguments: {}
+          },
+          returns: "Connection status, platform info, and system state",
+          note: "Limited information available without raw command access"
+        },
+        {
+          name: "qsys_get_all_controls",
+          description: "Get all controls from all components in the design",
+          usage: "No parameters required",
+          example: {
+            tool: "qsys_get_all_controls",
+            arguments: {}
+          },
+          returns: "Complete list of all controls with their current values",
+          warning: "Can return large amounts of data for complex designs"
+        },
+        {
+          name: "query_qsys_api",
+          description: "Query Q-SYS API reference (this tool)",
+          parameters: {
+            query_type: "One of: tools, methods, components, controls, examples",
+            search: "Optional search term",
+            method_name: "Optional specific method to look up"
+          },
+          example: {
+            tool: "query_qsys_api",
+            arguments: {
+              query_type: "methods",
+              search: "gain"
+            }
           }
         }
       ],
-      blocked_commands: [
-        "Design.Save", "DesignSave",
-        "Design.Delete", "DesignDelete", 
-        "Design.Deploy", "DesignDeploy",
-        "Core.Reboot", "CoreReboot",
-        "Core.Shutdown", "CoreShutdown",
-        "Core.FactoryReset", "CoreFactoryReset",
-        "Network.Set", "NetworkSet"
+      best_practices: [
+        "Use list_components first to discover available components",
+        "Use list_controls to see what controls a component has",
+        "For simple operations, use get_control_values and set_control_values",
+        "Use component.control naming format (e.g., 'Main Gain.gain') for clarity",
+        "Boolean values (true/false) are automatically converted to Q-SYS format (1/0)",
+        "Add ramp parameter for smooth audio transitions"
       ],
-      full_documentation: "For complete API documentation, use the Read tool on /QSYS_API_REFERENCE.md",
-      tips: [
-        "Use dedicated MCP tools (get_control_values, set_control_values) when possible",
-        "Test with NoOp first to verify connectivity",
-        "Component.Set and Control.Set support optional Ramp parameter for smooth transitions",
-        "Use ChangeGroups for efficient monitoring of multiple controls"
+      common_workflows: [
+        {
+          task: "Mute a zone",
+          steps: [
+            "1. Use list_components to find the zone gain component",
+            "2. Use set_control_values with {name: 'Zone 1 Gain.mute', value: true}"
+          ]
+        },
+        {
+          task: "Adjust volume with fade",
+          steps: [
+            "1. Use get_control_values to check current level",
+            "2. Use set_control_values with ramp parameter for smooth transition"
+          ]
+        },
+        {
+          task: "Monitor multiple controls",
+          steps: [
+            "1. Use get_control_values with array of control names",
+            "2. Poll periodically to track changes"
+          ]
+        }
       ]
     };
-    
-    // If search parameter provided, filter results
-    if (params.search) {
-      const search = params.search.toLowerCase();
-      rawCommandsGuide.common_commands = rawCommandsGuide.common_commands.filter(cmd => 
-        cmd.name.toLowerCase().includes(search) || 
-        cmd.description.toLowerCase().includes(search)
-      );
-    }
-    
-    return rawCommandsGuide;
   }
 }
 

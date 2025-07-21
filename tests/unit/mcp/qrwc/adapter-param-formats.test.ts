@@ -35,8 +35,7 @@ describe('QRWCClientAdapter - Parameter Format Compatibility', () => {
       isConnected: jest.fn().mockReturnValue(true),
       getQrwc: jest.fn().mockReturnValue(mockQrwc),
       getComponent: jest.fn().mockImplementation((name: string) => mockQrwc.components[name]),
-      setControlValue: jest.fn().mockResolvedValue(undefined),
-      sendRawCommand: jest.fn()
+      setControlValue: jest.fn().mockResolvedValue(undefined)
     } as any;
 
     adapter = new QRWCClientAdapter(mockOfficialClient);
