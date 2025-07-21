@@ -44,7 +44,9 @@
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "src/index-phase1.ts",
+    "src/index-phase2.ts"
   ],
   "ts-node": {
     "esm": true,
