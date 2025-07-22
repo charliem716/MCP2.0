@@ -934,6 +934,17 @@ export class QRWCClientAdapter implements QRWCClientInterface {
   }
   
   /**
+   * List all active change groups
+   */
+  listChangeGroups(): Array<{id: string; controlCount: number; hasAutoPoll: boolean}> {
+    return Array.from(this.changeGroups.entries()).map(([id, group]) => ({
+      id,
+      controlCount: group.controls.length,
+      hasAutoPoll: this.autoPollTimers.has(id)
+    }));
+  }
+
+  /**
    * Clear all caches (should be called after long disconnections)
    */
   clearAllCaches(): void {

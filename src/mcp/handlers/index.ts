@@ -12,6 +12,16 @@ import {
 import { createQueryCoreStatusTool } from "../tools/status.js";
 import { createGetAllControlsTool } from "../tools/discovery.js";
 import { createQueryQSysAPITool } from "../tools/qsys-api.js";
+import {
+  createCreateChangeGroupTool,
+  createAddControlsToChangeGroupTool,
+  createPollChangeGroupTool,
+  createDestroyChangeGroupTool,
+  createRemoveControlsFromChangeGroupTool,
+  createClearChangeGroupTool,
+  createSetChangeGroupAutoPollTool,
+  createListChangeGroupsTool
+} from "../tools/change-groups.js";
 import type { BaseQSysTool, ToolExecutionResult } from "../tools/base.js";
 
 /**
@@ -96,6 +106,15 @@ export class MCPToolRegistry {
       createQueryCoreStatusTool(this.qrwcClient),
       createGetAllControlsTool(this.qrwcClient),
       createQueryQSysAPITool(this.qrwcClient),
+      // Change Group tools
+      createCreateChangeGroupTool(this.qrwcClient),
+      createAddControlsToChangeGroupTool(this.qrwcClient),
+      createPollChangeGroupTool(this.qrwcClient),
+      createDestroyChangeGroupTool(this.qrwcClient),
+      createRemoveControlsFromChangeGroupTool(this.qrwcClient),
+      createClearChangeGroupTool(this.qrwcClient),
+      createSetChangeGroupAutoPollTool(this.qrwcClient),
+      createListChangeGroupsTool(this.qrwcClient),
     ];
 
     qsysTools.forEach(tool => {
