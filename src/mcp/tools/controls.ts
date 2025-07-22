@@ -38,6 +38,7 @@ export const SetControlValuesParamsSchema = BaseToolParamsSchema.extend({
     value: z.union([z.number(), z.string(), z.boolean()]).describe("Control value"),
     ramp: z.number().positive().optional().describe("Ramp time in seconds"),
   })).min(1).describe("Array of controls to set with their values"),
+  validate: z.boolean().optional().describe("Validate controls exist before setting (default: true)"),
 });
 
 export type SetControlValuesParams = z.infer<typeof SetControlValuesParamsSchema>;
@@ -50,7 +51,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     super(
       qrwcClient,
       "list_controls", 
-      "List controls (parameters like gain, mute, crosspoint levels) from Q-SYS components. Control names follow patterns like 'gain', 'mute', 'input.1.gain', 'crosspoint.1.3'. Specify component='Main Mixer' for one component or omit for all. Filter by controlType: 'gain', 'mute', 'position', 'string', 'trigger'. Returns control names and metadata.",
+      "List controls with optional filtering by component/type. Set includeMetadata=true for direction (Read/Write), values, ranges, and normalized position (0-1). Filter by controlType: 'gain', 'mute', 'input_select', 'output_select'. Examples: {component:'Main Mixer'} for specific component, {controlType:'gain',includeMetadata:true} for all system gains with metadata.",
       ListControlsParamsSchema
     );
   }
@@ -184,7 +185,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
     super(
       qrwcClient,
       "get_control_values",
-      "Get current values of Q-SYS controls. Specify full control paths like 'Main Mixer.gain', 'APM 1.input.mute', 'Delay.delay_ms'. Returns numeric values (e.g., -10.5 for gain in dB), booleans (mute), or strings. Use includeMetadata=true for min/max ranges and position info. Max 100 controls per request.",
+      "Get current values of Q-SYS controls. Specify full control paths like 'Main Mixer.gain', 'APM 1.input.mute', 'Delay.delay_ms'. Returns current values with precise timestamps for each control across multiple components. Use includeMetadata=true for min/max ranges and position info. Max 100 controls per request.",
       GetControlValuesParamsSchema
     );
   }
@@ -293,13 +294,51 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
  * Tool to set values for specific controls
  */
 export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
+  // Validation cache with TTL (30 seconds)
+  private validationCache = new Map<string, { valid: boolean; timestamp: number }>();
+  private readonly CACHE_TTL = 30000; // 30 seconds
+
   constructor(qrwcClient: QRWCClientInterface) {
     super(
       qrwcClient,
       "set_control_values",
-      "Set Q-SYS control values. Examples: {'Main Mixer.gain': -10} sets gain to -10dB, {'APM 1.input.mute': true} mutes input. Ramp creates smooth transitions - use 2.5 for 2.5-second fade. Values: gains in dB (-100 to 20), mutes as boolean, positions 0-1. Multiple controls supported. Changes are immediate unless ramp specified.",
+      "Set Q-SYS control values. Supports multiple controls with optional ramp time for smooth transitions. Values: gains in dB (-100 to 20), mutes as boolean, positions 0-1. Example: [{name:'Main.gain',value:-10,ramp:2.5}] for 2.5s fade. Set validate:false to skip validation for performance.",
       SetControlValuesParamsSchema
     );
+  }
+
+  /**
+   * Clear expired cache entries
+   */
+  private cleanCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.validationCache.entries()) {
+      if (now - value.timestamp > this.CACHE_TTL) {
+        this.validationCache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Check if a control is in the validation cache
+   */
+  private checkCache(controlName: string): boolean | null {
+    this.cleanCache();
+    const cached = this.validationCache.get(controlName);
+    if (cached && Date.now() - cached.timestamp <= this.CACHE_TTL) {
+      return cached.valid;
+    }
+    return null;
+  }
+
+  /**
+   * Add a control validation result to cache
+   */
+  private cacheResult(controlName: string, valid: boolean): void {
+    this.validationCache.set(controlName, {
+      valid,
+      timestamp: Date.now()
+    });
   }
 
   protected async executeInternal(
@@ -307,6 +346,28 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
+      // Only validate if requested (default is true for safety)
+      if (params.validate !== false) {
+        const validationErrors = await this.validateControlsExistOptimized(params.controls);
+        if (validationErrors.length > 0) {
+          // Return error response with validation failures
+          const errorResults = validationErrors.map(error => ({
+            name: error.controlName,
+            value: error.value,
+            success: false,
+            error: error.message
+          }));
+          
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(errorResults)
+            }],
+            isError: true
+          };
+        }
+      }
+
       // Separate controls into named controls and component controls
       const namedControls: typeof params.controls = [];
       const componentControlsMap = new Map<string, typeof params.controls>();
@@ -372,6 +433,208 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       this.logger.error("Failed to set control values", { error, context });
       throw error;
     }
+  }
+
+  /**
+   * Optimized validation that uses batching, caching, and parallelization
+   */
+  private async validateControlsExistOptimized(
+    controls: SetControlValuesParams['controls']
+  ): Promise<Array<{ controlName: string; value: number | string | boolean; message: string }>> {
+    const errors: Array<{ controlName: string; value: number | string | boolean; message: string }> = [];
+    
+    // Group controls by validation strategy
+    const componentValidations = new Map<string, Array<{controlName: string; fullName: string; value: any}>>();
+    const namedControls: Array<{name: string; value: any}> = [];
+    
+    // First pass: check cache and group uncached controls
+    for (const control of controls) {
+      // Check cache first
+      const cached = this.checkCache(control.name);
+      if (cached === false) {
+        errors.push({
+          controlName: control.name,
+          value: control.value,
+          message: `Control '${control.name}' not found (cached)`
+        });
+        continue;
+      } else if (cached === true) {
+        // Control is valid in cache, skip validation
+        continue;
+      }
+      
+      // Not in cache, needs validation
+      if (control.name.includes('.')) {
+        const parts = control.name.split('.');
+        const componentName = parts[0];
+        const controlName = parts.slice(1).join('.');
+        
+        if (componentName) {
+          if (!componentValidations.has(componentName)) {
+            componentValidations.set(componentName, []);
+          }
+          componentValidations.get(componentName)!.push({
+            controlName,
+            fullName: control.name,
+            value: control.value
+          });
+        }
+      } else {
+        namedControls.push({ name: control.name, value: control.value });
+      }
+    }
+    
+    // Parallel validation for all components
+    const componentPromises: Promise<void>[] = [];
+    
+    for (const [componentName, controlInfos] of componentValidations) {
+      const promise = this.validateComponentControls(componentName, controlInfos)
+        .then(componentErrors => {
+          errors.push(...componentErrors);
+        });
+      componentPromises.push(promise);
+    }
+    
+    // Parallel validation for named controls (batch into groups of 10)
+    const namedBatches: Array<Array<{name: string; value: any}>> = [];
+    for (let i = 0; i < namedControls.length; i += 10) {
+      namedBatches.push(namedControls.slice(i, i + 10));
+    }
+    
+    const namedPromises = namedBatches.map(batch => 
+      this.validateNamedControlsBatch(batch).then(batchErrors => {
+        errors.push(...batchErrors);
+      })
+    );
+    
+    // Wait for all validations to complete
+    await Promise.all([...componentPromises, ...namedPromises]);
+    
+    return errors;
+  }
+
+  /**
+   * Validate controls for a single component
+   */
+  private async validateComponentControls(
+    componentName: string,
+    controlInfos: Array<{controlName: string; fullName: string; value: any}>
+  ): Promise<Array<{ controlName: string; value: number | string | boolean; message: string }>> {
+    const errors: Array<{ controlName: string; value: number | string | boolean; message: string }> = [];
+    
+    try {
+      const response = await this.qrwcClient.sendCommand("Component.Get", {
+        Name: componentName,
+        Controls: controlInfos.map(info => ({ Name: info.controlName }))
+      });
+      
+      if (!response || typeof response !== 'object') {
+        // Component doesn't exist
+        for (const info of controlInfos) {
+          this.cacheResult(info.fullName, false);
+          errors.push({
+            controlName: info.fullName,
+            value: info.value,
+            message: `Component '${componentName}' not found`
+          });
+        }
+        return errors;
+      }
+      
+      const typedResponse = response as any;
+      if (typedResponse.error) {
+        // Error accessing component
+        for (const info of controlInfos) {
+          this.cacheResult(info.fullName, false);
+          errors.push({
+            controlName: info.fullName,
+            value: info.value,
+            message: typedResponse.error.message || `Failed to access component '${componentName}'`
+          });
+        }
+        return errors;
+      }
+      
+      // Check which controls were returned
+      if (typedResponse.result?.Controls) {
+        const returnedControlNames = new Set(
+          typedResponse.result.Controls.map((c: any) => c.Name)
+        );
+        
+        for (const info of controlInfos) {
+          if (returnedControlNames.has(info.controlName)) {
+            this.cacheResult(info.fullName, true);
+          } else {
+            this.cacheResult(info.fullName, false);
+            errors.push({
+              controlName: info.fullName,
+              value: info.value,
+              message: `Control '${info.controlName}' not found on component '${componentName}'`
+            });
+          }
+        }
+      }
+    } catch (error) {
+      // Component doesn't exist or other error
+      for (const info of controlInfos) {
+        this.cacheResult(info.fullName, false);
+        errors.push({
+          controlName: info.fullName,
+          value: info.value,
+          message: error instanceof Error ? error.message : `Failed to validate component '${componentName}'`
+        });
+      }
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Validate a batch of named controls
+   */
+  private async validateNamedControlsBatch(
+    batch: Array<{name: string; value: any}>
+  ): Promise<Array<{ controlName: string; value: number | string | boolean; message: string }>> {
+    const errors: Array<{ controlName: string; value: number | string | boolean; message: string }> = [];
+    
+    // For named controls, we need to validate individually
+    // But we can do them in parallel within the batch
+    const promises = batch.map(async (control) => {
+      try {
+        const response = await this.qrwcClient.sendCommand("Control.Get", {
+          Name: control.name
+        });
+        
+        const typedResponse = response as any;
+        if (typedResponse.error) {
+          this.cacheResult(control.name, false);
+          return {
+            controlName: control.name,
+            value: control.value,
+            message: typedResponse.error.message || `Control '${control.name}' not found`
+          };
+        } else {
+          this.cacheResult(control.name, true);
+          return null;
+        }
+      } catch (error) {
+        this.cacheResult(control.name, false);
+        return {
+          controlName: control.name,
+          value: control.value,
+          message: error instanceof Error ? error.message : `Control '${control.name}' not found`
+        };
+      }
+    });
+    
+    const results = await Promise.all(promises);
+    for (const result of results) {
+      if (result) {
+        errors.push(result);
+      }
+    }
+    
+    return errors;
   }
 
   private async setNamedControl(control: { name: string; value: number | string | boolean; ramp?: number | undefined }) {

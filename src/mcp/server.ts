@@ -9,6 +9,15 @@ import {
   GetPromptRequestSchema
 } from "@modelcontextprotocol/sdk/types.js";
 import { globalLogger as logger } from "../shared/utils/logger.js";
+
+// Add stderr logging for debugging MCP issues
+const debugLog = (message: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = data 
+        ? `${timestamp} [MCP-DEBUG] ${message}: ${JSON.stringify(data)}\n`
+        : `${timestamp} [MCP-DEBUG] ${message}\n`;
+    process.stderr.write(logEntry);
+};
 import { MCPToolRegistry } from "./handlers/index.js";
 import { OfficialQRWCClient } from "../qrwc/officialClient.js";
 import { QRWCClientAdapter } from "./qrwc/adapter.js";
@@ -33,10 +42,12 @@ export class MCPServer {
   private errorHandlers: Map<string, (...args: unknown[]) => void> = new Map();
 
   constructor(private config: MCPServerConfig) {
+    debugLog("MCPServer constructor called", config);
     this.serverName = config.name || "qsys-mcp-server";
     this.serverVersion = config.version || "1.0.0";
     
     // Initialize the MCP server with capabilities
+    debugLog("Creating MCP Server instance");
     this.server = new Server(
       {
         name: this.serverName,
@@ -51,6 +62,7 @@ export class MCPServer {
         }
       }
     );
+    debugLog("MCP Server instance created");
 
     // Initialize components
     this.officialQrwcClient = new OfficialQRWCClient({
@@ -176,10 +188,12 @@ export class MCPServer {
   async start(): Promise<void> {
     try {
       logger.info("Starting MCP server...");
+      debugLog("Starting MCP server");
 
       // Initialize QRWC client first
       await this.officialQrwcClient.connect();
       logger.info("QRWC client connected");
+      debugLog("QRWC client connected");
       
       // Set up reconnection handlers
       this.setupReconnectionHandlers();
@@ -187,13 +201,19 @@ export class MCPServer {
       // Initialize tool registry
       await this.toolRegistry.initialize();
       logger.info("Tool registry initialized");
+      debugLog("Tool registry initialized");
 
       // Create and connect stdio transport
+      debugLog("Creating stdio transport");
       this.transport = new StdioServerTransport();
+      
+      debugLog("Connecting server to transport");
       await this.server.connect(this.transport);
+      debugLog("Server connected to transport");
       
       this.isConnected = true;
       logger.info("MCP server started successfully with stdio transport");
+      debugLog("MCP server started successfully");
 
       // Handle graceful shutdown
       this.setupGracefulShutdown();

@@ -17,21 +17,32 @@ export const QueryCoreStatusParamsSchema = BaseToolParamsSchema.extend({
 export type QueryCoreStatusParams = z.infer<typeof QueryCoreStatusParamsSchema>;
 
 /**
- * Tool to query the Q-SYS Core status and system information
+ * ## query_core_status - Enhanced System Telemetry Monitor
  * 
- * Returns comprehensive status information about the Q-SYS Core including:
- * - Connection status and uptime
- * - System health and temperature
- * - Network configuration
- * - Design information
- * - Performance metrics
+ * Get comprehensive Q-SYS system status including real-time telemetry from all networked devices
+ * 
+ * **Enhanced Returns:**
+ * - **PeripheralStatus**: Real-time status from touchpanels, microphones, speakers
+ *   - Temperature readings (°C)
+ *   - Memory usage percentages
+ *   - Screen brightness and power states
+ *   - Network link status and speeds
+ * - **GeneralStatus**: Device health monitoring
+ *   - PoE power consumption and status
+ *   - Audio streaming status
+ *   - System temperatures and voltages
+ * - **CoreStatus**: Network video core telemetry
+ *   - Fan speeds (RPM)
+ *   - Processor temperatures
+ *   - Voltage rail monitoring
+ *   - Network statistics and bitrates
  */
 export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   constructor(qrwcClient: QRWCClientInterface) {
     super(
       qrwcClient,
       "query_core_status",
-      "Get Q-SYS Core status including CPU/memory usage, active design, uptime. Use includeDetails=true for firmware version and platform info. Use includeNetworkInfo=true for IP configuration. Use includePerformance=true for detailed metrics. Returns health indicators - Status.Code 0 means OK, non-zero indicates issues.",
+      "Get Q-SYS system health telemetry. Use includeDetails for firmware/hardware info, includeNetworkInfo for network status, includePerformance for metrics. Returns device temperatures, fan speeds, memory usage, power consumption, and network health from Core and peripherals. Example: {includePerformance:true} for temperature monitoring.",
       QueryCoreStatusParamsSchema
     );
   }

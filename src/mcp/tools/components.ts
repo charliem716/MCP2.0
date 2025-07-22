@@ -27,7 +27,7 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
     super(
       qrwcClient,
       "list_components",
-      "List all Q-SYS components (devices like mixers, gains, delays, etc). Components have names like 'Main Mixer', 'Output Gain 1', 'APM 1'. Filter uses regex: 'Mixer' finds all mixers, '^Main' finds components starting with 'Main', 'Gain|Delay' finds gains or delays. Use includeProperties=true for control counts and metadata.",
+      "Discover Q-SYS components with regex filtering and optional property details. Filter by name/type patterns ('mixer', '^Main', 'gain|delay'). Set includeProperties=true for configuration data like channel counts, ranges, and specifications. Returns component array with names/types, plus detailed properties if requested. Examples: {filter:'gain'} for all gains, {filter:'mixer',includeProperties:true} for mixers with input/output counts.",
       ListComponentsParamsSchema
     );
   }
@@ -152,7 +152,7 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
     super(
       qrwcClient,
       "qsys_component_get",
-      "Get specific controls from one component efficiently. Example: component='Main Mixer', controls=['gain', 'mute', 'input.1.level'] retrieves just those controls. More efficient than listing all controls when you know what you need. Control names are relative to component (use 'gain' not 'Main Mixer.gain').",
+      "Get multiple control values from a single component efficiently. Returns control values with current state, position data (0-1), and formatted strings. Control names are relative to component. Example: {component:'Main Mixer',controls:['gain','mute']} returns values with UI-ready formatting like '-10dB' and position data for sliders.",
       GetComponentControlsParamsSchema
     );
   }

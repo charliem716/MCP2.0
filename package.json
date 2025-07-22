@@ -21,7 +21,9 @@
     "clean": "rm -rf dist",
     "prepare": "husky install",
     "test:mcp:live": "npm run build && node tests/manual/test-mcp-tools-live.mjs",
-    "test:connection": "node tests/integration/qsys/test-connection.mjs"
+    "test:connection": "node tests/integration/qsys/test-connection.mjs",
+    "test:mcp": "node tests/functional/mcp-control-test.js",
+    "test:validation": "node tests/functional/test-control-validation.mjs"
   },
   "keywords": [
     "mcp",

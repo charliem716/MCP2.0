@@ -139,13 +139,13 @@ export class MCPToolRegistry {
     // Echo tool for testing
     this.registerTool({
       name: 'echo',
-      description: 'Echo back the provided message for testing MCP functionality',
+      description: 'Test MCP connection by echoing a message. Returns "Echo: {message}" confirming connectivity. Use before complex operations to verify connection. Example: {message:"test"} returns "Echo: test".',
       inputSchema: {
         type: 'object',
         properties: {
           message: {
             type: 'string',
-            description: 'Message to echo back'
+            description: 'Text message to echo back for connectivity verification'
           }
         },
         required: ['message']

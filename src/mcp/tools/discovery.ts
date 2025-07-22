@@ -49,7 +49,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     super(
       qrwcClient,
       "qsys_get_all_controls",
-      "Get Q-SYS controls with smart filtering. Default mode='summary' returns overview stats. Use mode='filtered' with filters for specific controls (component, type, name pattern). Use mode='full' for all controls (warning: large response). Supports pagination with limit/offset.",
+      "Bulk control retrieval with filtering and pagination. Modes: 'summary' for system stats, 'filtered' for targeted retrieval with filters (component/type/hasNonDefaultValue), 'full' for all controls. Supports pagination with limit/offset. Optimized for large systems (2000+ controls). Example: {mode:'filtered',filter:{type:'gain'},includeValues:true} for all gain controls.",
       GetAllControlsParamsSchema
     );
   }

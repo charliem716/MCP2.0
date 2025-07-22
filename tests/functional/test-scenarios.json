@@ -1,0 +1,182 @@
+{
+  "test_scenarios": {
+    "basic_validation": {
+      "name": "Basic MCP Validation",
+      "description": "Minimal test to verify MCP is working",
+      "prompts": [
+        "Echo the message 'MCP Active' and tell me what you received back",
+        "Query the Q-SYS Core status and tell me if it's active"
+      ],
+      "expected_results": [
+        "Agent echoes 'MCP Active' successfully",
+        "Agent reports core status as active/standby with version info"
+      ]
+    },
+    
+    "component_discovery": {
+      "name": "Component Discovery Suite",
+      "description": "Test component and control discovery capabilities",
+      "prompts": [
+        "List all components and group them by type. How many total components are there?",
+        "Find all components with 'gain' in their type or name using regex filtering",
+        "List all gain controls and tell me which components they belong to",
+        "Find a mixer or router component and list all its controls"
+      ],
+      "expected_results": [
+        "Agent lists components grouped by type with total count",
+        "Agent uses regex filter to find gain-related components",
+        "Agent lists gain controls with parent component names",
+        "Agent finds mixer/router and lists its control inventory"
+      ]
+    },
+    
+    "control_operations": {
+      "name": "Control Operations Suite",
+      "description": "Test reading and writing control values",
+      "prompts": [
+        "Create a snapshot for safety if a snapshot component is available",
+        "Find a gain component and read its current gain value, mute state, and position",
+        "Set that gain to -18 dB with a 2.5 second ramp, then verify it changed",
+        "Toggle the mute control - if it's on, turn it off; if off, turn it on",
+        "Set the gain to -30 dB instantly (no ramp) and confirm",
+        "Restore the original gain value you read earlier with a 1 second ramp"
+      ],
+      "expected_results": [
+        "Agent creates snapshot or reports none available",
+        "Agent reads all three values with proper units",
+        "Agent sets gain and confirms it reaches -18 dB",
+        "Agent changes mute state and reports before/after",
+        "Agent sets gain instantly to -30 dB",
+        "Agent restores the original value"
+      ]
+    },
+    
+    "bulk_operations": {
+      "name": "Bulk Operations Suite",
+      "description": "Test pagination and bulk queries",
+      "prompts": [
+        "Get all controls using pagination with 100 per page. How many total controls and pages are there?",
+        "Find all controls that have non-default values and show me 5 examples",
+        "Pick a component with many controls and get all its values in one query",
+        "Find all mute controls that are currently ON (muted)"
+      ],
+      "expected_results": [
+        "Agent reports total controls and calculates page count",
+        "Agent filters and shows non-default control examples",
+        "Agent uses bulk component query efficiently",
+        "Agent filters mute controls by current state"
+      ]
+    },
+    
+    "error_handling": {
+      "name": "Error Handling Suite",
+      "description": "Verify proper error handling",
+      "prompts": [
+        "Try to read control 'gain' from component 'NonExistentComponent' - what error do you get?",
+        "Try to set a gain control to +500 dB - what happens?",
+        "Try to set a mute control to the value 2.5 - what error occurs?",
+        "Try to use an invalid regex pattern like '[invalid' for component filtering"
+      ],
+      "expected_results": [
+        "Agent reports component not found error",
+        "Agent reports value out of range error",
+        "Agent reports invalid value for boolean/mute control",
+        "Agent handles regex syntax error gracefully"
+      ]
+    },
+    
+    "performance": {
+      "name": "Performance Test Suite",
+      "description": "Test system performance and responsiveness",
+      "prompts": [
+        "Set a gain control to these values with no ramp, as fast as possible: -40, -35, -30, -25, -20, -15, -10, -5, 0, -20. Time the operation.",
+        "Get the first 200 controls and measure how long the query takes",
+        "Make 3 different control changes simultaneously if possible"
+      ],
+      "expected_results": [
+        "Agent completes 10 changes and reports timing",
+        "Agent retrieves 200 controls and reports query time",
+        "Agent batches multiple changes or explains if not possible"
+      ]
+    },
+    
+    "advanced_workflows": {
+      "name": "Advanced Workflow Suite",
+      "description": "Complex multi-step operations",
+      "prompts": [
+        "Find a router, list its inputs/outputs, then route input 1 to output 2. Set the output 2 gain to -12 dB.",
+        "Find all gain controls below -40 dB or above 0 dB and list them as potential issues",
+        "Create a 'mix' by finding 3 input gains, setting them to -15, -18, and -21 dB respectively with 2 second crossfades",
+        "Give me a system health report: total components, controls with extreme values, and any error states"
+      ],
+      "expected_results": [
+        "Agent completes routing and gain adjustment workflow",
+        "Agent identifies controls with extreme values",
+        "Agent creates mix with specified levels",
+        "Agent provides comprehensive system report"
+      ]
+    },
+    
+    "stress_test": {
+      "name": "Stress Test Suite",
+      "description": "Push the limits of the system",
+      "prompts": [
+        "Get ALL controls in the system (no pagination) if under 1000 total, otherwise get first 1000",
+        "Find 5 different gain controls and set them all to different values simultaneously",
+        "Rapidly toggle a mute control 10 times and count successful changes",
+        "Query the status of all touchpanels, microphones, and other peripherals"
+      ],
+      "expected_results": [
+        "Agent handles large data query appropriately",
+        "Agent manages multiple simultaneous changes",
+        "Agent completes rapid toggles or reports limitations",
+        "Agent queries peripheral status successfully"
+      ]
+    },
+    
+    "cleanup": {
+      "name": "Cleanup and Restoration",
+      "description": "Restore system to safe state",
+      "prompts": [
+        "If you created a snapshot, restore it now. Otherwise list what changes you made.",
+        "Set any gain controls you modified to -10 dB as a safe default",
+        "Verify the Q-SYS Core is still responding normally",
+        "Summarize what tests passed and what issues were found"
+      ],
+      "expected_results": [
+        "Agent restores snapshot or lists changes",
+        "Agent sets safe defaults",
+        "Agent confirms system health",
+        "Agent provides test summary"
+      ]
+    }
+  },
+  
+  "quick_smoke_test": {
+    "name": "5-Minute Smoke Test",
+    "description": "Quick validation that core features work",
+    "prompts": [
+      "Echo 'test' and get the Q-SYS Core status",
+      "Find a gain component and read its current value",
+      "Set that gain to -20 dB with a 1 second ramp",
+      "List the first 10 controls using pagination",
+      "Try to set component 'Fake' control 'fake' to 1",
+      "Restore the gain to -10 dB"
+    ]
+  },
+  
+  "regression_test": {
+    "name": "Regression Test Suite",
+    "description": "Ensure nothing is broken after changes",
+    "critical_prompts": [
+      "Verify echo tool works with message 'regression-test'",
+      "Verify core status returns firmware version",
+      "Verify component list returns > 0 components",
+      "Verify you can read a control value",
+      "Verify you can set a control value",
+      "Verify pagination works with page_size=10",
+      "Verify error handling for invalid component",
+      "Verify bulk component query works"
+    ]
+  }
+}

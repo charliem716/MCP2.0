@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "qsys": {
+      "command": "node",
+      "args": [
+        "/Users/charliemccarrel/Desktop/Builds/MCP2.0/dist/src/index.js"
+      ],
+      "cwd": "/Users/charliemccarrel/Desktop/Builds/MCP2.0",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

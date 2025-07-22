@@ -420,9 +420,10 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           const setResults = [];
           
           for (const ctrl of setControlsArray) {
+            let name = '';
             try {
               const controlObj = ctrl as Record<string, unknown>;
-              const name = String(controlObj['Name'] || controlObj['name'] || '');
+              name = String(controlObj['Name'] || controlObj['name'] || '');
               if (!name) {
                 throw new Error('Control name is required');
               }

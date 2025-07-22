@@ -37,7 +37,8 @@ interface QSysConfigJSON {
 }
 
 function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
-  const configPath = 'qsys-core.config.json';
+  // Use absolute path to ensure config is found regardless of cwd
+  const configPath = '/Users/charliemccarrel/Desktop/Builds/MCP2.0/qsys-core.config.json';
   
   if (!existsSync(configPath)) {
     return null;

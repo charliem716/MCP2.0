@@ -30,7 +30,7 @@ describe('MCPToolRegistry', () => {
     it('should initialize successfully with all Q-SYS tools', async () => {
       await registry.initialize();
 
-      expect(registry.getToolCount()).toBe(6); // 5 Q-SYS tools + 1 echo tool
+      expect(registry.getToolCount()).toBe(9); // 8 Q-SYS tools + 1 echo tool
       expect(globalLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Tool registry initialized'),
         expect.any(Object)
@@ -74,7 +74,7 @@ describe('MCPToolRegistry', () => {
       await registry.initialize();
       const tools = await registry.listTools();
 
-      expect(tools).toHaveLength(6);
+      expect(tools).toHaveLength(9);
       expect(tools).toEqual(expect.arrayContaining([
         expect.objectContaining({
           name: 'list_components',
@@ -143,7 +143,10 @@ describe('MCPToolRegistry', () => {
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
         'Component.GetComponents'
       );
-      expect(result.content[0].text).toContain('Found 2 components');
+      const components = JSON.parse(result.content[0].text);
+      expect(components).toHaveLength(2);
+      expect(components[0].Name).toBe('Gain1');
+      expect(components[1].Name).toBe('Mixer1');
     });
 
     it('should handle tool execution errors gracefully', async () => {
@@ -195,7 +198,7 @@ describe('MCPToolRegistry', () => {
     });
 
     it('should return correct tool count', () => {
-      expect(registry.getToolCount()).toBe(6);
+      expect(registry.getToolCount()).toBe(9);
     });
 
     it('should check if tool exists', () => {
@@ -205,7 +208,7 @@ describe('MCPToolRegistry', () => {
 
     it('should return tool names', () => {
       const names = registry.getToolNames();
-      expect(names).toHaveLength(6);
+      expect(names).toHaveLength(9);
       expect(names).toContain('list_components');
       expect(names).toContain('echo');
     });
@@ -214,7 +217,7 @@ describe('MCPToolRegistry', () => {
   describe('cleanup', () => {
     it('should cleanup resources properly', async () => {
       await registry.initialize();
-      expect(registry.getToolCount()).toBe(6);
+      expect(registry.getToolCount()).toBe(9);
 
       await registry.cleanup();
 
@@ -297,7 +300,8 @@ describe('MCPToolRegistry', () => {
 
       // Verify standard properties are also present
       expect(result.content).toBeDefined();
-      expect(result.content[0].text).toContain('Found 2 components');
+      const components = JSON.parse(result.content[0].text);
+      expect(components).toHaveLength(2);
     });
 
     it('should log metadata for Q-SYS tools', async () => {

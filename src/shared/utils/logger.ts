@@ -85,25 +85,10 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   // Configure transports based on environment
   const transports: winston.transport[] = [];
 
-  // In MCP mode, only use file transports to avoid polluting stdout
+  // In MCP mode, no transports at all to avoid any output
   if (isMCPMode) {
-    // MCP mode: Only file logging, no console output
-    transports.push(
-      new winston.transports.File({
-        filename: path.join('logs', 'mcp-error.log'),
-        level: 'error',
-        format: prodFormat,
-        maxsize: 5242880, // 5MB
-        maxFiles: 5
-      }),
-      new winston.transports.File({
-        filename: path.join('logs', 'mcp-combined.log'),
-        level: level,
-        format: prodFormat,
-        maxsize: 5242880, // 5MB
-        maxFiles: 5
-      })
-    );
+    // MCP mode: No transports - all logging is disabled
+    // This prevents any stdout pollution that would break JSON-RPC
   } else if (isTest) {
     // In test environment, only log errors to console
     transports.push(
@@ -121,27 +106,8 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
       })
     );
   } else {
-    // Production: Console + Files
-    transports.push(
-      new winston.transports.Console({
-        level: 'info',
-        format: prodFormat
-      }),
-      new winston.transports.File({
-        filename: path.join('logs', 'error.log'),
-        level: 'error',
-        format: prodFormat,
-        maxsize: 5242880, // 5MB
-        maxFiles: 5
-      }),
-      new winston.transports.File({
-        filename: path.join('logs', 'combined.log'),
-        level: 'info',
-        format: prodFormat,
-        maxsize: 5242880, // 5MB
-        maxFiles: 5
-      })
-    );
+    // Production: No transports to avoid polluting stdout for MCP
+    // All output must go to stderr or be disabled
   }
 
   return {
@@ -168,14 +134,15 @@ export function createLogger(serviceName: string): Logger {
   });
 
   // Handle unhandled promise rejections in production
-  if (process.env['NODE_ENV'] === 'production') {
-    logger.rejections.handle(
-      new winston.transports.File({
-        filename: path.join('logs', 'rejections.log'),
-        format: winston.format.json()
-      })
-    );
-  }
+  // Disabled for MCP mode to avoid file system access
+  // if (process.env['NODE_ENV'] === 'production') {
+  //   logger.rejections.handle(
+  //     new winston.transports.File({
+  //       filename: path.join('logs', 'rejections.log'),
+  //       format: winston.format.json()
+  //     })
+  //   );
+  // }
 
   return logger;
 }
