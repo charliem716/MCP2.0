@@ -50,7 +50,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
         Controls: ['Gain1.gain', 'Gain1.mute']
       });
 
-      expect(result).toEqual({ result: true });
+      expect(result).toEqual({ result: { addedCount: 2 } });
     });
 
     it('should add controls to existing group', async () => {
@@ -66,13 +66,23 @@ describe('QRWCClientAdapter - Change Groups', () => {
         Controls: ['Gain1.mute']
       });
 
-      expect(result).toEqual({ result: true });
+      expect(result).toEqual({ result: { addedCount: 1 } });
     });
 
     it('should require group ID', async () => {
       await expect(adapter.sendCommand('ChangeGroup.AddControl', {
         Controls: ['Gain1.gain']
       })).rejects.toThrow('Change group ID required');
+    });
+
+    it('should skip invalid controls and return correct count', async () => {
+      const result = await adapter.sendCommand('ChangeGroup.AddControl', {
+        Id: 'test-group',
+        Controls: ['Gain1.gain', 'InvalidControl.foo', 'Gain1.mute']
+      });
+
+      // Should only add the 2 valid controls, skipping InvalidControl.foo
+      expect(result).toEqual({ result: { addedCount: 2 } });
     });
   });
 

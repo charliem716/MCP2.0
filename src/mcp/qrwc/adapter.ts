@@ -707,6 +707,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           }
           
           // Validate and add controls
+          let addedCount = 0;
           for (const control of controls) {
             if (!this.controlIndex.has(control)) {
               logger.warn(`Control not found: ${control}`);
@@ -714,10 +715,11 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             }
             if (!group.controls.includes(control)) {
               group.controls.push(control);
+              addedCount++;
             }
           }
           
-          return { result: true };
+          return { result: { addedCount } };
         }
 
         case "ChangeGroup.AddComponentControl": {

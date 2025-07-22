@@ -77,7 +77,7 @@ describe('Change Group Tools', () => {
     });
 
     it('should add controls to a change group', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: true });
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: { addedCount: 2 } });
 
       const result = await tool.execute({ 
         groupId: 'test-group-1',

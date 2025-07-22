@@ -80,14 +80,17 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
       Controls: params.controlNames
     });
 
+    // Extract the actual count of controls added from the result
+    const addedCount = (result as any)?.result?.addedCount ?? params.controlNames.length;
+
     return {
       content: [{
         type: 'text',
         text: JSON.stringify({
           success: true,
           groupId: params.groupId,
-          controlsAdded: params.controlNames.length,
-          message: `Added ${params.controlNames.length} controls to change group '${params.groupId}'`
+          controlsAdded: addedCount,
+          message: `Added ${addedCount} controls to change group '${params.groupId}'`
         })
       }]
     };
