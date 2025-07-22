@@ -66,6 +66,7 @@ export interface QSysComponentControlsResponse {
     ValueMax?: number;
     StringMin?: string;
     StringMax?: string;
+    Component?: string;  // Component name (added by adapter for GetAllControls)
   }>;
 }
 

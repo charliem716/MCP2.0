@@ -113,7 +113,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       
       return {
         name: ctrl.Name,
-        component: componentName,
+        component: ctrl.Component || componentName,
         type: controlType || ctrl.Type || 'unknown',
         value: value,
         metadata: this.extractMetadata(ctrl)
