@@ -140,8 +140,14 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     return {
       query_type: 'tools',
       overview: {
-        description: "Available MCP Tools for Q-SYS Control",
-        note: "The send_raw_command tool has been deprecated for stability. Use these dedicated tools instead."
+        description: "Available MCP Tools for Q-SYS Control - 17 specialized tools for comprehensive system management",
+        note: "The send_raw_command tool has been deprecated for stability. Use these dedicated tools instead.",
+        categories: {
+          discovery: "list_components, list_controls, qsys_get_all_controls",
+          control: "get_control_values, set_control_values, qsys_component_get",
+          monitoring: "create_change_group, add_controls_to_change_group, poll_change_group, set_change_group_auto_poll, list_change_groups, remove_controls_from_change_group, clear_change_group, destroy_change_group",
+          system: "query_core_status, query_qsys_api, echo"
+        }
       },
       tools: [
         {
@@ -450,7 +456,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
               required: true,
               options: ["tools", "methods", "components", "controls", "examples"],
               descriptions: {
-                tools: "Complete reference for all 9 MCP tools with parameters, examples, and workflows",
+                tools: "Complete reference for all 17 MCP tools with parameters, examples, and workflows",
                 methods: "Q-SYS Core API methods and command reference",
                 components: "Available component types and their capabilities",
                 controls: "Control types, data formats, and value ranges",
@@ -562,6 +568,468 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
             "Test with various message lengths for communication validation"
           ],
           integration_notes: "Essential tool for robust Q-SYS automation - always verify connectivity before attempting system modifications or bulk operations"
+        },
+        {
+          name: "create_change_group",
+          description: "Create a new change group for monitoring control value changes. Groups allow efficient polling of multiple controls at once",
+          usage: "Parameters: groupId (string, required)",
+          parameters: {
+            groupId: "Unique identifier for the change group. Must be non-empty string"
+          },
+          example: {
+            tool: "create_change_group",
+            arguments: {
+              groupId: "mixer-controls"
+            }
+          },
+          examples: [
+            { 
+              arguments: { groupId: "mixer-controls" },
+              description: "Create group for monitoring mixer-related controls"
+            },
+            {
+              arguments: { groupId: "ui-page-1" },
+              description: "Create group for specific UI page monitoring"
+            },
+            {
+              arguments: { groupId: "critical-alarms" },
+              description: "Create group for system alarm monitoring"
+            }
+          ],
+          returns: {
+            success: "true/false indicating operation success",
+            groupId: "The created group identifier",
+            message: "Success or warning message",
+            warning: "Present if group already exists"
+          },
+          use_cases: [
+            "Initialize monitoring session for specific UI page",
+            "Create separate groups for different subsystems (audio, video, control)",
+            "Set up monitoring for user-adjustable controls",
+            "Prepare for efficient bulk control monitoring",
+            "Organize controls by functional area or user interface"
+          ],
+          best_practices: [
+            "Use descriptive group IDs that indicate purpose",
+            "Create logical groups based on UI pages or functional areas",
+            "Always destroy groups when no longer needed",
+            "Check for existing groups with list_change_groups before creating"
+          ],
+          errors: [
+            "Throws if groupId is empty string",
+            "Throws if Q-SYS Core is not connected",
+            "Returns warning if group already exists (non-fatal)"
+          ]
+        },
+        {
+          name: "add_controls_to_change_group",
+          description: "Add Named Controls to a change group for monitoring. Controls must exist in Q-SYS design",
+          usage: "Parameters: groupId (string), controlNames (array of strings)",
+          parameters: {
+            groupId: "Change group identifier (must exist)",
+            controlNames: "Array of control names to add (e.g., 'Gain1.gain', 'Mixer.level')"
+          },
+          example: {
+            tool: "add_controls_to_change_group",
+            arguments: {
+              groupId: "mixer-controls",
+              controlNames: ["MainMixer.gain", "MainMixer.mute", "MainMixer.input_1_gain"]
+            }
+          },
+          examples: [
+            {
+              arguments: {
+                groupId: "mixer-controls",
+                controlNames: ["MainMixer.gain", "MainMixer.mute"]
+              },
+              description: "Add basic mixer controls"
+            },
+            {
+              arguments: {
+                groupId: "channel-strip",
+                controlNames: ["Channel1.gain", "Channel1.mute", "Channel1.eq_high", "Channel1.eq_mid", "Channel1.eq_low"]
+              },
+              description: "Add complete channel strip controls"
+            },
+            {
+              arguments: {
+                groupId: "dynamic-monitoring",
+                controlNames: ["Zone1.level", "Zone2.level", "Zone3.level"]
+              },
+              description: "Add zone level controls for multi-zone monitoring"
+            }
+          ],
+          returns: {
+            success: "true/false indicating operation success",
+            groupId: "The group identifier",
+            controlsAdded: "Number of controls successfully added",
+            message: "Success message with count"
+          },
+          notes: [
+            "Invalid control names are logged but don't cause operation to fail",
+            "Controls can be added incrementally to existing group",
+            "Duplicate controls are automatically filtered out",
+            "Control names must match exactly (case-sensitive)"
+          ],
+          use_cases: [
+            "Build monitoring groups incrementally as UI sections open",
+            "Add controls dynamically based on user interaction",
+            "Group related controls for efficient state tracking",
+            "Monitor controls across multiple components"
+          ],
+          errors: [
+            "Throws if groupId is empty",
+            "Throws if controlNames array is empty",
+            "Throws if change group doesn't exist",
+            "Throws if Q-SYS Core is not connected"
+          ]
+        },
+        {
+          name: "poll_change_group",
+          description: "Poll a change group for control value changes since last poll. Returns only controls whose values changed",
+          usage: "Parameters: groupId (string, required)",
+          parameters: {
+            groupId: "Change group identifier to poll"
+          },
+          example: {
+            tool: "poll_change_group",
+            arguments: {
+              groupId: "mixer-controls"
+            }
+          },
+          examples: [
+            {
+              arguments: { groupId: "mixer-controls" },
+              returns: {
+                groupId: "mixer-controls",
+                changes: [
+                  { Name: "MainMixer.gain", Value: -6.5, String: "-6.5 dB" },
+                  { Name: "MainMixer.mute", Value: true, String: "muted" }
+                ],
+                changeCount: 2,
+                hasChanges: true
+              },
+              description: "Poll with changes detected"
+            },
+            {
+              arguments: { groupId: "stable-controls" },
+              returns: {
+                groupId: "stable-controls",
+                changes: [],
+                changeCount: 0,
+                hasChanges: false
+              },
+              description: "Poll with no changes"
+            }
+          ],
+          returns: {
+            groupId: "The polled group identifier",
+            changes: "Array of changed controls with Name, Value, and String properties",
+            changeCount: "Number of controls that changed",
+            hasChanges: "Boolean indicating if any changes occurred"
+          },
+          behavior: [
+            "First poll returns all controls as 'changed'",
+            "Subsequent polls only return controls with value changes",
+            "Empty changes array indicates no changes since last poll",
+            "String property provides human-readable control value"
+          ],
+          use_cases: [
+            "Efficient UI updates - only redraw changed controls",
+            "State change detection for automation triggers",
+            "Activity monitoring and logging",
+            "Building reactive control surfaces",
+            "Implementing custom event systems"
+          ],
+          performance_tips: [
+            "More efficient than polling individual controls",
+            "Reduces network traffic for multi-control monitoring",
+            "Ideal for UI refresh cycles"
+          ],
+          errors: [
+            "Throws if groupId is empty",
+            "Throws if change group doesn't exist",
+            "Throws if Q-SYS Core is not connected"
+          ]
+        },
+        {
+          name: "set_change_group_auto_poll",
+          description: "Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300 seconds)",
+          usage: "Parameters: groupId (string), enabled (boolean), intervalSeconds (number, optional)",
+          parameters: {
+            groupId: "Change group identifier",
+            enabled: "Enable or disable automatic polling",
+            intervalSeconds: "Polling interval in seconds (0.1-300, default: 1.0)"
+          },
+          example: {
+            tool: "set_change_group_auto_poll",
+            arguments: {
+              groupId: "mixer-controls",
+              enabled: true,
+              intervalSeconds: 0.5
+            }
+          },
+          examples: [
+            {
+              arguments: { groupId: "realtime-meters", enabled: true, intervalSeconds: 0.1 },
+              description: "Fast polling for real-time meters (100ms)"
+            },
+            {
+              arguments: { groupId: "ui-controls", enabled: true, intervalSeconds: 0.5 },
+              description: "Standard UI update rate (500ms)"
+            },
+            {
+              arguments: { groupId: "status-monitors", enabled: true, intervalSeconds: 5.0 },
+              description: "Slow polling for status indicators (5s)"
+            },
+            {
+              arguments: { groupId: "mixer-controls", enabled: false },
+              description: "Disable auto-polling"
+            }
+          ],
+          returns: {
+            success: "true/false indicating operation success",
+            groupId: "The group identifier",
+            autoPollEnabled: "Current auto-poll state",
+            intervalSeconds: "Current interval (when enabled)",
+            message: "Success message"
+          },
+          important_notes: [
+            "Minimum interval: 0.1 seconds (100ms)",
+            "Maximum interval: 300 seconds (5 minutes)",
+            "Auto-poll stops automatically after 10 consecutive failures",
+            "Only one auto-poll timer per group (new settings replace existing)",
+            "Use enabled:false to stop polling"
+          ],
+          use_cases: [
+            "Real-time UI updates for control surfaces",
+            "Continuous monitoring for alarm conditions",
+            "Background state tracking",
+            "Meter and level monitoring",
+            "Activity detection and timeout handling"
+          ],
+          performance_considerations: [
+            "Higher frequencies increase network and CPU load",
+            "Consider round-trip time when setting intervals",
+            "Each auto-poll group runs independently",
+            "Balance responsiveness with system resources"
+          ],
+          errors: [
+            "Throws if groupId is empty",
+            "Throws if intervalSeconds is outside 0.1-300 range",
+            "Throws if change group doesn't exist",
+            "Throws if Q-SYS Core is not connected"
+          ]
+        },
+        {
+          name: "list_change_groups",
+          description: "List all active change groups showing ID, control count, and auto-poll status",
+          usage: "No parameters required",
+          parameters: {},
+          example: {
+            tool: "list_change_groups",
+            arguments: {}
+          },
+          examples: [
+            {
+              arguments: {},
+              returns: {
+                groups: [
+                  { id: "mixer-controls", controlCount: 4, hasAutoPoll: true },
+                  { id: "room-controls", controlCount: 8, hasAutoPoll: false }
+                ],
+                totalGroups: 2,
+                message: "Found 2 active change group(s)"
+              },
+              description: "System with multiple active groups"
+            },
+            {
+              arguments: {},
+              returns: {
+                groups: [],
+                totalGroups: 0,
+                message: "No active change groups"
+              },
+              description: "Clean system with no groups"
+            }
+          ],
+          returns: {
+            groups: "Array of group objects with id, controlCount, and hasAutoPoll",
+            totalGroups: "Total number of active groups",
+            message: "Summary message"
+          },
+          use_cases: [
+            "Monitor system state and resource usage",
+            "Verify cleanup after operations",
+            "Debug missing or orphaned groups",
+            "Audit active monitoring sessions",
+            "System health checks"
+          ],
+          best_practices: [
+            "Check periodically to ensure groups are cleaned up",
+            "Use before creating new groups to avoid duplicates",
+            "Monitor total group count for resource management"
+          ],
+          errors: [
+            "Throws if Q-SYS Core is not connected",
+            "Throws if adapter doesn't support group listing"
+          ]
+        },
+        {
+          name: "remove_controls_from_change_group",
+          description: "Remove specific controls from a change group without destroying the group",
+          usage: "Parameters: groupId (string), controlNames (array of strings)",
+          parameters: {
+            groupId: "Change group identifier",
+            controlNames: "Array of control names to remove"
+          },
+          example: {
+            tool: "remove_controls_from_change_group",
+            arguments: {
+              groupId: "mixer-controls",
+              controlNames: ["MainMixer.input_1_gain", "MainMixer.input_2_gain"]
+            }
+          },
+          examples: [
+            {
+              arguments: {
+                groupId: "dynamic-group",
+                controlNames: ["TempControl1", "TempControl2"]
+              },
+              description: "Remove temporary controls"
+            },
+            {
+              arguments: {
+                groupId: "ui-page",
+                controlNames: ["HiddenSection.control1", "HiddenSection.control2"]
+              },
+              description: "Remove controls for collapsed UI section"
+            }
+          ],
+          returns: {
+            success: "true/false indicating operation success",
+            groupId: "The group identifier",
+            controlsRemoved: "Number of controls removed",
+            message: "Success message"
+          },
+          use_cases: [
+            "Dynamically adjust monitoring scope",
+            "Remove controls when UI sections close",
+            "Optimize polling by removing inactive controls",
+            "Fine-tune monitoring without recreating groups"
+          ],
+          notes: [
+            "Group remains active after control removal",
+            "Can remove controls that were never added (no error)",
+            "Use clear_change_group to remove all controls at once"
+          ],
+          errors: [
+            "Throws if groupId is empty",
+            "Throws if controlNames array is empty",
+            "Throws if change group doesn't exist",
+            "Throws if Q-SYS Core is not connected"
+          ]
+        },
+        {
+          name: "clear_change_group",
+          description: "Remove all controls from a change group while keeping it active. Useful for reconfiguring monitoring",
+          usage: "Parameters: groupId (string, required)",
+          parameters: {
+            groupId: "Change group identifier to clear"
+          },
+          example: {
+            tool: "clear_change_group",
+            arguments: {
+              groupId: "mixer-controls"
+            }
+          },
+          examples: [
+            {
+              arguments: { groupId: "reconfigurable-group" },
+              description: "Clear group before reconfiguring with new controls"
+            },
+            {
+              arguments: { groupId: "session-controls" },
+              description: "Clear controls between user sessions"
+            }
+          ],
+          returns: {
+            success: "true/false indicating operation success",
+            groupId: "The cleared group identifier",
+            message: "Success message"
+          },
+          use_cases: [
+            "Reconfigure monitoring without destroying/recreating group",
+            "Clear controls between different operational modes",
+            "Reset monitoring scope while preserving group settings",
+            "Prepare group for completely new set of controls"
+          ],
+          advantages: [
+            "Preserves group ID and auto-poll settings",
+            "More efficient than destroy/create cycle",
+            "Maintains any group-specific configuration"
+          ],
+          errors: [
+            "Throws if groupId is empty",
+            "Throws if change group doesn't exist",
+            "Throws if Q-SYS Core is not connected"
+          ]
+        },
+        {
+          name: "destroy_change_group",
+          description: "Destroy a change group and clean up all resources including auto-poll timers. Always destroy groups when no longer needed",
+          usage: "Parameters: groupId (string, required)",
+          parameters: {
+            groupId: "Change group identifier to destroy"
+          },
+          example: {
+            tool: "destroy_change_group",
+            arguments: {
+              groupId: "mixer-controls"
+            }
+          },
+          examples: [
+            {
+              arguments: { groupId: "ui-page-1" },
+              description: "Clean up when user navigates away from page"
+            },
+            {
+              arguments: { groupId: "temp-monitoring" },
+              description: "Remove temporary monitoring group"
+            },
+            {
+              arguments: { groupId: "session-controls" },
+              description: "Clean up at end of user session"
+            }
+          ],
+          returns: {
+            success: "true/false indicating operation success",
+            groupId: "The destroyed group identifier",
+            message: "Success message"
+          },
+          cleanup_actions: [
+            "Stops any active auto-poll timers",
+            "Clears all stored control values and history",
+            "Removes group from active groups list",
+            "Frees all associated memory"
+          ],
+          use_cases: [
+            "Clean up when UI page closes",
+            "End monitoring session",
+            "Free resources after temporary operations",
+            "Prevent memory leaks in long-running applications"
+          ],
+          best_practices: [
+            "Always destroy groups in cleanup/teardown code",
+            "Destroy groups before application shutdown",
+            "Use try/finally blocks to ensure cleanup",
+            "Group ID can be reused after destruction"
+          ],
+          errors: [
+            "Throws if groupId is empty",
+            "Throws if change group doesn't exist",
+            "Throws if Q-SYS Core is not connected"
+          ]
         }
       ],
       best_practices: [
@@ -570,7 +1038,11 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
         "For simple operations, use get_control_values and set_control_values",
         "Use component.control naming format (e.g., 'Main Gain.gain') for clarity",
         "Boolean values (true/false) are automatically converted to Q-SYS format (1/0)",
-        "Add ramp parameter for smooth audio transitions"
+        "Add ramp parameter for smooth audio transitions",
+        "Use change groups for efficient monitoring of multiple controls",
+        "Always destroy change groups when no longer needed to prevent memory leaks",
+        "Set appropriate auto-poll intervals based on use case (0.1s for meters, 0.5-2s for UI)",
+        "Group related controls logically (by UI page, subsystem, or function)"
       ],
       common_workflows: [
         {
@@ -588,13 +1060,48 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           ]
         },
         {
-          task: "Monitor multiple controls",
+          task: "Monitor multiple controls efficiently",
           steps: [
-            "1. Use get_control_values with array of control names",
-            "2. Poll periodically to track changes"
+            "1. Use create_change_group to create a monitoring group",
+            "2. Use add_controls_to_change_group to add controls to monitor",
+            "3. Use poll_change_group periodically or set_change_group_auto_poll for automatic updates",
+            "4. Use destroy_change_group when monitoring is complete"
+          ]
+        },
+        {
+          task: "Build reactive UI",
+          steps: [
+            "1. Create change group for UI page: create_change_group({groupId: 'page-1'})",
+            "2. Add all UI controls: add_controls_to_change_group({groupId: 'page-1', controlNames: [...]})",
+            "3. Enable auto-polling: set_change_group_auto_poll({groupId: 'page-1', enabled: true, intervalSeconds: 0.5})",
+            "4. Update UI only for changed controls from poll results",
+            "5. Destroy group on page exit: destroy_change_group({groupId: 'page-1'})"
+          ]
+        },
+        {
+          task: "Monitor system alarms",
+          steps: [
+            "1. Create alarm group: create_change_group({groupId: 'alarms'})",
+            "2. Add alarm controls: add_controls_to_change_group({groupId: 'alarms', controlNames: ['System.alarm1', 'System.alarm2']})",
+            "3. Set slow auto-poll: set_change_group_auto_poll({groupId: 'alarms', enabled: true, intervalSeconds: 5})",
+            "4. Process changes to trigger alerts"
           ]
         }
-      ]
+      ],
+      change_group_patterns: {
+        ui_monitoring: {
+          description: "Monitor controls for a UI page",
+          pattern: "create → add controls → enable auto-poll → destroy on exit"
+        },
+        event_driven: {
+          description: "Check for changes on demand",
+          pattern: "create → add controls → manual poll when needed → destroy when done"
+        },
+        dynamic_scope: {
+          description: "Adjust monitoring scope dynamically",
+          pattern: "create → add/remove controls as needed → clear to reset → destroy when done"
+        }
+      }
     };
   }
 }
