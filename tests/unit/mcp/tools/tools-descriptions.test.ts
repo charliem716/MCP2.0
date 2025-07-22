@@ -5,7 +5,8 @@ import { ListControlsTool, GetControlValuesTool, SetControlValuesTool } from '..
 import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status.js';
 import { GetAllControlsTool } from '../../../../src/mcp/tools/discovery.js';
 
-describe('BUG-048: Tool Descriptions', () => {
+// BUG-048 regression tests - ensure all MCP tools have detailed, helpful descriptions
+describe('Tool Descriptions Validation', () => {
   const mockQrwcClient = {};
 
   it('should have detailed description for list_components tool', () => {
@@ -75,7 +76,7 @@ describe('BUG-048: Tool Descriptions', () => {
     expect(description).toContain("Status.Code 0 means OK");
   });
 
-  it('should have detailed description for qsys_get_all_controls tool (existing good example)', () => {
+  it('should have detailed description for qsys_get_all_controls tool', () => {
     const tool = new GetAllControlsTool(mockQrwcClient);
     const description = (tool as any).description;
     
@@ -86,7 +87,7 @@ describe('BUG-048: Tool Descriptions', () => {
     expect(description).toContain("'APM|Mixer' matches APM or Mixer");
   });
 
-  describe('Description Length Validation', () => {
+  describe('Description Quality Metrics', () => {
     it('all descriptions should be reasonable length (under 500 chars)', () => {
       const tools = [
         new ListComponentsTool(mockQrwcClient),
@@ -102,7 +103,26 @@ describe('BUG-048: Tool Descriptions', () => {
         const description = (tool as any).description;
         const toolName = (tool as any).name;
         expect(description.length).toBeLessThan(500);
-        console.log(`${toolName}: ${description.length} chars`);
+        expect(description.length).toBeGreaterThan(50); // Ensure descriptions are meaningful
+      });
+    });
+
+    it('all descriptions should contain examples', () => {
+      const tools = [
+        new ListComponentsTool(mockQrwcClient),
+        new GetComponentControlsTool(mockQrwcClient),
+        new ListControlsTool(mockQrwcClient),
+        new GetControlValuesTool(mockQrwcClient),
+        new SetControlValuesTool(mockQrwcClient),
+        new QueryCoreStatusTool(mockQrwcClient),
+        new GetAllControlsTool(mockQrwcClient)
+      ];
+
+      tools.forEach(tool => {
+        const description = (tool as any).description;
+        const toolName = (tool as any).name;
+        // Most descriptions should contain quotes indicating examples
+        expect(description).toMatch(/['"`]/);
       });
     });
   });

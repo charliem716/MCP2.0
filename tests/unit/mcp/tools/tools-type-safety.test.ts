@@ -2,7 +2,8 @@ import { ListControlsTool, GetControlValuesTool, SetControlValuesTool } from "..
 import { ListComponentsTool, GetComponentControlsTool } from "../../../../src/mcp/tools/components.js";
 import type { QRWCClientInterface } from "../../../../src/mcp/qrwc/adapter.js";
 
-describe("BUG-036: Type Safety Verification", () => {
+// BUG-036 regression tests - ensure type safety for all Q-SYS tools
+describe("Tools Type Safety", () => {
   // Mock QRWC client that implements the interface
   const mockQrwcClient: QRWCClientInterface = {
     sendCommand: jest.fn(),

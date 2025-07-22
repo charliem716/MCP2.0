@@ -3,12 +3,23 @@ import {
   GetControlValuesTool, 
   SetControlValuesTool 
 } from '../../../../src/mcp/tools/controls.js';
+import { globalLogger } from '../../../../src/shared/utils/logger.js';
+
+jest.mock('../../../../src/shared/utils/logger.js', () => ({
+  globalLogger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }
+}));
 
 describe('ListControlsTool', () => {
   let mockQrwcClient: any;
   let tool: ListControlsTool;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     mockQrwcClient = {
       sendCommand: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true)
@@ -215,6 +226,43 @@ describe('ListControlsTool', () => {
       expect(result.content[0].text).toContain('DeviceB.sub.control2');
     });
   });
+
+  // Edge cases for 100% coverage
+  describe('error paths and edge cases', () => {
+    it('should log and throw error when sendCommand fails', async () => {
+      const error = new Error('Network failure');
+      mockQrwcClient.sendCommand.mockRejectedValueOnce(error);
+
+      const result = await tool.execute({});
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Network failure');
+    });
+
+    it('should handle control without component prefix', async () => {
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
+        result: [
+          { Name: 'SimpleControl', Value: 1 } // No dot in name
+        ]
+      });
+
+      const result = await tool.execute({ component: 'TestComponent' });
+      expect(result.content[0].text).toContain('Found 1 control'); // Not filtered when no dot
+    });
+
+    it('should handle Position property edge cases', async () => {
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
+        result: [
+          { Name: 'Control1', Value: 0, Position: null },
+          { Name: 'Control2', Value: 1, Position: undefined },
+          { Name: 'Control3', Value: 2 } // No Position property
+        ]
+      });
+
+      const result = await tool.execute({});
+      expect(result.isError).toBe(false);
+      expect(result.content[0].text).toContain('Found 3 controls');
+    });
+  });
 });
 
 describe('GetControlValuesTool', () => {
@@ -222,6 +270,7 @@ describe('GetControlValuesTool', () => {
   let tool: GetControlValuesTool;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     mockQrwcClient = {
       sendCommand: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true)
@@ -273,6 +322,22 @@ describe('GetControlValuesTool', () => {
     expect(result.content[0].text).toContain('MainMixer.gain: -12.5');
     expect(result.content[0].text).toContain('NonExistent.control: N/A');
   });
+
+  // Edge cases for 100% coverage
+  describe('edge cases', () => {
+    it('should handle undefined/null in response', async () => {
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
+        result: [
+          { Name: 'Control1', Value: null, String: null },
+          { Name: 'Control2' } // Missing Value and String
+        ]
+      });
+
+      const result = await tool.execute({ controls: ['Control1', 'Control2'] });
+      expect(result.content[0].text).toContain('Control1: null');
+      expect(result.content[0].text).toContain('Control2:');
+    });
+  });
 });
 
 describe('SetControlValuesTool', () => {
@@ -280,6 +345,7 @@ describe('SetControlValuesTool', () => {
   let tool: SetControlValuesTool;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     mockQrwcClient = {
       sendCommand: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true)
@@ -411,5 +477,174 @@ describe('SetControlValuesTool', () => {
     expect(result.content[0].text).toContain('✓ Main Output Gain.gain: -10');
     expect(result.content[0].text).toContain('✗ Invalid.control: Failed');
     expect(result.content[0].text).toContain('Set 1/2 controls successfully');
+  });
+
+  // BUG-025 regression tests
+  describe('BUG-025: Command type selection', () => {
+    it('should use Control.Set for named controls', async () => {
+      mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+
+      await tool.execute({ 
+        controls: [{ name: 'TestControl', value: 50 }]
+      });
+      
+      // Verify the correct command for named controls
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Control.Set',
+        {
+          Name: 'TestControl',
+          Value: 50
+        }
+      );
+    });
+
+    it('should use Component.Set for component controls', async () => {
+      mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+
+      await tool.execute({ 
+        controls: [{ name: 'TestComponent.testControl', value: 50 }]
+      });
+      
+      // Verify the correct command for component controls
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Component.Set',
+        {
+          Name: 'TestComponent',
+          Controls: [
+            { Name: 'testControl', Value: 50 }
+          ]
+        }
+      );
+    });
+
+    it('should pass ramp parameter correctly for both control types', async () => {
+      mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+
+      await tool.execute({ 
+        controls: [
+          { name: 'FaderControl', value: -6, ramp: 1.5 },
+          { name: 'Mixer.fader', value: -3, ramp: 2.0 }
+        ]
+      });
+      
+      // Named control with ramp
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Control.Set',
+        {
+          Name: 'FaderControl',
+          Value: -6,
+          Ramp: 1.5
+        }
+      );
+      
+      // Component control with ramp
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Component.Set',
+        {
+          Name: 'Mixer',
+          Controls: [
+            { Name: 'fader', Value: -3, Ramp: 2.0 }
+          ]
+        }
+      );
+    });
+  });
+
+  // Edge cases for 100% coverage
+  describe('error handling and edge cases', () => {
+    it('should handle error during command preparation', async () => {
+      // Pass invalid control structure to trigger error in prepareCommand
+      const result = await tool.execute({
+        controls: [
+          { name: null as any, value: 1 } // Invalid name
+        ]
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Parameter validation failed');
+    });
+
+    it('should handle component controls with dot notation edge case', async () => {
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({ id: '123' });
+
+      await tool.execute({
+        controls: [
+          { name: 'Comp.Sub.control', value: 1 } // Multiple dots
+        ]
+      });
+
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Component.Set',
+        expect.objectContaining({
+          Name: 'Comp',
+          Controls: expect.arrayContaining([
+            expect.objectContaining({ Name: 'Sub.control' })
+          ])
+        })
+      );
+    });
+
+    it('should catch and format non-Error exceptions', async () => {
+      mockQrwcClient.sendCommand.mockImplementationOnce(() => {
+        throw 'String exception'; // Non-Error throw
+      });
+
+      const result = await tool.execute({
+        controls: [{ name: 'Test', value: 1 }]
+      });
+
+      expect(result.content[0].text).toContain('Failed - String exception');
+    });
+  });
+});
+
+// BUG-055 regression tests for ListControlsTool
+describe('ListControlsTool - BUG-055 regression', () => {
+  let mockQrwcClient: any;
+  let tool: ListControlsTool;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockQrwcClient = {
+      sendCommand: jest.fn(),
+      isConnected: jest.fn().mockReturnValue(true)
+    };
+    tool = new ListControlsTool(mockQrwcClient);
+  });
+
+  it('should handle undefined result gracefully', async () => {
+    // Mock response with undefined result
+    mockQrwcClient.sendCommand.mockResolvedValueOnce({
+      result: undefined
+    });
+
+    const result = await tool.execute({ component: 'test' });
+    
+    expect(result.isError).toBe(false);
+    expect(result.content[0].type).toBe('text');
+    expect(result.content[0].text).toContain('[]');
+  });
+
+  it('should handle result with proper type narrowing', async () => {
+    // Mock response with valid result
+    mockQrwcClient.sendCommand.mockResolvedValueOnce({
+      result: {
+        Name: 'TestComponent',
+        Controls: [
+          {
+            Name: 'Volume',
+            Value: 0.5,
+            Type: 'float'
+          }
+        ]
+      }
+    });
+
+    const result = await tool.execute({ component: 'TestComponent' });
+    
+    expect(result.isError).toBe(false);
+    const responseText = result.content[0].text;
+    expect(responseText).toContain('TestComponent');
+    expect(responseText).toContain('Volume');
   });
 });

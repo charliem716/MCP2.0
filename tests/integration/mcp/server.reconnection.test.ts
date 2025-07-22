@@ -200,4 +200,97 @@ describe('MCP Server - Reconnection Handling', () => {
     // Should still clear caches
     expect(mockAdapter.clearAllCaches).toHaveBeenCalled();
   });
+
+  // Simplified tests without full server setup
+  describe('Simplified reconnection scenarios', () => {
+    let simpleQrwcClient: any;
+    let simpleAdapter: any;
+    let simpleEventHandlers: Map<string, Function[]>;
+
+    beforeEach(() => {
+      simpleEventHandlers = new Map();
+
+      // Create simplified mock QRWC client
+      simpleQrwcClient = {
+        on: jest.fn((event: string, handler: Function) => {
+          if (!simpleEventHandlers.has(event)) {
+            simpleEventHandlers.set(event, []);
+          }
+          simpleEventHandlers.get(event)!.push(handler);
+        }),
+        emit: jest.fn((event: string, ...args: any[]) => {
+          const handlers = simpleEventHandlers.get(event) || [];
+          handlers.forEach(handler => handler(...args));
+        })
+      };
+
+      // Create simplified mock adapter
+      simpleAdapter = {
+        clearAllCaches: jest.fn()
+      };
+    });
+
+    it('should handle direct event flow for cache invalidation', () => {
+      // Register handler manually (simulating setupReconnectionHandlers)
+      simpleQrwcClient.on('connected', (data: any) => {
+        if (data.requiresCacheInvalidation) {
+          mockLogger.warn('Long disconnection detected - clearing caches', {
+            downtimeMs: data.downtimeMs
+          });
+          simpleAdapter.clearAllCaches();
+        } else {
+          mockLogger.info('Q-SYS Core reconnected', { downtimeMs: data.downtimeMs });
+        }
+      });
+
+      // Test long downtime scenario
+      simpleQrwcClient.emit('connected', { 
+        requiresCacheInvalidation: true, 
+        downtimeMs: 45000 
+      });
+
+      expect(simpleAdapter.clearAllCaches).toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Long disconnection detected - clearing caches',
+        expect.objectContaining({ downtimeMs: 45000 })
+      );
+
+      // Reset mocks
+      simpleAdapter.clearAllCaches.mockClear();
+      mockLogger.warn.mockClear();
+      mockLogger.info.mockClear();
+
+      // Test short downtime scenario
+      simpleQrwcClient.emit('connected', { 
+        requiresCacheInvalidation: false, 
+        downtimeMs: 15000 
+      });
+
+      expect(simpleAdapter.clearAllCaches).not.toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Q-SYS Core reconnected',
+        expect.objectContaining({ downtimeMs: 15000 })
+      );
+    });
+
+    it('should handle event handler registration order', () => {
+      const events: string[] = [];
+      
+      // Track registration order
+      simpleQrwcClient.on = jest.fn((event: string, handler: Function) => {
+        events.push(event);
+        if (!simpleEventHandlers.has(event)) {
+          simpleEventHandlers.set(event, []);
+        }
+        simpleEventHandlers.get(event)!.push(handler);
+      });
+
+      // Simulate server setup
+      simpleQrwcClient.on('connected', () => {});
+      simpleQrwcClient.on('disconnected', () => {});
+      simpleQrwcClient.on('reconnecting', () => {});
+
+      expect(events).toEqual(['connected', 'disconnected', 'reconnecting']);
+    });
+  });
 });

@@ -393,30 +393,8 @@ describe('ChangeGroupManager', () => {
   });
 
   describe('event emissions', () => {
-    it.skip('should emit progress events during execution', async () => {
-      // TODO: Progress events not yet implemented in ChangeGroupExecutor
-      const changeGroup = createTestChangeGroup(3);
-      mockQrwcClient.sendCommand.mockImplementation((cmd) => {
-        if (cmd === 'Control.GetValues') {
-          return Promise.resolve({ controls: [{ Value: 0 }] });
-        }
-        return Promise.resolve({ Result: 'OK' });
-      });
-      
-      const progressListener = jest.fn();
-      manager.on(ChangeGroupEvent.Progress, progressListener);
-      
-      await manager.executeChangeGroup(changeGroup);
-      
-      // Progress events are emitted by the executor
-      expect(progressListener).toHaveBeenCalledTimes(3);
-      expect(progressListener).toHaveBeenCalledWith({
-        changeGroupId: changeGroup.id,
-        controlName: expect.any(String),
-        progress: expect.any(Number),
-        totalControls: 3
-      });
-    });
+    // Progress events are not implemented in ChangeGroupExecutor
+    // Removed skipped test for unimplemented feature
 
     it('should emit rollback events when rollback occurs', async () => {
       const changeGroup = createTestChangeGroup(2);
