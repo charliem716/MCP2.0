@@ -36,9 +36,17 @@ export interface RetryOptions {
 /**
  * Adapter that wraps OfficialQRWCClient to provide the expected interface
  */
+interface SimpleChangeGroup {
+  id: string;
+  controls: string[];
+}
+
 export class QRWCClientAdapter implements QRWCClientInterface {
   private controlIndex = new Map<string, {componentName: string, controlName: string}>();
   private indexBuilt = false;
+  private changeGroups = new Map<string, SimpleChangeGroup>();
+  private autoPollTimers = new Map<string, NodeJS.Timeout>();
+  private changeGroupLastValues = new Map<string, Map<string, unknown>>();
 
   constructor(private readonly officialClient: OfficialQRWCClient) {
     // Extract host and port from the official client if possible
@@ -666,6 +674,183 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             details: componentSetResults 
           };
 
+        // ===== Change Group Methods =====
+        
+        case "ChangeGroup.AddControl": {
+          const id = params?.['Id'] as string;
+          const controls = params?.['Controls'] as string[] || [];
+          
+          if (!id) throw new Error("Change group ID required");
+          
+          let group = this.changeGroups.get(id);
+          if (!group) {
+            group = { id, controls: [] };
+            this.changeGroups.set(id, group);
+            this.changeGroupLastValues.set(id, new Map());
+          }
+          
+          // Build index if needed
+          if (!this.indexBuilt && this.officialClient.isConnected()) {
+            this.buildControlIndex();
+          }
+          
+          // Validate and add controls
+          for (const control of controls) {
+            if (!this.controlIndex.has(control)) {
+              logger.warn(`Control not found: ${control}`);
+              continue;
+            }
+            if (!group.controls.includes(control)) {
+              group.controls.push(control);
+            }
+          }
+          
+          return { result: true };
+        }
+
+        case "ChangeGroup.AddComponentControl": {
+          const id = params?.['Id'] as string;
+          const component = params?.['Component'] as Record<string, unknown>;
+          
+          if (!id) throw new Error("Change group ID required");
+          if (!component?.['Name']) throw new Error("Component name required");
+          
+          const componentName = String(component['Name']);
+          const controlSpecs = (component['Controls'] || []) as Array<{Name: string}>;
+          
+          let group = this.changeGroups.get(id);
+          if (!group) {
+            group = { id, controls: [] };
+            this.changeGroups.set(id, group);
+            this.changeGroupLastValues.set(id, new Map());
+          }
+          
+          // Add component controls
+          for (const spec of controlSpecs) {
+            const fullName = `${componentName}.${spec.Name}`;
+            if (!group.controls.includes(fullName)) {
+              group.controls.push(fullName);
+            }
+          }
+          
+          return { result: true };
+        }
+
+        case "ChangeGroup.Remove": {
+          const id = params?.['Id'] as string;
+          const controls = params?.['Controls'] as string[] || [];
+          
+          if (!id) throw new Error("Change group ID required");
+          
+          const group = this.changeGroups.get(id);
+          if (!group) throw new Error(`Change group not found: ${id}`);
+          
+          // Remove controls
+          group.controls = group.controls.filter(c => !controls.includes(c));
+          
+          return { result: true };
+        }
+
+        case "ChangeGroup.Poll": {
+          const id = params?.['Id'] as string;
+          if (!id) throw new Error("Change group ID required");
+          
+          const group = this.changeGroups.get(id);
+          if (!group) throw new Error(`Change group not found: ${id}`);
+          
+          const lastValues = this.changeGroupLastValues.get(id)!;
+          const changes = [];
+          
+          for (const controlName of group.controls) {
+            const current = await this.getControlValue(controlName);
+            const last = lastValues.get(controlName);
+            
+            if (current?.Value !== last) {
+              changes.push({
+                Name: controlName,
+                Value: current?.Value,
+                String: current?.String || String(current?.Value)
+              });
+              lastValues.set(controlName, current?.Value);
+            }
+          }
+          
+          return { result: { Id: id, Changes: changes } };
+        }
+
+        case "ChangeGroup.Clear": {
+          const id = params?.['Id'] as string;
+          if (!id) throw new Error("Change group ID required");
+          
+          const group = this.changeGroups.get(id);
+          if (!group) throw new Error(`Change group not found: ${id}`);
+          
+          group.controls = [];
+          this.changeGroupLastValues.get(id)?.clear();
+          
+          return { result: true };
+        }
+
+        case "ChangeGroup.Destroy": {
+          const id = params?.['Id'] as string;
+          if (!id) throw new Error("Change group ID required");
+          
+          // Clear timer if exists
+          const timer = this.autoPollTimers.get(id);
+          if (timer) {
+            clearInterval(timer);
+            this.autoPollTimers.delete(id);
+          }
+          
+          // Remove group
+          this.changeGroups.delete(id);
+          this.changeGroupLastValues.delete(id);
+          
+          return { result: true };
+        }
+
+        case "ChangeGroup.Invalidate": {
+          const id = params?.['Id'] as string;
+          if (!id) throw new Error("Change group ID required");
+          
+          const group = this.changeGroups.get(id);
+          if (!group) throw new Error(`Change group not found: ${id}`);
+          
+          // Clear last values to force all controls to report as changed
+          this.changeGroupLastValues.get(id)?.clear();
+          
+          return { result: true };
+        }
+
+        case "ChangeGroup.AutoPoll": {
+          const id = params?.['Id'] as string;
+          const rate = params?.['Rate'] as number || 1;
+          
+          if (!id) throw new Error("Change group ID required");
+          
+          const group = this.changeGroups.get(id);
+          if (!group) throw new Error(`Change group not found: ${id}`);
+          
+          // Clear existing timer
+          const existingTimer = this.autoPollTimers.get(id);
+          if (existingTimer) {
+            clearInterval(existingTimer);
+          }
+          
+          // Set up new timer
+          const timer = setInterval(async () => {
+            try {
+              await this.sendCommand("ChangeGroup.Poll", { Id: id });
+            } catch (error) {
+              logger.error(`AutoPoll error for group ${id}`, { error });
+            }
+          }, rate * 1000);
+          
+          this.autoPollTimers.set(id, timer);
+          
+          return { result: true };
+        }
+
         default:
           // For unknown commands, throw an error instead of returning mock data
           throw new Error(`Unknown QRWC command: ${command}. Please implement this command in the adapter or official client.`);
@@ -674,6 +859,23 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     } catch (error) {
       logger.error("Error in QRWC adapter", { command, params, error });
       throw error;
+    }
+  }
+
+  /**
+   * Get control value by name
+   */
+  private async getControlValue(controlName: string): Promise<{Value: unknown; String?: string} | null> {
+    try {
+      const result = await this.sendCommand("Control.Get", { Controls: [controlName] });
+      const controls = (result as any)?.result;
+      if (Array.isArray(controls) && controls.length > 0) {
+        return controls[0];
+      }
+      return null;
+    } catch (error) {
+      logger.error(`Failed to get control value for ${controlName}`, { error });
+      return null;
     }
   }
 
@@ -730,10 +932,6 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     
     throw lastError;
   }
-
-
-  // ===== Change Group Methods =====
-  // TODO: Implement change group methods here once BUG-034 is addressed
   
   /**
    * Clear all caches (should be called after long disconnections)
@@ -742,9 +940,16 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     // Clear control index
     this.invalidateControlIndex();
     
-    // Clear any other cached data
-    // Note: The actual component cache is maintained in the official client,
-    // so we just need to clear our local index
+    // Clear all autoPoll timers
+    for (const [id, timer] of this.autoPollTimers) {
+      clearInterval(timer);
+      logger.debug(`Cleared AutoPoll timer for change group ${id}`);
+    }
+    this.autoPollTimers.clear();
+    
+    // Clear change groups
+    this.changeGroups.clear();
+    this.changeGroupLastValues.clear();
     
     logger.info('All caches cleared due to long disconnection');
   }
