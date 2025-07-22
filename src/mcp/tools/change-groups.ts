@@ -23,7 +23,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
     super(
       qrwcClient,
       "create_change_group",
-      "Create a new change group for monitoring control value changes. Groups allow efficient polling of multiple controls at once. Example: {groupId:'mixer-controls'} creates a group for monitoring mixer-related controls. Group IDs must be unique and non-empty.",
+      "Create a new change group for monitoring control value changes. Groups allow efficient polling of multiple controls at once. Example: {groupId:'mixer-controls'} creates a group for monitoring mixer-related controls. Group IDs must be unique and non-empty. Errors: Throws if groupId is empty, if Q-SYS Core is not connected, or if communication fails. Returns warning if group already exists.",
       CreateChangeGroupParamsSchema
     );
   }
@@ -32,16 +32,24 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
     const result = await this.qrwcClient.sendCommand("ChangeGroup.AddControl", {
       Id: params.groupId,
       Controls: [] // Initialize with empty controls
-    });
+    }) as { result: boolean; warning?: string };
+
+    const response: any = {
+      success: true,
+      groupId: params.groupId
+    };
+
+    if (result.warning) {
+      response.warning = result.warning;
+      response.message = result.warning;
+    } else {
+      response.message = `Change group '${params.groupId}' created successfully`;
+    }
 
     return {
       content: [{
         type: 'text',
-        text: JSON.stringify({
-          success: true,
-          groupId: params.groupId,
-          message: `Change group '${params.groupId}' created successfully`
-        })
+        text: JSON.stringify(response)
       }]
     };
   }
@@ -61,7 +69,7 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
     super(
       qrwcClient,
       "add_controls_to_change_group",
-      "Add Named Controls to a change group for monitoring. Controls must exist in Q-SYS (e.g., 'Gain1.gain', 'Mixer.level'). Invalid controls are skipped. Example: {groupId:'mixer-controls',controlNames:['MainMixer.gain','MainMixer.mute']} adds gain and mute controls to the mixer-controls group.",
+      "Add Named Controls to a change group for monitoring. Controls must exist in Q-SYS (e.g., 'Gain1.gain', 'Mixer.level'). Invalid controls are skipped. Example: {groupId:'mixer-controls',controlNames:['MainMixer.gain','MainMixer.mute']} adds gain and mute controls to the mixer-controls group. Errors: Throws if groupId is empty, controlNames array is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       AddControlsToChangeGroupParamsSchema
     );
   }
@@ -99,7 +107,7 @@ export class PollChangeGroupTool extends BaseQSysTool<PollChangeGroupParams> {
     super(
       qrwcClient,
       "poll_change_group",
-      "Poll a change group for control value changes since last poll. Returns only controls whose values changed. First poll returns all controls as changed. Example: {groupId:'mixer-controls'} returns array of changed controls with Name, Value, and String properties. Use for efficient UI updates or state monitoring.",
+      "Poll a change group for control value changes since last poll. Returns only controls whose values changed. First poll returns all controls as changed. Example: {groupId:'mixer-controls'} returns array of changed controls with Name, Value, and String properties. Use for efficient UI updates or state monitoring. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       PollChangeGroupParamsSchema
     );
   }
@@ -142,7 +150,7 @@ export class DestroyChangeGroupTool extends BaseQSysTool<DestroyChangeGroupParam
     super(
       qrwcClient,
       "destroy_change_group",
-      "Destroy a change group and clean up all resources including auto-poll timers. Always destroy groups when no longer needed to prevent memory leaks. Example: {groupId:'mixer-controls'} destroys the group and stops any associated polling.",
+      "Destroy a change group and clean up all resources including auto-poll timers. Always destroy groups when no longer needed to prevent memory leaks. Example: {groupId:'mixer-controls'} destroys the group and stops any associated polling. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       DestroyChangeGroupParamsSchema
     );
   }
@@ -179,7 +187,7 @@ export class RemoveControlsFromChangeGroupTool extends BaseQSysTool<RemoveContro
     super(
       qrwcClient,
       "remove_controls_from_change_group",
-      "Remove specific controls from a change group without destroying the group. Example: {groupId:'mixer-controls',controlNames:['MainMixer.input_1_gain']} removes the specified control. Use when dynamically adjusting monitored controls.",
+      "Remove specific controls from a change group without destroying the group. Example: {groupId:'mixer-controls',controlNames:['MainMixer.input_1_gain']} removes the specified control. Use when dynamically adjusting monitored controls. Errors: Throws if groupId is empty, controlNames array is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       RemoveControlsFromChangeGroupParamsSchema
     );
   }
@@ -217,7 +225,7 @@ export class ClearChangeGroupTool extends BaseQSysTool<ClearChangeGroupParams> {
     super(
       qrwcClient,
       "clear_change_group",
-      "Remove all controls from a change group while keeping it active. Useful for reconfiguring monitoring without destroying/recreating the group. Example: {groupId:'mixer-controls'} clears all controls but keeps the group ready for new additions.",
+      "Remove all controls from a change group while keeping it active. Useful for reconfiguring monitoring without destroying/recreating the group. Example: {groupId:'mixer-controls'} clears all controls but keeps the group ready for new additions. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       ClearChangeGroupParamsSchema
     );
   }
@@ -256,7 +264,7 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
     super(
       qrwcClient,
       "set_change_group_auto_poll",
-      "Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300 seconds). Auto-stops after 10 consecutive failures. Example: {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5} polls every 500ms. Set enabled:false to stop polling.",
+      "Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300 seconds). Auto-stops after 10 consecutive failures. Example: {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5} polls every 500ms. Set enabled:false to stop polling. Errors: Throws if groupId is empty, intervalSeconds is outside 0.1-300 range, Q-SYS Core is not connected, or if the change group doesn't exist.",
       SetChangeGroupAutoPollParamsSchema
     );
   }
@@ -282,14 +290,21 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
         }]
       };
     } else {
-      // Disable auto polling by destroying and recreating the group
-      // First, we need to poll to get current controls
-      const pollResult = await this.qrwcClient.sendCommand("ChangeGroup.Poll", {
-        Id: params.groupId
-      }) as { result: { Id: string; Changes: any[] } };
+      // Disable auto polling by clearing the timer
+      const adapter = this.qrwcClient as any;
+      
+      // Check if adapter has the autoPollTimers Map and the group has an active timer
+      if (adapter.autoPollTimers?.has(params.groupId)) {
+        const timer = adapter.autoPollTimers.get(params.groupId);
+        clearInterval(timer);
+        adapter.autoPollTimers.delete(params.groupId);
+        
+        // Also clean up failure counts if present
+        if (adapter.autoPollFailureCounts?.has(params.groupId)) {
+          adapter.autoPollFailureCounts.delete(params.groupId);
+        }
+      }
 
-      // Note: In a real implementation, we'd need to track controls separately
-      // For now, we'll just note that auto-poll is conceptually disabled
       return {
         content: [{
           type: 'text',
@@ -316,7 +331,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     super(
       qrwcClient,
       "list_change_groups",
-      "List all active change groups showing ID, control count, and auto-poll status. No parameters needed. Example: {} returns [{id:'mixer-controls',controlCount:4,hasAutoPoll:true}]. Use to monitor system state and verify cleanup.",
+      "List all active change groups showing ID, control count, and auto-poll status. No parameters needed. Example: {} returns [{id:'mixer-controls',controlCount:4,hasAutoPoll:true}]. Use to monitor system state and verify cleanup. Errors: Throws if Q-SYS Core is not connected or if the adapter doesn't support group listing.",
       ListChangeGroupsParamsSchema
     );
   }

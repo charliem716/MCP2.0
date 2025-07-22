@@ -685,10 +685,20 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           if (!id) throw new Error("Change group ID required");
           
           let group = this.changeGroups.get(id);
+          const isCreateOperation = controls.length === 0;
+          
           if (!group) {
             group = { id, controls: [] };
             this.changeGroups.set(id, group);
             this.changeGroupLastValues.set(id, new Map());
+          } else if (isCreateOperation) {
+            // This is a create_change_group call on an existing group
+            logger.warn(`Change group '${id}' already exists with ${group.controls.length} controls. Using existing group.`);
+            // Don't overwrite - preserve existing controls
+            return { 
+              result: true,
+              warning: `Change group '${id}' already exists. Using existing group with ${group.controls.length} controls.`
+            };
           }
           
           // Build index if needed

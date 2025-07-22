@@ -47,6 +47,21 @@ describe('Change Group Tools', () => {
       expect(result.content[0].text).toContain('test-group-1');
     });
 
+    it('should warn when creating a group with existing ID', async () => {
+      const warning = "Change group 'test-group-1' already exists. Using existing group with 2 controls.";
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({ 
+        result: true,
+        warning: warning
+      });
+
+      const result = await tool.execute({ groupId: 'test-group-1' });
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.warning).toBe(warning);
+      expect(response.message).toBe(warning);
+    });
+
     it('should validate parameters', async () => {
       const result = await tool.execute({ groupId: '' });
       expect(result.isError).toBe(true);
@@ -223,16 +238,44 @@ describe('Change Group Tools', () => {
       });
     });
 
-    it('should disable auto-poll', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: { Id: 'test-group-1', Changes: [] }
-      });
+    it('should disable auto-poll and clear timer', async () => {
+      // Mock the adapter with autoPollTimers Map
+      const mockTimer = { ref: jest.fn(), unref: jest.fn() } as any;
+      const autoPollTimers = new Map([['test-group-1', mockTimer]]);
+      const autoPollFailureCounts = new Map([['test-group-1', 3]]);
+      
+      (mockQrwcClient as any).autoPollTimers = autoPollTimers;
+      (mockQrwcClient as any).autoPollFailureCounts = autoPollFailureCounts;
+      
+      // Mock clearInterval
+      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
 
       const result = await tool.execute({ 
         groupId: 'test-group-1',
         enabled: false
       });
 
+      // Verify timer was cleared
+      expect(clearIntervalSpy).toHaveBeenCalledWith(mockTimer);
+      expect(autoPollTimers.has('test-group-1')).toBe(false);
+      expect(autoPollFailureCounts.has('test-group-1')).toBe(false);
+      
+      expect(result.content[0].text).toContain('"autoPollEnabled":false');
+      expect(result.content[0].text).toContain('Auto-poll disabled');
+      
+      clearIntervalSpy.mockRestore();
+    });
+
+    it('should handle disabling auto-poll when no timer exists', async () => {
+      // Mock adapter without timer for this group
+      (mockQrwcClient as any).autoPollTimers = new Map();
+
+      const result = await tool.execute({ 
+        groupId: 'test-group-1',
+        enabled: false
+      });
+
+      // Should still return success even if no timer was active
       expect(result.content[0].text).toContain('"autoPollEnabled":false');
       expect(result.content[0].text).toContain('Auto-poll disabled');
     });
