@@ -8,6 +8,13 @@
 
 import { globalLogger as logger } from "../../shared/utils/logger.js";
 import type { OfficialQRWCClient } from "../../qrwc/officialClient.js";
+import { 
+  validateControlValue,
+  isRetryableError as isRetryableErrorValidator 
+} from "./validators.js";
+import {
+  extractControlValue
+} from "./converters.js";
 
 /**
  * Interface that MCP tools expect from a QRWC client
@@ -37,6 +44,8 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     // Extract host and port from the official client if possible
     // We'll initialize the raw command client lazily when needed
   }
+
+  // ===== Connection Management =====
 
   /**
    * Build control index for O(1) lookups
@@ -101,6 +110,8 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     return count;
   }
 
+  // ===== Control Methods =====
+  
   /**
    * Send a command to Q-SYS Core
    * 
@@ -159,20 +170,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
    * Check if an error is retryable
    */
   private isRetryableError(error: unknown): boolean {
-    if (!error) return false;
-    
-    // Type guard for error objects
-    const err = error as { code?: string; message?: string };
-    
-    // Network errors, timeouts, and specific Q-SYS errors
-    const errorMessage = err.message?.toLowerCase() || '';
-    return err.code === 'ETIMEDOUT' || 
-           err.code === 'ECONNRESET' ||
-           err.code === 'ECONNREFUSED' ||
-           err.code === 'ENOTFOUND' ||
-           errorMessage.includes('timeout') ||
-           errorMessage.includes('network') ||
-           errorMessage.includes('connection');
+    return isRetryableErrorValidator(error);
   }
 
   /**
@@ -229,39 +227,8 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             const controls = Object.entries(component.controls).map(([name, control]: [string, any]) => {
               const state = control.state as any;
               
-              // Extract value from state object (same logic as GetAllControls)
-              let value = state;
-              let type = 'String';
-              
-              if (state && typeof state === 'object') {
-                // Handle different state object formats
-                if ('Value' in state) {
-                  // Standard format with Value property
-                  value = state.Value;
-                  type = state.Type || type;
-                } else if ('String' in state && 'Type' in state) {
-                  // Alternative format with String property
-                  if (state.Type === 'Boolean' || state.Type === 'Bool') {
-                    value = state.Bool !== undefined ? state.Bool : false;
-                    type = 'Boolean';
-                  } else if (state.Type === 'Text' || state.Type === 'String') {
-                    value = state.String || '';
-                    type = 'String';
-                  } else if (state.Type === 'Float' || state.Type === 'Number') {
-                    value = state.Value !== undefined ? state.Value : (state.Position !== undefined ? state.Position : 0);
-                    type = 'Float';
-                  } else {
-                    // Default to String value
-                    value = state.String || '';
-                    type = state.Type || 'String';
-                  }
-                }
-              } else if (typeof state === 'number' || typeof state === 'boolean' || typeof state === 'string') {
-                // Simple value types
-                value = state;
-                type = typeof state === 'boolean' ? 'Boolean' : 
-                      typeof state === 'number' ? 'Float' : 'String';
-              }
+              // Extract value from state object
+              const { value, type } = extractControlValue(state);
               
               return {
                 Name: name,
@@ -350,33 +317,10 @@ export class QRWCClientAdapter implements QRWCClientInterface {
                   }
                 }
                 
-                // Extract value from state object (same logic as GetAllControls)
+                // Extract value from state object
                 if (controlFound && controlState !== null && controlState !== undefined) {
-                  if (typeof controlState === 'object') {
-                    // Handle different state object formats
-                    if ('Value' in controlState) {
-                      // Standard format with Value property
-                      controlValue = controlState.Value;
-                    } else if ('String' in controlState && 'Type' in controlState) {
-                      // Alternative format with String property
-                      if (controlState.Type === 'Boolean' || controlState.Type === 'Bool') {
-                        controlValue = controlState.Bool !== undefined ? controlState.Bool : false;
-                      } else if (controlState.Type === 'Text' || controlState.Type === 'String') {
-                        controlValue = controlState.String || '';
-                      } else if (controlState.Type === 'Float' || controlState.Type === 'Number') {
-                        controlValue = controlState.Value !== undefined ? controlState.Value : (controlState.Position !== undefined ? controlState.Position : 0);
-                      } else {
-                        // Default to String value
-                        controlValue = controlState.String || '';
-                      }
-                    } else {
-                      // Unknown object format, use as is
-                      controlValue = controlState;
-                    }
-                  } else {
-                    // Simple value types
-                    controlValue = controlState;
-                  }
+                  const extracted = extractControlValue(controlState);
+                  controlValue = extracted.value;
                 }
                 
                 return {
@@ -493,6 +437,8 @@ export class QRWCClientAdapter implements QRWCClientInterface {
           
           return { result: setResults };
 
+        // ===== Status Methods =====
+        
         case "StatusGet":
         case "Status.Get":
           // Try to get actual Q-SYS Core status, but provide fallback
@@ -566,38 +512,7 @@ export class QRWCClientAdapter implements QRWCClientInterface {
                 const state = control?.state as any;
                 
                 // Extract value from state object
-                let value = state;
-                let type = 'String';
-                
-                if (state && typeof state === 'object') {
-                  // Handle different state object formats
-                  if ('Value' in state) {
-                    // Standard format with Value property
-                    value = state.Value;
-                    type = state.Type || type;
-                  } else if ('String' in state && 'Type' in state) {
-                    // Alternative format with String property
-                    if (state.Type === 'Boolean' || state.Type === 'Bool') {
-                      value = state.Bool !== undefined ? state.Bool : false;
-                      type = 'Boolean';
-                    } else if (state.Type === 'Text' || state.Type === 'String') {
-                      value = state.String || '';
-                      type = 'String';
-                    } else if (state.Type === 'Float' || state.Type === 'Number') {
-                      value = state.Value !== undefined ? state.Value : (state.Position !== undefined ? state.Position : 0);
-                      type = 'Float';
-                    } else {
-                      // Default to String value
-                      value = state.String || '';
-                      type = state.Type || 'String';
-                    }
-                  }
-                } else if (typeof state === 'number' || typeof state === 'boolean' || typeof state === 'string') {
-                  // Simple value types
-                  value = state;
-                  type = typeof state === 'boolean' ? 'Boolean' : 
-                        typeof state === 'number' ? 'Float' : 'String';
-                }
+                const { value, type } = extractControlValue(state);
                 
                 allControls.push({
                   Name: `${componentName}.${controlName}`,
@@ -650,43 +565,10 @@ export class QRWCClientAdapter implements QRWCClientInterface {
               
               const state = control.state as any;
               
-              // Extract value from state object (same logic as other methods)
-              let value = state;
-              let stringValue = '';
-              let position = 0;
-              
-              if (state && typeof state === 'object') {
-                // Handle different state object formats
-                if ('Value' in state) {
-                  // Standard format with Value property
-                  value = state.Value;
-                  stringValue = state.String || String(value || '');
-                  position = state.Position !== undefined ? state.Position : 0;
-                } else if ('String' in state && 'Type' in state) {
-                  // Alternative format with String property
-                  if (state.Type === 'Boolean' || state.Type === 'Bool') {
-                    value = state.Bool !== undefined ? state.Bool : false;
-                    stringValue = value ? 'true' : 'false';
-                  } else if (state.Type === 'Text' || state.Type === 'String') {
-                    value = state.String || '';
-                    stringValue = String(value);
-                  } else if (state.Type === 'Float' || state.Type === 'Number') {
-                    value = state.Value !== undefined ? state.Value : (state.Position !== undefined ? state.Position : 0);
-                    stringValue = String(value);
-                    position = state.Position !== undefined ? state.Position : 0;
-                  } else {
-                    // Default to String value
-                    value = state.String || '';
-                    stringValue = String(value);
-                  }
-                } else {
-                  // Unknown object format
-                  stringValue = String(state || '');
-                }
-              } else if (state !== null && state !== undefined) {
-                // Simple value types
-                stringValue = String(state);
-              }
+              // Extract value from state object
+              const { value } = extractControlValue(state);
+              const stringValue = String(value || '');
+              const position = (state && typeof state === 'object' && 'Position' in state) ? state.Position : 0;
               
               return {
                 Name: controlName,
@@ -803,82 +685,11 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     value: unknown,
     controlInfo?: unknown
   ): { valid: boolean; value?: unknown; error?: string } {
-    // If no control info provided, pass through (backwards compatibility)
-    if (!controlInfo) {
-      return { valid: true, value };
-    }
-
-    const info = controlInfo as { type?: string; Type?: string; min?: number; max?: number };
-    const type = info.type || info.Type;
-    
-    switch (type) {
-      case 'Boolean':
-        // Q-SYS expects 0/1 for boolean controls
-        if (typeof value === 'boolean') {
-          logger.debug('Boolean validation', { value, converted: value ? 1 : 0 });
-          return { valid: true, value: value ? 1 : 0 };
-        }
-        if (value === 0 || value === 1 || value === '0' || value === '1') {
-          return { valid: true, value: Number(value) };
-        }
-        // Also accept string representations
-        if (value === 'true' || value === 'false') {
-          return { valid: true, value: value === 'true' ? 1 : 0 };
-        }
-        return { 
-          valid: false, 
-          error: 'Boolean control expects true/false or 0/1' 
-        };
-        
-      case 'Number':
-      case 'Float':
-      case 'Integer':
-        const num = Number(value);
-        if (isNaN(num)) {
-          return { 
-            valid: false, 
-            error: `Numeric control expects a number, got ${typeof value}` 
-          };
-        }
-        // Check range if available
-        if (info.min !== undefined && num < info.min) {
-          return { 
-            valid: false, 
-            error: `Value ${num} below minimum ${info.min}` 
-          };
-        }
-        if (info.max !== undefined && num > info.max) {
-          return { 
-            valid: false, 
-            error: `Value ${num} above maximum ${info.max}` 
-          };
-        }
-        return { valid: true, value: num };
-        
-      case 'String':
-        // Convert to string if not already
-        const stringValue = String(value);
-        if (typeof value === 'object' && value !== null) {
-          return { 
-            valid: false, 
-            error: `String control expects text, got ${typeof value}` 
-          };
-        }
-        const maxLength = (controlInfo as Record<string, unknown>)['maxLength'] || 255;
-        if (typeof maxLength === 'number' && stringValue.length > maxLength) {
-          return { 
-            valid: false, 
-            error: `String too long (${stringValue.length} > ${maxLength})` 
-          };
-        }
-        return { valid: true, value: stringValue };
-        
-      default:
-        // Unknown type - pass through
-        return { valid: true, value };
-    }
+    return validateControlValue(controlName, value, controlInfo);
   }
 
+  // ===== Event Handling =====
+  
   /**
    * Retry an individual operation with exponential backoff
    * Used for operations within commands that need retry logic
@@ -921,6 +732,9 @@ export class QRWCClientAdapter implements QRWCClientInterface {
   }
 
 
+  // ===== Change Group Methods =====
+  // TODO: Implement change group methods here once BUG-034 is addressed
+  
   /**
    * Clear all caches (should be called after long disconnections)
    */
