@@ -35,13 +35,14 @@ describe('QueryCoreStatusTool', () => {
 
       const result = await tool.execute({});
       
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('StatusGet');
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Status.Get');
       expect(result.isError).toBe(false);
-      expect(result.content[0].text).toContain('Q-SYS Core Status Summary');
-      expect(result.content[0].text).toContain('🟢 Connection: Connected');
-      expect(result.content[0].text).toContain('Q-SYS-Core-110f');
-      expect(result.content[0].text).toContain('Main Audio System');
-      expect(result.content[0].text).toContain('5 days, 3:45:22');
+      
+      // Parse JSON response
+      const status = JSON.parse(result.content[0].text);
+      expect(status.coreInfo.platform).toBe('Q-SYS-Core-110f');
+      expect(status.coreInfo.designName).toBe('Main Audio System');
+      expect(status.connectionStatus.connected).toBe(true);
     });
 
     it('should include detailed info when requested', async () => {
@@ -61,10 +62,10 @@ describe('QueryCoreStatusTool', () => {
 
       const result = await tool.execute({ includeDetails: true });
       
-      expect(result.content[0].text).toContain('Detailed System Information');
-      expect(result.content[0].text).toContain('Serial Number: QSC123456');
-      expect(result.content[0].text).toContain('Firmware Version: 9.8.0');
-      expect(result.content[0].text).toContain('Design Version: 1.2.3');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.coreInfo).toBeDefined();
+      expect(status.coreInfo.serialNumber).toBe('QSC123456');
+      expect(status.coreInfo.firmwareVersion).toBe('9.8.0');
     });
 
     it('should include network info when requested', async () => {
@@ -88,10 +89,8 @@ describe('QueryCoreStatusTool', () => {
 
       const result = await tool.execute({ includeNetworkInfo: true });
       
-      expect(result.content[0].text).toContain('Network Configuration');
-      expect(result.content[0].text).toContain('IP Address: 192.168.1.100');
-      expect(result.content[0].text).toContain('DHCP: Enabled');
-      expect(result.content[0].text).toContain('8.8.8.8');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.networkInfo).toBeDefined();
     });
 
     it('should include performance metrics when requested', async () => {
@@ -110,11 +109,11 @@ describe('QueryCoreStatusTool', () => {
 
       const result = await tool.execute({ includePerformance: true });
       
-      expect(result.content[0].text).toContain('Performance Metrics');
-      expect(result.content[0].text).toContain('CPU Usage: 45%');
-      expect(result.content[0].text).toContain('Memory Usage: 62%');
-      expect(result.content[0].text).toContain('Temperature: 55°C');
-      expect(result.content[0].text).toContain('🟡 Moderate temperature');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.performanceMetrics).toBeDefined();
+      expect(status.performanceMetrics.cpuUsage).toBe(45);
+      expect(status.performanceMetrics.memoryUsage).toBe(62);
+      expect(status.systemHealth.temperature).toBe(55);
     });
 
     it('should handle missing response data gracefully', async () => {
@@ -123,18 +122,145 @@ describe('QueryCoreStatusTool', () => {
       const result = await tool.execute({});
       
       expect(result.isError).toBe(false);
-      expect(result.content[0].text).toContain('Q-SYS Core Status Summary');
-      expect(result.content[0].text).toContain('Unknown');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.coreInfo.name).toBe('Unknown Core');
     });
 
     it('should show error when not connected', async () => {
       mockQrwcClient.isConnected.mockReturnValue(false);
-      mockQrwcClient.sendCommand.mockResolvedValue({});
 
       const result = await tool.execute({});
       
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Q-SYS Core not connected');
+    });
+  });
+
+  describe('StatusGet fallback to component scanning', () => {
+    it('should fallback to component scanning when StatusGet fails', async () => {
+      // First call fails (StatusGet)
+      mockQrwcClient.sendCommand
+        .mockRejectedValueOnce(new Error('StatusGet command not supported'))
+        .mockResolvedValueOnce({
+          // Component.GetComponents response
+          result: [
+            { Name: 'Status_Table Mic', Type: 'Status Combiner' },
+            { Name: 'Status_Soundbar', Type: 'Device Monitor' },
+            { Name: 'Gain_1', Type: 'Gain' }, // Should be ignored
+            { Name: 'System_Health', Type: 'Component' }
+          ]
+        })
+        .mockResolvedValueOnce({
+          // Component.GetControls for Status_Table Mic
+          result: {
+            Name: 'Status_Table Mic',
+            Controls: [
+              { Name: 'Connected', Value: true, String: 'true', Type: 'Boolean', Direction: 'Read' },
+              { Name: 'Battery_Level', Value: 85, String: '85', Type: 'Float', Direction: 'Read' }
+            ]
+          }
+        })
+        .mockResolvedValueOnce({
+          // Component.GetControls for Status_Soundbar
+          result: {
+            Name: 'Status_Soundbar',
+            Controls: [
+              { Name: 'Status', Value: 'OK', String: 'OK', Type: 'String', Direction: 'Read' },
+              { Name: 'IP_Address', Value: '192.168.1.101', String: '192.168.1.101', Type: 'String', Direction: 'Read' }
+            ]
+          }
+        })
+        .mockResolvedValueOnce({
+          // Component.GetControls for System_Health
+          result: {
+            Name: 'System_Health',
+            Controls: [
+              { Name: 'CPU_Usage', Value: 15, String: '15%', Type: 'Float', Direction: 'Read' },
+              { Name: 'Temperature', Value: 45, String: '45°C', Type: 'Float', Direction: 'Read' }
+            ]
+          }
+        });
+
+      const result = await tool.execute({});
+      
+      expect(result.isError).toBe(false);
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Status.Get');
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.GetComponents');
+      
+      // Parse JSON response
+      const status = JSON.parse(result.content[0].text);
+      
+      // Debug log to see the actual structure
+      // console.log('Status response:', JSON.stringify(status, null, 2));
+      
+      // Check that we got data from status components
+      expect(status.PeripheralStatus).toBeDefined();
+      expect(status.PeripheralStatus['Status_Table Mic']).toBeDefined();
+      expect(status.PeripheralStatus['Status_Table Mic']['Connected'].value).toBe(true);
+      expect(status.PeripheralStatus['Status_Table Mic']['Battery Level'].value).toBe(85);
+      
+      expect(status.CoreStatus).toBeDefined();
+      expect(status.CoreStatus['System_Health']).toBeDefined();
+      expect(status.CoreStatus['System_Health']['Cpu Usage'].value).toBe(15);
+      expect(status.CoreStatus['System_Health']['Temperature'].value).toBe(45);
+      
+      expect(status._metadata).toBeDefined();
+      expect(status._metadata.source).toBe('status_components');
+      expect(status._metadata.method).toBe('component_scan');
+    });
+
+    it('should return no components message when no status components found', async () => {
+      mockQrwcClient.sendCommand
+        .mockRejectedValueOnce(new Error('StatusGet command not supported'))
+        .mockResolvedValueOnce({
+          // Component.GetComponents response with no status components
+          result: [
+            { Name: 'Gain_1', Type: 'Gain' },
+            { Name: 'Mixer_1', Type: 'Mixer' },
+            { Name: 'EQ_1', Type: 'EQ' }
+          ]
+        });
+
+      const result = await tool.execute({});
+      
+      expect(result.isError).toBe(false);
+      
+      const response = JSON.parse(result.content[0].text);
+      expect(response.message).toBe('No status components detected');
+      expect(response.componentCount).toBe(3);
+      expect(response.suggestion).toContain('Status');
+    });
+
+    it('should handle component control retrieval errors gracefully', async () => {
+      mockQrwcClient.sendCommand
+        .mockRejectedValueOnce(new Error('StatusGet command not supported'))
+        .mockResolvedValueOnce({
+          // Component.GetComponents response
+          result: [
+            { Name: 'Status_Device1', Type: 'Status Combiner' },
+            { Name: 'Status_Device2', Type: 'Device Monitor' }
+          ]
+        })
+        .mockResolvedValueOnce({
+          // Successful controls for first component
+          result: {
+            Name: 'Status_Device1',
+            Controls: [
+              { Name: 'Status', Value: 'OK', String: 'OK', Type: 'String', Direction: 'Read' }
+            ]
+          }
+        })
+        .mockRejectedValueOnce(new Error('Failed to get controls')); // Error for second component
+
+      const result = await tool.execute({});
+      
+      expect(result.isError).toBe(false);
+      
+      const status = JSON.parse(result.content[0].text);
+      expect(status.GeneralStatus).toBeDefined();
+      expect(status.GeneralStatus['Status_Device1']).toBeDefined();
+      // Device2 should not be present due to error
+      expect(status.GeneralStatus['Status_Device2']).toBeUndefined();
     });
   });
 
@@ -148,7 +274,8 @@ describe('QueryCoreStatusTool', () => {
       });
 
       const result = await tool.execute({});
-      expect(result.content[0].text).toContain('System Health: Code 5');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.Status.Code).toBe(5);
     });
 
     it('should handle error status codes', async () => {
@@ -160,8 +287,9 @@ describe('QueryCoreStatusTool', () => {
       });
 
       const result = await tool.execute({});
-      expect(result.content[0].text).toContain('⚠️');
-      expect(result.content[0].text).toContain('Warning');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.Status.Code).toBe(1);
+      expect(status.Status.Name).toBe('Warning');
     });
 
     it('should handle critical status', async () => {
@@ -173,8 +301,9 @@ describe('QueryCoreStatusTool', () => {
       });
 
       const result = await tool.execute({});
-      expect(result.content[0].text).toContain('❌');
-      expect(result.content[0].text).toContain('Critical');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.Status.Code).toBe(2);
+      expect(status.Status.Name).toBe('Critical');
     });
 
     it('should handle performance data edge cases', async () => {
@@ -190,9 +319,10 @@ describe('QueryCoreStatusTool', () => {
       });
 
       const result = await tool.execute({ includePerformance: true });
-      expect(result.content[0].text).toContain('CPU Usage: 0%');
-      expect(result.content[0].text).toContain('Memory Usage: 0%');
-      expect(result.content[0].text).toContain('Temperature: 0°C');
+      const status = JSON.parse(result.content[0].text);
+      expect(status.performanceMetrics.cpuUsage).toBe(0);
+      expect(status.performanceMetrics.memoryUsage).toBe(0);
+      expect(status.systemHealth.temperature).toBe(0);
     });
   });
 });

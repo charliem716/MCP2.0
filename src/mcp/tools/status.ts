@@ -59,8 +59,22 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       };
 
     } catch (error) {
-      this.logger.error("Failed to query core status", { error, context });
-      throw error;
+      this.logger.warn("StatusGet command failed, falling back to component-based status", { error });
+      
+      // Fallback: Get status from status components
+      try {
+        const statusData = await this.getStatusFromComponents(params);
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(statusData)
+          }],
+          isError: false
+        };
+      } catch (fallbackError) {
+        this.logger.error("Failed to get status from components", { error: fallbackError, context });
+        throw fallbackError;
+      }
     }
   }
 
@@ -72,7 +86,14 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
     // Extract status information from response
     const resp = response as { result?: QSysStatusGetResponse };
-    const result = resp.result || response as QSysStatusGetResponse;
+    const baseResult = resp.result || response as QSysStatusGetResponse;
+    // Cast to any to access additional fields that might be in the response
+    const result = baseResult as any;
+    
+    // Check if this is fallback data from adapter
+    if (result.Platform && result.Platform.includes("StatusGet not supported")) {
+      throw new Error("StatusGet returned fallback data - will scan for status components");
+    }
     
     // Build comprehensive status object
     return {
@@ -81,8 +102,8 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         version: String(result.Version || "Unknown"),
         model: String(result.Platform || "Unknown"),
         platform: String(result.Platform || "Unknown"),
-        serialNumber: String(result.Platform || "Unknown"),
-        firmwareVersion: String(result.Version || "Unknown"),
+        serialNumber: String(result.SerialNumber || "Unknown"),
+        firmwareVersion: String(result.FirmwareVersion || result.Version || "Unknown"),
         buildTime: String("Unknown"),
         designName: String(result.DesignName || "No Design Loaded")
       },
@@ -93,15 +114,15 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       },
       systemHealth: {
         status: String(result.Status?.String || "unknown"),
-        temperature: Number(0),
-        fanSpeed: Number(0),
+        temperature: Number(result.temperature || result.Temperature || 0),
+        fanSpeed: Number(result.fanSpeed || result.FanSpeed || 0),
         powerSupplyStatus: String("unknown")
       },
       designInfo: {
         designCompiled: Boolean(result.State === "Active"),
         compileTime: String("Unknown"),
-        processingLoad: Number(0),
-        componentCount: Number(0),
+        processingLoad: Number(result.designInfo?.processingLoad || 0),
+        componentCount: Number(result.designInfo?.componentsCount || 0),
         snapshotCount: Number(0),
         activeServices: [] as string[]
       },
@@ -114,13 +135,13 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         networkMode: String("Unknown")
       },
       performanceMetrics: {
-        cpuUsage: Number(0),
-        memoryUsage: Number(0),
+        cpuUsage: Number(result.cpuUsage || result.CPUUsage || 0),
+        memoryUsage: Number(result.memoryUsage || result.MemoryUsage || 0),
         memoryUsedMB: Number(0),
         memoryTotalMB: Number(0),
         audioLatency: Number(0),
         networkLatency: Number(0),
-        fanSpeed: Number(0)
+        fanSpeed: Number(result.fanSpeed || result.FanSpeed || 0)
       },
       // Additional fields from Q-SYS response
       Platform: String(result.Platform || "Unknown"),
@@ -142,6 +163,195 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   private formatStatusResponse(status: QSysCoreStatus, params: QueryCoreStatusParams): string {
     // Return JSON string for MCP protocol compliance
     return JSON.stringify(status);
+  }
+
+  /**
+   * Get status from status components when StatusGet fails
+   */
+  private async getStatusFromComponents(params: QueryCoreStatusParams): Promise<unknown> {
+    // Get all components
+    const componentsResponse = await this.qrwcClient.sendCommand("Component.GetComponents");
+    const components = (componentsResponse as any)?.result || [];
+    
+    // Detect status components using scoring system
+    const statusComponents = this.detectStatusComponents(components);
+    
+    if (statusComponents.length === 0) {
+      return {
+        message: "No status components detected",
+        componentCount: components.length,
+        suggestion: "Status components typically have 'Status' in their name"
+      };
+    }
+
+    // Get control values for all status components
+    const statusData: Record<string, any> = {};
+    
+    for (const component of statusComponents) {
+      try {
+        const controlsResponse = await this.qrwcClient.sendCommand("Component.GetControls", {
+          Name: component.Name
+        });
+        
+        const controls = (controlsResponse as any)?.result?.Controls || [];
+        
+        // Process controls into meaningful status data
+        const componentStatus: Record<string, any> = {};
+        
+        for (const control of controls) {
+          // Include all controls from status components
+          const normalizedName = this.normalizeControlName(control.Name);
+          componentStatus[normalizedName] = {
+            value: control.Value,
+            string: control.String,
+            type: control.Type,
+            direction: control.Direction
+          };
+        }
+        
+        // Group by component category if possible
+        const category = this.categorizeComponent(component.Name);
+        if (!statusData[category]) {
+          statusData[category] = {};
+        }
+        
+        statusData[category][component.Name] = componentStatus;
+        
+      } catch (error) {
+        this.logger.warn(`Failed to get controls for status component ${component.Name}`, { error });
+      }
+    }
+
+    // Return organized status data
+    return this.organizeStatusData(statusData);
+  }
+
+  /**
+   * Detect status components using hybrid scoring system
+   */
+  private detectStatusComponents(components: any[]): any[] {
+    const statusComponents: Array<{ component: any; score: number }> = [];
+    
+    for (const component of components) {
+      const score = this.getStatusScore(component);
+      if (score >= 3) {
+        statusComponents.push({ component, score });
+      }
+    }
+    
+    // Sort by score descending and return components
+    return statusComponents
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.component);
+  }
+
+  /**
+   * Calculate status score for a component
+   */
+  private getStatusScore(component: any): number {
+    let score = 0;
+    const name = (component.Name || '').toLowerCase();
+    
+    // Name pattern matching (3 points)
+    const statusPatterns = ['status', 'monitor', 'health', 'diagnostic'];
+    const statusSuffixes = ['_state', '_status'];
+    const statusPrefixes = ['sys_', 'system_'];
+    
+    if (statusPatterns.some(pattern => name.includes(pattern))) {
+      score += 3;
+    }
+    if (statusSuffixes.some(suffix => name.endsWith(suffix))) {
+      score += 3;
+    }
+    if (statusPrefixes.some(prefix => name.startsWith(prefix))) {
+      score += 3;
+    }
+    
+    // Known status component types (5 points)
+    const knownStatusTypes = ['Status Combiner', 'System Monitor', 'Device Monitor', 'Core Status'];
+    if (knownStatusTypes.includes(component.Type)) {
+      score += 5;
+    }
+    
+    // Component properties analysis (2 points for relevant properties)
+    if (Array.isArray(component.Properties)) {
+      const hasStatusProperties = component.Properties.some((prop: any) => 
+        ['status', 'health', 'state', 'online'].some(keyword => 
+          String(prop.Name || '').toLowerCase().includes(keyword)
+        )
+      );
+      if (hasStatusProperties) {
+        score += 2;
+      }
+    }
+    
+    // Negative indicators
+    const audioPatterns = ['gain', 'mixer', 'eq', 'compressor', 'limiter', 'crossover'];
+    if (audioPatterns.some(pattern => name.includes(pattern))) {
+      score -= 5;
+    }
+    
+    return score;
+  }
+
+  /**
+   * Normalize control names for display
+   */
+  private normalizeControlName(name: string): string {
+    // Remove common prefixes/suffixes and convert to readable format
+    return name
+      .replace(/^(status_|state_|health_)/i, '')
+      .replace(/(_state|_status)$/i, '')
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
+   * Categorize component based on name
+   */
+  private categorizeComponent(name: string): string {
+    const lowerName = name.toLowerCase();
+    
+    if (lowerName.includes('core') || lowerName.includes('system') || lowerName.includes('health')) {
+      return 'CoreStatus';
+    }
+    if (lowerName.includes('network') || lowerName.includes('ethernet')) {
+      return 'NetworkStatus';
+    }
+    if (lowerName.includes('touchpanel') || lowerName.includes('mic') || 
+        lowerName.includes('camera') || lowerName.includes('display')) {
+      return 'PeripheralStatus';
+    }
+    
+    return 'GeneralStatus';
+  }
+
+  /**
+   * Organize status data into a clean structure
+   */
+  private organizeStatusData(statusData: Record<string, any>): unknown {
+    const organized: Record<string, any> = {};
+    
+    // Process each category
+    for (const [category, components] of Object.entries(statusData)) {
+      if (Object.keys(components).length > 0) {
+        organized[category] = {};
+        
+        // Keep component structure for clarity
+        organized[category] = components;
+      }
+    }
+    
+    // Add metadata
+    organized['_metadata'] = {
+      source: 'status_components',
+      timestamp: new Date().toISOString(),
+      method: 'component_scan'
+    };
+    
+    return organized;
   }
 }
 
