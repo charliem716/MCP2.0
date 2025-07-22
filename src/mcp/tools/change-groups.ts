@@ -23,7 +23,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
     super(
       qrwcClient,
       "create_change_group",
-      "Create a new change group for monitoring control value changes",
+      "Create a new change group for monitoring control value changes. Groups allow efficient polling of multiple controls at once. Example: {groupId:'mixer-controls'} creates a group for monitoring mixer-related controls. Group IDs must be unique and non-empty.",
       CreateChangeGroupParamsSchema
     );
   }
@@ -61,7 +61,7 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
     super(
       qrwcClient,
       "add_controls_to_change_group",
-      "Add Named Controls to a change group for monitoring",
+      "Add Named Controls to a change group for monitoring. Controls must exist in Q-SYS (e.g., 'Gain1.gain', 'Mixer.level'). Invalid controls are skipped. Example: {groupId:'mixer-controls',controlNames:['MainMixer.gain','MainMixer.mute']} adds gain and mute controls to the mixer-controls group.",
       AddControlsToChangeGroupParamsSchema
     );
   }
@@ -99,7 +99,7 @@ export class PollChangeGroupTool extends BaseQSysTool<PollChangeGroupParams> {
     super(
       qrwcClient,
       "poll_change_group",
-      "Poll a change group for control value changes since last poll",
+      "Poll a change group for control value changes since last poll. Returns only controls whose values changed. First poll returns all controls as changed. Example: {groupId:'mixer-controls'} returns array of changed controls with Name, Value, and String properties. Use for efficient UI updates or state monitoring.",
       PollChangeGroupParamsSchema
     );
   }
@@ -142,7 +142,7 @@ export class DestroyChangeGroupTool extends BaseQSysTool<DestroyChangeGroupParam
     super(
       qrwcClient,
       "destroy_change_group",
-      "Destroy a change group and clean up resources",
+      "Destroy a change group and clean up all resources including auto-poll timers. Always destroy groups when no longer needed to prevent memory leaks. Example: {groupId:'mixer-controls'} destroys the group and stops any associated polling.",
       DestroyChangeGroupParamsSchema
     );
   }
@@ -179,7 +179,7 @@ export class RemoveControlsFromChangeGroupTool extends BaseQSysTool<RemoveContro
     super(
       qrwcClient,
       "remove_controls_from_change_group",
-      "Remove specific controls from a change group",
+      "Remove specific controls from a change group without destroying the group. Example: {groupId:'mixer-controls',controlNames:['MainMixer.input_1_gain']} removes the specified control. Use when dynamically adjusting monitored controls.",
       RemoveControlsFromChangeGroupParamsSchema
     );
   }
@@ -217,7 +217,7 @@ export class ClearChangeGroupTool extends BaseQSysTool<ClearChangeGroupParams> {
     super(
       qrwcClient,
       "clear_change_group",
-      "Remove all controls from a change group while keeping it active",
+      "Remove all controls from a change group while keeping it active. Useful for reconfiguring monitoring without destroying/recreating the group. Example: {groupId:'mixer-controls'} clears all controls but keeps the group ready for new additions.",
       ClearChangeGroupParamsSchema
     );
   }
@@ -256,7 +256,7 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
     super(
       qrwcClient,
       "set_change_group_auto_poll",
-      "Configure automatic polling for a change group",
+      "Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300 seconds). Auto-stops after 10 consecutive failures. Example: {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5} polls every 500ms. Set enabled:false to stop polling.",
       SetChangeGroupAutoPollParamsSchema
     );
   }
@@ -316,7 +316,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     super(
       qrwcClient,
       "list_change_groups",
-      "List all active change groups and their status",
+      "List all active change groups showing ID, control count, and auto-poll status. No parameters needed. Example: {} returns [{id:'mixer-controls',controlCount:4,hasAutoPoll:true}]. Use to monitor system state and verify cleanup.",
       ListChangeGroupsParamsSchema
     );
   }

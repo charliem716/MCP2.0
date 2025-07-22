@@ -47,6 +47,8 @@ export class QRWCClientAdapter implements QRWCClientInterface {
   private changeGroups = new Map<string, SimpleChangeGroup>();
   private autoPollTimers = new Map<string, NodeJS.Timeout>();
   private changeGroupLastValues = new Map<string, Map<string, unknown>>();
+  private autoPollFailureCounts = new Map<string, number>();
+  private readonly MAX_AUTOPOLL_FAILURES = 10; // Configurable threshold
 
   constructor(private readonly officialClient: OfficialQRWCClient) {
     // Extract host and port from the official client if possible
@@ -802,9 +804,10 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             this.autoPollTimers.delete(id);
           }
           
-          // Remove group
+          // Remove group and associated data
           this.changeGroups.delete(id);
           this.changeGroupLastValues.delete(id);
+          this.autoPollFailureCounts.delete(id);
           
           return { result: true };
         }
@@ -837,12 +840,33 @@ export class QRWCClientAdapter implements QRWCClientInterface {
             clearInterval(existingTimer);
           }
           
-          // Set up new timer
+          // Reset failure count when setting up new AutoPoll
+          this.autoPollFailureCounts.set(id, 0);
+          
+          // Set up new timer with failure tracking
           const timer = setInterval(async () => {
             try {
               await this.sendCommand("ChangeGroup.Poll", { Id: id });
+              // Reset failure count on success
+              this.autoPollFailureCounts.set(id, 0);
             } catch (error) {
-              logger.error(`AutoPoll error for group ${id}`, { error });
+              // Increment failure count
+              const currentFailures = (this.autoPollFailureCounts.get(id) || 0) + 1;
+              this.autoPollFailureCounts.set(id, currentFailures);
+              
+              logger.error(`AutoPoll error for group ${id}`, { 
+                error, 
+                consecutiveFailures: currentFailures,
+                maxFailures: this.MAX_AUTOPOLL_FAILURES 
+              });
+              
+              // Stop polling if max failures reached
+              if (currentFailures >= this.MAX_AUTOPOLL_FAILURES) {
+                logger.error(`AutoPoll disabled for group ${id} after ${currentFailures} consecutive failures`);
+                clearInterval(timer);
+                this.autoPollTimers.delete(id);
+                this.autoPollFailureCounts.delete(id);
+              }
             }
           }, rate * 1000);
           
@@ -961,7 +985,23 @@ export class QRWCClientAdapter implements QRWCClientInterface {
     // Clear change groups
     this.changeGroups.clear();
     this.changeGroupLastValues.clear();
+    this.autoPollFailureCounts.clear();
     
     logger.info('All caches cleared due to long disconnection');
+  }
+
+  /**
+   * Dispose of the adapter and clean up all resources
+   * This should be called when the adapter is no longer needed
+   * to prevent memory leaks from active timers
+   */
+  dispose(): void {
+    logger.info('Disposing QRWCClientAdapter...');
+    
+    // Clear all caches and timers
+    this.clearAllCaches();
+    
+    // Additional cleanup if needed in the future
+    logger.info('QRWCClientAdapter disposed successfully');
   }
 } 

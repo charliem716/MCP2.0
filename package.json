@@ -43,7 +43,6 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
     "@openai/agents": "^0.0.12",
     "@q-sys/qrwc": "^0.4.1-beta",
     "cors": "^2.8.5",
@@ -59,6 +58,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
+    "@modelcontextprotocol/sdk": "^1.16.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.11",
