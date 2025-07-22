@@ -23,6 +23,7 @@ const debugLog = (message: string, data?: any) => {
 // Global references for cleanup
 let mcpServer: MCPServer | null = null;
 let isShuttingDown = false;
+let loggerClosed = false;
 
 async function main(): Promise<void> {
   try {
@@ -70,7 +71,7 @@ async function main(): Promise<void> {
     
   } catch (error) {
     logger.error('❌ Failed to start application:', error);
-    cleanup();
+    await cleanup();
     process.exit(1);
   }
 }
@@ -80,12 +81,22 @@ async function main(): Promise<void> {
  */
 async function cleanup(): Promise<void> {
   if (isShuttingDown) {
+    // Force output during shutdown
+    console.error('[CLEANUP] Already shutting down...');
     logger.info('⚠️  Already shutting down...');
     return;
   }
   
   isShuttingDown = true;
+  // Force output during shutdown
+  console.error('[CLEANUP] Cleaning up resources...');
   logger.info('🧹 Cleaning up resources...');
+  
+  // Set a timeout to force exit if cleanup takes too long
+  const forceExitTimeout = setTimeout(() => {
+    logger.error('⚡ Forced exit after timeout - cleanup took too long');
+    process.exit(1);
+  }, 10000); // 10 second timeout
   
   try {
     // Shutdown MCP server if running
@@ -94,9 +105,22 @@ async function cleanup(): Promise<void> {
       logger.info('✅ MCP server shutdown completed');
     }
     
+    clearTimeout(forceExitTimeout);
+    
+    // Log completion before closing logger
+    console.error('[CLEANUP] Cleanup completed');
     logger.info('✅ Cleanup completed');
+    
+    // Flush logger transports last
+    if (logger && typeof (logger as any).end === 'function' && !loggerClosed) {
+      loggerClosed = true;
+      await new Promise<void>((resolve) => {
+        (logger as any).end(() => resolve());
+      });
+    }
   } catch (error) {
     logger.error('❌ Error during cleanup:', error);
+    clearTimeout(forceExitTimeout);
   }
 }
 
@@ -104,6 +128,8 @@ async function cleanup(): Promise<void> {
  * Graceful shutdown handler
  */
 async function gracefulShutdown(signal: string): Promise<void> {
+  // Force output during shutdown
+  console.error(`[SHUTDOWN] ${signal} received, shutting down gracefully...`);
   logger.info(`🛑 ${signal} received, shutting down gracefully...`);
   
   try {
@@ -116,18 +142,53 @@ async function gracefulShutdown(signal: string): Promise<void> {
 }
 
 // Graceful shutdown handlers
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => {
+  gracefulShutdown('SIGTERM').catch(error => {
+    logger.error('Error during SIGTERM shutdown:', error);
+    process.exit(1);
+  });
+});
+
+process.on('SIGINT', () => {
+  gracefulShutdown('SIGINT').catch(error => {
+    logger.error('Error during SIGINT shutdown:', error);
+    process.exit(1);
+  });
+});
+
+// Handle additional signals for complete coverage
+process.on('SIGHUP', () => {
+  gracefulShutdown('SIGHUP').catch(error => {
+    logger.error('Error during SIGHUP shutdown:', error);
+    process.exit(1);
+  });
+});
+
+process.on('SIGUSR2', () => {
+  // Used by nodemon for restart
+  gracefulShutdown('SIGUSR2').catch(error => {
+    logger.error('Error during SIGUSR2 shutdown:', error);
+    process.exit(1);
+  });
+});
 
 // Handle uncaught exceptions - try to recover if possible
-process.on('uncaughtException', async (error: Error) => {
+process.on('uncaughtException', (error: Error) => {
   debugLog('Uncaught exception', { message: error.message, stack: error.stack });
-  logger.error('💥 Uncaught Exception:', error);
+  
+  if (!loggerClosed) {
+    logger.error('💥 Uncaught Exception:', error);
+  } else {
+    console.error('[ERROR] Uncaught Exception (logger closed):', error);
+  }
   
   // Only exit for fatal errors
-  if (error.message.includes('EADDRINUSE') || error.message.includes('EACCES')) {
-    await gracefulShutdown('UNCAUGHT_EXCEPTION');
-  } else {
+  if (error.message.includes('EADDRINUSE') || error.message.includes('EACCES') || error.message.includes('write after end')) {
+    gracefulShutdown('UNCAUGHT_EXCEPTION').catch(shutdownError => {
+      console.error('[ERROR] Error during exception shutdown:', shutdownError);
+      process.exit(1);
+    });
+  } else if (!loggerClosed) {
     logger.warn('⚠️  Attempting to continue after uncaught exception');
   }
 });
@@ -135,8 +196,12 @@ process.on('uncaughtException', async (error: Error) => {
 // Handle unhandled promise rejections - log but don't exit
 process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
   debugLog('Unhandled rejection', { reason });
-  logger.error('💥 Unhandled Rejection', { reason, promise });
-  logger.warn('⚠️  Continuing after unhandled rejection - consider fixing the root cause');
+  if (!loggerClosed) {
+    logger.error('💥 Unhandled Rejection', { reason, promise });
+    logger.warn('⚠️  Continuing after unhandled rejection - consider fixing the root cause');
+  } else {
+    console.error('[ERROR] Unhandled Rejection (logger closed):', reason);
+  }
 });
 
 // Log stdio events

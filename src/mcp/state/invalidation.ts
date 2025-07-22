@@ -474,20 +474,23 @@ export class CacheInvalidationManager extends EventEmitter {
   private setupTTLTimer(rule: InvalidationRule): void {
     if (!rule.ttlMs) return;
 
-    const timer = setTimeout(async () => {
-      try {
-        await this.triggerRule(rule.id, 'TTL expired');
-        
-        // Reschedule if rule is still enabled
-        if (rule.enabled && this.rules.has(rule.id)) {
-          this.setupTTLTimer(rule);
+    const timer = setTimeout(() => {
+      // Use void to explicitly indicate we're not handling the promise
+      void (async () => {
+        try {
+          await this.triggerRule(rule.id, 'TTL expired');
+          
+          // Reschedule if rule is still enabled
+          if (rule.enabled && this.rules.has(rule.id)) {
+            this.setupTTLTimer(rule);
+          }
+        } catch (error) {
+          logger.error('TTL rule execution failed', {
+            ruleId: rule.id,
+            error
+          });
         }
-      } catch (error) {
-        logger.error('TTL rule execution failed', {
-          ruleId: rule.id,
-          error
-        });
-      }
+      })();
     }, rule.ttlMs);
 
     this.ttlTimers.set(rule.id, timer);

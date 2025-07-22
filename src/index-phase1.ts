@@ -85,8 +85,19 @@ async function gracefulShutdown(signal: string): Promise<void> {
 }
 
 // Graceful shutdown handlers
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => {
+  gracefulShutdown('SIGTERM').catch(error => {
+    logger.error('Error during SIGTERM shutdown:', error);
+    process.exit(1);
+  });
+});
+
+process.on('SIGINT', () => {
+  gracefulShutdown('SIGINT').catch(error => {
+    logger.error('Error during SIGINT shutdown:', error);
+    process.exit(1);
+  });
+});
 
 // Start the application
 main().catch(async (error: Error) => {

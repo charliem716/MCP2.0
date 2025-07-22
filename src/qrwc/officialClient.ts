@@ -144,9 +144,11 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   disconnect(): void {
     // Prevent multiple disconnect calls
     if (this.shutdownInProgress || this.connectionState === ConnectionState.DISCONNECTED) {
+      console.error('[QRWC] Already disconnected or shutting down');
       return;
     }
     
+    console.error('[QRWC] Disconnecting from Q-SYS Core...');
     this.logger.info('Disconnecting from Q-SYS Core');
     this.shutdownInProgress = true;
     

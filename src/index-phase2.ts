@@ -55,7 +55,7 @@ async function main(): Promise<void> {
     
   } catch (error) {
     logger.error('❌ Failed to start application:', error);
-    cleanup();
+    await cleanup();
     process.exit(1);
   }
 }
@@ -101,16 +101,30 @@ async function gracefulShutdown(signal: string): Promise<void> {
 }
 
 // Graceful shutdown handlers
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => {
+  gracefulShutdown('SIGTERM').catch(error => {
+    logger.error('Error during SIGTERM shutdown:', error);
+    process.exit(1);
+  });
+});
+
+process.on('SIGINT', () => {
+  gracefulShutdown('SIGINT').catch(error => {
+    logger.error('Error during SIGINT shutdown:', error);
+    process.exit(1);
+  });
+});
 
 // Handle uncaught exceptions - try to recover if possible
-process.on('uncaughtException', async (error: Error) => {
+process.on('uncaughtException', (error: Error) => {
   logger.error('💥 Uncaught Exception:', error);
   
   // Only exit for fatal errors
   if (error.message.includes('EADDRINUSE') || error.message.includes('EACCES')) {
-    await gracefulShutdown('UNCAUGHT_EXCEPTION');
+    gracefulShutdown('UNCAUGHT_EXCEPTION').catch(shutdownError => {
+      logger.error('Error during exception shutdown:', shutdownError);
+      process.exit(1);
+    });
   } else {
     logger.warn('⚠️  Attempting to continue after uncaught exception');
   }
