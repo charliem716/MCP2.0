@@ -8,6 +8,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('Env');
 
 // Load environment variables from .env file
 dotenv.config({
@@ -48,12 +51,12 @@ function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
     const configContent = readFileSync(configPath, 'utf-8');
     const config = JSON.parse(configContent) as QSysConfigJSON;
     if (process.env['MCP_MODE'] !== 'true') {
-      console.log('📋 Loaded Q-SYS Core configuration from qsys-core.config.json');
+      logger.info('Loaded Q-SYS Core configuration from qsys-core.config.json');
     }
     return config.qsysCore;
   } catch (error) {
     if (process.env['MCP_MODE'] !== 'true') {
-      console.warn('⚠️  Failed to load qsys-core.config.json:', error);
+      logger.warn('Failed to load qsys-core.config.json:', error);
     }
     return null;
   }
@@ -116,16 +119,16 @@ function parseEnvironment(): Environment {
   
   if (!result.success) {
     /* eslint-disable no-console */
-    console.error('❌ Invalid environment configuration:');
-    console.error(result.error.format());
+    logger.error('Invalid environment configuration:');
+    logger.error(JSON.stringify(result.error.format(), null, 2));
     
     // In development, show helpful error messages
     if (process.env['NODE_ENV'] === 'development') {
-      console.error('\n🔧 Common fixes:');
-      console.error('• Copy .env.example to .env and fill in required values');
-      console.error('• Ensure OPENAI_API_KEY is set and starts with "sk-"');
-      console.error('• Check that port numbers are valid (1-65535)');
-      console.error('• Verify IP addresses are in correct format');
+      logger.error('Common fixes:');
+      logger.error('• Copy .env.example to .env and fill in required values');
+      logger.error('• Ensure OPENAI_API_KEY is set and starts with "sk-"');
+      logger.error('• Check that port numbers are valid (1-65535)');
+      logger.error('• Verify IP addresses are in correct format');
     }
     /* eslint-enable no-console */
     
@@ -240,24 +243,24 @@ export function validateConfig(): void {
     return;
   }
   
-  console.log(`🔧 Environment: ${env.NODE_ENV}`);
-  console.log(`🚀 Port: ${env.PORT}`);
-  console.log(`📝 Log Level: ${env.LOG_LEVEL}`);
-  console.log(`🎯 Q-SYS Core: ${qsysConfig?.host ?? 'localhost'}:${qsysConfig?.port ?? 443} (from JSON config)`);
-  console.log(`🤖 OpenAI Model: ${env.OPENAI_MODEL}`);
-  console.log(`🔐 Security: ${env.JWT_SECRET.length} char JWT secret`);
+  logger.info(`Environment: ${env.NODE_ENV}`);
+  logger.info(`Port: ${env.PORT}`);
+  logger.info(`Log Level: ${env.LOG_LEVEL}`);
+  logger.info(`Q-SYS Core: ${qsysConfig?.host ?? 'localhost'}:${qsysConfig?.port ?? 443} (from JSON config)`);
+  logger.info(`OpenAI Model: ${env.OPENAI_MODEL}`);
+  logger.info(`Security: ${env.JWT_SECRET.length} char JWT secret`);
   
   // Warn about default secrets in production
   if (isProduction) {
     if (env.JWT_SECRET.includes('change-this')) {
-      console.warn('⚠️  WARNING: Using default JWT secret in production!');
+      logger.warn('WARNING: Using default JWT secret in production!');
     }
     if (env.SESSION_SECRET.includes('change-this')) {
-      console.warn('⚠️  WARNING: Using default session secret in production!');
+      logger.warn('WARNING: Using default session secret in production!');
     }
   }
   
-  console.log('✅ Environment configuration validated');
+  logger.info('Environment configuration validated');
   /* eslint-enable no-console */
 }
 

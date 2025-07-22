@@ -310,8 +310,8 @@ export class MCPServer {
 
       // Persist state if available
       try {
-        // Force output for testing
-        console.error('[STATE] Checking state persistence...');
+        // Log state persistence check
+        logger.debug('Checking state persistence...');
         
         // If we had access to state repository, we would call persist() here
         // For now, ensure all pending operations complete
@@ -320,10 +320,10 @@ export class MCPServer {
         // Give a moment for any pending writes to complete
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        console.error('[STATE] State persistence check completed');
+        logger.debug('State persistence check completed');
         logger.debug("State persistence check completed");
       } catch (persistError) {
-        console.error('[STATE] Error persisting state:', persistError);
+        logger.error('Error persisting state:', persistError);
         logger.error("Error persisting state during shutdown", { error: persistError });
         // Don't throw - continue with shutdown
       }

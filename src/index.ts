@@ -82,14 +82,14 @@ async function main(): Promise<void> {
 async function cleanup(): Promise<void> {
   if (isShuttingDown) {
     // Force output during shutdown
-    console.error('[CLEANUP] Already shutting down...');
+    debugLog('Already shutting down...');
     logger.info('⚠️  Already shutting down...');
     return;
   }
   
   isShuttingDown = true;
   // Force output during shutdown
-  console.error('[CLEANUP] Cleaning up resources...');
+  debugLog('Cleaning up resources...');
   logger.info('🧹 Cleaning up resources...');
   
   // Set a timeout to force exit if cleanup takes too long
@@ -108,7 +108,7 @@ async function cleanup(): Promise<void> {
     clearTimeout(forceExitTimeout);
     
     // Log completion before closing logger
-    console.error('[CLEANUP] Cleanup completed');
+    debugLog('Cleanup completed');
     logger.info('✅ Cleanup completed');
     
     // Flush logger transports last
@@ -129,7 +129,7 @@ async function cleanup(): Promise<void> {
  */
 async function gracefulShutdown(signal: string): Promise<void> {
   // Force output during shutdown
-  console.error(`[SHUTDOWN] ${signal} received, shutting down gracefully...`);
+  debugLog(`${signal} received, shutting down gracefully...`);
   logger.info(`🛑 ${signal} received, shutting down gracefully...`);
   
   try {
@@ -179,13 +179,13 @@ process.on('uncaughtException', (error: Error) => {
   if (!loggerClosed) {
     logger.error('💥 Uncaught Exception:', error);
   } else {
-    console.error('[ERROR] Uncaught Exception (logger closed):', error);
+    debugLog('Uncaught Exception (logger closed)', error);
   }
   
   // Only exit for fatal errors
   if (error.message.includes('EADDRINUSE') || error.message.includes('EACCES') || error.message.includes('write after end')) {
     gracefulShutdown('UNCAUGHT_EXCEPTION').catch(shutdownError => {
-      console.error('[ERROR] Error during exception shutdown:', shutdownError);
+      debugLog('Error during exception shutdown', shutdownError);
       process.exit(1);
     });
   } else if (!loggerClosed) {
@@ -200,7 +200,7 @@ process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) =>
     logger.error('💥 Unhandled Rejection', { reason, promise });
     logger.warn('⚠️  Continuing after unhandled rejection - consider fixing the root cause');
   } else {
-    console.error('[ERROR] Unhandled Rejection (logger closed):', reason);
+    debugLog('Unhandled Rejection (logger closed)', reason);
   }
 });
 
