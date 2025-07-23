@@ -6,6 +6,7 @@
  * compatibility with existing tool implementations.
  */
 
+import { EventEmitter } from 'events';
 import { globalLogger as logger } from "../../shared/utils/logger.js";
 import type { OfficialQRWCClient } from "../../qrwc/officialClient.js";
 import { 
@@ -34,6 +35,21 @@ export interface RetryOptions {
 }
 
 /**
+ * Event emitted when change group polling detects changes
+ */
+export interface ChangeGroupEvent {
+  groupId: string;
+  changes: Array<{
+    Name: string;
+    Value: unknown;
+    String: string;
+  }>;
+  timestamp: bigint;
+  timestampMs: number;
+  sequenceNumber: number;
+}
+
+/**
  * Adapter that wraps OfficialQRWCClient to provide the expected interface
  */
 interface SimpleChangeGroup {
@@ -41,7 +57,7 @@ interface SimpleChangeGroup {
   controls: string[];
 }
 
-export class QRWCClientAdapter implements QRWCClientInterface {
+export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterface {
   private controlIndex = new Map<string, {componentName: string, controlName: string}>();
   private indexBuilt = false;
   private changeGroups = new Map<string, SimpleChangeGroup>();
@@ -49,8 +65,10 @@ export class QRWCClientAdapter implements QRWCClientInterface {
   private changeGroupLastValues = new Map<string, Map<string, unknown>>();
   private autoPollFailureCounts = new Map<string, number>();
   private readonly MAX_AUTOPOLL_FAILURES = 10; // Configurable threshold
+  private globalSequenceNumber = 0;
 
   constructor(private readonly officialClient: OfficialQRWCClient) {
+    super();
     // Extract host and port from the official client if possible
     // We'll initialize the raw command client lazily when needed
   }
@@ -787,6 +805,17 @@ export class QRWCClientAdapter implements QRWCClientInterface {
               });
               lastValues.set(controlName, current?.Value);
             }
+          }
+          
+          // Emit event if changes detected
+          if (changes.length > 0) {
+            this.emit('changeGroup:changes', {
+              groupId: id,
+              changes: changes,
+              timestamp: process.hrtime.bigint(),
+              timestampMs: Date.now(),
+              sequenceNumber: this.globalSequenceNumber++
+            });
           }
           
           return { result: { Id: id, Changes: changes } };
