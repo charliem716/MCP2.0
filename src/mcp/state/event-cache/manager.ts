@@ -11,6 +11,23 @@ import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import type { ChangeGroupEvent, ControlChange, SpilledEventFile } from './types.js';
+import { isChangeGroupEvent, isSpilledEventFile } from './types.js';
+import type { 
+  ControlValue, 
+  EventType, 
+  SerializedCachedEvent, 
+  TypedQRWCAdapterEvents 
+} from './event-types.js';
+import { 
+  EVENT_TYPES,
+  isEventType, 
+  isControlValue, 
+  isSerializedCachedEvent, 
+  parseSerializedEvents,
+  getMapValue,
+  getMapValueOrDefault
+} from './event-types.js';
 
 /**
  * Cached event with full metadata
@@ -20,32 +37,32 @@ export interface CachedEvent {
   controlName: string;
   timestamp: bigint;
   timestampMs: number;
-  value: unknown;
+  value: ControlValue;
   string: string;
-  previousValue?: unknown;
+  previousValue?: ControlValue;
   previousString?: string;
-  delta?: number | undefined;
-  duration?: number | undefined;
+  delta?: number;
+  duration?: number;
   sequenceNumber: number;
-  eventType?: 'change' | 'threshold_crossed' | 'state_transition' | 'significant_change' | undefined;
-  threshold?: number | undefined;
+  eventType?: EventType;
+  threshold?: number;
 }
 
 /**
  * Query parameters for historical event searches
  */
 export interface EventQuery {
-  groupId?: string | undefined;
-  startTime?: number | undefined;
-  endTime?: number | undefined;
-  controlNames?: string[] | undefined;
+  groupId?: string;
+  startTime?: number;
+  endTime?: number;
+  controlNames?: string[];
   valueFilter?: {
     operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'changed_to' | 'changed_from';
-    value?: unknown;
-  } | undefined;
-  limit?: number | undefined;
-  offset?: number | undefined;
-  aggregation?: 'raw' | 'changes_only' | 'summary' | undefined;
+    value?: ControlValue;
+  };
+  limit?: number;
+  offset?: number;
+  aggregation?: 'raw' | 'changes_only' | 'summary';
   eventTypes?: Array<'change' | 'threshold_crossed' | 'state_transition' | 'significant_change'>;
 }
 
@@ -54,8 +71,8 @@ export interface EventQuery {
  */
 export interface CacheStatistics {
   eventCount: number;
-  oldestEvent?: number | undefined;
-  newestEvent?: number | undefined;
+  oldestEvent?: number;
+  newestEvent?: number;
   memoryUsage: number;
   controlsTracked: number;
   eventsPerSecond: number;
@@ -95,13 +112,13 @@ export interface EventCacheConfig {
 export class EventCacheManager extends EventEmitter {
   private buffers: Map<string, CircularBuffer<CachedEvent>>;
   private globalSequence = 0;
-  private lastValues: Map<string, Map<string, unknown>>;
+  private lastValues: Map<string, Map<string, ControlValue>>;
   private lastEventTimes: Map<string, Map<string, number>>;
   private eventRates: Map<string, number[]>;
   private isAttached = false;
-  private cleanupInterval?: NodeJS.Timeout;
-  private memoryCheckInterval?: NodeJS.Timeout;
-  private compressionInterval?: NodeJS.Timeout;
+  private cleanupInterval?: NodeJS.Timeout | undefined;
+  private memoryCheckInterval?: NodeJS.Timeout | undefined;
+  private compressionInterval?: NodeJS.Timeout | undefined;
   private globalMemoryLimitBytes: number;
   private lastMemoryPressure = 0;
   private groupPriorities: Map<string, 'high' | 'normal' | 'low'>;
@@ -171,13 +188,13 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Attach to a QRWC adapter to listen for change events
    */
-  attachToAdapter(adapter: QRWCClientAdapter): void {
+  attachToAdapter(adapter: Pick<QRWCClientAdapter, 'on' | 'removeListener'>): void {
     if (this.isAttached) {
       logger.warn('EventCacheManager already attached to adapter');
       return;
     }
     
-    adapter.on('changeGroup:changes', (event) => {
+    adapter.on('changeGroup:changes', (event: ChangeGroupEvent) => {
       this.handleChangeEvent(event);
     });
     
@@ -188,7 +205,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Handle incoming change event from adapter
    */
-  private handleChangeEvent(event: any): void {
+  private handleChangeEvent(event: ChangeGroupEvent): void {
     const { groupId, changes, timestamp, timestampMs, sequenceNumber } = event;
     
     logger.debug('Processing change event', {
@@ -203,13 +220,13 @@ export class EventCacheManager extends EventEmitter {
     }
     
     const buffer = this.buffers.get(groupId)!;
-    const groupLastValues = this.lastValues.get(groupId) || new Map();
-    const groupLastTimes = this.lastEventTimes.get(groupId) || new Map();
+    const groupLastValues = this.lastValues.get(groupId) || new Map<string, ControlValue>();
+    const groupLastTimes = this.lastEventTimes.get(groupId) || new Map<string, number>();
     
     // Process each change
     for (const change of changes) {
-      const previousValue = groupLastValues.get(change.Name);
-      const previousTime = groupLastTimes.get(change.Name);
+      const previousValue = getMapValue(groupLastValues, change.Name);
+      const previousTime = getMapValue(groupLastTimes, change.Name);
       
       const eventType = this.detectEventType(change.Name, previousValue, change.Value);
       const threshold = eventType === 'threshold_crossed' 
@@ -222,9 +239,9 @@ export class EventCacheManager extends EventEmitter {
         timestamp,
         timestampMs,
         value: change.Value,
-        string: change.String,
+        string: change.String || String(change.Value),
         previousValue,
-        previousString: previousValue?.toString(),
+        previousString: previousValue !== undefined && previousValue !== null ? String(previousValue) : undefined,
         delta: this.calculateDelta(previousValue, change.Value),
         duration: previousTime ? timestampMs - previousTime : undefined,
         sequenceNumber: this.globalSequence++,
@@ -279,7 +296,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Calculate numeric delta between values
    */
-  private calculateDelta(previousValue: unknown, currentValue: unknown): number | undefined {
+  private calculateDelta(previousValue: ControlValue | undefined, currentValue: ControlValue): number | undefined {
     if (typeof previousValue === 'number' && typeof currentValue === 'number') {
       return currentValue - previousValue;
     }
@@ -291,9 +308,9 @@ export class EventCacheManager extends EventEmitter {
    */
   private detectEventType(
     controlName: string,
-    previousValue: unknown,
-    currentValue: unknown
-  ): CachedEvent['eventType'] {
+    previousValue: ControlValue | undefined,
+    currentValue: ControlValue
+  ): EventType | undefined {
     // First event has no previous value
     if (previousValue === undefined) {
       return 'change';
@@ -331,8 +348,8 @@ export class EventCacheManager extends EventEmitter {
    */
   private findCrossedThreshold(
     controlName: string,
-    previousValue: unknown,
-    currentValue: unknown
+    previousValue: ControlValue | undefined,
+    currentValue: ControlValue
   ): number | undefined {
     if (typeof previousValue !== 'number' || typeof currentValue !== 'number') {
       return undefined;
@@ -571,7 +588,7 @@ export class EventCacheManager extends EventEmitter {
     if (!buffer) return null;
     
     // Use getAll() to get all events for statistics
-    const events = (buffer as any).getAll ? (buffer as any).getAll() : [];
+    const events = buffer.getAll();
     
     // Calculate unique controls from all events
     const uniqueControls = new Set<string>();
@@ -755,7 +772,7 @@ export class EventCacheManager extends EventEmitter {
     config: NonNullable<EventCacheConfig['compressionConfig']>
   ): number {
     const now = Date.now();
-    const events = (buffer as any).getAll ? (buffer as any).getAll() : [];
+    const events = buffer.getAll();
     if (events.length === 0) return 0;
     
     // Group events by control name
@@ -852,17 +869,17 @@ export class EventCacheManager extends EventEmitter {
   destroy(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
-      delete (this as any).cleanupInterval;
+      this.cleanupInterval = undefined;
     }
     
     if (this.memoryCheckInterval) {
       clearInterval(this.memoryCheckInterval);
-      delete (this as any).memoryCheckInterval;
+      this.memoryCheckInterval = undefined;
     }
     
     if (this.compressionInterval) {
       clearInterval(this.compressionInterval);
-      delete (this as any).compressionInterval;
+      this.compressionInterval = undefined;
     }
     
     this.clearAll();
@@ -1000,8 +1017,8 @@ export class EventCacheManager extends EventEmitter {
         groupId,
         timestamp,
         eventCount: events.length,
-        startTime: events[0].timestampMs,
-        endTime: events[events.length - 1].timestampMs,
+        startTime: events[0]?.timestampMs ?? 0,
+        endTime: events[events.length - 1]?.timestampMs ?? 0,
         events: serializable
       });
       
@@ -1046,7 +1063,12 @@ export class EventCacheManager extends EventEmitter {
         try {
           const filepath = path.join(dir, file);
           const data = await fs.readFile(filepath, 'utf8');
-          const parsed = JSON.parse(data);
+          const parsed: unknown = JSON.parse(data);
+          
+          if (!isSpilledEventFile(parsed)) {
+            logger.warn('Invalid spilled event file format', { file });
+            continue;
+          }
           
           // Quick check if file might contain events in our range
           if (parsed.endTime < startTime || parsed.startTime > endTime) {
@@ -1054,12 +1076,16 @@ export class EventCacheManager extends EventEmitter {
           }
           
           // Deserialize events, converting timestamp back to bigint
-          const fileEvents = parsed.events
-            .map((e: any) => ({
+          const fileEvents: CachedEvent[] = parsed.events
+            .filter((e): e is SerializedCachedEvent => isSerializedCachedEvent(e))
+            .map((e) => ({
               ...e,
-              timestamp: BigInt(e.timestamp)
+              timestamp: BigInt(e.timestamp),
+              eventType: e.eventType && isEventType(e.eventType) ? e.eventType : undefined,
+              value: e.value as ControlValue,
+              previousValue: e.previousValue as ControlValue | undefined
             }))
-            .filter((e: CachedEvent) => e.timestampMs >= startTime && e.timestampMs <= endTime);
+            .filter((e) => e.timestampMs >= startTime && e.timestampMs <= endTime);
           
           events.push(...fileEvents);
           
@@ -1258,7 +1284,7 @@ export class EventCacheManager extends EventEmitter {
     
     // Spill oldest 50% of events from each buffer
     for (const [groupId, buffer] of this.buffers) {
-      const events = (buffer as any).getAll ? (buffer as any).getAll() : [];
+      const events = buffer.getAll();
       if (events.length < 1000) continue; // Skip small buffers
       
       // Take oldest 50% of events

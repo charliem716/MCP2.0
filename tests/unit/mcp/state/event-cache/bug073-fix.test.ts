@@ -1,13 +1,14 @@
 import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager.js';
-import { EventEmitter } from 'events';
+import { MockQRWCAdapter } from '../../../../../src/mcp/state/event-cache/test-helpers.js';
+import type { QRWCClientAdapter } from '../../../../../src/mcp/qrwc/adapter.js';
 
 describe('BUG-073 Fix: Background cleanup timer', () => {
   let eventCache: EventCacheManager;
-  let mockAdapter: EventEmitter;
+  let mockAdapter: MockQRWCAdapter;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    mockAdapter = new EventEmitter();
+    mockAdapter = new MockQRWCAdapter();
   });
 
   afterEach(() => {

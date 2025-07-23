@@ -2,13 +2,14 @@
  * Tests for EventCacheManager compression functionality
  */
 
-import { EventCacheManager, EventCacheConfig } from '../manager.js';
-import { QRWCClientAdapter } from '../../../qrwc/adapter.js';
-import { EventEmitter } from 'events';
+import { EventCacheManager } from '../manager.js';
+import type { EventCacheConfig } from '../manager.js';
+import type { QRWCClientAdapter } from '../../../qrwc/adapter.js';
+import { MockQRWCAdapter } from '../test-helpers.js';
 
-// Mock adapter
-class MockAdapter extends EventEmitter implements Partial<QRWCClientAdapter> {
-  emitChanges(groupId: string, changes: any[]): void {
+// Mock adapter with emit helper
+class MockAdapter extends MockQRWCAdapter {
+  emitChanges(groupId: string, changes: Array<{Name: string, Value: unknown, String?: string}>): void {
     const now = Date.now();
     const timestamp = process.hrtime.bigint();
     
@@ -43,7 +44,7 @@ describe('EventCacheManager Compression', () => {
     
     manager = new EventCacheManager(config);
     mockAdapter = new MockAdapter();
-    manager.attachToAdapter(mockAdapter as any);
+    manager.attachToAdapter(mockAdapter as QRWCClientAdapter);
   });
   
   afterEach(() => {
@@ -216,7 +217,7 @@ describe('EventCacheManager Compression', () => {
       };
       
       const smallManager = new EventCacheManager(config);
-      smallManager.attachToAdapter(mockAdapter as any);
+      smallManager.attachToAdapter(mockAdapter);
       
       let memoryPressureEmitted = false;
       smallManager.on('memoryPressure', () => {

@@ -28,7 +28,7 @@ export class CircularBuffer<T> {
     if (capacity <= 0) {
       throw new Error('Capacity must be positive');
     }
-    this.buffer = new Array(capacity);
+    this.buffer = new Array<BufferEvent<T>>(capacity);
     this.timeIndex = new SortedArray();
   }
   
@@ -130,7 +130,7 @@ export class CircularBuffer<T> {
   
   
   clear(): void {
-    this.buffer = new Array(this.capacity);
+    this.buffer = new Array<BufferEvent<T>>(this.capacity);
     this.head = 0;
     this.tail = 0;
     this.size = 0;

@@ -52,7 +52,7 @@ describe('EventCacheManager Disk Spillover', () => {
     
     manager = new EventCacheManager(config);
     mockAdapter = new MockAdapter();
-    manager.attachToAdapter(mockAdapter as any);
+    manager.attachToAdapter(mockAdapter);
   });
   
   afterEach(async () => {
@@ -242,7 +242,7 @@ describe('EventCacheManager Disk Spillover', () => {
       
       const badManager = new EventCacheManager(badConfig);
       const adapter = new MockAdapter();
-      badManager.attachToAdapter(adapter as any);
+      badManager.attachToAdapter(adapter);
       
       // Try to trigger spillover
       for (let i = 0; i < 1000; i++) {

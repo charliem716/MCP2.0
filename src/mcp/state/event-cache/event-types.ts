@@ -1,0 +1,185 @@
+/**
+ * Comprehensive type definitions for Event Cache module
+ * This file provides strict typing to eliminate unsafe type usage
+ */
+
+/**
+ * Valid control value types in Q-SYS
+ */
+export type ControlValue = string | number | boolean | null | undefined;
+
+/**
+ * Event types supported by the cache
+ */
+export const EVENT_TYPES = {
+  CHANGE: 'change',
+  THRESHOLD_CROSSED: 'threshold_crossed',
+  STATE_TRANSITION: 'state_transition',
+  SIGNIFICANT_CHANGE: 'significant_change'
+} as const;
+
+export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
+
+/**
+ * Type guard for EventType
+ */
+export function isEventType(value: unknown): value is EventType {
+  return typeof value === 'string' && Object.values(EVENT_TYPES).includes(value as EventType);
+}
+
+/**
+ * Type guard for ControlValue
+ */
+export function isControlValue(value: unknown): value is ControlValue {
+  return value === null || value === undefined || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+}
+
+/**
+ * Serialized version of CachedEvent for disk storage
+ */
+export interface SerializedCachedEvent {
+  groupId: string;
+  controlName: string;
+  timestamp: string; // bigint serialized as string
+  timestampMs: number;
+  value: ControlValue;
+  string: string;
+  previousValue?: ControlValue;
+  previousString?: string;
+  delta?: number;
+  duration?: number;
+  sequenceNumber: number;
+  eventType?: EventType;
+  threshold?: number;
+}
+
+/**
+ * Type guard for SerializedCachedEvent
+ */
+export function isSerializedCachedEvent(obj: unknown): obj is SerializedCachedEvent {
+  if (typeof obj !== 'object' || obj === null) return false;
+  
+  const candidate = obj as Record<string, unknown>;
+  
+  // Required fields
+  if (
+    typeof candidate['groupId'] !== 'string' ||
+    typeof candidate['controlName'] !== 'string' ||
+    typeof candidate['timestamp'] !== 'string' ||
+    typeof candidate['timestampMs'] !== 'number' ||
+    !isControlValue(candidate['value']) ||
+    typeof candidate['string'] !== 'string' ||
+    typeof candidate['sequenceNumber'] !== 'number'
+  ) {
+    return false;
+  }
+  
+  // Optional fields
+  if (candidate['previousValue'] !== undefined && !isControlValue(candidate['previousValue'])) return false;
+  if (candidate['previousString'] !== undefined && typeof candidate['previousString'] !== 'string') return false;
+  if (candidate['delta'] !== undefined && typeof candidate['delta'] !== 'number') return false;
+  if (candidate['duration'] !== undefined && typeof candidate['duration'] !== 'number') return false;
+  if (candidate['eventType'] !== undefined && !isEventType(candidate['eventType'])) return false;
+  if (candidate['threshold'] !== undefined && typeof candidate['threshold'] !== 'number') return false;
+  
+  return true;
+}
+
+/**
+ * Type-safe adapter event interfaces
+ */
+export interface TypedQRWCAdapterEvents {
+  'changeGroup:changes': (event: ChangeGroupEvent) => void;
+  'error': (error: Error) => void;
+  'disconnected': () => void;
+  'connected': () => void;
+}
+
+/**
+ * Enhanced ChangeGroupEvent with proper typing
+ */
+export interface ChangeGroupEvent {
+  groupId: string;
+  changes: ControlChange[];
+  timestamp: bigint;
+  timestampMs: number;
+  sequenceNumber: number;
+}
+
+/**
+ * Enhanced ControlChange with proper typing
+ */
+export interface ControlChange {
+  Name: string;
+  Value: ControlValue;
+  String?: string;
+}
+
+/**
+ * Type guard for ControlChange with proper value checking
+ */
+export function isControlChange(obj: unknown): obj is ControlChange {
+  if (typeof obj !== 'object' || obj === null) return false;
+  
+  const candidate = obj as Record<string, unknown>;
+  
+  return (
+    typeof candidate['Name'] === 'string' &&
+    isControlValue(candidate['Value']) &&
+    (candidate['String'] === undefined || typeof candidate['String'] === 'string')
+  );
+}
+
+/**
+ * Type guard for ChangeGroupEvent
+ */
+export function isChangeGroupEvent(obj: unknown): obj is ChangeGroupEvent {
+  if (typeof obj !== 'object' || obj === null) return false;
+  
+  const candidate = obj as Record<string, unknown>;
+  
+  return (
+    typeof candidate['groupId'] === 'string' &&
+    Array.isArray(candidate['changes']) &&
+    (candidate['changes'] as unknown[]).every(isControlChange) &&
+    typeof candidate['timestamp'] === 'bigint' &&
+    typeof candidate['timestampMs'] === 'number' &&
+    typeof candidate['sequenceNumber'] === 'number'
+  );
+}
+
+/**
+ * Type-safe Map value retrieval helpers
+ */
+export function getMapValue<K, V>(map: Map<K, V>, key: K): V | undefined {
+  return map.get(key);
+}
+
+export function getMapValueOrDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
+  return map.get(key) ?? defaultValue;
+}
+
+/**
+ * Safe JSON parse with type validation
+ */
+export function parseSerializedEvents(data: string): SerializedCachedEvent[] {
+  try {
+    const parsed: unknown = JSON.parse(data);
+    if (!Array.isArray(parsed)) {
+      throw new Error('Expected array of events');
+    }
+    
+    const events: SerializedCachedEvent[] = [];
+    for (const item of parsed) {
+      if (isSerializedCachedEvent(item)) {
+        events.push(item);
+      } else {
+        console.warn('Skipping invalid serialized event:', item);
+      }
+    }
+    
+    return events;
+  } catch (error) {
+    throw new Error(`Failed to parse serialized events: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
