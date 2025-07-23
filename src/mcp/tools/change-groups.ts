@@ -427,7 +427,7 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
       aggregation: params.aggregation
     };
     
-    const events = this.eventCache.query(queryParams);
+    const events = await this.eventCache.query(queryParams);
 
     // Calculate summary statistics if requested
     let summary = undefined;
