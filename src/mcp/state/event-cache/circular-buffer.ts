@@ -156,6 +156,30 @@ export class CircularBuffer<T> {
       }
     }
   }
+  
+  /**
+   * Force eviction of a specific number of oldest events
+   * @returns Number of events actually evicted
+   */
+  forceEvict(count: number): number {
+    let evicted = 0;
+    const toEvict = Math.min(count, this.size);
+    
+    while (evicted < toEvict && this.size > 0) {
+      const oldestIdx = this.tail;
+      const oldest = this.buffer[oldestIdx];
+      
+      if (oldest) {
+        this.timeIndex.remove(oldest.timestamp);
+      }
+      
+      this.tail = (this.tail + 1) % this.capacity;
+      this.size--;
+      evicted++;
+    }
+    
+    return evicted;
+  }
 }
 
 /**

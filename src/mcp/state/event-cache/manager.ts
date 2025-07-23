@@ -64,6 +64,8 @@ export interface EventCacheConfig {
   compressOldEvents?: boolean;
   persistToDisk?: boolean;
   cleanupIntervalMs?: number;
+  globalMemoryLimitMB?: number;
+  memoryCheckIntervalMs?: number;
 }
 
 /**
@@ -77,6 +79,10 @@ export class EventCacheManager extends EventEmitter {
   private eventRates: Map<string, number[]>;
   private isAttached: boolean = false;
   private cleanupInterval?: NodeJS.Timeout;
+  private memoryCheckInterval?: NodeJS.Timeout;
+  private globalMemoryLimitBytes: number;
+  private lastMemoryPressure: number = 0;
+  private groupPriorities: Map<string, 'high' | 'normal' | 'low'>;
   
   constructor(
     private defaultConfig: EventCacheConfig = {
@@ -89,16 +95,22 @@ export class EventCacheManager extends EventEmitter {
     this.lastValues = new Map();
     this.lastEventTimes = new Map();
     this.eventRates = new Map();
+    this.groupPriorities = new Map();
+    this.globalMemoryLimitBytes = (this.defaultConfig.globalMemoryLimitMB || 500) * 1024 * 1024;
     
     logger.info('EventCacheManager initialized', {
       maxEvents: this.defaultConfig.maxEvents,
-      maxAgeMs: this.defaultConfig.maxAgeMs
+      maxAgeMs: this.defaultConfig.maxAgeMs,
+      globalMemoryLimitMB: this.defaultConfig.globalMemoryLimitMB || 500
     });
     
     // Start background cleanup timer if maxAge is configured
     if (this.defaultConfig.maxAgeMs && this.defaultConfig.maxAgeMs > 0) {
       this.startCleanupTimer();
     }
+    
+    // Start memory monitoring
+    this.startMemoryMonitoring();
   }
   
   /**
@@ -174,6 +186,14 @@ export class EventCacheManager extends EventEmitter {
       count: changes.length,
       totalEvents: buffer.getSize()
     });
+    
+    // Check memory pressure immediately after adding events
+    if (this.defaultConfig.memoryCheckIntervalMs) {
+      const usage = this.getGlobalMemoryUsage();
+      if (usage > this.globalMemoryLimitBytes) {
+        this.checkMemoryPressure();
+      }
+    }
   }
   
   /**
@@ -493,7 +513,12 @@ export class EventCacheManager extends EventEmitter {
   destroy(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
-      this.cleanupInterval = undefined;
+      delete (this as any).cleanupInterval;
+    }
+    
+    if (this.memoryCheckInterval) {
+      clearInterval(this.memoryCheckInterval);
+      delete (this as any).memoryCheckInterval;
     }
     
     this.clearAll();
@@ -506,5 +531,231 @@ export class EventCacheManager extends EventEmitter {
    */
   getGroupIds(): string[] {
     return Array.from(this.buffers.keys());
+  }
+  
+  /**
+   * Start memory monitoring
+   */
+  private startMemoryMonitoring(): void {
+    if (this.defaultConfig.memoryCheckIntervalMs) {
+      this.memoryCheckInterval = setInterval(() => {
+        this.checkMemoryPressure();
+      }, this.defaultConfig.memoryCheckIntervalMs || 10000);
+      
+      if (this.memoryCheckInterval.unref) {
+        this.memoryCheckInterval.unref();
+      }
+    }
+  }
+  
+  /**
+   * Check and handle memory pressure
+   */
+  private checkMemoryPressure(): void {
+    const usage = this.getGlobalMemoryUsage();
+    const percentage = (usage / this.globalMemoryLimitBytes) * 100;
+    
+    // Emit warnings at thresholds
+    if (percentage >= 80 && this.lastMemoryPressure < 80) {
+      logger.warn('Event cache memory high', { usage, percentage });
+      this.emit('memoryPressure', { level: 'high', percentage });
+    }
+    
+    if (percentage >= 90 && this.lastMemoryPressure < 90) {
+      logger.error('Event cache memory critical', { usage, percentage });
+      this.emit('memoryPressure', { level: 'critical', percentage });
+    }
+    
+    this.lastMemoryPressure = percentage;
+    
+    // Take action if over limit
+    if (usage > this.globalMemoryLimitBytes) {
+      this.handleMemoryPressure(usage);
+    }
+  }
+  
+  /**
+   * Calculate total memory usage across all buffers
+   */
+  private getGlobalMemoryUsage(): number {
+    let total = 0;
+    
+    for (const [groupId, buffer] of this.buffers) {
+      // More accurate memory calculation
+      const events = buffer.getSize();
+      const avgEventSize = this.calculateAverageEventSize(groupId);
+      total += events * avgEventSize;
+    }
+    
+    // Add overhead for indexes and metadata
+    total *= 1.2; // 20% overhead estimate
+    
+    return total;
+  }
+  
+  /**
+   * Calculate average event size for a group
+   */
+  private calculateAverageEventSize(groupId: string): number {
+    // Sample recent events to get accurate size
+    const buffer = this.buffers.get(groupId);
+    if (!buffer || buffer.isEmpty()) return 200; // Default estimate
+    
+    const sample = buffer.getNewest();
+    if (!sample) return 200;
+    
+    // Calculate actual size including all fields
+    // Create a serializable copy, converting BigInt to string
+    const serializable = {
+      ...sample,
+      timestamp: sample.timestamp.toString()
+    };
+    
+    const size = JSON.stringify(serializable).length * 2; // UTF-16 in memory
+    return Math.max(size, 200); // Minimum 200 bytes
+  }
+  
+  /**
+   * Handle memory pressure by evicting events
+   */
+  private handleMemoryPressure(currentUsage: number): void {
+    logger.warn('Handling memory pressure', { 
+      currentUsage, 
+      limit: this.globalMemoryLimitBytes 
+    });
+    
+    // Strategy: Evict oldest events from largest buffers, respecting priorities
+    const bufferSizes = Array.from(this.buffers.entries())
+      .map(([id, buffer]) => ({
+        groupId: id,
+        size: buffer.getSize(),
+        memory: buffer.getSize() * this.calculateAverageEventSize(id),
+        priority: this.groupPriorities.get(id) || 'normal'
+      }))
+      // Sort by priority first (low priority first), then by memory usage
+      .sort((a, b) => {
+        const priorityOrder = { low: 0, normal: 1, high: 2 };
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        return b.memory - a.memory;
+      });
+    
+    let freed = 0;
+    const target = currentUsage - (this.globalMemoryLimitBytes * 0.7); // Free to 70% for buffer
+    
+    // Multiple passes with increasing aggression
+    let pass = 0;
+    while (freed < target && pass < 3) {
+      pass++;
+      
+      for (const { groupId, size, priority } of bufferSizes) {
+        if (freed >= target) break;
+        
+        // Skip high priority groups in first pass only
+        if (priority === 'high' && pass === 1 && freed < target * 0.5) continue;
+        
+        const buffer = this.buffers.get(groupId)!;
+        const currentSize = buffer.getSize();
+        if (currentSize === 0) continue;
+        
+        // Increasingly aggressive eviction per pass
+        const evictionRate = pass === 1 ? 0.3 : pass === 2 ? 0.5 : 0.7;
+        const minEvict = pass === 1 ? 100 : pass === 2 ? 200 : 500;
+        const toEvict = Math.min(
+          Math.max(Math.floor(currentSize * evictionRate), minEvict),
+          currentSize
+        );
+        
+        const evicted = buffer.forceEvict(toEvict);
+        if (evicted > 0) {
+          freed += evicted * this.calculateAverageEventSize(groupId);
+          
+          logger.info('Evicted events due to memory pressure', { 
+            groupId, 
+            evicted,
+            remaining: buffer.getSize(),
+            priority,
+            pass
+          });
+        }
+      }
+      
+      // Recalculate buffer sizes for next pass
+      if (freed < target) {
+        bufferSizes.sort((a, b) => {
+          const aBuffer = this.buffers.get(a.groupId);
+          const bBuffer = this.buffers.get(b.groupId);
+          const aSize = aBuffer ? aBuffer.getSize() : 0;
+          const bSize = bBuffer ? bBuffer.getSize() : 0;
+          return bSize - aSize;
+        });
+      }
+    }
+    
+    // Final check: if still over limit, clear smallest groups entirely
+    if (currentUsage - freed > this.globalMemoryLimitBytes) {
+      logger.warn('Memory pressure critical - clearing smallest groups');
+      
+      // Sort by size ascending (smallest first)
+      const smallestFirst = bufferSizes.slice().reverse();
+      
+      for (const { groupId } of smallestFirst) {
+        if (currentUsage - freed <= this.globalMemoryLimitBytes * 0.7) break;
+        
+        const buffer = this.buffers.get(groupId);
+        if (buffer && buffer.getSize() > 0) {
+          const size = buffer.getSize();
+          const memoryFreed = size * this.calculateAverageEventSize(groupId);
+          buffer.clear();
+          freed += memoryFreed;
+          
+          logger.warn('Cleared entire buffer due to critical memory pressure', { 
+            groupId,
+            eventsCleared: size
+          });
+        }
+      }
+    }
+    
+    this.emit('memoryPressureResolved', { freed, currentUsage: currentUsage - freed });
+    
+    // Update last memory pressure after resolution
+    const newUsage = currentUsage - freed;
+    const newPercentage = (newUsage / this.globalMemoryLimitBytes) * 100;
+    this.lastMemoryPressure = newPercentage;
+  }
+  
+  /**
+   * Set group priority for memory management
+   */
+  setGroupPriority(groupId: string, priority: 'high' | 'normal' | 'low'): void {
+    this.groupPriorities.set(groupId, priority);
+    logger.debug('Set group priority', { groupId, priority });
+  }
+  
+  /**
+   * Get current memory usage statistics
+   */
+  getMemoryStats(): {
+    totalUsage: number;
+    limit: number;
+    percentage: number;
+    groupStats: Array<{groupId: string; memory: number; events: number}>;
+  } {
+    const totalUsage = this.getGlobalMemoryUsage();
+    const percentage = (totalUsage / this.globalMemoryLimitBytes) * 100;
+    
+    const groupStats = Array.from(this.buffers.entries()).map(([groupId, buffer]) => ({
+      groupId,
+      memory: buffer.getSize() * this.calculateAverageEventSize(groupId),
+      events: buffer.getSize()
+    }));
+    
+    return {
+      totalUsage,
+      limit: this.globalMemoryLimitBytes,
+      percentage,
+      groupStats
+    };
   }
 }
