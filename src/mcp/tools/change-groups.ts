@@ -335,7 +335,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     super(
       qrwcClient,
       "list_change_groups",
-      "List all active change groups showing ID, control count, and auto-poll status. No parameters needed. Example: {} returns [{id:'mixer-controls',controlCount:4,hasAutoPoll:true}]. Use to monitor system state and verify cleanup. Errors: Throws if Q-SYS Core is not connected or if the adapter doesn't support group listing.",
+      "List all active change groups (MCP-specific tool, not part of Q-SYS API). Shows ID, control count, and auto-poll status. No parameters needed. Example: {} returns [{id:'mixer-controls',controlCount:4,hasAutoPoll:true}]. Use to monitor MCP server state and verify cleanup. Errors: Throws if Q-SYS Core is not connected or if adapter doesn't support group listing.",
       ListChangeGroupsParamsSchema
     );
   }
@@ -448,7 +448,7 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
         type: 'text',
         text: JSON.stringify({
           success: true,
-          events: events,
+          events,
           count: events.length,
           timeRange: {
             start: params.startTime || Date.now() - 60000,
