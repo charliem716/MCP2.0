@@ -37,11 +37,7 @@ export class CoreCache extends EventEmitter {
     };
     
     this.cache = new LRUCache<string, ControlState>(
-      this.config.maxEntries,
-      this.config.ttlMs,
-      50 * 1024 * 1024, // 50MB default
-      EvictionPolicy.LRU,
-      this.config.cleanupIntervalMs
+      this.config.maxEntries
     );
 
     this.setupCacheEventHandlers();
@@ -62,11 +58,7 @@ export class CoreCache extends EventEmitter {
     // Recreate cache with new configuration
     await this.shutdownCache();
     this.cache = new LRUCache<string, ControlState>(
-      this.config.maxEntries,
-      this.config.ttlMs,
-      50 * 1024 * 1024,
-      EvictionPolicy.LRU,
-      this.config.cleanupIntervalMs
+      this.config.maxEntries
     );
     
     this.setupCacheEventHandlers();
