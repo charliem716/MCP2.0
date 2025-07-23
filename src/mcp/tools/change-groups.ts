@@ -377,6 +377,7 @@ const ReadChangeGroupEventsParamsSchema = BaseToolParamsSchema.extend({
     value: z.unknown().describe("Value to compare against")
   }).strict().optional().describe("Filter events by value criteria"),
   limit: z.number().min(1).max(10000).optional().describe("Maximum number of events to return (default: 1000)"),
+  offset: z.number().min(0).optional().describe("Number of events to skip for pagination (default: 0)"),
   aggregation: z.enum(['raw', 'changes_only', 'summary']).optional().describe("Event aggregation mode (default: raw)")
 });
 
@@ -422,6 +423,7 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
       controlNames: params.controlNames,
       valueFilter: params.valueFilter,
       limit: params.limit,
+      offset: params.offset,
       aggregation: params.aggregation
     };
     

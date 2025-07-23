@@ -40,6 +40,7 @@ export interface EventQuery {
     value?: unknown;
   } | undefined;
   limit?: number | undefined;
+  offset?: number | undefined;
   aggregation?: 'raw' | 'changes_only' | 'summary' | undefined;
 }
 
@@ -252,6 +253,7 @@ export class EventCacheManager extends EventEmitter {
       controlNames,
       valueFilter,
       limit = 1000,
+      offset = 0,
       aggregation = 'raw'
     } = params;
     
@@ -261,7 +263,8 @@ export class EventCacheManager extends EventEmitter {
       endTime: new Date(endTime).toISOString(),
       controlNames,
       valueFilter,
-      limit
+      limit,
+      offset
     });
     
     let results: CachedEvent[] = [];
@@ -310,13 +313,17 @@ export class EventCacheManager extends EventEmitter {
       results = this.filterChangesOnly(results);
     }
     
-    // Apply limit
-    if (limit > 0 && results.length > limit) {
-      results = results.slice(0, limit);
+    // Apply offset and limit for pagination
+    if (offset > 0 || (limit > 0 && results.length > limit)) {
+      const start = offset;
+      const end = limit > 0 ? start + limit : results.length;
+      results = results.slice(start, end);
     }
     
     logger.debug('Query completed', {
       resultCount: results.length,
+      offset,
+      limit,
       firstEvent: results[0]?.timestampMs,
       lastEvent: results[results.length - 1]?.timestampMs
     });
