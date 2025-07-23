@@ -32,12 +32,12 @@ async function runTest() {
   const output = [];
   
   proc.stdout.on('data', (data) => {
-    output.push('[STDOUT] ' + data.toString().trim());
+    output.push(`[STDOUT] ${  data.toString().trim()}`);
   });
 
   proc.stderr.on('data', (data) => {
     const line = data.toString();
-    output.push('[STDERR] ' + line.trim());
+    output.push(`[STDERR] ${  line.trim()}`);
     
     // Check for expected behaviors
     if (line.includes('Cleaning up resources')) results.cleanupStarted = true;

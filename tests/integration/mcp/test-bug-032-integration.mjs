@@ -61,12 +61,12 @@ class MCPTestClient {
   async sendRequest(method, params = {}) {
     const request = {
       jsonrpc: '2.0',
-      method: method,
-      params: params,
+      method,
+      params,
       id: Date.now()
     };
     
-    this.server.stdin.write(JSON.stringify(request) + '\n');
+    this.server.stdin.write(`${JSON.stringify(request)  }\n`);
     
     // Wait for response
     return new Promise((resolve, reject) => {

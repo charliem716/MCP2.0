@@ -29,7 +29,7 @@ try {
   const response = await adapter.sendCommand('Component.GetAllControls');
   
   console.log('\n📊 Raw adapter response:');
-  console.log(JSON.stringify(response, null, 2).substring(0, 500) + '...\n');
+  console.log(`${JSON.stringify(response, null, 2).substring(0, 500)  }...\n`);
   
   // Check response structure
   if (response?.result?.Controls && Array.isArray(response.result.Controls)) {

@@ -82,7 +82,7 @@ class ValidationTester {
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
-      this.mcp.stdin.write(JSON.stringify(request) + '\n');
+      this.mcp.stdin.write(`${JSON.stringify(request)  }\n`);
 
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
@@ -350,7 +350,7 @@ async function runValidationTests() {
     }
 
     // Summary
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
     console.log('VALIDATION TEST SUMMARY');
     console.log('='.repeat(60));
     console.log(`Total Tests: ${passed + failed}`);

@@ -154,7 +154,7 @@ describe('EventCacheManager', () => {
         mockAdapter.emit('changeGroup:changes', {
           groupId: 'group1',
           changes: [{
-            Name: 'Control' + i,
+            Name: `Control${  i}`,
             Value: i,
             String: String(i)
           }],
@@ -265,7 +265,7 @@ describe('EventCacheManager', () => {
         mockAdapter.emit('changeGroup:changes', {
           groupId: 'stats-group',
           changes: [{
-            Name: 'Control' + (i % 3), // Only 3 unique controls
+            Name: `Control${  i % 3}`, // Only 3 unique controls
             Value: i,
             String: String(i)
           }],

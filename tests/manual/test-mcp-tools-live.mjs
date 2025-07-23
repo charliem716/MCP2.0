@@ -79,7 +79,7 @@ async function testMCPTools() {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
         console.log('   ✅ Success!');
-        console.log('   ' + result.content[0].text.split('\\n').slice(0, 5).join('\\n   '));
+        console.log(`   ${  result.content[0].text.split('\\n').slice(0, 5).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -99,7 +99,7 @@ async function testMCPTools() {
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log('   ' + lines.slice(0, 10).join('\\n   '));
+        console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -118,7 +118,7 @@ async function testMCPTools() {
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log('   ' + lines.slice(0, 10).join('\\n   '));
+        console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -144,7 +144,7 @@ async function testMCPTools() {
             console.error('   ❌ Error:', result.content[0].text);
           } else {
             console.log('   ✅ Success!');
-            console.log('   ' + result.content[0].text);
+            console.log(`   ${  result.content[0].text}`);
           }
         } else {
           console.log('   ⚠️  No controls found to test');
@@ -167,7 +167,7 @@ async function testMCPTools() {
           console.log(`   Testing with component: ${componentName}`);
           
           const result = await registry.callTool('get_component_controls', {
-            componentName: componentName,
+            componentName,
             includeValues: true
           });
           
@@ -176,7 +176,7 @@ async function testMCPTools() {
           } else {
             console.log('   ✅ Success!');
             const lines = result.content[0].text.split('\\n');
-            console.log('   ' + lines.slice(0, 5).join('\\n   '));
+            console.log(`   ${  lines.slice(0, 5).join('\\n   ')}`);
           }
         } else {
           console.log('   ⚠️  No components found to test');
@@ -201,7 +201,7 @@ async function testMCPTools() {
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log('   ' + lines.slice(0, 10).join('\\n   '));
+        console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -220,7 +220,7 @@ async function testMCPTools() {
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log('   ' + lines.slice(0, 5).join('\\n   '));
+        console.log(`   ${  lines.slice(0, 5).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -266,7 +266,7 @@ async function testMCPTools() {
     }
 
     // Summary
-    console.log('\\n' + '='.repeat(60));
+    console.log(`\\n${  '='.repeat(60)}`);
     console.log('📊 Test Summary:');
     console.log('   • Connection: ✅ Successful');
     console.log('   • Tools Loaded: ✅', registry.getToolCount(), 'tools');

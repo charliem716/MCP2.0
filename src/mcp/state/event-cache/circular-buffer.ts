@@ -13,10 +13,10 @@ export interface BufferEvent<T> {
 
 export class CircularBuffer<T> {
   private buffer: Array<BufferEvent<T>>;
-  private head: number = 0;
-  private tail: number = 0;
-  private size: number = 0;
-  private sequenceNumber: number = 0;
+  private head = 0;
+  private tail = 0;
+  private size = 0;
+  private sequenceNumber = 0;
   
   // Time index for O(log n) range queries
   private timeIndex: SortedArray<bigint, number>;

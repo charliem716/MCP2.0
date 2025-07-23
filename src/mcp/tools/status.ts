@@ -102,7 +102,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     const result = baseResult as any;
     
     // Check if this is fallback data from adapter
-    if (result.Platform && result.Platform.includes("StatusGet not supported")) {
+    if (result.Platform?.includes("StatusGet not supported")) {
       throw new Error("StatusGet returned fallback data - will scan for status components");
     }
     

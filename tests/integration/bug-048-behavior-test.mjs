@@ -90,7 +90,7 @@ tools.forEach(({ name, instance }) => {
 });
 
 // Compare with old vs new descriptions
-console.log('\n' + '=' . repeat(80));
+console.log(`\n${  '=' . repeat(80)}`);
 console.log('\nComparison with Original Poor Descriptions:');
 console.log('-'.repeat(40));
 
@@ -118,7 +118,7 @@ console.log('- ✅ Value formats and ranges');
 console.log('- ✅ Common use patterns');
 
 // Final verdict
-console.log('\n' + '=' . repeat(80));
+console.log(`\n${  '=' . repeat(80)}`);
 console.log('\nFINAL VERDICT:');
 if (allPassed) {
   console.log('✅ All tools have enhanced descriptions meeting BUG-048 requirements');

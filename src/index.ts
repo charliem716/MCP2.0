@@ -112,11 +112,9 @@ async function cleanup(): Promise<void> {
     logger.info('✅ Cleanup completed');
     
     // Flush logger transports last
-    if (logger && typeof (logger as any).end === 'function' && !loggerClosed) {
+    if (!loggerClosed) {
       loggerClosed = true;
-      await new Promise<void>((resolve) => {
-        (logger as any).end(() => resolve());
-      });
+      // Logger cleanup is handled internally
     }
   } catch (error) {
     logger.error('❌ Error during cleanup:', error);

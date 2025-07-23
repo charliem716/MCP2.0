@@ -21,7 +21,7 @@ const debugLog = (message: string, data?: any) => {
 import { MCPToolRegistry } from "./handlers/index.js";
 import { OfficialQRWCClient } from "../qrwc/officialClient.js";
 import { QRWCClientAdapter } from "./qrwc/adapter.js";
-import { EventCacheManager } from "./state/event-cache/index.js";
+import { EventCacheManager } from "./state/event-cache/manager.js";
 import type { MCPServerConfig } from "../shared/types/mcp.js";
 
 /**
@@ -40,8 +40,8 @@ export class MCPServer {
   private isConnected = false;
   private serverName: string;
   private serverVersion: string;
-  private signalHandlers: Map<NodeJS.Signals, () => void> = new Map();
-  private errorHandlers: Map<string, (...args: unknown[]) => void> = new Map();
+  private signalHandlers = new Map<NodeJS.Signals, () => void>();
+  private errorHandlers = new Map<string, (...args: unknown[]) => void>();
 
   constructor(private config: MCPServerConfig) {
     debugLog("MCPServer constructor called", config);
@@ -251,9 +251,11 @@ export class MCPServer {
         this.qrwcClientAdapter.clearAllCaches();
         
         // Re-initialize tool registry to refresh component data
-        this.toolRegistry.initialize().catch((error) => {
+        try {
+          this.toolRegistry.initialize();
+        } catch (error) {
           logger.error('Failed to re-initialize tool registry after reconnection', { error });
-        });
+        }
       } else {
         logger.info('Q-SYS Core reconnected', { downtimeMs: data.downtimeMs });
       }

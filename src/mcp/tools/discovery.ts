@@ -85,7 +85,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
       }
 
       // Apply filters for filtered/full modes
-      let filteredControls = this.applyFilters(allControls, params);
+      const filteredControls = this.applyFilters(allControls, params);
 
       // Apply pagination
       const limit = params.pagination?.limit || (mode === 'filtered' ? 100 : allControls.length);

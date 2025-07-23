@@ -176,7 +176,7 @@ async function runAllTests() {
       const response = parseToolResponse(result);
       console.log(`Response type: ${typeof response}`);
       if (typeof response === 'string') {
-        console.log('Raw response:', response.substring(0, 200) + '...');
+        console.log('Raw response:', `${response.substring(0, 200)  }...`);
       } else {
         console.log(`Found ${Array.isArray(response) ? response.length : 'N/A'} components`);
       }
@@ -211,7 +211,7 @@ async function runAllTests() {
       const response = parseToolResponse(result);
       console.log('Component controls retrieved successfully');
       if (typeof response === 'string') {
-        console.log(response.substring(0, 200) + '...');
+        console.log(`${response.substring(0, 200)  }...`);
       }
     });
     
@@ -460,7 +460,7 @@ async function runAllTests() {
     }
     
     // Summary
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
     console.log('📊 TEST SUMMARY');
     console.log('='.repeat(60));
     console.log(`Total tests: ${testResults.length}`);

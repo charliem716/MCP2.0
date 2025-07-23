@@ -141,7 +141,7 @@ async function testBug024Fix() {
   }
   
   // Final result
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   if (testPassed) {
     console.log('✅ BUG-024 FIX VERIFIED: Control name parsing works correctly!');
     process.exit(0);

@@ -1,11 +1,13 @@
 import { globalLogger as logger } from "../../../shared/utils/logger.js";
 import type { ControlState } from "../repository.js";
-import { 
-  PersistenceConfig, 
-  PersistenceFormat, 
-  CompressionType,
+import type { 
+  PersistenceConfig,
   PersistenceStats,
   PersistedState 
+} from "./types.js";
+import { 
+  PersistenceFormat, 
+  CompressionType 
 } from "./types.js";
 import { BackupManager } from "./backup.js";
 import { FileOperations } from "./file-operations.js";
@@ -190,7 +192,7 @@ export class StatePersistenceManager {
       // Try to recover from backup
       if (this.config.backupCount > 0) {
         return await this.backupManager.recoverFromBackup(
-          path => this.fileOps.readJSONFromPath(path),
+          async path => this.fileOps.readJSONFromPath(path),
           state => this.validatePersistedState(state)
         );
       }

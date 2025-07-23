@@ -7,4 +7,8 @@
  * 
  * Note: The cache layer has its own lightweight CacheChangeGroupManager for cache-specific operations.
  */
-export * from "./change-group/index.js";
+export { ChangeGroupManager } from "./change-group/manager.js";
+export { ChangeGroupExecutor } from "./change-group/change-group-executor.js";
+export { RollbackHandler } from "./change-group/rollback-handler.js";
+export { Semaphore, createTimeoutPromise } from "./change-group/concurrency-utils.js";
+export * from "./change-group/types.js";

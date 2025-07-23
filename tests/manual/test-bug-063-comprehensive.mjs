@@ -56,7 +56,7 @@ async function testNormalShutdown() {
       console.log(`  - Cleanup started: ${hasCleanup ? '✅' : '❌'}`);
       console.log(`  - State checked: ${hasStateCheck ? '✅' : '❌'}`);
       console.log(`  - MCP shutdown: ${hasMCPShutdown ? '✅' : '❌'}`);
-      console.log(`  - Exit code 0: ${code === 0 ? '✅' : '❌ (code: ' + code + ')'}`);
+      console.log(`  - Exit code 0: ${code === 0 ? '✅' : `❌ (code: ${  code  })`}`);
       
       resolve(code === 0);
     });

@@ -63,7 +63,7 @@ async function verifyComponentFormat() {
     console.log('\n=== BUG-036 Component.GetComponents Format Verification ===\n');
     
     // Connect to Q-SYS
-    console.log('Connecting to Q-SYS Core at', config.qsysCore.host + ':' + (config.qsysCore.port || 443));
+    console.log('Connecting to Q-SYS Core at', `${config.qsysCore.host  }:${  config.qsysCore.port || 443}`);
     await officialClient.connect();
     console.log('✓ Connected successfully\n');
     
@@ -112,7 +112,7 @@ async function verifyComponentFormat() {
         console.log(`    - Value field: ${firstProp.Value !== undefined ? '✓ Present' : '✗ Missing'}`);
       }
       
-      console.log('\n' + '-'.repeat(60) + '\n');
+      console.log(`\n${  '-'.repeat(60)  }\n`);
     }
     
     // Summary analysis

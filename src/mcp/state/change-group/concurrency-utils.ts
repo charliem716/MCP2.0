@@ -38,7 +38,7 @@ export class Semaphore {
 /**
  * Create a timeout promise that rejects after specified milliseconds
  */
-export function createTimeoutPromise(ms: number, message: string): Promise<never> {
+export async function createTimeoutPromise(ms: number, message: string): Promise<never> {
   return new Promise((_, reject) => {
     setTimeout(() => reject(new Error(message)), ms);
   });

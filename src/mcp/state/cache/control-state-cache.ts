@@ -10,7 +10,7 @@ import { CoreCache } from "./core-cache.js";
 import { CacheChangeGroupManager } from "./change-groups.js";
 import { CacheSyncManager } from "./cache-sync.js";
 import type { CacheInvalidationManager } from "../invalidation.js";
-import type { StatePersistenceManager } from "../persistence/index.js";
+import type { StatePersistenceManager } from "../persistence/manager.js";
 import type { StateSynchronizer } from "../synchronizer.js";
 
 /**

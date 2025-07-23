@@ -23,7 +23,7 @@ import {
   createListChangeGroupsTool,
   createReadChangeGroupEventsTool
 } from "../tools/change-groups.js";
-import type { EventCacheManager } from "../state/event-cache/index.js";
+import type { EventCacheManager } from "../state/event-cache/manager.js";
 import type { BaseQSysTool, ToolExecutionResult } from "../tools/base.js";
 
 /**
@@ -72,7 +72,7 @@ export class MCPToolRegistry {
   /**
    * Initialize the tool registry with all Q-SYS tools
    */
-  async initialize(): Promise<void> {
+  initialize(): void {
     if (this.initialized) {
       logger.warn("MCPToolRegistry already initialized");
       return;

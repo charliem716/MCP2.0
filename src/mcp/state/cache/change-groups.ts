@@ -26,10 +26,10 @@ export class CacheChangeGroupManager {
   ): Promise<ChangeGroup> {
     const changeGroup: ChangeGroup = {
       id: randomUUID(),
-      controls: controls,
+      controls,
       timestamp: new Date(),
       status: 'pending',
-      source: source
+      source
     };
     
     this.changeGroups.set(changeGroup.id, changeGroup);

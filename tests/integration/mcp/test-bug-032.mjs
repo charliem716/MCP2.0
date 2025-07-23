@@ -47,12 +47,12 @@ async function testMCPServer() {
   async function sendRequest(method, params = {}) {
     const request = {
       jsonrpc: '2.0',
-      method: method,
-      params: params,
+      method,
+      params,
       id: Date.now()
     };
     
-    server.stdin.write(JSON.stringify(request) + '\n');
+    server.stdin.write(`${JSON.stringify(request)  }\n`);
     
     // Wait for response
     return new Promise((resolve, reject) => {

@@ -138,7 +138,7 @@ async function runTests() {
   }
 
   // Final result
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   if (allTestsPassed) {
     console.log('✅ BUG-031 VERIFIED: All Control.Get/Set alias tests passed!');
     console.log('The adapter correctly handles the standard API method names.');

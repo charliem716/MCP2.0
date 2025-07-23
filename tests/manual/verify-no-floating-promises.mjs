@@ -20,8 +20,8 @@ const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
   stdio: ['pipe', 'pipe', 'pipe']
 });
 
-let floatingPromiseWarnings = [];
-let unhandledRejections = [];
+const floatingPromiseWarnings = [];
+const unhandledRejections = [];
 let startupComplete = false;
 
 proc.stdout.on('data', (data) => {

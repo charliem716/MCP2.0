@@ -160,7 +160,7 @@ async function runTests() {
   }
   
   // Summary
-  console.log('\n' + '='.repeat(50));
+  console.log(`\n${  '='.repeat(50)}`);
   console.log('📊 TEST SUMMARY');
   console.log('='.repeat(50));
   console.log(`Total tests: ${results.length}`);

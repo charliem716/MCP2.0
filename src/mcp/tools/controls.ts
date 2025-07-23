@@ -116,7 +116,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         name: ctrl.Name,
         component: ctrl.Component || componentName,
         type: controlType || ctrl.Type || 'unknown',
-        value: value,
+        value,
         metadata: this.extractMetadata(ctrl)
       };
     });
@@ -262,7 +262,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
         
         const result: ControlValue = {
           name: controlName,
-          value: value,
+          value,
           timestamp: new Date().toISOString()
         };
         
@@ -485,7 +485,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     }
     
     // Parallel validation for all components
-    const componentPromises: Promise<void>[] = [];
+    const componentPromises: Array<Promise<void>> = [];
     
     for (const [componentName, controlInfos] of componentValidations) {
       const promise = this.validateComponentControls(componentName, controlInfos)
@@ -501,7 +501,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       namedBatches.push(namedControls.slice(i, i + 10));
     }
     
-    const namedPromises = namedBatches.map(batch => 
+    const namedPromises = namedBatches.map(async batch => 
       this.validateNamedControlsBatch(batch).then(batchErrors => {
         errors.push(...batchErrors);
       })

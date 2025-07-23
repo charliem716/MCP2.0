@@ -344,7 +344,7 @@ async function runAllTests() {
     await adapter.disconnect();
     
     // Summary
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
     console.log('📊 TEST SUMMARY');
     console.log('='.repeat(60));
     console.log(`Total tests: ${testResults.length}`);

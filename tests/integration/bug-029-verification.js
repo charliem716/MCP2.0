@@ -92,7 +92,7 @@ async function main() {
     if (calls[1].value !== 0) throw new Error(`Expected false->0, got ${calls[1].value}`);
     
     if (!result.result.every(r => r.Result === 'Success')) {
-      throw new Error('Not all operations succeeded: ' + JSON.stringify(result.result));
+      throw new Error(`Not all operations succeeded: ${  JSON.stringify(result.result)}`);
     }
   })) passed++; else failed++;
 

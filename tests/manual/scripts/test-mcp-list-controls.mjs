@@ -92,7 +92,7 @@ function handleResponse(response) {
     console.log('Raw response:', JSON.stringify(response.result, null, 2));
   }
   
-  console.log('\n' + '='.repeat(50) + '\n');
+  console.log(`\n${  '='.repeat(50)  }\n`);
 }
 
 function runTests() {
@@ -107,7 +107,7 @@ function runTests() {
     },
     id: 1
   };
-  server.stdin.write(JSON.stringify(request1) + '\n');
+  server.stdin.write(`${JSON.stringify(request1)  }\n`);
   
   // Test 2: List controls for specific component
   setTimeout(() => {
@@ -121,7 +121,7 @@ function runTests() {
       },
       id: 2
     };
-    server.stdin.write(JSON.stringify(request2) + '\n');
+    server.stdin.write(`${JSON.stringify(request2)  }\n`);
   }, 2000);
   
   // Test 3: List controls with metadata
@@ -139,7 +139,7 @@ function runTests() {
       },
       id: 3
     };
-    server.stdin.write(JSON.stringify(request3) + '\n');
+    server.stdin.write(`${JSON.stringify(request3)  }\n`);
   }, 4000);
   
   // Shutdown after tests

@@ -10,8 +10,8 @@ class CacheNode<K, V> {
     public key: K,
     public value: V,
     public timestamp: number = Date.now(),
-    public accessCount: number = 0,
-    public memorySize: number = 0,
+    public accessCount = 0,
+    public memorySize = 0,
     public prev: CacheNode<K, V> | null = null,
     public next: CacheNode<K, V> | null = null
   ) {}
@@ -97,7 +97,7 @@ export class LRUCache<K, V> extends EventEmitter {
   private cleanupTimer?: NodeJS.Timeout;
 
   constructor(
-    private readonly maxEntries: number = 1000,
+    private readonly maxEntries = 1000,
     private readonly ttlMs: number = 30 * 60 * 1000, // 30 minutes default
     private readonly maxMemoryBytes: number = 50 * 1024 * 1024, // 50MB default
     private readonly evictionPolicy: EvictionPolicy = EvictionPolicy.LRU,

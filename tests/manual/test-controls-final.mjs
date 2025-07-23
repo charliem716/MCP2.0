@@ -65,7 +65,7 @@ async function finalTest() {
         });
         
         if (!getResult.isError) {
-          console.log('\n' + getResult.content[0].text);
+          console.log(`\n${  getResult.content[0].text}`);
           
           // Test 3: Set control values (safe test - set to current value)
           console.log('\n3️⃣ Testing set_control_values (SAFE MODE):');
@@ -134,7 +134,7 @@ async function finalTest() {
       }
     }
 
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
     console.log('✅ All MCP control operations validated!');
     console.log('\nSummary:');
     console.log('• list_controls: ✅ Working');

@@ -118,7 +118,7 @@ function parseEnvironment(): Environment {
   const result = envSchema.safeParse(process.env);
   
   if (!result.success) {
-    /* eslint-disable no-console */
+     
     logger.error('Invalid environment configuration:');
     logger.error(JSON.stringify(result.error.format(), null, 2));
     
@@ -130,7 +130,7 @@ function parseEnvironment(): Environment {
       logger.error('• Check that port numbers are valid (1-65535)');
       logger.error('• Verify IP addresses are in correct format');
     }
-    /* eslint-enable no-console */
+     
     
     // Exit with error code for scripts/CI
     if (process.env['NODE_ENV'] !== 'test') {
@@ -237,7 +237,7 @@ export const config = {
  * Validate configuration at startup
  */
 export function validateConfig(): void {
-  /* eslint-disable no-console */
+   
   // Skip console output in MCP mode to avoid polluting stdout
   if (process.env['MCP_MODE'] === 'true') {
     return;
@@ -261,7 +261,7 @@ export function validateConfig(): void {
   }
   
   logger.info('Environment configuration validated');
-  /* eslint-enable no-console */
+   
 }
 
 /**

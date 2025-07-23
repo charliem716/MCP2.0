@@ -58,7 +58,7 @@ export class ChangeGroupExecutor {
   ): Promise<ControlChangeResult[]> {
     const semaphore = new Semaphore(options.maxConcurrentChanges);
     const results: ControlChangeResult[] = [];
-    const promises: Promise<void>[] = [];
+    const promises: Array<Promise<void>> = [];
     
     for (const control of changeGroup.controls) {
       const promise = (async () => {

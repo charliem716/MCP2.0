@@ -20,8 +20,8 @@ const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
   stdio: ['pipe', 'pipe', 'pipe']
 });
 
-let unhandledRejections = [];
-let unhandledExceptions = [];
+const unhandledRejections = [];
+const unhandledExceptions = [];
 let output = '';
 let errorOutput = '';
 

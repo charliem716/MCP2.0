@@ -63,7 +63,7 @@ async function testControls() {
         
         if (!result.isError) {
           const lines = result.content[0].text.split('\\n');
-          console.log('   ' + lines.slice(0, 10).join('\\n   '));
+          console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
         } else {
           console.log('   ❌ Error:', result.content[0].text);
         }
@@ -100,7 +100,7 @@ async function testControls() {
       });
       
       if (!getResult.isError) {
-        console.log('\\n' + getResult.content[0].text);
+        console.log(`\\n${  getResult.content[0].text}`);
       } else {
         console.log('❌ Error:', getResult.content[0].text);
       }
@@ -160,7 +160,7 @@ async function testControls() {
     }
     */
 
-    console.log('\\n' + '='.repeat(60));
+    console.log(`\\n${  '='.repeat(60)}`);
     console.log('✅ Control tests completed successfully!');
 
   } catch (error) {

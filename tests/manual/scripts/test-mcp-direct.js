@@ -88,7 +88,7 @@ function sendRequest() {
     id: 1
   };
   
-  mcpClient.stdin.write(JSON.stringify(request) + '\n');
+  mcpClient.stdin.write(`${JSON.stringify(request)  }\n`);
 }
 
 // Timeout

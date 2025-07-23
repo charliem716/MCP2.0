@@ -176,7 +176,7 @@ export class CacheInvalidationManager extends EventEmitter {
    */
   async triggerRule(
     ruleId: string, 
-    reason: string = 'Manual trigger'
+    reason = 'Manual trigger'
   ): Promise<InvalidationResult> {
     const rule = this.rules.get(ruleId);
     if (!rule) {
@@ -202,7 +202,7 @@ export class CacheInvalidationManager extends EventEmitter {
    */
   async invalidateByPattern(
     pattern: RegExp, 
-    reason: string = 'Pattern match'
+    reason = 'Pattern match'
   ): Promise<string[]> {
     const allKeys = await this.stateRepository.getKeys();
     const matchingKeys = allKeys.filter(key => pattern.test(key));
@@ -233,7 +233,7 @@ export class CacheInvalidationManager extends EventEmitter {
    */
   async invalidateByDependency(
     dependencyName: string, 
-    reason: string = 'Dependency changed'
+    reason = 'Dependency changed'
   ): Promise<InvalidationResult[]> {
     const dependentRules = this.dependencyGraph.get(dependencyName);
     if (!dependentRules || dependentRules.size === 0) {

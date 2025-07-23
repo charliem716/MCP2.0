@@ -32,7 +32,7 @@ Object.entries(checks).forEach(([check, passed]) => {
   console.log(`  ${passed ? '✓' : '✗'} ${check}`);
 });
 
-console.log('\n' + '=' . repeat(80));
+console.log(`\n${  '=' . repeat(80)}`);
 console.log('\nConclusion:');
 console.log('✅ All MCP tool descriptions have been successfully enhanced.');
 console.log('✅ Each tool now includes concrete examples and parameter guidance.');

@@ -39,7 +39,7 @@ endpoints.forEach((endpoint, i) => {
 
 // Try both WS and WSS protocols
 const protocols = ['wss', 'ws'];
-let wsUrl = `wss://${host}:${port}/qrc-public-api/v0`;
+const wsUrl = `wss://${host}:${port}/qrc-public-api/v0`;
 console.log(`\n🚀 Attempting WSS (Secure WebSocket): ${wsUrl}`);
 
 // Create WebSocket connection with SSL options for self-signed certificates
@@ -111,7 +111,7 @@ socket.on('error', (error) => {
     console.error('');
     console.error('🔍 TROUBLESHOOTING:');
     console.error('   • Check if the IP address is correct');
-    console.error('   • Verify network connectivity with: ping ' + host);
+    console.error(`   • Verify network connectivity with: ping ${  host}`);
   }
   
   process.exit(1);

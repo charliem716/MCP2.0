@@ -14,7 +14,7 @@ console.log(`Connecting to: ${host}:${port}`);
 const wsUrl = `wss://${host}:${port}/qrc`;
 const socket = new WebSocket(wsUrl, {
   headers: {
-    'Authorization': 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64')
+    'Authorization': `Basic ${  Buffer.from(`${username}:${password}`).toString('base64')}`
   },
   rejectUnauthorized: false // Allow self-signed certificates
 });
@@ -26,9 +26,9 @@ function sendCommand(method, params) {
     const id = requestId++;
     const command = {
       jsonrpc: "2.0",
-      method: method,
-      params: params,
-      id: id
+      method,
+      params,
+      id
     };
     
     console.log(`\n📤 Sending: ${JSON.stringify(command, null, 2)}`);
@@ -47,7 +47,7 @@ function sendCommand(method, params) {
     };
     
     socket.on('message', handler);
-    socket.send(JSON.stringify(command) + '\0');
+    socket.send(`${JSON.stringify(command)  }\0`);
   });
 }
 

@@ -87,7 +87,7 @@ class MCPTestClient {
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
-      this.mcp.stdin.write(JSON.stringify(request) + '\n');
+      this.mcp.stdin.write(`${JSON.stringify(request)  }\n`);
 
       // Timeout after 30 seconds
       setTimeout(() => {
@@ -134,7 +134,7 @@ class MCPTestClient {
   }
 
   printSummary() {
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
     console.log('TEST SUMMARY');
     console.log('='.repeat(60));
     
@@ -153,7 +153,7 @@ class MCPTestClient {
       });
     }
     
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
   }
 }
 
@@ -463,7 +463,7 @@ async function runTests() {
           controls: [{
             component: gainControl.name,
             control: 'gain',
-            value: value,
+            value,
             ramp_time: 0
           }]
         });

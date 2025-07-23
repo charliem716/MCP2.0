@@ -15,7 +15,7 @@ console.log('Request:', JSON.stringify(request, null, 2));
 console.log('\nSending to stdin...');
 
 // Send to stdin
-process.stdout.write(JSON.stringify(request) + '\n');
+process.stdout.write(`${JSON.stringify(request)  }\n`);
 
 // Wait for response
 process.stdin.on('data', (data) => {

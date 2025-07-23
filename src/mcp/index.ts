@@ -13,8 +13,8 @@ async function main() {
     version: "1.0.0",
     transport: "stdio",
     qrwc: {
-      host: process.env['QSYS_HOST'] || "localhost",
-      port: parseInt(process.env['QSYS_PORT'] || "443"),
+      host: process.env['QSYS_HOST'] ?? "localhost",
+      port: parseInt(process.env['QSYS_PORT'] ?? "443"),
       ...(process.env['QSYS_USERNAME'] && { username: process.env['QSYS_USERNAME'] }),
       ...(process.env['QSYS_PASSWORD'] && { password: process.env['QSYS_PASSWORD'] }),
       ...(process.env['QSYS_SECURE'] && { secure: process.env['QSYS_SECURE'] === "true" }),

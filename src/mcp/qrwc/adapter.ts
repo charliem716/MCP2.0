@@ -90,7 +90,7 @@ export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterfa
       let controlCount = 0;
 
       for (const [componentName, component] of Object.entries(qrwc.components)) {
-        if (component?.controls) {
+        if (component.controls) {
           for (const controlName of Object.keys(component.controls)) {
             const fullName = `${componentName}.${controlName}`;
             this.controlIndex.set(fullName, { componentName, controlName });
@@ -127,7 +127,7 @@ export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterfa
    * Count all controls across all components
    */
   private countAllControls(qrwc: any): number {
-    if (!qrwc || !qrwc.components) return 0;
+    if (!qrwc?.components) return 0;
     
     let count = 0;
     for (const component of Object.values(qrwc.components)) {
@@ -248,12 +248,12 @@ export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterfa
           
           try {
             const component = this.officialClient.getComponent(componentName);
-            if (!component || !component.controls) {
+            if (!component?.controls) {
               throw new Error(`Component '${componentName}' not found or has no controls`);
             }
             
             const controls = Object.entries(component.controls).map(([name, control]: [string, any]) => {
-              const state = control.state as any;
+              const state = control.state;
               
               // Extract value from state object
               const { value, type } = extractControlValue(state);
@@ -533,7 +533,7 @@ export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterfa
           
           for (const componentName of allComponentNames) {
             const component = qrwcInstance.components[componentName];
-            if (component && component.controls) {
+            if (component?.controls) {
               const controlNames = Object.keys(component.controls);
               for (const controlName of controlNames) {
                 const control = component.controls[controlName];
@@ -572,7 +572,7 @@ export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterfa
           
           try {
             const component = this.officialClient.getComponent(getComponentName);
-            if (!component || !component.controls) {
+            if (!component?.controls) {
               throw new Error(`Component '${getComponentName}' not found or has no controls`);
             }
             
@@ -641,7 +641,7 @@ export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterfa
               
               // Get control info for validation
               const component = this.officialClient.getComponent(setComponentName);
-              if (!component || !component.controls) {
+              if (!component?.controls) {
                 throw new Error(`Component '${setComponentName}' not found`);
               }
               
@@ -811,7 +811,7 @@ export class QRWCClientAdapter extends EventEmitter implements QRWCClientInterfa
           if (changes.length > 0) {
             this.emit('changeGroup:changes', {
               groupId: id,
-              changes: changes,
+              changes,
               timestamp: process.hrtime.bigint(),
               timestampMs: Date.now(),
               sequenceNumber: this.globalSequenceNumber++

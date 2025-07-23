@@ -87,7 +87,7 @@ async function runTests() {
   await testTool('query_core_status', createQueryCoreStatusTool(mockQrwcClient));
   
   // Summary
-  console.log('\n' + '='.repeat(40));
+  console.log(`\n${  '='.repeat(40)}`);
   console.log(`Total: ${passCount + failCount}, Passed: ${passCount}, Failed: ${failCount}`);
   
   if (failCount === 0) {

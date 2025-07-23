@@ -129,7 +129,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     return {
       query_type: 'examples',
       count: examples.length,
-      examples: examples,
+      examples,
       hint: examples.length === 0 && params.method_name 
         ? `No example found for '${params.method_name}'. Try searching for the method first.`
         : undefined

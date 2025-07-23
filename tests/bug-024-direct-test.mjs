@@ -32,7 +32,7 @@ async function runTests() {
 
   for (const test of testCases) {
     console.log(`\nTesting: ${test.name}`);
-    console.log('Expected: Component="${' + test.expectedComp + '}", Control="${' + test.expectedCtrl + '}"');
+    console.log(`Expected: Component="\${${  test.expectedComp  }}", Control="\${${  test.expectedCtrl  }}"`);
     
     try {
       await adapter.sendCommand('Control.SetValues', {
@@ -47,7 +47,7 @@ async function runTests() {
     }
   }
 
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   if (allPassed) {
     console.log('✅ BUG-024 FULLY FIXED: All control name patterns parse correctly!');
   } else {

@@ -47,7 +47,7 @@ tools.forEach(({ name, instance }) => {
   });
 });
 
-console.log('\n' + '=' . repeat(80));
+console.log(`\n${  '=' . repeat(80)}`);
 console.log('\nSummary:');
 console.log('All tool descriptions have been enhanced with:');
 console.log('- Concrete examples of component and control names');
