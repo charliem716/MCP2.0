@@ -11,22 +11,14 @@ import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { ChangeGroupEvent, ControlChange, SpilledEventFile } from './types.js';
-import { isChangeGroupEvent, isSpilledEventFile } from './types.js';
-import type { 
-  ControlValue, 
-  EventType, 
-  SerializedCachedEvent, 
-  TypedQRWCAdapterEvents 
-} from './event-types.js';
+import { isSpilledEventFile, type ChangeGroupEvent, type ControlChange } from './types.js';
 import { 
-  EVENT_TYPES,
   isEventType, 
-  isControlValue, 
   isSerializedCachedEvent, 
-  parseSerializedEvents,
   getMapValue,
-  getMapValueOrDefault
+  type ControlValue, 
+  type EventType, 
+  type SerializedCachedEvent
 } from './event-types.js';
 
 /**
@@ -76,6 +68,34 @@ export interface CacheStatistics {
   memoryUsage: number;
   controlsTracked: number;
   eventsPerSecond: number;
+}
+
+/**
+ * Buffer information for memory management
+ */
+interface BufferInfo {
+  groupId: string;
+  size: number;
+  memory: number;
+  priority: 'low' | 'normal' | 'high';
+}
+
+/**
+ * Spillover file data
+ */
+interface SpilloverFileData {
+  groupId: string;
+  filename: string;
+  filepath: string;
+  data: {
+    groupId: string;
+    timestamp: number;
+    eventCount: number;
+    startTime: number;
+    endTime: number;
+    events: Array<Omit<CachedEvent, 'timestamp'> & { timestamp: string }>;
+  };
+  eventCount: number;
 }
 
 /**
@@ -138,7 +158,7 @@ export class EventCacheManager extends EventEmitter {
     this.eventRates = new Map();
     this.groupPriorities = new Map();
     this.compressionStats = new Map();
-    this.globalMemoryLimitBytes = (this.defaultConfig.globalMemoryLimitMB || 500) * 1024 * 1024;
+    this.globalMemoryLimitBytes = (this.defaultConfig.globalMemoryLimitMB ?? 500) * 1024 * 1024;
     
     // Apply default compression config
     if (!this.defaultConfig.compressionConfig) {
@@ -166,7 +186,7 @@ export class EventCacheManager extends EventEmitter {
     logger.info('EventCacheManager initialized', {
       maxEvents: this.defaultConfig.maxEvents,
       maxAgeMs: this.defaultConfig.maxAgeMs,
-      globalMemoryLimitMB: this.defaultConfig.globalMemoryLimitMB || 500,
+      globalMemoryLimitMB: this.defaultConfig.globalMemoryLimitMB ?? 500,
       compressionEnabled: this.defaultConfig.compressionConfig.enabled,
       diskSpilloverEnabled: this.defaultConfig.diskSpilloverConfig.enabled
     });
@@ -206,7 +226,7 @@ export class EventCacheManager extends EventEmitter {
    * Handle incoming change event from adapter
    */
   private handleChangeEvent(event: ChangeGroupEvent): void {
-    const { groupId, changes, timestamp, timestampMs, sequenceNumber } = event;
+    const { groupId, changes, timestamp, timestampMs } = event;
     
     logger.debug('Processing change event', {
       groupId,
@@ -214,65 +234,113 @@ export class EventCacheManager extends EventEmitter {
       timestampMs
     });
     
-    // Ensure buffer exists for this group
+    this.ensureGroupBufferExists(groupId);
+    const processedEvents = this.processChanges(groupId, changes, timestamp, timestampMs);
+    this.finalizeChangeProcessing(groupId, processedEvents.length);
+  }
+  
+  /**
+   * Ensure buffer exists for a group
+   */
+  private ensureGroupBufferExists(groupId: string): void {
     if (!this.buffers.has(groupId)) {
       this.createBuffer(groupId);
     }
-    
+  }
+  
+  /**
+   * Process individual changes and store events
+   */
+  private processChanges(
+    groupId: string,
+    changes: ControlChange[],
+    timestamp: bigint,
+    timestampMs: number
+  ): CachedEvent[] {
     const buffer = this.buffers.get(groupId)!;
-    const groupLastValues = this.lastValues.get(groupId) || new Map<string, ControlValue>();
-    const groupLastTimes = this.lastEventTimes.get(groupId) || new Map<string, number>();
+    const groupLastValues = this.lastValues.get(groupId) ?? new Map<string, ControlValue>();
+    const groupLastTimes = this.lastEventTimes.get(groupId) ?? new Map<string, number>();
+    const processedEvents: CachedEvent[] = [];
     
-    // Process each change
     for (const change of changes) {
-      const previousValue = getMapValue(groupLastValues, change.Name);
-      const previousTime = getMapValue(groupLastTimes, change.Name);
-      
-      const eventType = this.detectEventType(change.Name, previousValue, change.Value);
-      const threshold = eventType === 'threshold_crossed' 
-        ? this.findCrossedThreshold(change.Name, previousValue, change.Value)
-        : undefined;
-      
-      const cachedEvent: CachedEvent = {
-        groupId,
-        controlName: change.Name,
-        timestamp,
-        timestampMs,
-        value: change.Value,
-        string: change.String || String(change.Value),
-        previousValue,
-        previousString: previousValue !== undefined && previousValue !== null ? String(previousValue) : undefined,
-        delta: this.calculateDelta(previousValue, change.Value),
-        duration: previousTime ? timestampMs - previousTime : undefined,
-        sequenceNumber: this.globalSequence++,
-        eventType,
-        threshold
-      };
+      const cachedEvent = this.createCachedEvent({
+        groupId, change, timestamp, timestampMs,
+        lastValues: groupLastValues, 
+        lastTimes: groupLastTimes
+      });
       
       buffer.add(cachedEvent, timestamp);
       groupLastValues.set(change.Name, change.Value);
       groupLastTimes.set(change.Name, timestampMs);
+      processedEvents.push(cachedEvent);
     }
     
     this.lastValues.set(groupId, groupLastValues);
     this.lastEventTimes.set(groupId, groupLastTimes);
     
-    // Update event rate tracking
-    this.updateEventRate(groupId, changes.length);
+    return processedEvents;
+  }
+  
+  /**
+   * Create a cached event from a control change
+   */
+  private createCachedEvent(params: {
+    groupId: string;
+    change: ControlChange;
+    timestamp: bigint;
+    timestampMs: number;
+    lastValues: Map<string, ControlValue>;
+    lastTimes: Map<string, number>;
+  }): CachedEvent {
+    const { groupId, change, timestamp, timestampMs, lastValues, lastTimes } = params;
+    const previousValue = getMapValue(lastValues, change.Name);
+    const previousTime = getMapValue(lastTimes, change.Name);
+    const eventType = this.detectEventType(change.Name, previousValue, change.Value);
     
+    return {
+      groupId,
+      controlName: change.Name,
+      timestamp,
+      timestampMs,
+      value: change.Value,
+      string: change.String ?? String(change.Value),
+      previousValue,
+      previousString: previousValue !== undefined && previousValue !== null ? String(previousValue) : undefined,
+      delta: this.calculateDelta(previousValue, change.Value),
+      duration: previousTime ? timestampMs - previousTime : undefined,
+      sequenceNumber: this.globalSequence++,
+      eventType,
+      threshold: eventType === 'threshold_crossed' 
+        ? this.findCrossedThreshold(change.Name, previousValue, change.Value)
+        : undefined
+    };
+  }
+  
+  /**
+   * Finalize change processing with notifications and checks
+   */
+  private finalizeChangeProcessing(groupId: string, changeCount: number): void {
+    this.updateEventRate(groupId, changeCount);
+    
+    const buffer = this.buffers.get(groupId)!;
     this.emit('eventsStored', { 
       groupId, 
-      count: changes.length,
+      count: changeCount,
       totalEvents: buffer.getSize()
     });
     
-    // Check memory pressure immediately after adding events
-    if (this.defaultConfig.memoryCheckIntervalMs) {
-      const usage = this.getGlobalMemoryUsage();
-      if (usage > this.globalMemoryLimitBytes) {
-        // Use setImmediate to avoid blocking
-        setImmediate(() => this.checkMemoryPressure());
-      }
+    this.scheduleMemoryCheck();
+  }
+  
+  /**
+   * Schedule memory pressure check if needed
+   */
+  private scheduleMemoryCheck(): void {
+    if (!this.defaultConfig.memoryCheckIntervalMs) return;
+    
+    const usage = this.getGlobalMemoryUsage();
+    if (usage > this.globalMemoryLimitBytes) {
+      setImmediate(() => void this.checkMemoryPressure());
     }
   }
   
@@ -311,36 +379,84 @@ export class EventCacheManager extends EventEmitter {
     previousValue: ControlValue | undefined,
     currentValue: ControlValue
   ): EventType | undefined {
-    // First event has no previous value
     if (previousValue === undefined) {
       return 'change';
     }
     
-    // State transition for boolean/string values
-    if (typeof currentValue === 'boolean' || typeof currentValue === 'string') {
-      if (previousValue !== currentValue) {
-        return 'state_transition';
-      }
+    if (this.isStateTransition(previousValue, currentValue)) {
+      return 'state_transition';
     }
     
-    // Numeric analysis
-    if (typeof previousValue === 'number' && typeof currentValue === 'number') {
-      // Check threshold crossings (hardcoded common thresholds for now)
-      const threshold = this.findCrossedThreshold(controlName, previousValue, currentValue);
-      if (threshold !== undefined) {
-        return 'threshold_crossed';
-      }
-      
-      // Check significant change (5% by default)
-      if (previousValue !== 0) {
-        const changePercent = Math.abs((currentValue - previousValue) / previousValue) * 100;
-        if (changePercent >= 5) {
-          return 'significant_change';
-        }
-      }
+    const numericEventType = this.detectNumericEventType(controlName, previousValue, currentValue);
+    if (numericEventType) {
+      return numericEventType;
     }
     
     return 'change';
+  }
+  
+  /**
+   * Check if value change is a state transition
+   */
+  private isStateTransition(previousValue: ControlValue, currentValue: ControlValue): boolean {
+    // Boolean or string state change
+    if (typeof currentValue === 'boolean' || typeof currentValue === 'string') {
+      return previousValue !== currentValue;
+    }
+    
+    // Binary numeric state (0/1)
+    if (typeof previousValue === 'number' && typeof currentValue === 'number') {
+      return this.isBinaryStateChange(previousValue, currentValue);
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Check for binary state change (0/1)
+   */
+  private isBinaryStateChange(prev: number, curr: number): boolean {
+    return (prev === 0 || prev === 1) && 
+           (curr === 0 || curr === 1) && 
+           prev !== curr;
+  }
+  
+  /**
+   * Detect numeric-specific event types
+   */
+  private detectNumericEventType(
+    controlName: string,
+    previousValue: ControlValue,
+    currentValue: ControlValue
+  ): EventType | undefined {
+    if (typeof previousValue !== 'number' || typeof currentValue !== 'number') {
+      return undefined;
+    }
+    
+    // Check threshold crossing
+    const threshold = this.findCrossedThreshold(controlName, previousValue, currentValue);
+    if (threshold !== undefined) {
+      return 'threshold_crossed';
+    }
+    
+    // Check significant change
+    if (this.isSignificantChange(previousValue, currentValue)) {
+      return 'significant_change';
+    }
+    
+    return undefined;
+  }
+  
+  /**
+   * Check if numeric change is significant (5% threshold)
+   */
+  private isSignificantChange(previousValue: number, currentValue: number): boolean {
+    if (previousValue === 0) {
+      return currentValue !== 0;
+    }
+    
+    const changePercent = Math.abs((currentValue - previousValue) / previousValue) * 100;
+    return changePercent >= 5;
   }
   
   /**
@@ -377,7 +493,7 @@ export class EventCacheManager extends EventEmitter {
    * Update event rate tracking
    */
   private updateEventRate(groupId: string, eventCount: number): void {
-    const rates = this.eventRates.get(groupId) || [];
+    const rates = this.eventRates.get(groupId) ?? [];
     const now = Date.now();
     
     // Add current rate (events per second)
@@ -395,124 +511,172 @@ export class EventCacheManager extends EventEmitter {
    * Query historical events
    */
   async query(params: EventQuery): Promise<CachedEvent[]> {
-    const {
-      groupId,
-      startTime = Date.now() - 60000, // Default: last minute
-      endTime = Date.now(),
-      controlNames,
-      valueFilter,
-      limit = 1000,
-      offset = 0,
-      aggregation = 'raw',
-      eventTypes
-    } = params;
+    const queryParams = this.normalizeQueryParams(params);
+    this.logQueryStart(queryParams);
     
+    // Collect events from memory and disk
+    const memoryEvents = this.queryMemoryBuffers(queryParams);
+    const diskEvents = await this.queryDiskStorage(queryParams);
+    
+    // Combine and process results
+    let results = [...memoryEvents, ...diskEvents];
+    results = this.sortEventsByTimestamp(results);
+    results = this.applyAggregation(results, queryParams.aggregation);
+    results = this.applyPagination(results, queryParams.offset, queryParams.limit);
+    
+    this.logQueryComplete(results, queryParams);
+    return results;
+  }
+  
+  /**
+   * Normalize query parameters with defaults
+   */
+  private normalizeQueryParams(params: EventQuery): Required<EventQuery> {
+    return {
+      groupId: params.groupId,
+      startTime: params.startTime ?? Date.now() - 60000,
+      endTime: params.endTime ?? Date.now(),
+      controlNames: params.controlNames,
+      valueFilter: params.valueFilter,
+      limit: params.limit ?? 1000,
+      offset: params.offset ?? 0,
+      aggregation: params.aggregation ?? 'raw',
+      eventTypes: params.eventTypes
+    };
+  }
+  
+  /**
+   * Log query start for debugging
+   */
+  private logQueryStart(params: Required<EventQuery>): void {
     logger.debug('Querying event cache', {
-      groupId,
-      startTime: new Date(startTime).toISOString(),
-      endTime: new Date(endTime).toISOString(),
-      controlNames,
-      valueFilter,
-      limit,
-      offset
+      groupId: params.groupId,
+      startTime: new Date(params.startTime).toISOString(),
+      endTime: new Date(params.endTime).toISOString(),
+      controlNames: params.controlNames,
+      valueFilter: params.valueFilter,
+      limit: params.limit,
+      offset: params.offset
     });
-    
-    let results: CachedEvent[] = [];
-    
-    // Determine which buffers to query
-    const buffersToQuery: Array<CircularBuffer<CachedEvent>> = groupId 
-      ? (this.buffers.has(groupId) ? [this.buffers.get(groupId)!] : [])
-      : Array.from(this.buffers.values());
-    
-    if (buffersToQuery.length === 0) {
-      logger.warn('No buffers found for query', { groupId });
+  }
+  
+  /**
+   * Query events from memory buffers
+   */
+  private queryMemoryBuffers(params: Required<EventQuery>): CachedEvent[] {
+    const buffers = this.getBuffersToQuery(params.groupId);
+    if (buffers.length === 0) {
+      logger.warn('No buffers found for query', { groupId: params.groupId });
       return [];
     }
     
-    // Query each buffer
-    for (const buffer of buffersToQuery) {
-      // Convert millisecond timestamps to nanoseconds for queryTimeRange
-      const startTimeNs = BigInt(startTime) * 1000000n;
-      const endTimeNs = BigInt(endTime) * 1000000n;
-      
-      // Use queryTimeRange for efficient O(log n) time-based filtering
+    const results: CachedEvent[] = [];
+    const startTimeNs = BigInt(params.startTime) * 1000000n;
+    const endTimeNs = BigInt(params.endTime) * 1000000n;
+    
+    for (const buffer of buffers) {
       const events = buffer.queryTimeRange(startTimeNs, endTimeNs);
-      
-      // Apply filters
-      let filtered = events;
-      
-      if (controlNames && controlNames.length > 0) {
-        filtered = filtered.filter((e: CachedEvent) => controlNames.includes(e.controlName));
-      }
-      
-      if (valueFilter) {
-        filtered = this.applyValueFilter(filtered, valueFilter);
-      }
-      
-      if (eventTypes && eventTypes.length > 0) {
-        filtered = filtered.filter((e: CachedEvent) => 
-          e.eventType && eventTypes.includes(e.eventType)
-        );
-      }
-      
+      const filtered = this.applyEventFilters(events, params);
       results.push(...filtered);
     }
     
-    // Check disk spillover if enabled
-    if (this.defaultConfig.diskSpilloverConfig?.enabled) {
-      const groupsToCheck = groupId ? [groupId] : this.getGroupIds();
-      
-      for (const gid of groupsToCheck) {
-        const diskEvents = await this.loadFromDisk(gid, startTime, endTime);
-        
-        // Apply same filters
-        let filtered = diskEvents;
-        
-        if (controlNames && controlNames.length > 0) {
-          filtered = filtered.filter((e: CachedEvent) => controlNames.includes(e.controlName));
-        }
-        
-        if (valueFilter) {
-          filtered = this.applyValueFilter(filtered, valueFilter);
-        }
-        
-        if (eventTypes && eventTypes.length > 0) {
-          filtered = filtered.filter((e: CachedEvent) => 
-            e.eventType && eventTypes.includes(e.eventType)
-          );
-        }
-        
-        results.push(...filtered);
-      }
+    return results;
+  }
+  
+  /**
+   * Get buffers to query based on groupId
+   */
+  private getBuffersToQuery(groupId?: string): Array<CircularBuffer<CachedEvent>> {
+    if (groupId) {
+      return this.buffers.has(groupId) ? [this.buffers.get(groupId)!] : [];
+    }
+    return Array.from(this.buffers.values());
+  }
+  
+  /**
+   * Query events from disk storage
+   */
+  private async queryDiskStorage(params: Required<EventQuery>): Promise<CachedEvent[]> {
+    if (!this.defaultConfig.diskSpilloverConfig?.enabled) {
+      return [];
     }
     
-    // Sort by timestamp (oldest first)
-    results.sort((a, b) => {
+    const results: CachedEvent[] = [];
+    const groupsToCheck = params.groupId ? [params.groupId] : this.getGroupIds();
+    
+    for (const gid of groupsToCheck) {
+      const diskEvents = await this.loadFromDisk(gid, params.startTime, params.endTime);
+      const filtered = this.applyEventFilters(diskEvents, params);
+      results.push(...filtered);
+    }
+    
+    return results;
+  }
+  
+  /**
+   * Apply all filters to events
+   */
+  private applyEventFilters(events: CachedEvent[], params: Required<EventQuery>): CachedEvent[] {
+    let filtered = events;
+    
+    if (params.controlNames && params.controlNames.length > 0) {
+      filtered = filtered.filter(e => params.controlNames!.includes(e.controlName));
+    }
+    
+    if (params.valueFilter) {
+      filtered = this.applyValueFilter(filtered, params.valueFilter);
+    }
+    
+    if (params.eventTypes && params.eventTypes.length > 0) {
+      filtered = filtered.filter(e => e.eventType && params.eventTypes!.includes(e.eventType));
+    }
+    
+    return filtered;
+  }
+  
+  /**
+   * Sort events by timestamp
+   */
+  private sortEventsByTimestamp(events: CachedEvent[]): CachedEvent[] {
+    return events.sort((a, b) => {
       const diff = a.timestamp - b.timestamp;
       return diff > 0n ? 1 : diff < 0n ? -1 : 0;
     });
-    
-    // Apply aggregation
+  }
+  
+  /**
+   * Apply aggregation to results
+   */
+  private applyAggregation(events: CachedEvent[], aggregation: 'raw' | 'changes_only'): CachedEvent[] {
     if (aggregation === 'changes_only') {
-      results = this.filterChangesOnly(results);
+      return this.filterChangesOnly(events);
     }
-    
-    // Apply offset and limit for pagination
-    if (offset > 0 || (limit > 0 && results.length > limit)) {
+    return events;
+  }
+  
+  /**
+   * Apply pagination to results
+   */
+  private applyPagination(events: CachedEvent[], offset: number, limit: number): CachedEvent[] {
+    if (offset > 0 || (limit > 0 && events.length > limit)) {
       const start = offset;
-      const end = limit > 0 ? start + limit : results.length;
-      results = results.slice(start, end);
+      const end = limit > 0 ? start + limit : events.length;
+      return events.slice(start, end);
     }
-    
+    return events;
+  }
+  
+  /**
+   * Log query completion
+   */
+  private logQueryComplete(results: CachedEvent[], params: Required<EventQuery>): void {
     logger.debug('Query completed', {
       resultCount: results.length,
-      offset,
-      limit,
+      offset: params.offset,
+      limit: params.limit,
       firstEvent: results[0]?.timestampMs,
       lastEvent: results[results.length - 1]?.timestampMs
     });
-    
-    return results;
   }
   
   /**
@@ -525,49 +689,79 @@ export class EventCacheManager extends EventEmitter {
     if (!filter || filter.value === undefined) return events;
     
     const { operator, value } = filter;
+    return events.filter(event => this.evaluateValueFilter(event, operator, value));
+  }
+  
+  /**
+   * Evaluate a single value filter condition
+   */
+  private evaluateValueFilter(
+    event: CachedEvent,
+    operator: NonNullable<EventQuery['valueFilter']>['operator'],
+    value: any
+  ): boolean {
+    switch (operator) {
+      case 'eq':
+        return this.evaluateEquality(event.value, value);
+      case 'neq':
+        return !this.evaluateEquality(event.value, value);
+      case 'gt':
+      case 'gte':
+      case 'lt':
+      case 'lte':
+        return this.evaluateNumericComparison(event.value, value, operator);
+      case 'changed_to':
+        return this.evaluateChangedTo(event, value);
+      case 'changed_from':
+        return this.evaluateChangedFrom(event, value);
+      default:
+        return true;
+    }
+  }
+  
+  /**
+   * Evaluate equality between values
+   */
+  private evaluateEquality(eventValue: any, filterValue: any): boolean {
+    return eventValue === filterValue;
+  }
+  
+  /**
+   * Evaluate numeric comparisons
+   */
+  private evaluateNumericComparison(
+    eventValue: any,
+    filterValue: any,
+    operator: 'gt' | 'gte' | 'lt' | 'lte'
+  ): boolean {
+    if (typeof eventValue !== 'number' || typeof filterValue !== 'number') {
+      return false;
+    }
     
-    return events.filter(event => {
-      switch (operator) {
-        case 'eq': 
-          return event.value === value;
-          
-        case 'neq': 
-          return event.value !== value;
-          
-        case 'gt': 
-          return typeof event.value === 'number' && 
-                 typeof value === 'number' && 
-                 event.value > value;
-                 
-        case 'gte': 
-          return typeof event.value === 'number' && 
-                 typeof value === 'number' && 
-                 event.value >= value;
-                 
-        case 'lt': 
-          return typeof event.value === 'number' && 
-                 typeof value === 'number' && 
-                 event.value < value;
-                 
-        case 'lte': 
-          return typeof event.value === 'number' && 
-                 typeof value === 'number' && 
-                 event.value <= value;
-                 
-        case 'changed_to': 
-          return event.value === value && 
-                 event.previousValue !== undefined &&
-                 event.previousValue !== value;
-                 
-        case 'changed_from':
-          return event.previousValue !== undefined &&
-                 event.previousValue === value && 
-                 event.value !== value;
-                 
-        default: 
-          return true;
-      }
-    });
+    switch (operator) {
+      case 'gt': return eventValue > filterValue;
+      case 'gte': return eventValue >= filterValue;
+      case 'lt': return eventValue < filterValue;
+      case 'lte': return eventValue <= filterValue;
+    }
+  }
+  
+  /**
+   * Evaluate if value changed to a specific value
+   */
+  private evaluateChangedTo(event: CachedEvent, value: any): boolean {
+    return event.value === value && 
+           event.previousValue !== undefined &&
+           event.previousValue !== value;
+  }
+  
+  /**
+   * Evaluate if value changed from a specific value
+   */
+  private evaluateChangedFrom(event: CachedEvent, value: any): boolean {
+    return event.previousValue !== undefined &&
+           event.previousValue === value && 
+           event.value !== value;
   }
   
   /**
@@ -601,7 +795,7 @@ export class EventCacheManager extends EventEmitter {
     const newestEvent = events.length > 0 ? events[events.length - 1] : undefined;
     
     // Calculate average events per second
-    const rates = this.eventRates.get(groupId) || [];
+    const rates = this.eventRates.get(groupId) ?? [];
     const avgRate = rates.length > 0 
       ? rates.reduce((a, b) => a + b, 0) / rates.length 
       : 0;
@@ -672,7 +866,7 @@ export class EventCacheManager extends EventEmitter {
    * Start background cleanup timer
    */
   private startCleanupTimer(): void {
-    const intervalMs = this.defaultConfig.cleanupIntervalMs || 30000; // Default 30 seconds
+    const intervalMs = this.defaultConfig.cleanupIntervalMs ?? 30000; // Default 30 seconds
     
     this.cleanupInterval = setInterval(() => {
       this.performCleanup();
@@ -712,7 +906,7 @@ export class EventCacheManager extends EventEmitter {
    * Start compression timer
    */
   private startCompressionTimer(): void {
-    const intervalMs = this.defaultConfig.compressionConfig?.checkIntervalMs || 60000;
+    const intervalMs = this.defaultConfig.compressionConfig?.checkIntervalMs ?? 60000;
     
     this.compressionInterval = setInterval(() => {
       this.performCompression();
@@ -734,7 +928,7 @@ export class EventCacheManager extends EventEmitter {
     let totalCompressed = 0;
     
     for (const [groupId, buffer] of this.buffers) {
-      const stats = this.compressionStats.get(groupId) || { original: 0, compressed: 0, lastRun: 0 };
+      const stats = this.compressionStats.get(groupId) ?? { original: 0, compressed: 0, lastRun: 0 };
       
       // Skip if recently compressed
       if (stats.lastRun && (now - stats.lastRun) < 30000) continue;
@@ -771,96 +965,178 @@ export class EventCacheManager extends EventEmitter {
     buffer: CircularBuffer<CachedEvent>,
     config: NonNullable<EventCacheConfig['compressionConfig']>
   ): number {
-    const now = Date.now();
     const events = buffer.getAll();
     if (events.length === 0) return 0;
     
-    // Group events by control name
-    const controlEvents = new Map<string, CachedEvent[]>();
-    for (const event of events) {
-      const list = controlEvents.get(event.controlName) || [];
-      list.push(event);
-      controlEvents.set(event.controlName, list);
-    }
+    const controlEvents = this.groupEventsByControl(events);
+    const eventsToKeep = this.selectEventsToKeep(controlEvents, config);
+    const compressedCount = events.length - eventsToKeep.length;
     
-    let compressedCount = 0;
-    const eventsToKeep: CachedEvent[] = [];
-    
-    for (const [controlName, eventList] of controlEvents) {
-      // Sort by timestamp
-      eventList.sort((a, b) => {
-        const diff = a.timestamp - b.timestamp;
-        return diff > 0n ? 1 : diff < 0n ? -1 : 0;
-      });
-      
-      let lastKeptEvent: CachedEvent | null = null;
-      
-      for (const event of eventList) {
-        const age = now - event.timestampMs;
-        let keepEvent = false;
-        
-        if (age < config.recentWindowMs!) {
-          // Recent window: keep all events
-          keepEvent = true;
-        } else if (age < config.mediumWindowMs!) {
-          // Medium window: keep significant changes
-          if (lastKeptEvent) {
-            // Check time gap
-            const timeSinceLastKept = event.timestampMs - lastKeptEvent.timestampMs;
-            if (timeSinceLastKept < config.minTimeBetweenEventsMs!) {
-              keepEvent = false;
-            } else if (event.eventType === 'state_transition' || event.eventType === 'threshold_crossed') {
-              keepEvent = true;
-            } else if (typeof event.value === 'number' && typeof lastKeptEvent.value === 'number') {
-              // Check numeric significance
-              const change = Math.abs(event.value - lastKeptEvent.value);
-              const percentChange = lastKeptEvent.value !== 0 
-                ? (change / Math.abs(lastKeptEvent.value)) * 100
-                : change > 0 ? 100 : 0;
-              keepEvent = percentChange >= config.significantChangePercent!;
-            } else if (event.value !== lastKeptEvent.value) {
-              // Non-numeric value changed
-              keepEvent = true;
-            }
-          } else {
-            // Always keep first event
-            keepEvent = true;
-          }
-        } else if (age < config.ancientWindowMs!) {
-          // Ancient window: only state transitions
-          if (event.eventType === 'state_transition' || event.eventType === 'threshold_crossed') {
-            keepEvent = true;
-          } else if (lastKeptEvent && event.value !== lastKeptEvent.value) {
-            // Keep if value changed from last kept event
-            keepEvent = true;
-          }
-        }
-        // Events older than ancient window are dropped
-        
-        if (keepEvent) {
-          eventsToKeep.push(event);
-          lastKeptEvent = event;
-        } else {
-          compressedCount++;
-        }
-      }
-    }
-    
-    // Replace buffer contents if we compressed anything
     if (compressedCount > 0) {
-      buffer.clear();
-      // Re-add kept events in chronological order
-      eventsToKeep.sort((a, b) => {
-        const diff = a.timestamp - b.timestamp;
-        return diff > 0n ? 1 : diff < 0n ? -1 : 0;
-      });
-      
-      for (const event of eventsToKeep) {
-        buffer.add(event, event.timestamp);
-      }
+      this.replaceBufferContents(buffer, eventsToKeep);
     }
     
     return compressedCount;
+  }
+  
+  /**
+   * Group events by control name
+   */
+  private groupEventsByControl(events: CachedEvent[]): Map<string, CachedEvent[]> {
+    const controlEvents = new Map<string, CachedEvent[]>();
+    for (const event of events) {
+      const list = controlEvents.get(event.controlName) ?? [];
+      list.push(event);
+      controlEvents.set(event.controlName, list);
+    }
+    return controlEvents;
+  }
+  
+  /**
+   * Select events to keep based on compression rules
+   */
+  private selectEventsToKeep(
+    controlEvents: Map<string, CachedEvent[]>,
+    config: NonNullable<EventCacheConfig['compressionConfig']>
+  ): CachedEvent[] {
+    const eventsToKeep: CachedEvent[] = [];
+    const now = Date.now();
+    
+    for (const [_controlName, eventList] of controlEvents) {
+      const sortedEvents = this.sortEventsByTimestamp(eventList);
+      const keptEvents = this.applyCompressionRules(sortedEvents, config, now);
+      eventsToKeep.push(...keptEvents);
+    }
+    
+    return eventsToKeep;
+  }
+  
+  /**
+   * Sort events by timestamp
+   */
+  private sortEventsByTimestamp(events: CachedEvent[]): CachedEvent[] {
+    return events.sort((a, b) => {
+      const diff = a.timestamp - b.timestamp;
+      return diff > 0n ? 1 : diff < 0n ? -1 : 0;
+    });
+  }
+  
+  /**
+   * Apply compression rules to a sorted list of events
+   */
+  private applyCompressionRules(
+    events: CachedEvent[],
+    config: NonNullable<EventCacheConfig['compressionConfig']>,
+    now: number
+  ): CachedEvent[] {
+    const kept: CachedEvent[] = [];
+    let lastKeptEvent: CachedEvent | null = null;
+    
+    for (const event of events) {
+      const age = now - event.timestampMs;
+      const shouldKeep = this.shouldKeepEvent(event, lastKeptEvent, age, config);
+      
+      if (shouldKeep) {
+        kept.push(event);
+        lastKeptEvent = event;
+      }
+    }
+    
+    return kept;
+  }
+  
+  /**
+   * Determine if an event should be kept based on age and significance
+   */
+  private shouldKeepEvent(
+    event: CachedEvent,
+    lastKeptEvent: CachedEvent | null,
+    age: number,
+    config: NonNullable<EventCacheConfig['compressionConfig']>
+  ): boolean {
+    if (age < config.recentWindowMs!) {
+      return true; // Keep all recent events
+    }
+    
+    if (age < config.mediumWindowMs!) {
+      return this.shouldKeepMediumAgeEvent(event, lastKeptEvent, config);
+    }
+    
+    if (age < config.ancientWindowMs!) {
+      return this.shouldKeepAncientEvent(event, lastKeptEvent);
+    }
+    
+    return false; // Drop events older than ancient window
+  }
+  
+  /**
+   * Check if medium-age event should be kept
+   */
+  private shouldKeepMediumAgeEvent(
+    event: CachedEvent,
+    lastKeptEvent: CachedEvent | null,
+    config: NonNullable<EventCacheConfig['compressionConfig']>
+  ): boolean {
+    if (!lastKeptEvent) return true; // Always keep first event
+    
+    const timeSinceLastKept = event.timestampMs - lastKeptEvent.timestampMs;
+    if (timeSinceLastKept < config.minTimeBetweenEventsMs!) {
+      return false;
+    }
+    
+    if (event.eventType === 'state_transition' || event.eventType === 'threshold_crossed') {
+      return true;
+    }
+    
+    return this.isSignificantChangeForCompression(event.value, lastKeptEvent.value, config.significantChangePercent!);
+  }
+  
+  /**
+   * Check if ancient event should be kept
+   */
+  private shouldKeepAncientEvent(
+    event: CachedEvent,
+    lastKeptEvent: CachedEvent | null
+  ): boolean {
+    if (event.eventType === 'state_transition' || event.eventType === 'threshold_crossed') {
+      return true;
+    }
+    
+    return lastKeptEvent && event.value !== lastKeptEvent.value;
+  }
+  
+  /**
+   * Check if a value change is significant for compression
+   */
+  private isSignificantChangeForCompression(
+    currentValue: ControlValue,
+    previousValue: ControlValue,
+    threshold: number
+  ): boolean {
+    if (typeof currentValue === 'number' && typeof previousValue === 'number') {
+      const change = Math.abs(currentValue - previousValue);
+      const percentChange = previousValue !== 0 
+        ? (change / Math.abs(previousValue)) * 100
+        : change > 0 ? 100 : 0;
+      return percentChange >= threshold;
+    }
+    
+    return currentValue !== previousValue;
+  }
+  
+  /**
+   * Replace buffer contents with compressed events
+   */
+  private replaceBufferContents(
+    buffer: CircularBuffer<CachedEvent>,
+    events: CachedEvent[]
+  ): void {
+    buffer.clear();
+    const sortedEvents = this.sortEventsByTimestamp(events);
+    
+    for (const event of sortedEvents) {
+      buffer.add(event, event.timestamp);
+    }
   }
   
   /**
@@ -901,7 +1177,7 @@ export class EventCacheManager extends EventEmitter {
     if (this.defaultConfig.memoryCheckIntervalMs) {
       this.memoryCheckInterval = setInterval(() => {
         this.checkMemoryPressure();
-      }, this.defaultConfig.memoryCheckIntervalMs || 10000);
+      }, this.defaultConfig.memoryCheckIntervalMs ?? 10000);
       
       if (this.memoryCheckInterval.unref) {
         this.memoryCheckInterval.unref();
@@ -997,47 +1273,90 @@ export class EventCacheManager extends EventEmitter {
    * Spill events to disk when memory threshold is exceeded
    */
   private async spillToDisk(groupId: string, events: CachedEvent[]): Promise<boolean> {
-    if (!this.defaultConfig.diskSpilloverConfig?.enabled || events.length === 0) {
+    if (!this.canSpillToDisk(events)) {
       return false;
     }
     
-    const dir = this.defaultConfig.diskSpilloverConfig.directory!;
+    const spilloverFile = this.prepareSpilloverFile(groupId, events);
+    const success = await this.writeSpilloverFile(spilloverFile);
+    
+    if (success) {
+      this.notifyDiskSpillover(spilloverFile);
+    }
+    
+    return success;
+  }
+  
+  /**
+   * Check if disk spillover is possible
+   */
+  private canSpillToDisk(events: CachedEvent[]): boolean {
+    return this.defaultConfig.diskSpilloverConfig?.enabled === true && events.length > 0;
+  }
+  
+  /**
+   * Prepare spillover file data
+   */
+  private prepareSpilloverFile(
+    groupId: string,
+    events: CachedEvent[]
+  ): SpilloverFileData {
     const timestamp = Date.now();
     const filename = `${groupId}-${timestamp}-${events.length}.json`;
-    const filepath = path.join(dir, filename);
+    const filepath = path.join(this.defaultConfig.diskSpilloverConfig!.directory!, filename);
     
+    const serializable = events.map(e => ({
+      ...e,
+      timestamp: e.timestamp.toString()
+    }));
+    
+    const data = {
+      groupId,
+      timestamp,
+      eventCount: events.length,
+      startTime: events[0]?.timestampMs ?? 0,
+      endTime: events[events.length - 1]?.timestampMs ?? 0,
+      events: serializable
+    };
+    
+    return { groupId, filename, filepath, data, eventCount: events.length };
+  }
+  
+  /**
+   * Write spillover file to disk
+   */
+  private async writeSpilloverFile(spilloverFile: SpilloverFileData): Promise<boolean> {
     try {
-      // Convert bigint timestamps to strings for JSON serialization
-      const serializable = events.map(e => ({
-        ...e,
-        timestamp: e.timestamp.toString()
-      }));
-      
-      const data = JSON.stringify({
-        groupId,
-        timestamp,
-        eventCount: events.length,
-        startTime: events[0]?.timestampMs ?? 0,
-        endTime: events[events.length - 1]?.timestampMs ?? 0,
-        events: serializable
-      });
-      
-      await fs.writeFile(filepath, data, 'utf8');
+      const jsonData = JSON.stringify(spilloverFile.data);
+      await fs.writeFile(spilloverFile.filepath, jsonData, 'utf8');
       
       logger.info('Spilled events to disk', {
-        groupId,
-        filename,
-        eventCount: events.length,
-        sizeBytes: data.length
+        groupId: spilloverFile.groupId,
+        filename: spilloverFile.filename,
+        eventCount: spilloverFile.eventCount,
+        sizeBytes: jsonData.length
       });
       
-      this.emit('diskSpillover', { groupId, filename, eventCount: events.length });
       return true;
-      
     } catch (error) {
-      logger.error('Failed to spill events to disk', { error, groupId, filename });
+      logger.error('Failed to spill events to disk', { 
+        error, 
+        groupId: spilloverFile.groupId, 
+        filename: spilloverFile.filename 
+      });
       return false;
     }
+  }
+  
+  /**
+   * Notify about disk spillover
+   */
+  private notifyDiskSpillover(spilloverFile: SpilloverFileData): void {
+    this.emit('diskSpillover', { 
+      groupId: spilloverFile.groupId, 
+      filename: spilloverFile.filename, 
+      eventCount: spilloverFile.eventCount 
+    });
   }
   
   /**
@@ -1053,64 +1372,136 @@ export class EventCacheManager extends EventEmitter {
     }
     
     const dir = this.defaultConfig.diskSpilloverConfig.directory!;
-    const events: CachedEvent[] = [];
+    const files = await this.getSpilloverFiles(dir, groupId);
+    const events = await this.loadEventsFromFiles(files, dir, startTime, endTime);
     
+    this.logDiskLoadComplete(groupId, files.length, events.length);
+    return this.sortEventsByTimestamp(events);
+  }
+  
+  /**
+   * Get spillover files for a group
+   */
+  private async getSpilloverFiles(dir: string, groupId: string): Promise<string[]> {
     try {
       const files = await fs.readdir(dir);
-      const groupFiles = files.filter(f => f.startsWith(`${groupId}-`) && f.endsWith('.json'));
-      
-      for (const file of groupFiles) {
-        try {
-          const filepath = path.join(dir, file);
-          const data = await fs.readFile(filepath, 'utf8');
-          const parsed: unknown = JSON.parse(data);
-          
-          if (!isSpilledEventFile(parsed)) {
-            logger.warn('Invalid spilled event file format', { file });
-            continue;
-          }
-          
-          // Quick check if file might contain events in our range
-          if (parsed.endTime < startTime || parsed.startTime > endTime) {
-            continue;
-          }
-          
-          // Deserialize events, converting timestamp back to bigint
-          const fileEvents: CachedEvent[] = parsed.events
-            .filter((e): e is SerializedCachedEvent => isSerializedCachedEvent(e))
-            .map((e) => ({
-              ...e,
-              timestamp: BigInt(e.timestamp),
-              eventType: e.eventType && isEventType(e.eventType) ? e.eventType : undefined,
-              value: e.value as ControlValue,
-              previousValue: e.previousValue as ControlValue | undefined
-            }))
-            .filter((e) => e.timestampMs >= startTime && e.timestampMs <= endTime);
-          
-          events.push(...fileEvents);
-          
-        } catch (error) {
-          logger.error('Failed to load spilled file', { error, file });
-        }
-      }
-      
-      // Sort by timestamp
-      events.sort((a, b) => {
-        const diff = a.timestamp - b.timestamp;
-        return diff > 0n ? 1 : diff < 0n ? -1 : 0;
-      });
-      
-      logger.debug('Loaded events from disk', {
-        groupId,
-        fileCount: groupFiles.length,
-        eventCount: events.length
-      });
-      
+      return files.filter(f => f.startsWith(`${groupId}-`) && f.endsWith('.json'));
     } catch (error) {
       logger.error('Failed to read spillover directory', { error, dir });
+      return [];
+    }
+  }
+  
+  /**
+   * Load events from spillover files
+   */
+  private async loadEventsFromFiles(
+    files: string[],
+    dir: string,
+    startTime: number,
+    endTime: number
+  ): Promise<CachedEvent[]> {
+    const events: CachedEvent[] = [];
+    
+    for (const file of files) {
+      const fileEvents = await this.loadEventsFromFile(file, dir, startTime, endTime);
+      events.push(...fileEvents);
     }
     
     return events;
+  }
+  
+  /**
+   * Load events from a single spillover file
+   */
+  private async loadEventsFromFile(
+    file: string,
+    dir: string,
+    startTime: number,
+    endTime: number
+  ): Promise<CachedEvent[]> {
+    try {
+      const filepath = path.join(dir, file);
+      const data = await fs.readFile(filepath, 'utf8');
+      const parsed = this.parseSpilloverFile(data, file);
+      
+      if (!parsed || !this.isFileInTimeRange(parsed, startTime, endTime)) {
+        return [];
+      }
+      
+      return this.deserializeFileEvents(parsed.events, startTime, endTime);
+    } catch (error) {
+      logger.error('Failed to load spilled file', { error, file });
+      return [];
+    }
+  }
+  
+  /**
+   * Parse spillover file data
+   */
+  private parseSpilloverFile(data: string, file: string): SpilledEventFile | null {
+    try {
+      const parsed: unknown = JSON.parse(data);
+      if (!isSpilledEventFile(parsed)) {
+        logger.warn('Invalid spilled event file format', { file });
+        return null;
+      }
+      return parsed;
+    } catch (error) {
+      logger.error('Failed to parse spillover file', { error, file });
+      return null;
+    }
+  }
+  
+  /**
+   * Check if file contains events in time range
+   */
+  private isFileInTimeRange(
+    file: SpilledEventFile,
+    startTime: number,
+    endTime: number
+  ): boolean {
+    return !(file.endTime < startTime || file.startTime > endTime);
+  }
+  
+  /**
+   * Deserialize events from file
+   */
+  private deserializeFileEvents(
+    events: unknown[],
+    startTime: number,
+    endTime: number
+  ): CachedEvent[] {
+    return events
+      .filter((e): e is SerializedCachedEvent => isSerializedCachedEvent(e))
+      .map(e => this.deserializeEvent(e))
+      .filter(e => e.timestampMs >= startTime && e.timestampMs <= endTime);
+  }
+  
+  /**
+   * Deserialize a single event
+   */
+  private deserializeEvent(serialized: SerializedCachedEvent): CachedEvent {
+    return {
+      ...serialized,
+      timestamp: BigInt(serialized.timestamp),
+      eventType: serialized.eventType && isEventType(serialized.eventType) 
+        ? serialized.eventType 
+        : undefined,
+      value: serialized.value,
+      previousValue: serialized.previousValue
+    };
+  }
+  
+  /**
+   * Log disk load completion
+   */
+  private logDiskLoadComplete(groupId: string, fileCount: number, eventCount: number): void {
+    logger.debug('Loaded events from disk', {
+      groupId,
+      fileCount,
+      eventCount
+    });
   }
   
   /**
@@ -1155,120 +1546,205 @@ export class EventCacheManager extends EventEmitter {
       limit: this.globalMemoryLimitBytes 
     });
     
-    const spilloverEnabled = this.defaultConfig.diskSpilloverConfig?.enabled;
-    const spilloverThresholdBytes = spilloverEnabled 
-      ? (this.defaultConfig.diskSpilloverConfig?.thresholdMB || 400) * 1024 * 1024
-      : Number.MAX_SAFE_INTEGER;
+    await this.checkDiskSpillover(currentUsage);
     
-    // Check if we should spill to disk first
-    if (spilloverEnabled && currentUsage > spilloverThresholdBytes && !this.diskSpilloverActive) {
+    const freed = await this.performMemoryEviction(currentUsage);
+    
+    this.handleMemoryPressureResolution(currentUsage, freed);
+  }
+  
+  /**
+   * Check if disk spillover should be activated
+   */
+  private async checkDiskSpillover(currentUsage: number): Promise<void> {
+    const spilloverEnabled = this.defaultConfig.diskSpilloverConfig?.enabled;
+    if (!spilloverEnabled) return;
+    
+    const spilloverThresholdBytes = (this.defaultConfig.diskSpilloverConfig?.thresholdMB ?? 400) * 1024 * 1024;
+    
+    if (currentUsage > spilloverThresholdBytes && !this.diskSpilloverActive) {
       this.diskSpilloverActive = true;
       await this.performDiskSpillover();
     }
+  }
+  
+  /**
+   * Perform memory eviction with multiple passes
+   */
+  private async performMemoryEviction(currentUsage: number): Promise<number> {
+    const bufferInfo = this.getBufferInfo();
+    const target = currentUsage - (this.globalMemoryLimitBytes * 0.7);
     
-    // Strategy: Evict oldest events from largest buffers, respecting priorities
-    const bufferSizes = Array.from(this.buffers.entries())
+    let freed = await this.multiPassEviction(bufferInfo, target);
+    
+    if (currentUsage - freed > this.globalMemoryLimitBytes) {
+      freed += this.criticalMemoryEviction(bufferInfo, currentUsage - freed);
+    }
+    
+    return freed;
+  }
+  
+  /**
+   * Get buffer information sorted by priority and size
+   */
+  private getBufferInfo(): BufferInfo[] {
+    return Array.from(this.buffers.entries())
       .map(([id, buffer]) => ({
         groupId: id,
         size: buffer.getSize(),
         memory: buffer.getSize() * this.calculateAverageEventSize(id),
-        priority: this.groupPriorities.get(id) || 'normal'
+        priority: this.groupPriorities.get(id) ?? 'normal'
       }))
-      // Sort by priority first (low priority first), then by memory usage
       .sort((a, b) => {
         const priorityOrder = { low: 0, normal: 1, high: 2 };
         const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
         if (priorityDiff !== 0) return priorityDiff;
         return b.memory - a.memory;
       });
+  }
+  
+  /**
+   * Perform multi-pass eviction with increasing aggression
+   */
+  private async multiPassEviction(bufferInfo: BufferInfo[], target: number): Promise<number> {
+    let freed = 0;
+    
+    for (let pass = 1; pass <= 3 && freed < target; pass++) {
+      freed += await this.evictionPass(bufferInfo, target - freed, pass);
+      
+      if (freed < target) {
+        this.resortBufferInfo(bufferInfo);
+      }
+    }
+    
+    return freed;
+  }
+  
+  /**
+   * Perform a single eviction pass
+   */
+  private async evictionPass(bufferInfo: BufferInfo[], remainingTarget: number, pass: number): Promise<number> {
+    let freed = 0;
+    const evictionParams = this.getEvictionParams(pass);
+    
+    for (const info of bufferInfo) {
+      if (freed >= remainingTarget) break;
+      
+      if (this.shouldSkipBuffer(info, pass, freed, remainingTarget)) continue;
+      
+      const evicted = this.evictFromBuffer(info, evictionParams);
+      freed += evicted;
+    }
+    
+    return freed;
+  }
+  
+  /**
+   * Get eviction parameters for a pass
+   */
+  private getEvictionParams(pass: number): { rate: number; minEvict: number } {
+    switch (pass) {
+      case 1: return { rate: 0.3, minEvict: 100 };
+      case 2: return { rate: 0.5, minEvict: 200 };
+      default: return { rate: 0.7, minEvict: 500 };
+    }
+  }
+  
+  /**
+   * Check if buffer should be skipped in this pass
+   */
+  private shouldSkipBuffer(info: BufferInfo, pass: number, freed: number, target: number): boolean {
+    return info.priority === 'high' && pass === 1 && freed < target * 0.5;
+  }
+  
+  /**
+   * Evict events from a single buffer
+   */
+  private evictFromBuffer(
+    info: BufferInfo,
+    params: { rate: number; minEvict: number }
+  ): number {
+    const buffer = this.buffers.get(info.groupId);
+    if (!buffer || buffer.getSize() === 0) return 0;
+    
+    const currentSize = buffer.getSize();
+    const toEvict = Math.min(
+      Math.max(Math.floor(currentSize * params.rate), params.minEvict),
+      currentSize
+    );
+    
+    const evicted = buffer.forceEvict(toEvict);
+    if (evicted > 0) {
+      logger.info('Evicted events due to memory pressure', { 
+        groupId: info.groupId, 
+        evicted,
+        remaining: buffer.getSize(),
+        priority: info.priority
+      });
+    }
+    
+    return evicted * this.calculateAverageEventSize(info.groupId);
+  }
+  
+  /**
+   * Resort buffer info by current sizes
+   */
+  private resortBufferInfo(bufferInfo: BufferInfo[]): void {
+    bufferInfo.sort((a, b) => {
+      const aBuffer = this.buffers.get(a.groupId);
+      const bBuffer = this.buffers.get(b.groupId);
+      const aSize = aBuffer ? aBuffer.getSize() : 0;
+      const bSize = bBuffer ? bBuffer.getSize() : 0;
+      return bSize - aSize;
+    });
+  }
+  
+  /**
+   * Perform critical memory eviction by clearing smallest buffers
+   */
+  private criticalMemoryEviction(bufferInfo: BufferInfo[], currentUsage: number): number {
+    logger.warn('Memory pressure critical - clearing smallest groups');
     
     let freed = 0;
-    const target = currentUsage - (this.globalMemoryLimitBytes * 0.7); // Free to 70% for buffer
+    const smallestFirst = bufferInfo.slice().reverse();
+    const target = this.globalMemoryLimitBytes * 0.7;
     
-    // Multiple passes with increasing aggression
-    let pass = 0;
-    while (freed < target && pass < 3) {
-      pass++;
+    for (const { groupId } of smallestFirst) {
+      if (currentUsage - freed <= target) break;
       
-      for (const { groupId, size, priority } of bufferSizes) {
-        if (freed >= target) break;
+      const buffer = this.buffers.get(groupId);
+      if (buffer && buffer.getSize() > 0) {
+        const size = buffer.getSize();
+        const memoryFreed = size * this.calculateAverageEventSize(groupId);
+        buffer.clear();
+        freed += memoryFreed;
         
-        // Skip high priority groups in first pass only
-        if (priority === 'high' && pass === 1 && freed < target * 0.5) continue;
-        
-        const buffer = this.buffers.get(groupId)!;
-        const currentSize = buffer.getSize();
-        if (currentSize === 0) continue;
-        
-        // Increasingly aggressive eviction per pass
-        const evictionRate = pass === 1 ? 0.3 : pass === 2 ? 0.5 : 0.7;
-        const minEvict = pass === 1 ? 100 : pass === 2 ? 200 : 500;
-        const toEvict = Math.min(
-          Math.max(Math.floor(currentSize * evictionRate), minEvict),
-          currentSize
-        );
-        
-        const evicted = buffer.forceEvict(toEvict);
-        if (evicted > 0) {
-          freed += evicted * this.calculateAverageEventSize(groupId);
-          
-          logger.info('Evicted events due to memory pressure', { 
-            groupId, 
-            evicted,
-            remaining: buffer.getSize(),
-            priority,
-            pass
-          });
-        }
-      }
-      
-      // Recalculate buffer sizes for next pass
-      if (freed < target) {
-        bufferSizes.sort((a, b) => {
-          const aBuffer = this.buffers.get(a.groupId);
-          const bBuffer = this.buffers.get(b.groupId);
-          const aSize = aBuffer ? aBuffer.getSize() : 0;
-          const bSize = bBuffer ? bBuffer.getSize() : 0;
-          return bSize - aSize;
+        logger.warn('Cleared entire buffer due to critical memory pressure', { 
+          groupId,
+          eventsCleared: size
         });
       }
     }
     
-    // Final check: if still over limit, clear smallest groups entirely
-    if (currentUsage - freed > this.globalMemoryLimitBytes) {
-      logger.warn('Memory pressure critical - clearing smallest groups');
-      
-      // Sort by size ascending (smallest first)
-      const smallestFirst = bufferSizes.slice().reverse();
-      
-      for (const { groupId } of smallestFirst) {
-        if (currentUsage - freed <= this.globalMemoryLimitBytes * 0.7) break;
-        
-        const buffer = this.buffers.get(groupId);
-        if (buffer && buffer.getSize() > 0) {
-          const size = buffer.getSize();
-          const memoryFreed = size * this.calculateAverageEventSize(groupId);
-          buffer.clear();
-          freed += memoryFreed;
-          
-          logger.warn('Cleared entire buffer due to critical memory pressure', { 
-            groupId,
-            eventsCleared: size
-          });
-        }
-      }
-    }
-    
+    return freed;
+  }
+  
+  /**
+   * Handle resolution of memory pressure
+   */
+  private handleMemoryPressureResolution(currentUsage: number, freed: number): void {
     this.emit('memoryPressureResolved', { freed, currentUsage: currentUsage - freed });
     
-    // Update last memory pressure after resolution
     const newUsage = currentUsage - freed;
     const newPercentage = (newUsage / this.globalMemoryLimitBytes) * 100;
     this.lastMemoryPressure = newPercentage;
     
-    // Reset spillover flag if memory is under control
-    if (newUsage < spilloverThresholdBytes * 0.8) {
-      this.diskSpilloverActive = false;
+    const spilloverEnabled = this.defaultConfig.diskSpilloverConfig?.enabled;
+    if (spilloverEnabled) {
+      const spilloverThresholdBytes = (this.defaultConfig.diskSpilloverConfig?.thresholdMB ?? 400) * 1024 * 1024;
+      if (newUsage < spilloverThresholdBytes * 0.8) {
+        this.diskSpilloverActive = false;
+      }
     }
   }
   
