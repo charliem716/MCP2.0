@@ -32,8 +32,10 @@ export class CircularBuffer<T> {
     this.timeIndex = new SortedArray();
   }
   
-  add(data: T): void {
-    const timestamp = process.hrtime.bigint();
+  add(data: T, timestamp?: bigint): void {
+    if (!timestamp) {
+      timestamp = process.hrtime.bigint();
+    }
     const event: BufferEvent<T> = {
       timestamp,
       data,
@@ -89,6 +91,43 @@ export class CircularBuffer<T> {
     return this.size === 0;
   }
   
+  getOldest(): T | undefined {
+    if (this.size === 0) return undefined;
+    const oldestEvent = this.buffer[this.tail];
+    return oldestEvent?.data;
+  }
+  
+  getNewest(): T | undefined {
+    if (this.size === 0) return undefined;
+    const newestIdx = (this.head - 1 + this.capacity) % this.capacity;
+    const newestEvent = this.buffer[newestIdx];
+    return newestEvent?.data;
+  }
+  
+  getMemoryUsage(): number {
+    // Rough estimate: 200 bytes per event
+    return this.size * 200;
+  }
+  
+  /**
+   * Get all events in the buffer (for debugging/testing)
+   */
+  getAll(): T[] {
+    const results: T[] = [];
+    if (this.size === 0) return results;
+    
+    let idx = this.tail;
+    for (let i = 0; i < this.size; i++) {
+      const event = this.buffer[idx];
+      if (event) {
+        results.push(event.data);
+      }
+      idx = (idx + 1) % this.capacity;
+    }
+    
+    return results;
+  }
+  
   clear(): void {
     this.buffer = new Array(this.capacity);
     this.head = 0;
@@ -97,8 +136,11 @@ export class CircularBuffer<T> {
     this.timeIndex.clear();
   }
   
-  private evictOldEvents(): void {
-    const cutoffTime = process.hrtime.bigint() - BigInt(this.maxAgeMs! * 1_000_000);
+  evictOldEvents(): void {
+    if (!this.maxAgeMs) return;
+    
+    const nowMs = Date.now();
+    const cutoffTime = BigInt((nowMs - this.maxAgeMs) * 1_000_000);
     
     while (this.size > 0) {
       const oldestIdx = this.tail;
