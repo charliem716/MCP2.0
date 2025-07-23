@@ -253,7 +253,8 @@ export class EventCacheManager extends EventEmitter {
     if (this.defaultConfig.memoryCheckIntervalMs) {
       const usage = this.getGlobalMemoryUsage();
       if (usage > this.globalMemoryLimitBytes) {
-        this.checkMemoryPressure();
+        // Use setImmediate to avoid blocking
+        setImmediate(() => this.checkMemoryPressure());
       }
     }
   }
@@ -894,7 +895,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Check and handle memory pressure
    */
-  private checkMemoryPressure(): void {
+  private async checkMemoryPressure(): Promise<void> {
     const usage = this.getGlobalMemoryUsage();
     const percentage = (usage / this.globalMemoryLimitBytes) * 100;
     
@@ -913,7 +914,7 @@ export class EventCacheManager extends EventEmitter {
     
     // Take action if over limit
     if (usage > this.globalMemoryLimitBytes) {
-      this.handleMemoryPressure(usage);
+      await this.handleMemoryPressure(usage);
     }
   }
   

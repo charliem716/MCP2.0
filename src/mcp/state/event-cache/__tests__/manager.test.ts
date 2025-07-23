@@ -34,13 +34,13 @@ describe('EventCacheManager', () => {
   });
 
   describe('initialization', () => {
-    it('should create with default config', () => {
+    it('should create with default config', async () => {
       const cache = new EventCacheManager();
       expect(cache).toBeDefined();
       expect(cache.getGroupIds()).toEqual([]);
     });
 
-    it('should create with custom config', () => {
+    it('should create with custom config', async () => {
       const cache = new EventCacheManager({
         maxEvents: 5000,
         maxAgeMs: 300000
@@ -50,7 +50,7 @@ describe('EventCacheManager', () => {
   });
 
   describe('attachToAdapter', () => {
-    it('should attach to adapter and listen for events', () => {
+    it('should attach to adapter and listen for events', async () => {
       eventCache.attachToAdapter(mockAdapter as any);
       
       expect(mockAdapter.on).toHaveBeenCalledWith(
@@ -59,7 +59,7 @@ describe('EventCacheManager', () => {
       );
     });
 
-    it('should not attach twice', () => {
+    it('should not attach twice', async () => {
       eventCache.attachToAdapter(mockAdapter as any);
       eventCache.attachToAdapter(mockAdapter as any);
       
@@ -102,7 +102,7 @@ describe('EventCacheManager', () => {
       mockAdapter.emit('changeGroup:changes', changeEvent);
     });
 
-    it('should calculate delta for numeric values', () => {
+    it('should calculate delta for numeric values', async () => {
       const time1 = Date.now();
       const time2 = time1 + 100;
 
@@ -133,7 +133,7 @@ describe('EventCacheManager', () => {
       });
 
       // Query events immediately (synchronous)
-      const events = eventCache.query({ 
+      const events = await eventCache.query({ 
         groupId: 'test-group',
         startTime: time1 - 1000,
         endTime: time2 + 1000
@@ -165,12 +165,12 @@ describe('EventCacheManager', () => {
       }
     });
 
-    it('should query all events', () => {
-      const events = eventCache.query({});
+    it('should query all events', async () => {
+      const events = await eventCache.query({});
       expect(events).toHaveLength(10);
     });
 
-    it('should query by group ID', () => {
+    it('should query by group ID', async () => {
       // Add events for another group
       mockAdapter.emit('changeGroup:changes', {
         groupId: 'group2',
@@ -184,14 +184,14 @@ describe('EventCacheManager', () => {
         sequenceNumber: 100
       });
 
-      const events = eventCache.query({ groupId: 'group1' });
+      const events = await eventCache.query({ groupId: 'group1' });
       expect(events).toHaveLength(10);
       expect(events.every(e => e.groupId === 'group1')).toBe(true);
     });
 
-    it('should query by time range', () => {
+    it('should query by time range', async () => {
       const now = Date.now();
-      const events = eventCache.query({
+      const events = await eventCache.query({
         startTime: now - 60000, // 60 seconds ago to include test events
         endTime: now
       });
@@ -201,8 +201,8 @@ describe('EventCacheManager', () => {
       expect(events.length).toBeLessThanOrEqual(10);
     });
 
-    it('should filter by control names', () => {
-      const events = eventCache.query({
+    it('should filter by control names', async () => {
+      const events = await eventCache.query({
         controlNames: ['Control3', 'Control5']
       });
       
@@ -211,8 +211,8 @@ describe('EventCacheManager', () => {
       expect(events[1]?.controlName).toBe('Control5');
     });
 
-    it('should apply value filters', () => {
-      const events = eventCache.query({
+    it('should apply value filters', async () => {
+      const events = await eventCache.query({
         valueFilter: {
           operator: 'gt',
           value: 5
@@ -223,15 +223,15 @@ describe('EventCacheManager', () => {
       expect(events.every(e => Number(e.value) > 5)).toBe(true);
     });
 
-    it('should apply limit', () => {
-      const events = eventCache.query({
+    it('should apply limit', async () => {
+      const events = await eventCache.query({
         limit: 3
       });
       
       expect(events).toHaveLength(3);
     });
 
-    it('should filter changes only', () => {
+    it('should filter changes only', async () => {
       // Add duplicate value
       mockAdapter.emit('changeGroup:changes', {
         groupId: 'group1',
@@ -245,7 +245,7 @@ describe('EventCacheManager', () => {
         sequenceNumber: 100
       });
 
-      const events = eventCache.query({
+      const events = await eventCache.query({
         groupId: 'group1',
         aggregation: 'changes_only'
       });
@@ -276,7 +276,7 @@ describe('EventCacheManager', () => {
       }
     });
 
-    it('should calculate statistics for a group', () => {
+    it('should calculate statistics for a group', async () => {
       const stats = eventCache.getStatistics('stats-group');
       
       expect(stats).toBeDefined();
@@ -288,12 +288,12 @@ describe('EventCacheManager', () => {
       expect(stats!.eventsPerSecond).toBeGreaterThanOrEqual(0);
     });
 
-    it('should return null for non-existent group', () => {
+    it('should return null for non-existent group', async () => {
       const stats = eventCache.getStatistics('non-existent');
       expect(stats).toBeNull();
     });
 
-    it('should get all statistics', () => {
+    it('should get all statistics', async () => {
       const allStats = eventCache.getAllStatistics();
       
       expect(allStats.size).toBe(1);
@@ -321,7 +321,7 @@ describe('EventCacheManager', () => {
       }
     });
 
-    it('should clear specific group', () => {
+    it('should clear specific group', async () => {
       expect(eventCache.getGroupIds()).toHaveLength(3);
       
       const result = eventCache.clearGroup('group2');
@@ -330,22 +330,22 @@ describe('EventCacheManager', () => {
       expect(eventCache.getGroupIds()).toHaveLength(2);
       expect(eventCache.getGroupIds()).not.toContain('group2');
       
-      const events = eventCache.query({ groupId: 'group2' });
+      const events = await eventCache.query({ groupId: 'group2' });
       expect(events).toHaveLength(0);
     });
 
-    it('should return false for non-existent group', () => {
+    it('should return false for non-existent group', async () => {
       const result = eventCache.clearGroup('non-existent');
       expect(result).toBe(false);
     });
 
-    it('should clear all groups', () => {
+    it('should clear all groups', async () => {
       expect(eventCache.getGroupIds()).toHaveLength(3);
       
       eventCache.clearAll();
       
       expect(eventCache.getGroupIds()).toHaveLength(0);
-      expect(eventCache.query({})).toHaveLength(0);
+      expect(await eventCache.query({})).toHaveLength(0);
     });
   });
 
@@ -375,8 +375,8 @@ describe('EventCacheManager', () => {
       });
     });
 
-    it('should filter with eq operator', () => {
-      const events = eventCache.query({
+    it('should filter with eq operator', async () => {
+      const events = await eventCache.query({
         groupId: 'filter-test',
         valueFilter: { operator: 'eq', value: 10 },
         startTime: Date.now() - 1000,
@@ -387,8 +387,8 @@ describe('EventCacheManager', () => {
       expect(events[0]?.value).toBe(10);
     });
 
-    it('should filter with neq operator', () => {
-      const events = eventCache.query({
+    it('should filter with neq operator', async () => {
+      const events = await eventCache.query({
         groupId: 'filter-test',
         valueFilter: { operator: 'neq', value: true },
         startTime: Date.now() - 1000,
@@ -399,8 +399,8 @@ describe('EventCacheManager', () => {
       expect(events.find(e => e.controlName === 'BoolControl')?.value).toBe(false);
     });
 
-    it('should filter with changed_to operator', () => {
-      const events = eventCache.query({
+    it('should filter with changed_to operator', async () => {
+      const events = await eventCache.query({
         groupId: 'filter-test',
         valueFilter: { operator: 'changed_to', value: true },
         startTime: Date.now() - 1000,
@@ -414,8 +414,8 @@ describe('EventCacheManager', () => {
       expect(boolChanges[0]?.previousValue).toBe(false);
     });
 
-    it('should filter with changed_from operator', () => {
-      const events = eventCache.query({
+    it('should filter with changed_from operator', async () => {
+      const events = await eventCache.query({
         groupId: 'filter-test',
         valueFilter: { operator: 'changed_from', value: 'active' },
         startTime: Date.now() - 1000,
