@@ -128,6 +128,7 @@ export class CircularBuffer<T> {
     return results;
   }
   
+  
   clear(): void {
     this.buffer = new Array(this.capacity);
     this.head = 0;

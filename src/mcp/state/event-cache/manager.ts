@@ -258,11 +258,12 @@ export class EventCacheManager extends EventEmitter {
     
     // Query each buffer
     for (const buffer of buffersToQuery) {
-      // Use getAll() and filter by time manually until queryTimeRange is fixed
-      const allEvents = (buffer as any).getAll ? (buffer as any).getAll() : [];
-      const events = allEvents.filter((e: CachedEvent) => 
-        e.timestampMs >= startTime && e.timestampMs <= endTime
-      );
+      // Convert millisecond timestamps to nanoseconds for queryTimeRange
+      const startTimeNs = BigInt(startTime) * 1000000n;
+      const endTimeNs = BigInt(endTime) * 1000000n;
+      
+      // Use queryTimeRange for efficient O(log n) time-based filtering
+      const events = buffer.queryTimeRange(startTimeNs, endTimeNs);
       
       // Apply filters
       let filtered = events;
