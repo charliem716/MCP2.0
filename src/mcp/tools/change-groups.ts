@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BaseQSysTool, BaseToolParamsSchema } from "./base.js";
 import type { QRWCClientInterface } from "../qrwc/adapter.js";
 import type { ToolCallResult } from "../handlers/index.js";
+import type { EventCacheManager, EventQuery } from "../state/event-cache/index.js";
 
 /**
  * Change Group Tools for Q-SYS
@@ -364,6 +365,105 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
   }
 }
 
+// ===== Tool 9: Read Change Group Events =====
+
+const ReadChangeGroupEventsParamsSchema = BaseToolParamsSchema.extend({
+  groupId: z.string().optional().describe("Change group identifier (omit for all groups)"),
+  startTime: z.number().optional().describe("Start time in milliseconds since epoch (default: 1 minute ago)"),
+  endTime: z.number().optional().describe("End time in milliseconds since epoch (default: now)"),
+  controlNames: z.array(z.string()).optional().describe("Filter by specific control names"),
+  valueFilter: z.object({
+    operator: z.enum(['eq', 'neq', 'gt', 'lt', 'changed_to', 'changed_from']).describe("Comparison operator"),
+    value: z.unknown().describe("Value to compare against")
+  }).strict().optional().describe("Filter events by value criteria"),
+  limit: z.number().min(1).max(10000).optional().describe("Maximum number of events to return (default: 1000)"),
+  aggregation: z.enum(['raw', 'changes_only', 'summary']).optional().describe("Event aggregation mode (default: raw)")
+});
+
+type ReadChangeGroupEventsParams = z.infer<typeof ReadChangeGroupEventsParamsSchema>;
+
+export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEventsParams> {
+  private eventCache?: EventCacheManager | undefined;
+
+  constructor(qrwcClient: QRWCClientInterface, eventCache?: EventCacheManager) {
+    super(
+      qrwcClient,
+      "read_change_group_events",
+      "Query historical change group events for time-based analysis. Retrieves control changes within time range (default: last minute). Filters by group, control names, or value changes. Example: {groupId:'mixer-controls',startTime:Date.now()-300000,controlNames:['Gain1.gain'],valueFilter:{operator:'changed_to',value:0}} finds when gain was muted in last 5 minutes. Requires event cache to be enabled. Errors: Returns empty array if no cache available or no events match criteria.",
+      ReadChangeGroupEventsParamsSchema
+    );
+    this.eventCache = eventCache;
+  }
+
+  setEventCache(eventCache: EventCacheManager): void {
+    this.eventCache = eventCache;
+  }
+
+  protected async executeInternal(params: ReadChangeGroupEventsParams): Promise<ToolCallResult> {
+    if (!this.eventCache) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            events: [],
+            error: "Event cache not available. Historical queries require event caching to be enabled.",
+            message: "Enable event caching in the MCP server configuration"
+          })
+        }]
+      };
+    }
+
+    // Transform params to match EventQuery interface
+    const queryParams: EventQuery = {
+      groupId: params.groupId,
+      startTime: params.startTime,
+      endTime: params.endTime,
+      controlNames: params.controlNames,
+      valueFilter: params.valueFilter,
+      limit: params.limit,
+      aggregation: params.aggregation
+    };
+    
+    const events = this.eventCache.query(queryParams);
+
+    // Calculate summary statistics if requested
+    let summary = undefined;
+    if (params.aggregation === 'summary' && events.length > 0) {
+      const uniqueControls = new Set(events.map(e => e.controlName));
+      const firstEvent = events[0];
+      const lastEvent = events[events.length - 1];
+      const timeRange = firstEvent && lastEvent ? lastEvent.timestampMs - firstEvent.timestampMs : 0;
+      
+      summary = {
+        totalEvents: events.length,
+        uniqueControls: uniqueControls.size,
+        timeRangeMs: timeRange,
+        eventsPerSecond: timeRange > 0 ? (events.length / (timeRange / 1000)) : 0
+      };
+    }
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          events: events,
+          count: events.length,
+          timeRange: {
+            start: params.startTime || Date.now() - 60000,
+            end: params.endTime || Date.now()
+          },
+          summary,
+          message: events.length > 0 
+            ? `Found ${events.length} event(s) in the specified time range`
+            : "No events found matching the criteria"
+        })
+      }]
+    };
+  }
+}
+
 // ===== Factory Functions =====
 
 export function createCreateChangeGroupTool(qrwcClient: QRWCClientInterface): CreateChangeGroupTool {
@@ -396,4 +496,8 @@ export function createSetChangeGroupAutoPollTool(qrwcClient: QRWCClientInterface
 
 export function createListChangeGroupsTool(qrwcClient: QRWCClientInterface): ListChangeGroupsTool {
   return new ListChangeGroupsTool(qrwcClient);
+}
+
+export function createReadChangeGroupEventsTool(qrwcClient: QRWCClientInterface, eventCache?: EventCacheManager): ReadChangeGroupEventsTool {
+  return new ReadChangeGroupEventsTool(qrwcClient, eventCache);
 }

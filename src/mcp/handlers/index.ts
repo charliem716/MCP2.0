@@ -20,8 +20,10 @@ import {
   createRemoveControlsFromChangeGroupTool,
   createClearChangeGroupTool,
   createSetChangeGroupAutoPollTool,
-  createListChangeGroupsTool
+  createListChangeGroupsTool,
+  createReadChangeGroupEventsTool
 } from "../tools/change-groups.js";
+import type { EventCacheManager } from "../state/event-cache/index.js";
 import type { BaseQSysTool, ToolExecutionResult } from "../tools/base.js";
 
 /**
@@ -60,7 +62,10 @@ export class MCPToolRegistry {
   private tools = new Map<string, BaseTool>();
   private initialized = false;
 
-  constructor(private qrwcClient: QRWCClientInterface) {
+  constructor(
+    private qrwcClient: QRWCClientInterface,
+    private eventCacheManager?: EventCacheManager
+  ) {
     logger.debug("MCPToolRegistry created");
   }
 
@@ -116,6 +121,11 @@ export class MCPToolRegistry {
       createSetChangeGroupAutoPollTool(this.qrwcClient),
       createListChangeGroupsTool(this.qrwcClient),
     ];
+
+    // Add event cache tool if available
+    if (this.eventCacheManager) {
+      qsysTools.push(createReadChangeGroupEventsTool(this.qrwcClient, this.eventCacheManager));
+    }
 
     qsysTools.forEach(tool => {
       this.registerQSysTool(tool);

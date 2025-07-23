@@ -21,6 +21,7 @@ const debugLog = (message: string, data?: any) => {
 import { MCPToolRegistry } from "./handlers/index.js";
 import { OfficialQRWCClient } from "../qrwc/officialClient.js";
 import { QRWCClientAdapter } from "./qrwc/adapter.js";
+import { EventCacheManager } from "./state/event-cache/index.js";
 import type { MCPServerConfig } from "../shared/types/mcp.js";
 
 /**
@@ -35,6 +36,7 @@ export class MCPServer {
   private toolRegistry: MCPToolRegistry;
   private officialQrwcClient: OfficialQRWCClient;
   private qrwcClientAdapter: QRWCClientAdapter;
+  private eventCacheManager: EventCacheManager;
   private isConnected = false;
   private serverName: string;
   private serverVersion: string;
@@ -75,7 +77,17 @@ export class MCPServer {
       enableAutoReconnect: true
     });
     this.qrwcClientAdapter = new QRWCClientAdapter(this.officialQrwcClient);
-    this.toolRegistry = new MCPToolRegistry(this.qrwcClientAdapter);
+    
+    // Initialize Event Cache Manager
+    this.eventCacheManager = new EventCacheManager({
+      maxEvents: config.eventCache?.maxEvents || 100000,
+      maxAgeMs: config.eventCache?.maxAgeMs || 3600000 // 1 hour default
+    });
+    
+    // Attach event cache to adapter to start capturing events
+    this.eventCacheManager.attachToAdapter(this.qrwcClientAdapter);
+    
+    this.toolRegistry = new MCPToolRegistry(this.qrwcClientAdapter, this.eventCacheManager);
 
     this.setupRequestHandlers();
     this.setupErrorHandling();

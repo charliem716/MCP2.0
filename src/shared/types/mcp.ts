@@ -404,6 +404,12 @@ export interface MCPServerConfig {
     reconnectInterval?: number;
     heartbeatInterval?: number;
   };
+  eventCache?: {
+    maxEvents?: number;
+    maxAgeMs?: number;
+    compressOldEvents?: boolean;
+    persistToDisk?: boolean;
+  };
 }
 
 /**
