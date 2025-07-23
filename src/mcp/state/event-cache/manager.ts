@@ -36,7 +36,7 @@ export interface EventQuery {
   endTime?: number | undefined;
   controlNames?: string[] | undefined;
   valueFilter?: {
-    operator: 'eq' | 'neq' | 'gt' | 'lt' | 'changed_to' | 'changed_from';
+    operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'changed_to' | 'changed_from';
     value?: unknown;
   } | undefined;
   limit?: number | undefined;
@@ -73,15 +73,15 @@ export interface EventCacheConfig {
  */
 export class EventCacheManager extends EventEmitter {
   private buffers: Map<string, CircularBuffer<CachedEvent>>;
-  private globalSequence: number = 0;
+  private globalSequence = 0;
   private lastValues: Map<string, Map<string, unknown>>;
   private lastEventTimes: Map<string, Map<string, number>>;
   private eventRates: Map<string, number[]>;
-  private isAttached: boolean = false;
+  private isAttached = false;
   private cleanupInterval?: NodeJS.Timeout;
   private memoryCheckInterval?: NodeJS.Timeout;
   private globalMemoryLimitBytes: number;
-  private lastMemoryPressure: number = 0;
+  private lastMemoryPressure = 0;
   private groupPriorities: Map<string, 'high' | 'normal' | 'low'>;
   
   constructor(
@@ -267,7 +267,7 @@ export class EventCacheManager extends EventEmitter {
     let results: CachedEvent[] = [];
     
     // Determine which buffers to query
-    const buffersToQuery: CircularBuffer<CachedEvent>[] = groupId 
+    const buffersToQuery: Array<CircularBuffer<CachedEvent>> = groupId 
       ? (this.buffers.has(groupId) ? [this.buffers.get(groupId)!] : [])
       : Array.from(this.buffers.values());
     
@@ -348,10 +348,20 @@ export class EventCacheManager extends EventEmitter {
                  typeof value === 'number' && 
                  event.value > value;
                  
+        case 'gte': 
+          return typeof event.value === 'number' && 
+                 typeof value === 'number' && 
+                 event.value >= value;
+                 
         case 'lt': 
           return typeof event.value === 'number' && 
                  typeof value === 'number' && 
                  event.value < value;
+                 
+        case 'lte': 
+          return typeof event.value === 'number' && 
+                 typeof value === 'number' && 
+                 event.value <= value;
                  
         case 'changed_to': 
           return event.value === value && 

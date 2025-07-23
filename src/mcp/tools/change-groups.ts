@@ -373,7 +373,7 @@ const ReadChangeGroupEventsParamsSchema = BaseToolParamsSchema.extend({
   endTime: z.number().optional().describe("End time in milliseconds since epoch (default: now)"),
   controlNames: z.array(z.string()).optional().describe("Filter by specific control names"),
   valueFilter: z.object({
-    operator: z.enum(['eq', 'neq', 'gt', 'lt', 'changed_to', 'changed_from']).describe("Comparison operator"),
+    operator: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'changed_to', 'changed_from']).describe("Comparison operator"),
     value: z.unknown().describe("Value to compare against")
   }).strict().optional().describe("Filter events by value criteria"),
   limit: z.number().min(1).max(10000).optional().describe("Maximum number of events to return (default: 1000)"),
