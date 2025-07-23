@@ -25,6 +25,8 @@ export interface CachedEvent {
   delta?: number | undefined;
   duration?: number | undefined;
   sequenceNumber: number;
+  eventType?: 'change' | 'threshold_crossed' | 'state_transition' | 'significant_change' | undefined;
+  threshold?: number | undefined;
 }
 
 /**
@@ -42,6 +44,7 @@ export interface EventQuery {
   limit?: number | undefined;
   offset?: number | undefined;
   aggregation?: 'raw' | 'changes_only' | 'summary' | undefined;
+  eventTypes?: Array<'change' | 'threshold_crossed' | 'state_transition' | 'significant_change'>;
 }
 
 /**
@@ -157,6 +160,11 @@ export class EventCacheManager extends EventEmitter {
       const previousValue = groupLastValues.get(change.Name);
       const previousTime = groupLastTimes.get(change.Name);
       
+      const eventType = this.detectEventType(change.Name, previousValue, change.Value);
+      const threshold = eventType === 'threshold_crossed' 
+        ? this.findCrossedThreshold(change.Name, previousValue, change.Value)
+        : undefined;
+      
       const cachedEvent: CachedEvent = {
         groupId,
         controlName: change.Name,
@@ -168,7 +176,9 @@ export class EventCacheManager extends EventEmitter {
         previousString: previousValue?.toString(),
         delta: this.calculateDelta(previousValue, change.Value),
         duration: previousTime ? timestampMs - previousTime : undefined,
-        sequenceNumber: this.globalSequence++
+        sequenceNumber: this.globalSequence++,
+        eventType,
+        threshold
       };
       
       buffer.add(cachedEvent, timestamp);
@@ -225,6 +235,76 @@ export class EventCacheManager extends EventEmitter {
   }
   
   /**
+   * Detect event type based on value changes
+   */
+  private detectEventType(
+    controlName: string,
+    previousValue: unknown,
+    currentValue: unknown
+  ): CachedEvent['eventType'] {
+    // First event has no previous value
+    if (previousValue === undefined) {
+      return 'change';
+    }
+    
+    // State transition for boolean/string values
+    if (typeof currentValue === 'boolean' || typeof currentValue === 'string') {
+      if (previousValue !== currentValue) {
+        return 'state_transition';
+      }
+    }
+    
+    // Numeric analysis
+    if (typeof previousValue === 'number' && typeof currentValue === 'number') {
+      // Check threshold crossings (hardcoded common thresholds for now)
+      const threshold = this.findCrossedThreshold(controlName, previousValue, currentValue);
+      if (threshold !== undefined) {
+        return 'threshold_crossed';
+      }
+      
+      // Check significant change (5% by default)
+      if (previousValue !== 0) {
+        const changePercent = Math.abs((currentValue - previousValue) / previousValue) * 100;
+        if (changePercent >= 5) {
+          return 'significant_change';
+        }
+      }
+    }
+    
+    return 'change';
+  }
+  
+  /**
+   * Find if a threshold was crossed
+   */
+  private findCrossedThreshold(
+    controlName: string,
+    previousValue: unknown,
+    currentValue: unknown
+  ): number | undefined {
+    if (typeof previousValue !== 'number' || typeof currentValue !== 'number') {
+      return undefined;
+    }
+    
+    // Common audio thresholds for level controls
+    const thresholds = controlName.toLowerCase().includes('level') 
+      ? [-20, -12, -6, -3, 0, 3, 6]
+      : [0, 0.25, 0.5, 0.75, 1.0];
+    
+    // Check each threshold
+    for (const threshold of thresholds) {
+      const crossedUp = previousValue < threshold && currentValue >= threshold;
+      const crossedDown = previousValue > threshold && currentValue <= threshold;
+      
+      if (crossedUp || crossedDown) {
+        return threshold;
+      }
+    }
+    
+    return undefined;
+  }
+  
+  /**
    * Update event rate tracking
    */
   private updateEventRate(groupId: string, eventCount: number): void {
@@ -254,7 +334,8 @@ export class EventCacheManager extends EventEmitter {
       valueFilter,
       limit = 1000,
       offset = 0,
-      aggregation = 'raw'
+      aggregation = 'raw',
+      eventTypes
     } = params;
     
     logger.debug('Querying event cache', {
@@ -297,6 +378,12 @@ export class EventCacheManager extends EventEmitter {
       
       if (valueFilter) {
         filtered = this.applyValueFilter(filtered, valueFilter);
+      }
+      
+      if (eventTypes && eventTypes.length > 0) {
+        filtered = filtered.filter((e: CachedEvent) => 
+          e.eventType && eventTypes.includes(e.eventType)
+        );
       }
       
       results.push(...filtered);
