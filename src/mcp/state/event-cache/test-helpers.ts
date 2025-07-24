@@ -13,7 +13,7 @@ export class MockQRWCAdapter extends EventEmitter {
     return true;
   }
   
-  async executeCommand(_method: string, _params?: unknown): Promise<unknown> {
+  executeCommand(_method: string, _params?: unknown): unknown {
     // Mock implementation
     return { success: true };
   }

@@ -625,6 +625,7 @@ export class EventCacheManager extends EventEmitter {
       filtered = filtered.filter(e => params.controlNames.includes(e.controlName));
     }
     
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (params.valueFilter) {
       filtered = this.applyValueFilter(filtered, params.valueFilter);
     }
@@ -1011,16 +1012,6 @@ export class EventCacheManager extends EventEmitter {
     }
     
     return eventsToKeep;
-  }
-  
-  /**
-   * Sort events by timestamp
-   */
-  private sortEventsByTimestamp(events: CachedEvent[]): CachedEvent[] {
-    return events.sort((a, b) => {
-      const diff = a.timestamp - b.timestamp;
-      return diff > 0n ? 1 : diff < 0n ? -1 : 0;
-    });
   }
   
   /**
@@ -1555,7 +1546,7 @@ export class EventCacheManager extends EventEmitter {
     
     await this.checkDiskSpillover(currentUsage);
     
-    const freed = await this.performMemoryEviction(currentUsage);
+    const freed = this.performMemoryEviction(currentUsage);
     
     this.handleMemoryPressureResolution(currentUsage, freed);
   }
@@ -1578,11 +1569,11 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Perform memory eviction with multiple passes
    */
-  private async performMemoryEviction(currentUsage: number): Promise<number> {
+  private performMemoryEviction(currentUsage: number): number {
     const bufferInfo = this.getBufferInfo();
     const target = currentUsage - (this.globalMemoryLimitBytes * 0.7);
     
-    let freed = await this.multiPassEviction(bufferInfo, target);
+    let freed = this.multiPassEviction(bufferInfo, target);
     
     if (currentUsage - freed > this.globalMemoryLimitBytes) {
       freed += this.criticalMemoryEviction(bufferInfo, currentUsage - freed);
@@ -1612,11 +1603,11 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Perform multi-pass eviction with increasing aggression
    */
-  private async multiPassEviction(bufferInfo: BufferInfo[], target: number): Promise<number> {
+  private multiPassEviction(bufferInfo: BufferInfo[], target: number): number {
     let freed = 0;
     
     for (let pass = 1; pass <= 3 && freed < target; pass++) {
-      freed += await this.evictionPass(bufferInfo, target - freed, pass);
+      freed += this.evictionPass(bufferInfo, target - freed, pass);
       
       if (freed < target) {
         this.resortBufferInfo(bufferInfo);
@@ -1629,7 +1620,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Perform a single eviction pass
    */
-  private async evictionPass(bufferInfo: BufferInfo[], remainingTarget: number, pass: number): Promise<number> {
+  private evictionPass(bufferInfo: BufferInfo[], remainingTarget: number, pass: number): number {
     let freed = 0;
     const evictionParams = this.getEvictionParams(pass);
     

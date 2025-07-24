@@ -2,8 +2,7 @@
  * Type definitions for Event Cache module
  */
 
-import type { ControlValue } from './event-types.js';
-import { isControlValue } from './event-types.js';
+import { isControlValue, type ControlValue } from './event-types.js';
 
 /**
  * Change event from a Q-SYS control

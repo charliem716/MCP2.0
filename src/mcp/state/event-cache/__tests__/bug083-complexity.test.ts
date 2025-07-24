@@ -178,8 +178,8 @@ describe('BUG-083: Refactored Methods', () => {
 
     it('should respect group priorities during eviction', async () => {
       // Set group priorities
-      await manager.setGroupPriority('high-priority', 'high');
-      await manager.setGroupPriority('low-priority', 'low');
+      manager.setGroupPriority('high-priority', 'high');
+      manager.setGroupPriority('low-priority', 'low');
 
       // Add events to both groups
       for (let i = 0; i < 500; i++) {
