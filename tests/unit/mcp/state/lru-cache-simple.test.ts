@@ -1,5 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { LRUCache, EvictionPolicy } from '../../../../src/mcp/state/lru-cache.js';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  jest,
+} from '@jest/globals';
+import {
+  LRUCache,
+  EvictionPolicy,
+} from '../../../../src/mcp/state/lru-cache.js';
 
 describe('LRUCache (Simplified)', () => {
   let cache: LRUCache<string, any>;
@@ -13,7 +23,7 @@ describe('LRUCache (Simplified)', () => {
   describe('constructor and initialization', () => {
     it('should create cache with default configuration', () => {
       cache = new LRUCache();
-      
+
       expect(cache.size).toBe(0);
       expect(cache.getStatistics().totalEntries).toBe(0);
       expect(cache.getStatistics().hitCount).toBe(0);
@@ -33,7 +43,7 @@ describe('LRUCache (Simplified)', () => {
 
     it('should set and get values', () => {
       const result = cache.set('key1', 'value1');
-      
+
       expect(result).toBe(true);
       expect(cache.get('key1')).toBe('value1');
       expect(cache.size).toBe(1);
@@ -46,19 +56,19 @@ describe('LRUCache (Simplified)', () => {
     it('should update existing values', () => {
       cache.set('key1', 'value1');
       cache.set('key1', 'value2');
-      
+
       expect(cache.get('key1')).toBe('value2');
       expect(cache.size).toBe(1);
     });
 
     it('should track hit and miss statistics', () => {
       cache.set('key1', 'value1');
-      
+
       // Hit
       cache.get('key1');
       // Miss
       cache.get('nonexistent');
-      
+
       const stats = cache.getStatistics();
       expect(stats.hitCount).toBe(1);
       expect(stats.missCount).toBe(1);
@@ -75,10 +85,10 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // key1 is now the least recently used
       cache.set('key4', 'value4');
-      
+
       expect(cache.has('key1')).toBe(false);
       expect(cache.has('key2')).toBe(true);
       expect(cache.has('key3')).toBe(true);
@@ -90,13 +100,13 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // Access key1, making it most recently used
       cache.get('key1');
-      
+
       // Now key2 is least recently used
       cache.set('key4', 'value4');
-      
+
       expect(cache.has('key1')).toBe(true);
       expect(cache.has('key2')).toBe(false);
       expect(cache.has('key3')).toBe(true);
@@ -107,13 +117,13 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // Update key1, making it most recently used
       cache.set('key1', 'updated');
-      
+
       // Now key2 is least recently used
       cache.set('key4', 'value4');
-      
+
       expect(cache.get('key1')).toBe('updated');
       expect(cache.has('key2')).toBe(false);
       expect(cache.has('key3')).toBe(true);
@@ -123,12 +133,12 @@ describe('LRUCache (Simplified)', () => {
     it('should emit eviction event for compatibility', () => {
       const evictListener = jest.fn();
       cache.on('eviction', evictListener);
-      
+
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
       cache.set('key4', 'value4'); // Should evict key1
-      
+
       expect(evictListener).toHaveBeenCalled();
       // Note: In simplified version, we emit the evicted key and the new value
       expect(evictListener).toHaveBeenCalledWith('key1', 'value4');
@@ -140,7 +150,7 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key3', 'value3');
       cache.set('key4', 'value4');
       cache.set('key5', 'value5');
-      
+
       const stats = cache.getStatistics();
       expect(stats.evictionCount).toBe(2);
     });
@@ -153,9 +163,9 @@ describe('LRUCache (Simplified)', () => {
 
     it('should delete existing keys', () => {
       cache.set('key1', 'value1');
-      
+
       const result = cache.delete('key1');
-      
+
       expect(result).toBe(true);
       expect(cache.has('key1')).toBe(false);
       expect(cache.size).toBe(0);
@@ -170,9 +180,9 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       cache.clear();
-      
+
       expect(cache.size).toBe(0);
       expect(cache.has('key1')).toBe(false);
       expect(cache.has('key2')).toBe(false);
@@ -183,9 +193,9 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.get('key1');
       cache.get('nonexistent');
-      
+
       cache.clear();
-      
+
       const stats = cache.getStatistics();
       expect(stats.totalEntries).toBe(0);
       expect(stats.memoryUsage).toBe(0);
@@ -204,7 +214,7 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       const keys = cache.keys();
       expect(keys).toEqual(['key1', 'key2', 'key3']);
     });
@@ -213,7 +223,7 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       const values = cache.values();
       expect(values).toEqual(['value1', 'value2', 'value3']);
     });
@@ -222,10 +232,10 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // Access key1, moving it to the end
       cache.get('key1');
-      
+
       const keys = cache.keys();
       expect(keys).toEqual(['key2', 'key3', 'key1']);
     });
@@ -246,9 +256,9 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key2', 'value2');
       cache.get('key1'); // hit
       cache.get('key3'); // miss
-      
+
       const stats = cache.getStatistics();
-      
+
       expect(stats.totalEntries).toBe(2);
       expect(stats.hitCount).toBe(1);
       expect(stats.missCount).toBe(1);
@@ -260,7 +270,7 @@ describe('LRUCache (Simplified)', () => {
 
     it('should handle zero hit ratio', () => {
       cache.get('nonexistent'); // Only misses
-      
+
       const stats = cache.getStatistics();
       expect(stats.hitRatio).toBe(0);
     });
@@ -279,19 +289,19 @@ describe('LRUCache (Simplified)', () => {
     it('should clear cache on shutdown', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
-      
+
       cache.shutdown();
-      
+
       expect(cache.size).toBe(0);
     });
 
     it('should remove all listeners on shutdown', () => {
       const listener = jest.fn();
       cache.on('eviction', listener);
-      
+
       cache.shutdown();
       cache.emit('eviction', 'key', 'value');
-      
+
       expect(listener).not.toHaveBeenCalled();
     });
   });
@@ -303,9 +313,9 @@ describe('LRUCache (Simplified)', () => {
 
     it('should support removeExpired as no-op', () => {
       cache.set('key1', 'value1');
-      
+
       const removed = cache.removeExpired();
-      
+
       expect(removed).toBe(0);
       expect(cache.has('key1')).toBe(true);
     });
@@ -314,17 +324,17 @@ describe('LRUCache (Simplified)', () => {
       const evictionListener = jest.fn();
       const expirationListener = jest.fn();
       const otherListener = jest.fn();
-      
+
       cache.on('eviction', evictionListener);
       cache.on('expiration', expirationListener);
       cache.on('other', otherListener);
-      
+
       // Trigger eviction
       cache = new LRUCache<string, any>(1);
       cache.on('eviction', evictionListener);
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
-      
+
       expect(evictionListener).toHaveBeenCalled();
     });
   });
@@ -338,7 +348,7 @@ describe('LRUCache (Simplified)', () => {
       for (let i = 0; i < 10; i++) {
         cache.set('key', `value${i}`);
       }
-      
+
       expect(cache.size).toBe(1);
       expect(cache.get('key')).toBe('value9');
     });
@@ -348,7 +358,7 @@ describe('LRUCache (Simplified)', () => {
       cache.set('key2', 'same');
       cache.set('key3', 'same');
       cache.set('key4', 'same'); // Should evict key1
-      
+
       expect(cache.has('key1')).toBe(false);
       expect(cache.get('key2')).toBe('same');
       expect(cache.get('key3')).toBe('same');
@@ -360,12 +370,12 @@ describe('LRUCache (Simplified)', () => {
       for (let i = 0; i < 10; i++) {
         cache.set(`key${i}`, `value${i}`);
       }
-      
+
       // Random operations
       for (let i = 0; i < 100; i++) {
         const op = Math.random();
         const key = `key${Math.floor(Math.random() * 20)}`;
-        
+
         if (op < 0.4) {
           cache.get(key);
         } else if (op < 0.8) {
@@ -376,12 +386,12 @@ describe('LRUCache (Simplified)', () => {
           cache.has(key);
         }
       }
-      
+
       // Verify invariants
       expect(cache.size).toBeLessThanOrEqual(3);
       expect(cache.keys().length).toBe(cache.size);
       expect(cache.values().length).toBe(cache.size);
-      
+
       const stats = cache.getStatistics();
       expect(stats.totalEntries).toBe(cache.size);
     });

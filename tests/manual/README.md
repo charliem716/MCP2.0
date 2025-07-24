@@ -1,6 +1,7 @@
 # Manual Tests
 
-This directory contains manual integration and end-to-end test scripts that are used for testing the MCP server functionality.
+This directory contains manual integration and end-to-end test scripts that are used for testing the
+MCP server functionality.
 
 ## Directory Structure
 
@@ -33,4 +34,5 @@ These scripts are designed to test the MCP server in a running state. To use the
 
 ## Note
 
-These are not unit tests and are not run by `npm test`. They are used for manual verification and debugging of the MCP server functionality.
+These are not unit tests and are not run by `npm test`. They are used for manual verification and
+debugging of the MCP server functionality.

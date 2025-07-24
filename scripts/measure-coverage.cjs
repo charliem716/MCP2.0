@@ -13,20 +13,24 @@ const COVERAGE_DIR = path.join(__dirname, '..', 'coverage');
 const COVERAGE_SUMMARY = path.join(COVERAGE_DIR, 'coverage-summary.json');
 
 function runCoverageReport(testPattern) {
-  console.log(`Running coverage report${testPattern ? ` for pattern: ${testPattern}` : ''}...`);
-  
+  console.log(
+    `Running coverage report${testPattern ? ` for pattern: ${testPattern}` : ''}...`
+  );
+
   try {
     // Run tests with coverage, ignoring thresholds and exit codes
     execSync(
       `npm test -- --coverage --coverageThreshold='{}' ${testPattern ? `--testPathPattern=${testPattern}` : ''} --json --outputFile=coverage/test-results.json`,
-      { 
+      {
         stdio: 'pipe',
-        encoding: 'utf8'
+        encoding: 'utf8',
       }
     );
   } catch (error) {
     // Tests may fail, but we still get coverage data
-    console.log('Tests completed (some may have failed), checking coverage data...');
+    console.log(
+      'Tests completed (some may have failed), checking coverage data...'
+    );
   }
 
   // Check if coverage summary was generated
@@ -50,23 +54,23 @@ function formatCoverageMetrics(summary) {
     lines: {
       percentage: total.lines.pct,
       covered: total.lines.covered,
-      total: total.lines.total
+      total: total.lines.total,
     },
     statements: {
       percentage: total.statements.pct,
       covered: total.statements.covered,
-      total: total.statements.total
+      total: total.statements.total,
     },
     functions: {
       percentage: total.functions.pct,
       covered: total.functions.covered,
-      total: total.functions.total
+      total: total.functions.total,
     },
     branches: {
       percentage: total.branches.pct,
       covered: total.branches.covered,
-      total: total.branches.total
-    }
+      total: total.branches.total,
+    },
   };
 }
 
@@ -78,10 +82,18 @@ function displayCoverageReport(metrics, label) {
 
   console.log(`\n${label}:`);
   console.log('═'.repeat(50));
-  console.log(`Lines:      ${metrics.lines.percentage.toFixed(2)}% (${metrics.lines.covered}/${metrics.lines.total})`);
-  console.log(`Statements: ${metrics.statements.percentage.toFixed(2)}% (${metrics.statements.covered}/${metrics.statements.total})`);
-  console.log(`Functions:  ${metrics.functions.percentage.toFixed(2)}% (${metrics.functions.covered}/${metrics.functions.total})`);
-  console.log(`Branches:   ${metrics.branches.percentage.toFixed(2)}% (${metrics.branches.covered}/${metrics.branches.total})`);
+  console.log(
+    `Lines:      ${metrics.lines.percentage.toFixed(2)}% (${metrics.lines.covered}/${metrics.lines.total})`
+  );
+  console.log(
+    `Statements: ${metrics.statements.percentage.toFixed(2)}% (${metrics.statements.covered}/${metrics.statements.total})`
+  );
+  console.log(
+    `Functions:  ${metrics.functions.percentage.toFixed(2)}% (${metrics.functions.covered}/${metrics.functions.total})`
+  );
+  console.log(
+    `Branches:   ${metrics.branches.percentage.toFixed(2)}% (${metrics.branches.covered}/${metrics.branches.total})`
+  );
 }
 
 function compareCoverage(baseline, current) {
@@ -92,7 +104,7 @@ function compareCoverage(baseline, current) {
   const comparison = {
     canCompare: true,
     decreased: false,
-    metrics: {}
+    metrics: {},
   };
 
   ['lines', 'statements', 'functions', 'branches'].forEach(metric => {
@@ -101,7 +113,7 @@ function compareCoverage(baseline, current) {
       baseline: baseline[metric].percentage,
       current: current[metric].percentage,
       diff: diff,
-      decreased: diff < 0
+      decreased: diff < 0,
     };
     if (diff < 0) {
       comparison.decreased = true;
@@ -113,7 +125,9 @@ function compareCoverage(baseline, current) {
 
 function main() {
   const args = process.argv.slice(2);
-  const testPattern = args.find(arg => arg.startsWith('--pattern='))?.split('=')[1];
+  const testPattern = args
+    .find(arg => arg.startsWith('--pattern='))
+    ?.split('=')[1];
   const saveBaseline = args.includes('--save-baseline');
   const compareBaseline = args.includes('--compare-baseline');
 
@@ -152,7 +166,9 @@ function main() {
         Object.entries(comparison.metrics).forEach(([metric, data]) => {
           const symbol = data.diff >= 0 ? '✓' : '✗';
           const sign = data.diff >= 0 ? '+' : '';
-          console.log(`${symbol} ${metric}: ${data.baseline.toFixed(2)}% → ${data.current.toFixed(2)}% (${sign}${data.diff.toFixed(2)}%)`);
+          console.log(
+            `${symbol} ${metric}: ${data.baseline.toFixed(2)}% → ${data.current.toFixed(2)}% (${sign}${data.diff.toFixed(2)}%)`
+          );
         });
 
         if (comparison.decreased) {
@@ -162,19 +178,25 @@ function main() {
         }
       }
     } else {
-      console.log('\nNo baseline found. Run with --save-baseline to create one.');
+      console.log(
+        '\nNo baseline found. Run with --save-baseline to create one.'
+      );
     }
   }
 
   // Test results summary
   if (fs.existsSync(path.join(COVERAGE_DIR, 'test-results.json'))) {
-    const testResults = JSON.parse(fs.readFileSync(path.join(COVERAGE_DIR, 'test-results.json'), 'utf8'));
+    const testResults = JSON.parse(
+      fs.readFileSync(path.join(COVERAGE_DIR, 'test-results.json'), 'utf8')
+    );
     console.log('\nTest Results:');
     console.log('═'.repeat(50));
     console.log(`Total Tests: ${testResults.numTotalTests}`);
     console.log(`Passed: ${testResults.numPassedTests}`);
     console.log(`Failed: ${testResults.numFailedTests}`);
-    console.log(`Success Rate: ${((testResults.numPassedTests / testResults.numTotalTests) * 100).toFixed(2)}%`);
+    console.log(
+      `Success Rate: ${((testResults.numPassedTests / testResults.numTotalTests) * 100).toFixed(2)}%`
+    );
   }
 
   console.log('\n✅ Coverage measurement completed successfully');

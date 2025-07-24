@@ -10,13 +10,13 @@ const { client } = await testConnection();
 try {
   console.log('\n📡 Sending Status.Get command...');
   const response = await client.sendRawCommand('Status.Get', {});
-  
+
   console.log('\n📊 Raw Response:');
   console.log(JSON.stringify(response, null, 2));
-  
+
   console.log('\n🔍 Response Type:', typeof response);
   console.log('\n🔍 Response Keys:', Object.keys(response || {}));
-  
+
   // Check if it matches expected format
   if (response && typeof response === 'object') {
     console.log('\n✅ Response structure:');
@@ -25,7 +25,6 @@ try {
     console.log('  - DesignName:', response.DesignName || 'NOT FOUND');
     console.log('  - Status:', response.Status || 'NOT FOUND');
   }
-  
 } catch (error) {
   console.error('\n❌ Error executing Status.Get:', error.message);
   console.error('Full error:', error);

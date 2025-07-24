@@ -22,27 +22,27 @@ export enum MCPMethod {
   // Core methods
   INITIALIZE = 'initialize',
   PING = 'ping',
-  
+
   // Tool methods
   TOOLS_LIST = 'tools/list',
   TOOLS_CALL = 'tools/call',
-  
+
   // Resource methods
   RESOURCES_LIST = 'resources/list',
   RESOURCES_GET = 'resources/get',
   RESOURCES_SUBSCRIBE = 'resources/subscribe',
   RESOURCES_UNSUBSCRIBE = 'resources/unsubscribe',
-  
+
   // Prompt methods
   PROMPTS_LIST = 'prompts/list',
   PROMPTS_GET = 'prompts/get',
-  
+
   // Completion methods
   COMPLETION_COMPLETE = 'completion/complete',
-  
+
   // Logging methods
   LOGGING_SET_LEVEL = 'logging/setLevel',
-  
+
   // Notification methods
   NOTIFICATIONS_INITIALIZED = 'notifications/initialized',
   NOTIFICATIONS_CANCELLED = 'notifications/cancelled',
@@ -81,8 +81,6 @@ export interface MCPNotification {
   method: string;
   params?: Record<string, unknown>;
 }
-
-
 
 /**
  * MCP initialization parameters
@@ -257,7 +255,15 @@ export interface MCPCompletionResult {
 /**
  * MCP logging level
  */
-export type MCPLogLevel = 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'critical' | 'alert' | 'emergency';
+export type MCPLogLevel =
+  | 'debug'
+  | 'info'
+  | 'notice'
+  | 'warning'
+  | 'error'
+  | 'critical'
+  | 'alert'
+  | 'emergency';
 
 /**
  * MCP logging request
@@ -292,7 +298,9 @@ export interface MCPTransportInterface {
   start(): Promise<void>;
   stop(): Promise<void>;
   send(message: MCPRequest | MCPResponse | MCPNotification): Promise<void>;
-  onMessage(callback: (message: MCPRequest | MCPResponse | MCPNotification) => void): void;
+  onMessage(
+    callback: (message: MCPRequest | MCPResponse | MCPNotification) => void
+  ): void;
   onError(callback: (error: Error) => void): void;
   onClose(callback: () => void): void;
 }
@@ -304,38 +312,51 @@ export interface MCPServer {
   // Core methods
   initialize(params: MCPInitializeParams): Promise<MCPInitializeResult>;
   ping(): Promise<void>;
-  
+
   // Tool methods
   listTools(): Promise<{ tools: MCPTool[] }>;
   callTool(params: MCPToolCallRequest): Promise<MCPToolCallResult>;
-  
+
   // Resource methods
   listResources(): Promise<{ resources: MCPResource[] }>;
   getResource(uri: string): Promise<MCPResourceContent>;
   subscribeToResource(uri: string): Promise<void>;
   unsubscribeFromResource(uri: string): Promise<void>;
-  
+
   // Prompt methods
   listPrompts(): Promise<{ prompts: MCPPrompt[] }>;
-  getPrompt(name: string, args?: Record<string, unknown>): Promise<MCPPromptGetResult>;
-  
+  getPrompt(
+    name: string,
+    args?: Record<string, unknown>
+  ): Promise<MCPPromptGetResult>;
+
   // Completion methods
   complete(params: MCPCompletionRequest): Promise<MCPCompletionResult>;
-  
+
   // Logging methods
   setLogLevel(level: MCPLogLevel): Promise<void>;
-  
+
   // Event handling
   on(event: 'request', listener: (request: MCPRequest) => void): void;
-  on(event: 'notification', listener: (notification: MCPNotification) => void): void;
+  on(
+    event: 'notification',
+    listener: (notification: MCPNotification) => void
+  ): void;
   on(event: 'error', listener: (error: Error) => void): void;
   on(event: 'close', listener: () => void): void;
-  
+
   // Notification methods
-  sendNotification(method: string, params?: Record<string, unknown>): Promise<void>;
-  sendProgress(token: string | number, progress: number, total?: number): Promise<void>;
+  sendNotification(
+    method: string,
+    params?: Record<string, unknown>
+  ): Promise<void>;
+  sendProgress(
+    token: string | number,
+    progress: number,
+    total?: number
+  ): Promise<void>;
   sendCancelled(requestId: ID, reason?: string): Promise<void>;
-  
+
   // Transport management
   setTransport(transport: MCPTransportInterface): void;
   start(): Promise<void>;
@@ -434,4 +455,4 @@ export interface MCPErrorResponse {
   code: number;
   message: string;
   data?: unknown;
-} 
+}

@@ -9,13 +9,13 @@ describe('Process Event Handlers', () => {
   beforeEach(() => {
     // Create a new event emitter to simulate process events
     processEmitter = new EventEmitter();
-    
+
     // Mock process methods
     mockExit = jest.fn();
     mockLogger = {
       error: jest.fn(),
       warn: jest.fn(),
-      info: jest.fn()
+      info: jest.fn(),
     };
 
     // Store original process
@@ -30,7 +30,7 @@ describe('Process Event Handlers', () => {
       exit: mockExit,
       stdin: new EventEmitter(),
       stdout: new EventEmitter(),
-      stderr: new EventEmitter()
+      stderr: new EventEmitter(),
     };
   });
 
@@ -41,10 +41,12 @@ describe('Process Event Handlers', () => {
   });
 
   describe('Signal Handlers', () => {
-    it('should handle SIGTERM without throwing unhandled promise rejection', (done) => {
+    it('should handle SIGTERM without throwing unhandled promise rejection', done => {
       // Simulate a gracefulShutdown that rejects
-      const gracefulShutdown = jest.fn().mockRejectedValue(new Error('Shutdown failed'));
-      
+      const gracefulShutdown = jest
+        .fn()
+        .mockRejectedValue(new Error('Shutdown failed'));
+
       // Register handler similar to our fix
       process.on('SIGTERM', () => {
         gracefulShutdown('SIGTERM').catch(error => {
@@ -58,9 +60,11 @@ describe('Process Event Handlers', () => {
       processEmitter.emit('SIGTERM');
     });
 
-    it('should handle SIGINT without throwing unhandled promise rejection', (done) => {
-      const gracefulShutdown = jest.fn().mockRejectedValue(new Error('Interrupt failed'));
-      
+    it('should handle SIGINT without throwing unhandled promise rejection', done => {
+      const gracefulShutdown = jest
+        .fn()
+        .mockRejectedValue(new Error('Interrupt failed'));
+
       process.on('SIGINT', () => {
         gracefulShutdown('SIGINT').catch(error => {
           expect(error.message).toBe('Interrupt failed');
@@ -73,9 +77,11 @@ describe('Process Event Handlers', () => {
   });
 
   describe('Uncaught Exception Handler', () => {
-    it('should not create unhandled promise rejections in exception handler', (done) => {
-      const gracefulShutdown = jest.fn().mockRejectedValue(new Error('Shutdown failed'));
-      
+    it('should not create unhandled promise rejections in exception handler', done => {
+      const gracefulShutdown = jest
+        .fn()
+        .mockRejectedValue(new Error('Shutdown failed'));
+
       // Register handler without async
       process.on('uncaughtException', (error: Error) => {
         if (error.message.includes('EADDRINUSE')) {
@@ -87,12 +93,15 @@ describe('Process Event Handlers', () => {
       });
 
       // Emit uncaught exception
-      processEmitter.emit('uncaughtException', new Error('EADDRINUSE: port already in use'));
+      processEmitter.emit(
+        'uncaughtException',
+        new Error('EADDRINUSE: port already in use')
+      );
     });
 
     it('should handle non-fatal exceptions without shutdown', () => {
       const gracefulShutdown = jest.fn();
-      
+
       process.on('uncaughtException', (error: Error) => {
         if (error.message.includes('EADDRINUSE')) {
           gracefulShutdown('UNCAUGHT_EXCEPTION').catch(() => {});
@@ -101,7 +110,7 @@ describe('Process Event Handlers', () => {
 
       // Emit non-fatal exception
       processEmitter.emit('uncaughtException', new Error('Some other error'));
-      
+
       expect(gracefulShutdown).not.toHaveBeenCalled();
     });
   });
@@ -109,17 +118,21 @@ describe('Process Event Handlers', () => {
   describe('Unhandled Rejection Handler', () => {
     it('should catch and log unhandled promise rejections', () => {
       const mockLogger = { error: jest.fn(), warn: jest.fn() };
-      
+
       process.on('unhandledRejection', (reason: unknown) => {
         mockLogger.error('Unhandled Rejection', { reason });
         mockLogger.warn('Continuing after unhandled rejection');
       });
 
       const testPromise = Promise.reject(new Error('Test rejection'));
-      processEmitter.emit('unhandledRejection', new Error('Test rejection'), testPromise);
+      processEmitter.emit(
+        'unhandledRejection',
+        new Error('Test rejection'),
+        testPromise
+      );
 
       expect(mockLogger.error).toHaveBeenCalledWith('Unhandled Rejection', {
-        reason: expect.any(Error)
+        reason: expect.any(Error),
       });
       expect(mockLogger.warn).toHaveBeenCalled();
     });
@@ -129,8 +142,12 @@ describe('Process Event Handlers', () => {
         // Handler should not throw or cause process exit
       });
 
-      processEmitter.emit('unhandledRejection', new Error('Test'), Promise.reject());
-      
+      processEmitter.emit(
+        'unhandledRejection',
+        new Error('Test'),
+        Promise.reject()
+      );
+
       expect(mockExit).not.toHaveBeenCalled();
     });
   });
@@ -138,20 +155,20 @@ describe('Process Event Handlers', () => {
   describe('Promise Chain Safety', () => {
     it('should handle errors in promise chains with catch blocks', async () => {
       const asyncOperation = () => Promise.reject(new Error('Async failed'));
-      
+
       let errorCaught = false;
-      
+
       await asyncOperation().catch(error => {
         errorCaught = true;
         expect(error.message).toBe('Async failed');
       });
-      
+
       expect(errorCaught).toBe(true);
     });
 
     it('should not create floating promises in event handlers', () => {
       const asyncCleanup = jest.fn().mockResolvedValue(undefined);
-      
+
       // Simulating our fixed pattern
       const handleShutdown = () => {
         asyncCleanup().catch(error => {
@@ -161,7 +178,7 @@ describe('Process Event Handlers', () => {
       };
 
       handleShutdown();
-      
+
       expect(asyncCleanup).toHaveBeenCalled();
     });
   });

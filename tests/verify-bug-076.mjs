@@ -8,7 +8,7 @@ const manager = new EventCacheManager({
   maxEvents: 1000,
   maxAgeMs: 3600000,
   globalMemoryLimitMB: 1, // 1MB limit
-  memoryCheckIntervalMs: 100 // Check every 100ms
+  memoryCheckIntervalMs: 100, // Check every 100ms
 });
 
 // Mock adapter
@@ -20,13 +20,15 @@ let memoryPressureLevel = null;
 let memoryResolved = false;
 
 // Listen for memory events
-manager.on('memoryPressure', (event) => {
+manager.on('memoryPressure', event => {
   memoryPressureEmitted = true;
   memoryPressureLevel = event.level;
-  console.log(`Memory pressure detected: ${event.level} at ${event.percentage.toFixed(2)}%`);
+  console.log(
+    `Memory pressure detected: ${event.level} at ${event.percentage.toFixed(2)}%`
+  );
 });
 
-manager.on('memoryPressureResolved', (event) => {
+manager.on('memoryPressureResolved', event => {
   memoryResolved = true;
   console.log(`Memory pressure resolved. Freed: ${event.freed} bytes`);
 });
@@ -41,16 +43,16 @@ for (let i = 0; i < 50; i++) {
     changes.push({
       Name: `control_${i}_${j}`,
       Value: largeData,
-      String: largeData
+      String: largeData,
     });
   }
-  
+
   mockAdapter.emit('changeGroup:changes', {
     groupId: `group${i}`,
     changes,
     timestamp: BigInt(Date.now()) * 1000000n,
     timestampMs: Date.now(),
-    sequenceNumber: i
+    sequenceNumber: i,
   });
 }
 
@@ -62,18 +64,18 @@ setTimeout(() => {
   console.log(`Limit: ${(stats.limit / 1024 / 1024).toFixed(2)}MB`);
   console.log(`Percentage: ${stats.percentage.toFixed(2)}%`);
   console.log(`Groups tracked: ${stats.groupStats.length}`);
-  
+
   console.log('\nVerification:');
   console.log(`✓ Memory pressure emitted: ${memoryPressureEmitted}`);
   console.log(`✓ Pressure level: ${memoryPressureLevel}`);
   console.log(`✓ Memory resolved: ${memoryResolved}`);
   console.log(`✓ Memory kept under limit: ${stats.totalUsage <= stats.limit}`);
-  
+
   // Test priority system
   console.log('\nTesting priority system...');
   manager.setGroupPriority('group0', 'high');
   manager.setGroupPriority('group1', 'low');
-  
+
   manager.destroy();
   console.log('\n✅ BUG-076 fix verified successfully!');
   process.exit(0);

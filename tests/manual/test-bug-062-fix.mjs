@@ -18,27 +18,29 @@ console.log('==================================================');
 // Test 1: Check signal handlers don't create floating promises
 async function testSignalHandlers() {
   console.log('\n✅ Test 1: Signal handlers properly handle promises');
-  
+
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
       env: { ...process.env, NODE_ENV: 'test' },
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let floatingPromiseDetected = false;
     let properErrorHandling = false;
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       const output = data.toString();
-      
+
       // Check for unhandled promise warnings
       if (output.includes('UnhandledPromiseRejectionWarning')) {
         floatingPromiseDetected = true;
       }
-      
+
       // Check for our error handlers
-      if (output.includes('Error during SIGTERM shutdown') || 
-          output.includes('Error during SIGINT shutdown')) {
+      if (
+        output.includes('Error during SIGTERM shutdown') ||
+        output.includes('Error during SIGINT shutdown')
+      ) {
         properErrorHandling = true;
       }
     });
@@ -63,8 +65,8 @@ async function testSignalHandlers() {
 // Test 2: Check exception handlers don't create floating promises
 async function testExceptionHandlers() {
   console.log('\n✅ Test 2: Exception handlers properly handle promises');
-  
-  return new Promise((resolve) => {
+
+  return new Promise(resolve => {
     // Create a test script that throws an exception
     const testScript = `
       const logger = console;
@@ -92,13 +94,13 @@ async function testExceptionHandlers() {
     `;
 
     const proc = spawn('node', ['-e', testScript], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let floatingPromiseDetected = false;
     let errorHandled = false;
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       const output = data.toString();
       if (output.includes('UnhandledPromiseRejectionWarning')) {
         floatingPromiseDetected = true;
@@ -124,8 +126,8 @@ async function testExceptionHandlers() {
 // Test 3: Check setTimeout async callbacks
 async function testSetTimeoutHandling() {
   console.log('\n✅ Test 3: setTimeout async callbacks handled properly');
-  
-  return new Promise((resolve) => {
+
+  return new Promise(resolve => {
     const testScript = `
       const logger = console;
       
@@ -145,13 +147,13 @@ async function testSetTimeoutHandling() {
     `;
 
     const proc = spawn('node', ['-e', testScript], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let floatingPromiseDetected = false;
     let errorCaught = false;
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       const output = data.toString();
       if (output.includes('UnhandledPromiseRejectionWarning')) {
         floatingPromiseDetected = true;
@@ -180,7 +182,7 @@ async function runTests() {
     await testSignalHandlers();
     await testExceptionHandlers();
     await testSetTimeoutHandling();
-    
+
     console.log('\n==================================================');
     console.log('✅ All tests passed! BUG-062 is fixed.');
     console.log('==================================================');

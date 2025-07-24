@@ -44,7 +44,7 @@ describe('Environment Configuration', () => {
   describe('env', () => {
     it('should have required environment variables', () => {
       const { env } = require('../../../../src/shared/utils/env.js');
-      
+
       expect(env.NODE_ENV).toBe('test');
       expect(env.OPENAI_API_KEY).toBe('test-key');
       expect(env.QSYS_HOST).toBe('192.168.1.100');
@@ -55,11 +55,11 @@ describe('Environment Configuration', () => {
   describe('config', () => {
     it('should have correct configuration structure', () => {
       const { config } = require('../../../../src/shared/utils/env.js');
-      
+
       expect(config.qsys).toBeDefined();
       expect(config.qsys.host).toBe('192.168.1.100');
       expect(config.qsys.port).toBe(443);
-      
+
       expect(config.openai).toBeDefined();
       expect(config.openai.apiKey).toBe('test-key');
     });
@@ -68,7 +68,7 @@ describe('Environment Configuration', () => {
   describe('appRoot', () => {
     it('should provide application root path', () => {
       const { appRoot } = require('../../../../src/shared/utils/env.js');
-      
+
       expect(appRoot).toBe('/test/app/root');
       expect(typeof appRoot).toBe('string');
     });

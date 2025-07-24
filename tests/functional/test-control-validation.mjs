@@ -2,7 +2,7 @@
 
 /**
  * Test script to verify set_control_values validation
- * 
+ *
  * This tests that the set_control_values tool now properly validates
  * controls exist before attempting to set them.
  */
@@ -20,22 +20,22 @@ class ValidationTester {
   async connect() {
     return new Promise((resolve, reject) => {
       console.log('🚀 Starting MCP server for validation test...');
-      
+
       this.mcp = spawn('npm', ['start'], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        cwd: process.cwd(),
       });
 
-      this.mcp.stdout.on('data', (data) => {
+      this.mcp.stdout.on('data', data => {
         this.buffer += data.toString();
         this.processBuffer();
       });
 
-      this.mcp.stderr.on('data', (data) => {
+      this.mcp.stderr.on('data', data => {
         console.error('MCP stderr:', data.toString());
       });
 
-      this.mcp.on('error', (error) => {
+      this.mcp.on('error', error => {
         console.error('Failed to start MCP:', error);
         reject(error);
       });
@@ -76,13 +76,13 @@ class ValidationTester {
       method: 'tools/call',
       params: {
         name: toolName,
-        arguments: params
-      }
+        arguments: params,
+      },
     };
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
-      this.mcp.stdin.write(`${JSON.stringify(request)  }\n`);
+      this.mcp.stdin.write(`${JSON.stringify(request)}\n`);
 
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
@@ -118,23 +118,25 @@ async function runValidationTests() {
     try {
       // First, find a valid gain component
       const listResponse = await tester.callTool('list_components', {
-        name_filter: 'gain'
+        name_filter: 'gain',
       });
       const components = JSON.parse(listResponse.result.content[0].text);
-      
+
       if (components.length > 0) {
         const component = components[0];
         console.log(`   Using component: ${component.name}`);
-        
+
         const response = await tester.callTool('set_control_values', {
-          controls: [{
-            name: `${component.name}.gain`,
-            value: -20,
-            ramp: 0
-          }],
-          validate: true
+          controls: [
+            {
+              name: `${component.name}.gain`,
+              value: -20,
+              ramp: 0,
+            },
+          ],
+          validate: true,
         });
-        
+
         const result = JSON.parse(response.result.content[0].text);
         if (result[0].success) {
           console.log('   ✅ PASS: Valid control was set successfully');
@@ -155,19 +157,25 @@ async function runValidationTests() {
     console.log('\n2️⃣ Test: Setting control on non-existent component');
     try {
       const response = await tester.callTool('set_control_values', {
-        controls: [{
-          name: 'NonExistentComponent.gain',
-          value: -10,
-          ramp: 0
-        }]
+        controls: [
+          {
+            name: 'NonExistentComponent.gain',
+            value: -10,
+            ramp: 0,
+          },
+        ],
       });
-      
+
       const result = JSON.parse(response.result.content[0].text);
       if (response.result.isError && result[0].error.includes('not found')) {
-        console.log(`   ✅ PASS: Correctly rejected with error: "${result[0].error}"`);
+        console.log(
+          `   ✅ PASS: Correctly rejected with error: "${result[0].error}"`
+        );
         passed++;
       } else if (result[0].success) {
-        console.log('   ❌ FAIL: Invalid component was accepted (should have failed)');
+        console.log(
+          '   ❌ FAIL: Invalid component was accepted (should have failed)'
+        );
         failed++;
       }
     } catch (error) {
@@ -179,27 +187,33 @@ async function runValidationTests() {
     console.log('\n3️⃣ Test: Setting non-existent control on valid component');
     try {
       const listResponse = await tester.callTool('list_components', {
-        name_filter: 'gain'
+        name_filter: 'gain',
       });
       const components = JSON.parse(listResponse.result.content[0].text);
-      
+
       if (components.length > 0) {
         const component = components[0];
-        
+
         const response = await tester.callTool('set_control_values', {
-          controls: [{
-            name: `${component.name}.invalidControl`,
-            value: 1,
-            ramp: 0
-          }]
+          controls: [
+            {
+              name: `${component.name}.invalidControl`,
+              value: 1,
+              ramp: 0,
+            },
+          ],
         });
-        
+
         const result = JSON.parse(response.result.content[0].text);
         if (response.result.isError && result[0].error.includes('not found')) {
-          console.log(`   ✅ PASS: Correctly rejected with error: "${result[0].error}"`);
+          console.log(
+            `   ✅ PASS: Correctly rejected with error: "${result[0].error}"`
+          );
           passed++;
         } else if (result[0].success) {
-          console.log('   ❌ FAIL: Invalid control was accepted (should have failed)');
+          console.log(
+            '   ❌ FAIL: Invalid control was accepted (should have failed)'
+          );
           failed++;
         }
       } else {
@@ -211,36 +225,42 @@ async function runValidationTests() {
     }
 
     // Test 4: Multiple controls with mix of valid/invalid (should fail all)
-    console.log('\n4️⃣ Test: Multiple controls with one invalid (should reject all)');
+    console.log(
+      '\n4️⃣ Test: Multiple controls with one invalid (should reject all)'
+    );
     try {
       const listResponse = await tester.callTool('list_components', {
-        name_filter: 'gain'
+        name_filter: 'gain',
       });
       const components = JSON.parse(listResponse.result.content[0].text);
-      
+
       if (components.length > 0) {
         const component = components[0];
-        
+
         const response = await tester.callTool('set_control_values', {
           controls: [
             {
               name: `${component.name}.gain`,
               value: -15,
-              ramp: 0
+              ramp: 0,
             },
             {
               name: 'FakeComponent.fakeControl',
               value: 1,
-              ramp: 0
-            }
-          ]
+              ramp: 0,
+            },
+          ],
         });
-        
+
         if (response.result.isError) {
           const results = JSON.parse(response.result.content[0].text);
-          const hasError = results.some(r => !r.success && r.error.includes('not found'));
+          const hasError = results.some(
+            r => !r.success && r.error.includes('not found')
+          );
           if (hasError) {
-            console.log('   ✅ PASS: Validation caught invalid control in batch');
+            console.log(
+              '   ✅ PASS: Validation caught invalid control in batch'
+            );
             passed++;
           } else {
             console.log('   ❌ FAIL: Wrong error type');
@@ -262,16 +282,20 @@ async function runValidationTests() {
     console.log('\n5️⃣ Test: Invalid named control (non-component control)');
     try {
       const response = await tester.callTool('set_control_values', {
-        controls: [{
-          name: 'TotallyInvalidNamedControl',
-          value: 1,
-          ramp: 0
-        }]
+        controls: [
+          {
+            name: 'TotallyInvalidNamedControl',
+            value: 1,
+            ramp: 0,
+          },
+        ],
       });
-      
+
       const result = JSON.parse(response.result.content[0].text);
       if (response.result.isError && result[0].error.includes('not found')) {
-        console.log(`   ✅ PASS: Correctly rejected with error: "${result[0].error}"`);
+        console.log(
+          `   ✅ PASS: Correctly rejected with error: "${result[0].error}"`
+        );
         passed++;
       } else if (result[0].success) {
         console.log('   ❌ FAIL: Invalid named control was accepted');
@@ -286,20 +310,24 @@ async function runValidationTests() {
     console.log('\n6️⃣ Test: Setting control with validation disabled');
     try {
       const response = await tester.callTool('set_control_values', {
-        controls: [{
-          name: 'PossiblyInvalidControl.gain',
-          value: -15,
-          ramp: 0
-        }],
-        validate: false
+        controls: [
+          {
+            name: 'PossiblyInvalidControl.gain',
+            value: -15,
+            ramp: 0,
+          },
+        ],
+        validate: false,
       });
-      
+
       // With validation disabled, it should attempt the operation
       // The actual result depends on whether the control exists
       console.log('   ✅ PASS: Operation attempted without pre-validation');
       passed++;
     } catch (error) {
-      console.log(`   ❌ FAIL: Unexpected error with validation disabled - ${error.message}`);
+      console.log(
+        `   ❌ FAIL: Unexpected error with validation disabled - ${error.message}`
+      );
       failed++;
     }
 
@@ -307,33 +335,33 @@ async function runValidationTests() {
     console.log('\n7️⃣ Test: Cached validation performance');
     try {
       const listResponse = await tester.callTool('list_components', {
-        name_filter: 'gain'
+        name_filter: 'gain',
       });
       const components = JSON.parse(listResponse.result.content[0].text);
-      
+
       if (components.length > 0) {
         const component = components[0];
         const controlName = `${component.name}.gain`;
-        
+
         // First call - will validate and cache
         const start1 = Date.now();
         await tester.callTool('set_control_values', {
           controls: [{ name: controlName, value: -22, ramp: 0 }],
-          validate: true
+          validate: true,
         });
         const time1 = Date.now() - start1;
-        
+
         // Second call - should use cache
         const start2 = Date.now();
         await tester.callTool('set_control_values', {
           controls: [{ name: controlName, value: -23, ramp: 0 }],
-          validate: true
+          validate: true,
         });
         const time2 = Date.now() - start2;
-        
+
         console.log(`   First call (with validation): ${time1}ms`);
         console.log(`   Second call (cached): ${time2}ms`);
-        
+
         if (time2 < time1) {
           console.log('   ✅ PASS: Caching improved performance');
           passed++;
@@ -350,7 +378,7 @@ async function runValidationTests() {
     }
 
     // Summary
-    console.log(`\n${  '='.repeat(60)}`);
+    console.log(`\n${'='.repeat(60)}`);
     console.log('VALIDATION TEST SUMMARY');
     console.log('='.repeat(60));
     console.log(`Total Tests: ${passed + failed}`);
@@ -359,11 +387,14 @@ async function runValidationTests() {
     console.log('='.repeat(60));
 
     if (failed === 0) {
-      console.log('\n✅ All validation tests passed! The fix is working correctly.');
+      console.log(
+        '\n✅ All validation tests passed! The fix is working correctly.'
+      );
     } else {
-      console.log('\n❌ Some validation tests failed. Check the implementation.');
+      console.log(
+        '\n❌ Some validation tests failed. Check the implementation.'
+      );
     }
-
   } catch (error) {
     console.error('\n💥 Test execution failed:', error.message);
   } finally {

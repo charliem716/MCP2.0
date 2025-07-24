@@ -1,6 +1,6 @@
 /**
  * Tests for BUG-083: Code Complexity Violations fixes
- * 
+ *
  * Verifies that refactored methods maintain correct behavior
  */
 
@@ -14,8 +14,8 @@ jest.mock('../../../../shared/utils/logger.js', () => ({
     info: jest.fn(),
     debug: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
-  }
+    error: jest.fn(),
+  },
 }));
 
 describe('BUG-083: Refactored Methods', () => {
@@ -34,7 +34,7 @@ describe('BUG-083: Refactored Methods', () => {
         mediumWindowMs: 5000,
         ancientWindowMs: 10000,
         significantChangePercent: 10,
-        minTimeBetweenEventsMs: 100
+        minTimeBetweenEventsMs: 100,
       },
       diskSpilloverConfig: {
         enabled: true,
@@ -43,7 +43,7 @@ describe('BUG-083: Refactored Methods', () => {
         maxFileSizeMB: 10,
       },
       globalMemoryLimitMB: 0.5, // Lower limit to 0.5MB for testing
-      memoryCheckIntervalMs: 50 // Faster checks for testing
+      memoryCheckIntervalMs: 50, // Faster checks for testing
     });
     manager.attachToAdapter(mockAdapter as any);
   });
@@ -55,15 +55,15 @@ describe('BUG-083: Refactored Methods', () => {
   describe('Compression (refactored compressBufferEvents)', () => {
     it('should compress events based on age windows', async () => {
       const groupId = 'test-group';
-      
+
       // Add events across different time windows
       for (let i = 0; i < 20; i++) {
         mockAdapter.emit('changeGroup:changes', {
           groupId,
           changes: [{ Name: 'test.control', Value: i, String: i.toString() }],
           timestamp: BigInt(Date.now() * 1_000_000),
-          timestampMs: Date.now() - (i * 500), // Space them out by 500ms
-          sequenceNumber: i
+          timestampMs: Date.now() - i * 500, // Space them out by 500ms
+          sequenceNumber: i,
         });
       }
 
@@ -71,7 +71,7 @@ describe('BUG-083: Refactored Methods', () => {
       await new Promise(resolve => setTimeout(resolve, 200));
 
       const events = await manager.query({ groupId });
-      
+
       // Should have compressed some events
       expect(events.length).toBeLessThan(20);
       expect(events.length).toBeGreaterThan(0);
@@ -80,7 +80,7 @@ describe('BUG-083: Refactored Methods', () => {
     it('should keep all recent events', async () => {
       const groupId = 'test-group';
       const now = Date.now();
-      
+
       // Add 10 recent events
       for (let i = 0; i < 10; i++) {
         mockAdapter.emit('changeGroup:changes', {
@@ -88,7 +88,7 @@ describe('BUG-083: Refactored Methods', () => {
           changes: [{ Name: 'test.control', Value: i, String: i.toString() }],
           timestamp: BigInt(now * 1_000_000),
           timestampMs: now,
-          sequenceNumber: i
+          sequenceNumber: i,
         });
       }
 
@@ -101,14 +101,14 @@ describe('BUG-083: Refactored Methods', () => {
     it('should keep significant changes in medium window', async () => {
       const groupId = 'test-group';
       const now = Date.now();
-      
+
       // Add initial value
       mockAdapter.emit('changeGroup:changes', {
         groupId,
         changes: [{ Name: 'test.control', Value: 100, String: '100' }],
         timestamp: BigInt((now - 2000) * 1_000_000),
         timestampMs: now - 2000,
-        sequenceNumber: 0
+        sequenceNumber: 0,
       });
 
       // Add small change (5% - should be compressed)
@@ -117,7 +117,7 @@ describe('BUG-083: Refactored Methods', () => {
         changes: [{ Name: 'test.control', Value: 105, String: '105' }],
         timestamp: BigInt((now - 1500) * 1_000_000),
         timestampMs: now - 1500,
-        sequenceNumber: 1
+        sequenceNumber: 1,
       });
 
       // Add significant change (15% - should be kept)
@@ -126,7 +126,7 @@ describe('BUG-083: Refactored Methods', () => {
         changes: [{ Name: 'test.control', Value: 115, String: '115' }],
         timestamp: BigInt((now - 1000) * 1_000_000),
         timestampMs: now - 1000,
-        sequenceNumber: 2
+        sequenceNumber: 2,
       });
 
       // Wait for compression
@@ -134,7 +134,7 @@ describe('BUG-083: Refactored Methods', () => {
 
       const events = await manager.query({ groupId });
       const values = events.map(e => e.value);
-      
+
       expect(values).toContain(100);
       expect(values).toContain(115);
       // Small change might be compressed out
@@ -145,18 +145,22 @@ describe('BUG-083: Refactored Methods', () => {
     it('should evict events when memory limit exceeded', async () => {
       // Add many events to trigger memory pressure
       const groups = ['group1', 'group2', 'group3'];
-      
+
       for (const groupId of groups) {
         for (let i = 0; i < 500; i++) {
           mockAdapter.emit('changeGroup:changes', {
             groupId,
             changes: [
               { Name: `${groupId}.control1`, Value: i, String: i.toString() },
-              { Name: `${groupId}.control2`, Value: i * 2, String: (i * 2).toString() }
+              {
+                Name: `${groupId}.control2`,
+                Value: i * 2,
+                String: (i * 2).toString(),
+              },
             ],
             timestamp: BigInt(Date.now() * 1_000_000),
             timestampMs: Date.now(),
-            sequenceNumber: i
+            sequenceNumber: i,
           });
         }
       }
@@ -187,26 +191,32 @@ describe('BUG-083: Refactored Methods', () => {
           changes: [{ Name: 'control', Value: i, String: i.toString() }],
           timestamp: BigInt(Date.now() * 1_000_000),
           timestampMs: Date.now(),
-          sequenceNumber: i
+          sequenceNumber: i,
         });
-        
+
         mockAdapter.emit('changeGroup:changes', {
           groupId: 'low-priority',
           changes: [{ Name: 'control', Value: i, String: i.toString() }],
           timestamp: BigInt(Date.now() * 1_000_000),
           timestampMs: Date.now(),
-          sequenceNumber: i
+          sequenceNumber: i,
         });
       }
 
       // Trigger memory pressure
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      const highPriorityEvents = await manager.query({ groupId: 'high-priority' });
-      const lowPriorityEvents = await manager.query({ groupId: 'low-priority' });
+      const highPriorityEvents = await manager.query({
+        groupId: 'high-priority',
+      });
+      const lowPriorityEvents = await manager.query({
+        groupId: 'low-priority',
+      });
 
       // High priority should have more events retained
-      expect(highPriorityEvents.length).toBeGreaterThan(lowPriorityEvents.length);
+      expect(highPriorityEvents.length).toBeGreaterThan(
+        lowPriorityEvents.length
+      );
     });
   });
 
@@ -215,7 +225,7 @@ describe('BUG-083: Refactored Methods', () => {
       const groupId = 'test-group';
       let eventCount = 0;
 
-      manager.on('eventsStored', (data) => {
+      manager.on('eventsStored', data => {
         eventCount += data.count;
       });
 
@@ -227,11 +237,11 @@ describe('BUG-083: Refactored Methods', () => {
           { Name: 'control2', Value: 2, String: '2' },
           { Name: 'control3', Value: 3, String: '3' },
           { Name: 'control4', Value: 4, String: '4' },
-          { Name: 'control5', Value: 5, String: '5' }
+          { Name: 'control5', Value: 5, String: '5' },
         ],
         timestamp: BigInt(Date.now() * 1_000_000),
         timestampMs: Date.now(),
-        sequenceNumber: 1
+        sequenceNumber: 1,
       });
 
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -248,11 +258,11 @@ describe('BUG-083: Refactored Methods', () => {
         maxEvents: 1000,
         maxAgeMs: 60000,
         compressionConfig: {
-          enabled: false // Disable compression for this test
-        }
+          enabled: false, // Disable compression for this test
+        },
       });
       testManager.attachToAdapter(mockAdapter as any);
-      
+
       const groupId = 'test-group';
 
       // Initial value
@@ -261,7 +271,7 @@ describe('BUG-083: Refactored Methods', () => {
         changes: [{ Name: 'control', Value: 0, String: '0' }],
         timestamp: BigInt(Date.now() * 1_000_000),
         timestampMs: Date.now(),
-        sequenceNumber: 1
+        sequenceNumber: 1,
       });
 
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -272,7 +282,7 @@ describe('BUG-083: Refactored Methods', () => {
         changes: [{ Name: 'control', Value: 1, String: '1' }],
         timestamp: BigInt(Date.now() * 1_000_000),
         timestampMs: Date.now(),
-        sequenceNumber: 2
+        sequenceNumber: 2,
       });
 
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -283,7 +293,7 @@ describe('BUG-083: Refactored Methods', () => {
         changes: [{ Name: 'numeric', Value: 100, String: '100' }],
         timestamp: BigInt(Date.now() * 1_000_000),
         timestampMs: Date.now(),
-        sequenceNumber: 3
+        sequenceNumber: 3,
       });
 
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -293,22 +303,22 @@ describe('BUG-083: Refactored Methods', () => {
         changes: [{ Name: 'numeric', Value: 150, String: '150' }],
         timestamp: BigInt(Date.now() * 1_000_000),
         timestampMs: Date.now(),
-        sequenceNumber: 4
+        sequenceNumber: 4,
       });
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
       const events = await testManager.query({ groupId });
-      
+
       // Check event types were detected
       const eventTypes = events.map(e => e.eventType).filter(Boolean);
-      
+
       // Debug output - removed after fixing
-      
+
       expect(eventTypes.length).toBeGreaterThan(0);
       expect(eventTypes).toContain('state_transition');
       expect(eventTypes).toContain('significant_change');
-      
+
       testManager.destroy();
     });
   });
@@ -328,11 +338,11 @@ describe('BUG-083: Refactored Methods', () => {
           groupId,
           changes: [
             { Name: 'control1', Value: i, String: i.toString() },
-            { Name: 'control2', Value: i * 2, String: (i * 2).toString() }
+            { Name: 'control2', Value: i * 2, String: (i * 2).toString() },
           ],
           timestamp: BigInt(Date.now() * 1_000_000),
           timestampMs: Date.now(),
-          sequenceNumber: i
+          sequenceNumber: i,
         });
       }
 
@@ -355,15 +365,17 @@ describe('BUG-083: Refactored Methods', () => {
           changes: [{ Name: 'control', Value: i, String: i.toString() }],
           timestamp: BigInt(timestamps[i]! * 1_000_000),
           timestampMs: timestamps[i],
-          sequenceNumber: i
+          sequenceNumber: i,
         });
       }
 
       const events = await manager.query({ groupId });
-      
+
       // Events should be sorted by timestamp
       for (let i = 1; i < events.length; i++) {
-        expect(events[i]!.timestampMs).toBeGreaterThanOrEqual(events[i - 1]!.timestampMs);
+        expect(events[i]!.timestampMs).toBeGreaterThanOrEqual(
+          events[i - 1]!.timestampMs
+        );
       }
     });
   });

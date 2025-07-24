@@ -17,37 +17,36 @@ let isShuttingDown = false;
 async function main(): Promise<void> {
   try {
     logger.info('🚀 Starting Phase 1: Q-SYS QRWC Client Demo...');
-    
+
     // Validate configuration
     validateConfig();
     logger.info('✅ Configuration validated');
-    
+
     // Create and connect QRWC client
     qrwcClient = new OfficialQRWCClient({
       host: config.qsys.host,
       port: config.qsys.port,
       username: config.qsys.username,
-      password: config.qsys.password
+      password: config.qsys.password,
     });
-    
+
     await qrwcClient.connect();
     logger.info('✅ Connected to Q-SYS Core');
-    
+
     // Demonstrate basic functionality
     const components = await qrwcClient.getAllComponents();
     logger.info(`📊 Found ${components.length} components in Q-SYS design`);
-    
+
     // Log first 5 components as example
     components.slice(0, 5).forEach((comp: any) => {
       logger.info(`  - ${comp.Name} (${comp.Type})`);
     });
-    
+
     logger.info('✅ Phase 1 QRWC Client Demo is ready');
     logger.info('📡 Direct connection to Q-SYS established');
-    
+
     // Keep process alive for manual testing
     process.stdin.resume();
-    
   } catch (error) {
     logger.error('❌ Failed to start application:', error);
     await cleanup();
@@ -60,10 +59,10 @@ async function main(): Promise<void> {
  */
 async function cleanup(): Promise<void> {
   if (isShuttingDown) return;
-  
+
   isShuttingDown = true;
   logger.info('🧹 Cleaning up resources...');
-  
+
   try {
     if (qrwcClient) {
       await qrwcClient.disconnect();

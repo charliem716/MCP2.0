@@ -3,6 +3,7 @@
 ## Phase 1: Adapter Implementation (JSON-RPC Methods)
 
 ### Setup
+
 - [ ] Add imports to adapter.ts
   - [ ] Import ChangeGroup type from repository
 - [ ] Add class properties
@@ -11,6 +12,7 @@
   - [ ] `private changeGroupLastValues = new Map<string, Map<string, unknown>>()`
 
 ### Method Implementations in executeCommand()
+
 - [ ] ChangeGroup.AddControl
   - [ ] Validate group ID and control names
   - [ ] Create group if doesn't exist
@@ -47,6 +49,7 @@
   - [ ] Store timer reference
 
 ### Cleanup
+
 - [ ] Update clearAllCaches() method
   - [ ] Clear all autoPoll timers
   - [ ] Clear changeGroups map
@@ -55,12 +58,14 @@
 ## Phase 2: MCP Tools Implementation
 
 ### Create change-groups.ts file
+
 - [ ] Import necessary dependencies
   - [ ] BaseQSysTool from base.ts
   - [ ] Zod schemas
   - [ ] Type definitions
 
 ### Core Tools (Required)
+
 - [ ] CreateChangeGroupTool
   - [ ] Define Zod schema for groupId
   - [ ] Implement execute method
@@ -83,6 +88,7 @@
   - [ ] Export factory function
 
 ### Additional Tools (Optional)
+
 - [ ] RemoveControlsFromChangeGroupTool
   - [ ] Define schema
   - [ ] Implement execute
@@ -103,6 +109,7 @@
 ## Phase 3: Tool Registration
 
 ### Update src/mcp/handlers/index.ts
+
 - [ ] Add import for change-groups tools
 - [ ] Add tools to registerQSysTools() method
   - [ ] createCreateChangeGroupTool
@@ -114,6 +121,7 @@
 ## Phase 4: Testing
 
 ### Unit Tests
+
 - [ ] Create tests/unit/mcp/qrwc/adapter-change-groups.test.ts
   - [ ] Test each adapter method
   - [ ] Test error conditions
@@ -124,6 +132,7 @@
   - [ ] Test error handling
 
 ### Integration Tests
+
 - [ ] Create tests/integration/change-groups.test.ts
   - [ ] Test full flow: create, add, poll, destroy
   - [ ] Test AutoPoll functionality
@@ -131,6 +140,7 @@
   - [ ] Test cleanup on disconnect
 
 ### Manual Testing
+
 - [ ] Test with actual Q-SYS Core
 - [ ] Verify AutoPoll timing
 - [ ] Test multiple change groups
@@ -139,11 +149,13 @@
 ## Phase 5: Documentation
 
 ### Update Documentation
+
 - [ ] Update QSYS_API_REFERENCE.md if needed
 - [ ] Add examples to relevant docs
 - [ ] Update BUG-034.md with resolution
 
 ### Final Report
+
 - [ ] Create CHANGE_GROUP_REPORT.md
   - [ ] Document implementation details
   - [ ] List any issues found
@@ -153,24 +165,28 @@
 ## Verification Checklist
 
 ### Code Quality
+
 - [ ] All ESLint errors resolved
 - [ ] TypeScript types are strict (no any)
 - [ ] Code follows project patterns
 - [ ] Proper error handling
 
 ### Functionality
+
 - [ ] All 8 JSON-RPC methods work
 - [ ] All MCP tools are accessible
 - [ ] AutoPoll works correctly
 - [ ] Cleanup happens on disconnect
 
 ### Tests
+
 - [ ] All unit tests pass
 - [ ] All integration tests pass
 - [ ] npm test runs clean
 - [ ] Manual testing complete
 
 ## Completion Criteria
+
 - [ ] BUG-034 can be closed
 - [ ] No regression in existing functionality
 - [ ] Code is production ready

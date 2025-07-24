@@ -1,7 +1,7 @@
 # Q-SYS Remote Control (QRC) - Core Control Methods
 
 > **Basic control operations for Q-SYS systems**  
-> *Status monitoring and Named Control operations*
+> _Status monitoring and Named Control operations_
 
 ---
 
@@ -9,21 +9,21 @@
 
 ### Essential Methods
 
-| Method | Purpose | Parameters | Use Case |
-|--------|---------|------------|----------|
-| **`StatusGet`** | Get core status | None | Health monitoring |
-| **`Control.Get`** | Read control values | Control names array | Monitor controls |
-| **`Control.Set`** | Set control values | Name, value, ramp | Control devices |
-| **`NoOp`** | Keep-alive | None | Maintain connection |
+| Method            | Purpose             | Parameters          | Use Case            |
+| ----------------- | ------------------- | ------------------- | ------------------- |
+| **`StatusGet`**   | Get core status     | None                | Health monitoring   |
+| **`Control.Get`** | Read control values | Control names array | Monitor controls    |
+| **`Control.Set`** | Set control values  | Name, value, ramp   | Control devices     |
+| **`NoOp`**        | Keep-alive          | None                | Maintain connection |
 
 ### Common Control Types
 
-| Type | Description | Example Values |
-|------|-------------|----------------|
-| **Float** | Numeric with range | `-100.0` to `20.0` (gain) |
-| **Boolean** | True/false | `true` (muted), `false` (unmuted) |
-| **Integer** | Whole numbers | `1`, `2`, `3` (selections) |
-| **String** | Text values | `"Input 1"`, `"Stereo"` |
+| Type        | Description        | Example Values                    |
+| ----------- | ------------------ | --------------------------------- |
+| **Float**   | Numeric with range | `-100.0` to `20.0` (gain)         |
+| **Boolean** | True/false         | `true` (muted), `false` (unmuted) |
+| **Integer** | Whole numbers      | `1`, `2`, `3` (selections)        |
+| **String**  | Text values        | `"Input 1"`, `"Stereo"`           |
 
 ---
 
@@ -37,6 +37,7 @@ Get current Q-SYS Core status and configuration.
 **Parameters:** None (use `0` for params)
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -47,6 +48,7 @@ Get current Q-SYS Core status and configuration.
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -68,16 +70,16 @@ Get current Q-SYS Core status and configuration.
 
 ### Response Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| **`Platform`** | String | Q-SYS Core model |
-| **`State`** | String | "Idle", "Active", or "Standby" |
-| **`DesignName`** | String | Currently running design |
-| **`DesignCode`** | String | GUID of current design |
-| **`IsRedundant`** | Boolean | Redundant configuration |
-| **`IsEmulator`** | Boolean | Running in emulator mode |
-| **`Status.Code`** | Integer | Status code (0 = OK) |
-| **`Status.String`** | String | Human-readable status |
+| Field               | Type    | Description                    |
+| ------------------- | ------- | ------------------------------ |
+| **`Platform`**      | String  | Q-SYS Core model               |
+| **`State`**         | String  | "Idle", "Active", or "Standby" |
+| **`DesignName`**    | String  | Currently running design       |
+| **`DesignCode`**    | String  | GUID of current design         |
+| **`IsRedundant`**   | Boolean | Redundant configuration        |
+| **`IsEmulator`**    | Boolean | Running in emulator mode       |
+| **`Status.Code`**   | Integer | Status code (0 = OK)           |
+| **`Status.String`** | String  | Human-readable status          |
 
 ### EngineStatus (Automatic Notifications)
 
@@ -86,6 +88,7 @@ The core automatically sends `EngineStatus` notifications when the state changes
 **Method:** `EngineStatus` (received automatically)
 
 **Example Notification:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -102,10 +105,10 @@ The core automatically sends `EngineStatus` notifications when the state changes
 
 ### State Values
 
-| State | Description | Action Required |
-|-------|-------------|-----------------|
-| **`Active`** | Core is running and available | Normal operation |
-| **`Idle`** | No design loaded | Load design |
+| State         | Description                    | Action Required       |
+| ------------- | ------------------------------ | --------------------- |
+| **`Active`**  | Core is running and available  | Normal operation      |
+| **`Idle`**    | No design loaded               | Load design           |
 | **`Standby`** | Redundant core in standby mode | Switch to active core |
 
 ---
@@ -120,6 +123,7 @@ Get values from Named Controls.
 **Parameters:** Array of Named Control strings
 
 #### Single Control Example
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -130,6 +134,7 @@ Get values from Named Controls.
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -145,6 +150,7 @@ Get values from Named Controls.
 ```
 
 #### Multiple Controls Example
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -155,6 +161,7 @@ Get values from Named Controls.
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -186,11 +193,13 @@ Set a Named Control value with optional ramping.
 **Method:** `Control.Set`
 
 **Parameters:**
+
 - `Name`: Control name (string)
 - `Value`: New value (number, string, or boolean)
 - `Ramp` (optional): Ramp time in seconds
 
 #### Basic Set Example
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -204,6 +213,7 @@ Set a Named Control value with optional ramping.
 ```
 
 #### Set with Ramp Example
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -218,6 +228,7 @@ Set a Named Control value with optional ramping.
 ```
 
 #### Boolean Control Example
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -233,6 +244,7 @@ Set a Named Control value with optional ramping.
 ### Response Format
 
 **Success Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -242,6 +254,7 @@ Set a Named Control value with optional ramping.
 ```
 
 **Error Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -265,6 +278,7 @@ No-operation command for maintaining connection.
 **Parameters:** Empty object
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -275,6 +289,7 @@ No-operation command for maintaining connection.
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -289,10 +304,10 @@ No-operation command for maintaining connection.
 // Send NoOp every 30 seconds
 setInterval(() => {
   sendCommand({
-    "jsonrpc": "2.0",
-    "method": "NoOp",
-    "params": {},
-    "id": Date.now()
+    jsonrpc: '2.0',
+    method: 'NoOp',
+    params: {},
+    id: Date.now(),
   });
 }, 30000);
 ```
@@ -320,27 +335,30 @@ function sendCommand(command) {
 // Connect and login
 socket.connect(1710, 'your-qsys-core-ip', () => {
   sendCommand({
-    "jsonrpc": "2.0",
-    "method": "Logon",
-    "params": {
-      "User": "admin",
-      "Password": "password"
-    }
+    jsonrpc: '2.0',
+    method: 'Logon',
+    params: {
+      User: 'admin',
+      Password: 'password',
+    },
   });
 });
 
 // Handle responses
-socket.on('data', (data) => {
-  const messages = data.toString().split('\0').filter(msg => msg.length > 0);
-  
+socket.on('data', data => {
+  const messages = data
+    .toString()
+    .split('\0')
+    .filter(msg => msg.length > 0);
+
   messages.forEach(msg => {
     try {
       const response = JSON.parse(msg);
-      
+
       if (response.result === 'login_success') {
         isLoggedIn = true;
         console.log('Connected successfully');
-        
+
         // Start monitoring
         startControlMonitoring();
       }
@@ -354,27 +372,27 @@ function startControlMonitoring() {
   // Get status every 10 seconds
   setInterval(() => {
     sendCommand({
-      "jsonrpc": "2.0",
-      "method": "StatusGet",
-      "params": 0
+      jsonrpc: '2.0',
+      method: 'StatusGet',
+      params: 0,
     });
   }, 10000);
-  
+
   // Monitor controls every 5 seconds
   setInterval(() => {
     sendCommand({
-      "jsonrpc": "2.0",
-      "method": "Control.Get",
-      "params": ["MainGain", "MainMute"]
+      jsonrpc: '2.0',
+      method: 'Control.Get',
+      params: ['MainGain', 'MainMute'],
     });
   }, 5000);
-  
+
   // Keep-alive every 30 seconds
   setInterval(() => {
     sendCommand({
-      "jsonrpc": "2.0",
-      "method": "NoOp",
-      "params": {}
+      jsonrpc: '2.0',
+      method: 'NoOp',
+      params: {},
     });
   }, 30000);
 }
@@ -386,46 +404,46 @@ function startControlMonitoring() {
 // Mute/Unmute control
 function setMute(controlName, muted) {
   return sendCommand({
-    "jsonrpc": "2.0",
-    "method": "Control.Set",
-    "params": {
-      "Name": controlName,
-      "Value": muted
-    }
+    jsonrpc: '2.0',
+    method: 'Control.Set',
+    params: {
+      Name: controlName,
+      Value: muted,
+    },
   });
 }
 
 // Set gain with ramp
 function setGain(controlName, gainValue, rampTime = 0) {
   const params = {
-    "Name": controlName,
-    "Value": gainValue
+    Name: controlName,
+    Value: gainValue,
   };
-  
+
   if (rampTime > 0) {
     params.Ramp = rampTime;
   }
-  
+
   return sendCommand({
-    "jsonrpc": "2.0",
-    "method": "Control.Set",
-    "params": params
+    jsonrpc: '2.0',
+    method: 'Control.Set',
+    params: params,
   });
 }
 
 // Get current values
 function getControlValues(controlNames) {
   return sendCommand({
-    "jsonrpc": "2.0",
-    "method": "Control.Get",
-    "params": controlNames
+    jsonrpc: '2.0',
+    method: 'Control.Get',
+    params: controlNames,
   });
 }
 
 // Usage examples
-setMute("MainMute", true);                    // Mute immediately
-setGain("MainGain", -12.0, 2.0);             // Set gain with 2-second ramp
-getControlValues(["MainGain", "MainMute"]);   // Get current values
+setMute('MainMute', true); // Mute immediately
+setGain('MainGain', -12.0, 2.0); // Set gain with 2-second ramp
+getControlValues(['MainGain', 'MainMute']); // Get current values
 ```
 
 ### Error Handling
@@ -433,7 +451,7 @@ getControlValues(["MainGain", "MainMute"]);   // Get current values
 ```javascript
 function handleResponse(response) {
   if (response.error) {
-    switch(response.error.code) {
+    switch (response.error.code) {
       case 8:
         console.error('Unknown control:', response.error.message);
         break;
@@ -461,38 +479,38 @@ function handleResponse(response) {
 // Create a simple control panel
 const audioControls = {
   // Main output controls
-  mainGain: "MainGain",
-  mainMute: "MainMute",
-  
+  mainGain: 'MainGain',
+  mainMute: 'MainMute',
+
   // Microphone controls
-  micGain: "MicGain",
-  micMute: "MicMute",
-  
+  micGain: 'MicGain',
+  micMute: 'MicMute',
+
   // Source selection
-  sourceSelect: "SourceSelect",
-  
+  sourceSelect: 'SourceSelect',
+
   // Monitor values
   async getAll() {
     const response = await sendCommand({
-      "jsonrpc": "2.0",
-      "method": "Control.Get",
-      "params": [this.mainGain, this.mainMute, this.micGain, this.micMute, this.sourceSelect]
+      jsonrpc: '2.0',
+      method: 'Control.Get',
+      params: [this.mainGain, this.mainMute, this.micGain, this.micMute, this.sourceSelect],
     });
     return response;
   },
-  
+
   // Set main volume
   async setMainVolume(volume, rampTime = 1.0) {
     return sendCommand({
-      "jsonrpc": "2.0",
-      "method": "Control.Set",
-      "params": {
-        "Name": this.mainGain,
-        "Value": volume,
-        "Ramp": rampTime
-      }
+      jsonrpc: '2.0',
+      method: 'Control.Set',
+      params: {
+        Name: this.mainGain,
+        Value: volume,
+        Ramp: rampTime,
+      },
     });
-  }
+  },
 };
 ```
 
@@ -505,23 +523,23 @@ class QSysHealthMonitor {
     this.isHealthy = false;
     this.lastStatus = null;
   }
-  
+
   start() {
     // Check status every 30 seconds
     setInterval(() => {
       this.checkHealth();
     }, 30000);
   }
-  
+
   async checkHealth() {
     try {
       const response = await sendCommand({
-        "jsonrpc": "2.0",
-        "method": "StatusGet",
-        "params": 0
+        jsonrpc: '2.0',
+        method: 'StatusGet',
+        params: 0,
       });
-      
-      if (response.result.State === "Active") {
+
+      if (response.result.State === 'Active') {
         this.isHealthy = true;
         this.lastStatus = response.result;
         console.log(`Q-SYS Core healthy: ${response.result.DesignName}`);
@@ -558,4 +576,5 @@ Ready for more advanced control operations?
 
 ---
 
-*Continue with [Component Control Methods →](qrc-component-control.md) to learn about advanced component discovery and control.*
+_Continue with [Component Control Methods →](qrc-component-control.md) to learn about advanced
+component discovery and control._

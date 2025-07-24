@@ -12,7 +12,7 @@ const TEST_CONFIG = {
   host: '192.168.1.100', // Replace with actual Q-SYS Core IP
   port: 443,
   username: 'test',
-  password: 'test'
+  password: 'test',
 };
 
 console.log('🧪 BUG-050 Verification Test');
@@ -33,38 +33,38 @@ const client = new OfficialQRWCClient({
   ...TEST_CONFIG,
   reconnectInterval: 2000, // 2 seconds for faster testing
   maxReconnectAttempts: 3, // Switch to long-term after 3 attempts
-  timeout: 5000
+  timeout: 5000,
 });
 
 // Set up event handlers
-client.on('connected', (data) => {
+client.on('connected', data => {
   console.log('✅ Connected!', {
     requiresCacheInvalidation: data.requiresCacheInvalidation,
-    downtimeMs: data.downtimeMs
+    downtimeMs: data.downtimeMs,
   });
-  
+
   if (data.requiresCacheInvalidation) {
     cacheInvalidationTriggered = true;
     console.log('✅ Cache invalidation triggered (downtime > 30s)');
   }
 });
 
-client.on('disconnected', (reason) => {
+client.on('disconnected', reason => {
   console.log('❌ Disconnected:', reason);
   reconnectAttempts = 0;
 });
 
-client.on('reconnecting', (attempt) => {
+client.on('reconnecting', attempt => {
   reconnectAttempts = attempt;
   console.log(`🔄 Reconnection attempt ${attempt}`);
-  
+
   if (attempt > 3 && !longTermMode) {
     longTermMode = true;
     console.log('✅ Switched to long-term reconnection mode');
   }
 });
 
-client.on('error', (error) => {
+client.on('error', error => {
   console.log('⚠️  Error:', error.message);
 });
 
@@ -74,8 +74,10 @@ function printResults() {
   console.log('================');
   console.log(`Total reconnection attempts: ${reconnectAttempts}`);
   console.log(`Long-term mode activated: ${longTermMode ? '✅' : '❌'}`);
-  console.log(`Cache invalidation triggered: ${cacheInvalidationTriggered ? '✅' : '❌'}`);
-  
+  console.log(
+    `Cache invalidation triggered: ${cacheInvalidationTriggered ? '✅' : '❌'}`
+  );
+
   const allPassed = reconnectAttempts > 3 && longTermMode;
   console.log(`\nOverall: ${allPassed ? '✅ PASSED' : '❌ FAILED'}`);
 }
@@ -85,7 +87,7 @@ console.log('\n🚀 Starting connection test...');
 console.log('⚠️  Note: This test requires a Q-SYS Core at the configured IP');
 console.log('    Update TEST_CONFIG with your Q-SYS Core details\n');
 
-client.connect().catch((error) => {
+client.connect().catch(error => {
   console.error('Initial connection failed:', error.message);
 });
 

@@ -15,13 +15,13 @@ describe('GetAllControlsTool', () => {
     // Mock QRWC client
     mockQrwcClient = {
       sendCommand: jest.fn(),
-      isConnected: jest.fn().mockReturnValue(true)
+      isConnected: jest.fn().mockReturnValue(true),
     };
 
     // Mock context
     mockContext = {
       userId: 'test-user',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     tool = new GetAllControlsTool(mockQrwcClient);
@@ -29,7 +29,9 @@ describe('GetAllControlsTool', () => {
 
   it('should have correct tool name and description', () => {
     expect(tool.name).toBe('qsys_get_all_controls');
-    expect(tool.description).toBe('Get all controls from all components in the Q-SYS system');
+    expect(tool.description).toBe(
+      'Get all controls from all components in the Q-SYS system'
+    );
   });
 
   it('should successfully get all controls', async () => {
@@ -41,38 +43,40 @@ describe('GetAllControlsTool', () => {
           Value: -10.5,
           String: '-10.5dB',
           Type: 'gain',
-          Component: 'Component1'
+          Component: 'Component1',
         },
         {
           Name: 'Component1.mute',
           Value: false,
           String: 'false',
           Type: 'boolean',
-          Component: 'Component1'
+          Component: 'Component1',
         },
         {
           Name: 'Component2.level',
           Value: 0,
           String: '0dB',
           Type: 'level',
-          Component: 'Component2'
-        }
-      ]
+          Component: 'Component2',
+        },
+      ],
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
     const params = {
-      includeValues: true
+      includeValues: true,
     };
 
     const result = await tool.execute(params, mockContext);
 
-    expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.GetAllControls');
+    expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+      'Component.GetAllControls'
+    );
     expect(result.isError).toBe(false);
     expect(result.content).toHaveLength(1);
     expect(result.content[0].type).toBe('text');
-    
+
     const responseData = JSON.parse(result.content[0].text);
     expect(responseData.totalControls).toBe(3);
     expect(responseData.componentCount).toBe(2);
@@ -90,30 +94,30 @@ describe('GetAllControlsTool', () => {
           Value: -5,
           String: '-5dB',
           Type: 'gain',
-          Component: 'APM1'
+          Component: 'APM1',
         },
         {
           Name: 'Mixer.level',
           Value: 0,
           String: '0dB',
           Type: 'level',
-          Component: 'Mixer'
+          Component: 'Mixer',
         },
         {
           Name: 'APM2.mute',
           Value: true,
           String: 'true',
           Type: 'boolean',
-          Component: 'APM2'
-        }
-      ]
+          Component: 'APM2',
+        },
+      ],
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
     const params = {
       includeValues: true,
-      componentFilter: 'APM'
+      componentFilter: 'APM',
     };
 
     const result = await tool.execute(params, mockContext);
@@ -121,7 +125,9 @@ describe('GetAllControlsTool', () => {
     const responseData = JSON.parse(result.content[0].text);
     expect(responseData.totalControls).toBe(2); // Only APM components
     expect(responseData.componentCount).toBe(2);
-    expect(responseData.components.every((c: any) => c.name.includes('APM'))).toBe(true);
+    expect(
+      responseData.components.every((c: any) => c.name.includes('APM'))
+    ).toBe(true);
   });
 
   it('should handle includeValues=false', async () => {
@@ -132,15 +138,15 @@ describe('GetAllControlsTool', () => {
           Value: -10.5,
           String: '-10.5dB',
           Type: 'gain',
-          Component: 'Component1'
-        }
-      ]
+          Component: 'Component1',
+        },
+      ],
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
     const params = {
-      includeValues: false
+      includeValues: false,
     };
 
     const result = await tool.execute(params, mockContext);
@@ -153,7 +159,7 @@ describe('GetAllControlsTool', () => {
 
   it('should handle empty response', async () => {
     const mockResponse = {
-      result: []
+      result: [],
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
@@ -171,7 +177,7 @@ describe('GetAllControlsTool', () => {
 
   it('should handle invalid response format', async () => {
     const mockResponse = {
-      result: "not an array"
+      result: 'not an array',
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
@@ -187,7 +193,7 @@ describe('GetAllControlsTool', () => {
 
   it('should handle connection errors', async () => {
     mockQrwcClient.sendCommand.mockRejectedValue(
-      new Error("Connection failed")
+      new Error('Connection failed')
     );
 
     const params = {};
@@ -201,7 +207,10 @@ describe('GetAllControlsTool', () => {
 
   it('should validate parameters', async () => {
     // Test invalid includeValues type
-    let result = await tool.execute({ includeValues: 'not-boolean' } as any, mockContext);
+    let result = await tool.execute(
+      { includeValues: 'not-boolean' } as any,
+      mockContext
+    );
     expect(result.isError).toBe(true);
     let errorResponse = JSON.parse(result.content[0].text);
     expect(errorResponse.message).toContain('Expected boolean');

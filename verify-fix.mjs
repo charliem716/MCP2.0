@@ -5,9 +5,9 @@ console.log('🧪 Verifying BUG-058 fix directly\n');
 // Mock QRWC client
 const mockClient = {
   isConnected: () => true,
-  sendCommand: async (cmd) => {
+  sendCommand: async cmd => {
     console.log(`Mock: Received command ${cmd}`);
-    
+
     // Create realistic test data
     const controls = [];
     for (let i = 0; i < 100; i++) {
@@ -15,14 +15,14 @@ const mockClient = {
         Name: `Component${i % 10}.control${i}`,
         Component: `Component${i % 10}`,
         Type: ['Float', 'Boolean', 'String'][i % 3],
-        Value: i % 5 === 0 ? 0 : i
+        Value: i % 5 === 0 ? 0 : i,
       });
     }
-    
+
     return {
-      result: { Controls: controls }
+      result: { Controls: controls },
     };
-  }
+  },
 };
 
 const tool = new GetAllControlsTool(mockClient);
@@ -34,11 +34,15 @@ try {
   const result = await tool.execute({}, context);
   const response = JSON.parse(result.content[0].text);
   const size = JSON.stringify(response).length;
-  
+
   console.log(`  ✅ Response size: ${size} bytes`);
-  console.log(`  ${response.summary ? '✅' : '❌'} Has summary: ${!!response.summary}`);
-  console.log(`  ${!response.controls ? '✅' : '❌'} No controls array: ${!response.controls}`);
-  
+  console.log(
+    `  ${response.summary ? '✅' : '❌'} Has summary: ${!!response.summary}`
+  );
+  console.log(
+    `  ${!response.controls ? '✅' : '❌'} No controls array: ${!response.controls}`
+  );
+
   if (response.summary) {
     console.log(`  Total controls: ${response.summary.totalControls}`);
     console.log(`  Total components: ${response.summary.totalComponents}`);
@@ -59,12 +63,15 @@ try {
 // Test 3: Filtered mode with filter
 console.log('\nTest 3: Filtered mode with component filter');
 try {
-  const result = await tool.execute({
-    mode: 'filtered',
-    filter: { component: 'Component1' }
-  }, context);
+  const result = await tool.execute(
+    {
+      mode: 'filtered',
+      filter: { component: 'Component1' },
+    },
+    context
+  );
   const response = JSON.parse(result.content[0].text);
-  
+
   console.log(`  ✅ Mode: ${response.mode}`);
   console.log(`  ✅ Filtered controls: ${response.summary.filteredControls}`);
   console.log(`  ✅ Has controls array: ${!!response.controls}`);
@@ -75,16 +82,21 @@ try {
 // Test 4: Full mode
 console.log('\nTest 4: Full mode with pagination');
 try {
-  const result = await tool.execute({
-    mode: 'full',
-    pagination: { limit: 5 }
-  }, context);
+  const result = await tool.execute(
+    {
+      mode: 'full',
+      pagination: { limit: 5 },
+    },
+    context
+  );
   const response = JSON.parse(result.content[0].text);
-  
+
   console.log(`  ✅ Mode: ${response.mode}`);
   console.log(`  ✅ Returned controls: ${response.summary.returnedControls}`);
   console.log(`  ✅ Has controls array: ${!!response.controls}`);
-  console.log(`  ${response.controls.length <= 5 ? '✅' : '❌'} Pagination respected: ${response.controls.length} <= 5`);
+  console.log(
+    `  ${response.controls.length <= 5 ? '✅' : '❌'} Pagination respected: ${response.controls.length} <= 5`
+  );
 } catch (e) {
   console.log(`  ❌ Error: ${e.message}`);
 }

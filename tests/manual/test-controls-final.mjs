@@ -28,7 +28,13 @@ async function finalTest() {
 
   try {
     // Connect
-    officialClient = new OfficialQRWCClient({ host, port, username, password, secure: port === 443 });
+    officialClient = new OfficialQRWCClient({
+      host,
+      port,
+      username,
+      password,
+      secure: port === 443,
+    });
     await officialClient.connect();
     adapter = new QRWCClientAdapter(officialClient);
     registry = new MCPToolRegistry(adapter);
@@ -38,15 +44,15 @@ async function finalTest() {
     // Test 1: List all controls (limited output)
     console.log('1️⃣ Testing list_controls (all controls):');
     const allControlsResult = await registry.callTool('list_controls', {
-      includeMetadata: true
+      includeMetadata: true,
     });
-    
+
     if (!allControlsResult.isError) {
       const lines = allControlsResult.content[0].text.split('\\n');
       console.log('Found controls:', lines[0]);
       console.log('\nFirst 5 controls:');
       console.log(lines.slice(1, 6).join('\\n'));
-      
+
       // Extract some control names for testing
       const controlNames = [];
       const matches = allControlsResult.content[0].text.matchAll(/• ([^:]+):/g);
@@ -54,37 +60,44 @@ async function finalTest() {
         controlNames.push(match[1].split(' ')[0]); // Get just the control name
         if (controlNames.length >= 3) break;
       }
-      
+
       // Test 2: Get values for these controls
       if (controlNames.length > 0) {
         console.log('\n2️⃣ Testing get_control_values:');
         console.log('Reading controls:', controlNames);
-        
+
         const getResult = await registry.callTool('get_control_values', {
-          controls: controlNames
+          controls: controlNames,
         });
-        
+
         if (!getResult.isError) {
-          console.log(`\n${  getResult.content[0].text}`);
-          
+          console.log(`\n${getResult.content[0].text}`);
+
           // Test 3: Set control values (safe test - set to current value)
           console.log('\n3️⃣ Testing set_control_values (SAFE MODE):');
-          
+
           // Find a control that looks safe to test (avoid mutes)
-          const safeControl = controlNames.find(name => 
-            name.includes('gain') || name.includes('level') || name.includes('volume')
+          const safeControl = controlNames.find(
+            name =>
+              name.includes('gain') ||
+              name.includes('level') ||
+              name.includes('volume')
           );
-          
+
           if (safeControl) {
             console.log(`\nTesting with control: ${safeControl}`);
             console.log('⚠️  Setting to current value (no actual change)');
-            
+
             // Parse current value from previous result
-            const valueMatch = getResult.content[0].text.match(new RegExp(`${safeControl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^:]*: ([^\\s]+)`));
+            const valueMatch = getResult.content[0].text.match(
+              new RegExp(
+                `${safeControl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^:]*: ([^\\s]+)`
+              )
+            );
             const currentValue = valueMatch ? parseFloat(valueMatch[1]) : 0;
-            
+
             console.log(`Current value: ${currentValue}`);
-            
+
             // Uncomment to actually test set operation
             /*
             const setResult = await registry.callTool('set_control_values', {
@@ -99,34 +112,47 @@ async function finalTest() {
               console.log(setResult.content[0].text);
             }
             */
-            
-            console.log('💡 Set operation skipped for safety. Uncomment code to test.');
+
+            console.log(
+              '💡 Set operation skipped for safety. Uncomment code to test.'
+            );
           }
         } else {
-          console.log('❌ Error getting control values:', getResult.content[0].text);
+          console.log(
+            '❌ Error getting control values:',
+            getResult.content[0].text
+          );
         }
       }
     } else {
-      console.log('❌ Error listing controls:', allControlsResult.content[0].text);
+      console.log(
+        '❌ Error listing controls:',
+        allControlsResult.content[0].text
+      );
     }
 
     // Test 4: Test specific component controls
     console.log('\n4️⃣ Testing component-specific controls:');
-    
+
     // Get the QRWC instance to find actual component names
     const qrwc = officialClient.getQrwc();
     if (qrwc) {
-      const componentNames = Object.keys(qrwc.components).filter(name => 
-        name.includes('Gain') || name.includes('Volume') || name.includes('Mic')
-      ).slice(0, 2);
-      
+      const componentNames = Object.keys(qrwc.components)
+        .filter(
+          name =>
+            name.includes('Gain') ||
+            name.includes('Volume') ||
+            name.includes('Mic')
+        )
+        .slice(0, 2);
+
       for (const compName of componentNames) {
         console.log(`\nComponent: ${compName}`);
         const result = await registry.callTool('list_controls', {
           component: compName,
-          includeMetadata: true
+          includeMetadata: true,
         });
-        
+
         if (!result.isError) {
           const lines = result.content[0].text.split('\\n').slice(0, 5);
           console.log(lines.join('\\n'));
@@ -134,14 +160,13 @@ async function finalTest() {
       }
     }
 
-    console.log(`\n${  '='.repeat(60)}`);
+    console.log(`\n${'='.repeat(60)}`);
     console.log('✅ All MCP control operations validated!');
     console.log('\nSummary:');
     console.log('• list_controls: ✅ Working');
     console.log('• get_control_values: ✅ Working');
     console.log('• set_control_values: ⚠️  Ready (test skipped for safety)');
     console.log('• Component filtering: ✅ Working');
-
   } catch (error) {
     console.error('\n❌ Test Failed:', error.message);
     console.error('Stack:', error.stack);

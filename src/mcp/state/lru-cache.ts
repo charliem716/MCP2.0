@@ -1,10 +1,10 @@
-import { EventEmitter } from "events";
-import { globalLogger as logger } from "../../shared/utils/logger.js";
-import type { CacheStatistics } from "./repository.js";
+import { EventEmitter } from 'events';
+import { globalLogger as logger } from '../../shared/utils/logger.js';
+import type { CacheStatistics } from './repository.js';
 
 /**
  * Simple LRU Cache implementation using Map's insertion order
- * 
+ *
  * Features:
  * - O(1) get, set, delete operations using Map
  * - Automatic LRU eviction when cache is full
@@ -18,11 +18,9 @@ export class LRUCache<K, V> extends EventEmitter {
   private evictionCount = 0;
   private readonly createdAt = Date.now();
 
-  constructor(
-    private readonly maxEntries = 1000
-  ) {
+  constructor(private readonly maxEntries = 1000) {
     super();
-    
+
     logger.debug('LRU Cache initialized', { maxEntries });
   }
 
@@ -31,7 +29,7 @@ export class LRUCache<K, V> extends EventEmitter {
    */
   get(key: K): V | null {
     const value = this.cache.get(key);
-    
+
     if (value === undefined) {
       this.missCount++;
       return null;
@@ -40,7 +38,7 @@ export class LRUCache<K, V> extends EventEmitter {
     // Move to end (most recent) by deleting and re-adding
     this.cache.delete(key);
     this.cache.set(key, value);
-    
+
     this.hitCount++;
     return value;
   }
@@ -53,21 +51,21 @@ export class LRUCache<K, V> extends EventEmitter {
     if (this.cache.has(key)) {
       this.cache.delete(key);
     }
-    
+
     // Add new entry
     this.cache.set(key, value);
-    
+
     // Check if we need to evict
     if (this.cache.size > this.maxEntries) {
       // Get first (oldest) key
       const firstKey = this.cache.keys().next().value as K;
       this.cache.delete(firstKey);
       this.evictionCount++;
-      
+
       // Emit eviction event for compatibility
       this.emit('eviction', firstKey, value);
     }
-    
+
     return true;
   }
 
@@ -120,7 +118,7 @@ export class LRUCache<K, V> extends EventEmitter {
   getStatistics(): CacheStatistics {
     const total = this.hitCount + this.missCount;
     const hitRatio = total > 0 ? this.hitCount / total : 0;
-    
+
     return {
       totalEntries: this.cache.size,
       hitCount: this.hitCount,
@@ -128,7 +126,7 @@ export class LRUCache<K, V> extends EventEmitter {
       evictionCount: this.evictionCount,
       memoryUsage: 0, // Simplified - no memory tracking
       hitRatio,
-      uptime: Date.now() - this.createdAt
+      uptime: Date.now() - this.createdAt,
     };
   }
 
@@ -153,7 +151,10 @@ export class LRUCache<K, V> extends EventEmitter {
   /**
    * Emit events (for compatibility with listeners)
    */
-  override on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on(
+    event: string | symbol,
+    listener: (...args: any[]) => void
+  ): this {
     // Only support 'eviction' and 'expiration' events for compatibility
     if (event === 'eviction' || event === 'expiration') {
       return super.on(event, listener);
@@ -164,7 +165,7 @@ export class LRUCache<K, V> extends EventEmitter {
 
 // Export enum for compatibility (though only LRU is supported)
 export enum EvictionPolicy {
-  LRU = 'lru'
+  LRU = 'lru',
 }
 
 // Export enum for compatibility (though events are minimally used)
@@ -174,5 +175,5 @@ export enum CacheEvent {
   Set = 'set',
   Evict = 'evict',
   Clear = 'clear',
-  Expire = 'expire'
+  Expire = 'expire',
 }

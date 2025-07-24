@@ -1,9 +1,11 @@
 # Change Group Event Cache Implementation Checklist
 
 ## Phase 1: Core Event Cache Infrastructure ✅ COMPLETED
+
 **Priority: Critical | Status: Complete**
 
 ### Step 1.1: Create Event Cache Manager ✅
+
 - [x] Create `src/mcp/state/event-cache/manager.ts` ✅
 - [x] Implement `CircularEventBuffer` class ✅
   - [x] Basic ring buffer with add/get operations ✅
@@ -23,6 +25,7 @@
   - [x] Eviction policy (oldest first) ✅
 
 ### Step 1.2: Integrate with QRWCAdapter ✅
+
 - [x] Modify `ChangeGroup.Poll` handler in `src/mcp/qrwc/adapter.ts` ✅
   - [x] Generate high-precision timestamps (process.hrtime.bigint()) ✅
   - [x] Create CachedEvent objects ✅
@@ -37,6 +40,7 @@
   - [x] Maintain per-control last values ✅
 
 ### Step 1.3: Implement Basic Query Engine ✅
+
 - [x] Create query executor in EventCacheManager ✅
   - [x] Time range filtering using index ✅
   - [x] Control name filtering ✅
@@ -51,9 +55,11 @@
   - [x] Enforce result limits ✅
 
 ## Phase 2: Memory Management & Optimization ✅ PARTIALLY COMPLETED
+
 **Priority: High | Status: In Progress**
 
 ### Step 2.1: Core Memory Management ✅ COMPLETED
+
 - [x] Add memory tracking ✅
   - [x] Calculate buffer memory usage ✅
   - [x] Track index memory overhead ✅
@@ -66,6 +72,7 @@
   - [x] Memory usage tracking ✅
 
 ### Step 2.2: Advanced Memory Features 🚧 IN PROGRESS
+
 - [ ] Aggressive compression triggers
   - [ ] Define compression thresholds
   - [ ] Implement background compression
@@ -76,6 +83,7 @@
   - [ ] Transparent retrieval
 
 ### Step 2.3: Query Optimization ❌ NOT STARTED
+
 - [ ] Add query caching
   - [ ] LRU cache for query results
   - [ ] Cache key generation
@@ -90,9 +98,11 @@
   - [ ] Result merging
 
 ## Phase 3: MCP Tool Integration ✅ COMPLETED
+
 **Priority: High | Status: Complete**
 
 ### Step 3.1: Core Query Tool ✅
+
 - [x] Create `read_change_group_events` Tool ✅
   - [x] Define Zod schema for parameters ✅
   - [x] Implement parameter validation ✅
@@ -107,12 +117,14 @@
   - [x] Query timeout protection ✅
 
 ### Step 3.2: Statistics Integration ✅
+
 - [x] Event cache statistics ✅ (Integrated into EventCacheManager.getStatistics())
   - [x] Event counts per group ✅
   - [x] Memory usage calculation ✅
   - [x] Ingestion rate tracking ✅
 
 ### Step 3.3: Subscription Management ❌ NOT STARTED
+
 - [ ] Create `subscribe_to_change_events` Tool
   - [ ] Define subscription parameters
   - [ ] Enable/disable caching per group
@@ -123,9 +135,11 @@
   - [ ] Clean up on unsubscribe
 
 ## Phase 4: Testing & Documentation 🚧 IN PROGRESS
+
 **Priority: High | Status: Partially Complete**
 
 ### Step 4.1: Core Testing ✅ COMPLETED
+
 - [x] Unit Tests ✅
   - [x] CircularEventBuffer operations ✅
   - [x] Query engine with all operators ✅
@@ -136,6 +150,7 @@
   - [x] Performance scenarios (33Hz ingestion) ✅
 
 ### Step 4.2: Advanced Testing ❌ NOT STARTED
+
 - [ ] Load Tests
   - [ ] Sustained 1000 events/second
   - [ ] 100k+ event queries
@@ -146,6 +161,7 @@
   - [ ] Latency measurements
 
 ### Step 4.3: Documentation ❌ NOT STARTED
+
 - [ ] API Documentation
   - [ ] Tool descriptions and examples
   - [ ] Query language reference
@@ -160,9 +176,11 @@
   - [ ] Troubleshooting guide
 
 ## Phase 5: Advanced Features ❌ NOT STARTED
+
 **Priority: Medium | Status: Not Started**
 
 ### Step 5.1: Smart Compression
+
 - [ ] Implement compression strategy
   - [ ] Define time windows (recent/medium/ancient)
   - [ ] Create significance detector for numeric values
@@ -173,6 +191,7 @@
   - [ ] Compression monitoring and statistics
 
 ### Step 5.2: Advanced Query Features
+
 - [x] Value change operators ✅
   - [x] `changed_to` - detect transitions to value ✅
   - [x] `changed_from` - detect transitions from value ✅
@@ -188,6 +207,7 @@
   - [ ] Group by control name
 
 ### Step 5.3: Performance Enhancements
+
 - [ ] Advanced indexing
   - [ ] Range index optimization
   - [ ] Multi-column indexes
@@ -198,9 +218,11 @@
   - [ ] Parallel query execution
 
 ## Phase 6: Production Deployment ❌ NOT STARTED
+
 **Priority: Medium | Status: Not Started**
 
 ### Step 6.1: Deployment Preparation
+
 - [ ] Feature flags
   - [ ] Event cache enable/disable
   - [ ] Per-feature toggles
@@ -211,6 +233,7 @@
   - [ ] Rollback procedures
 
 ### Step 6.2: Monitoring & Observability
+
 - [ ] Production metrics
   - [ ] Custom metrics for event cache
   - [ ] Performance dashboards
@@ -221,6 +244,7 @@
   - [ ] Debug trace capabilities
 
 ### Step 6.3: Production Validation
+
 - [ ] Performance validation
   - [ ] Baseline measurements
   - [ ] Load testing in staging
@@ -233,6 +257,7 @@
 ## Success Criteria
 
 ### ✅ Achieved:
+
 - [x] 33Hz event ingestion without drops ✅
 - [x] < 1ms event insertion latency ✅
 - [x] < 100ms query response for 10k events ✅
@@ -240,10 +265,12 @@
 - [x] Graceful degradation under load ✅
 
 ### 🚧 In Progress:
+
 - [ ] Complete test coverage (>90%) - Currently ~70%
 - [ ] Comprehensive documentation - Basic docs exist
 
 ### ❌ Not Started:
+
 - [ ] 50%+ compression for old events
 - [ ] Zero data loss during compression
 - [ ] Production deployment successful
@@ -270,4 +297,5 @@
    - Mitigation: Complete Phase 4.3 documentation
    - Current workaround: Code comments and test examples
 
-The event cache system is **production-ready for basic use cases** but needs Phase 2-4 completion for full production deployment.
+The event cache system is **production-ready for basic use cases** but needs Phase 2-4 completion
+for full production deployment.

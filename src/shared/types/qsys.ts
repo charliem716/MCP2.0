@@ -7,7 +7,7 @@ import type { ID, Timestamp, ConnectionState } from './common.js';
 /**
  * Q-SYS component types
  */
-export type QSysComponentType = 
+export type QSysComponentType =
   | 'mixer'
   | 'router'
   | 'gain'
@@ -22,7 +22,7 @@ export type QSysComponentType =
 /**
  * Q-SYS control types
  */
-export type QSysControlType = 
+export type QSysControlType =
   | 'button'
   | 'knob'
   | 'fader'
@@ -126,7 +126,7 @@ export interface QSysNotification {
 export enum QSysMethod {
   // Authentication
   LOGON = 'Logon',
-  
+
   // Component methods
   COMPONENT_GET = 'Component.Get',
   COMPONENT_GET_COMPONENTS = 'Component.GetComponents',
@@ -134,13 +134,13 @@ export enum QSysMethod {
   COMPONENT_SET = 'Component.Set',
   COMPONENT_GET_CONTROL_VALUES = 'Component.GetControlValues',
   COMPONENT_SET_CONTROL_VALUES = 'Component.SetControlValues',
-  
+
   // Control methods
   CONTROL_GET = 'Control.Get',
   CONTROL_SET = 'Control.Set',
   CONTROL_GET_MULTIPLE = 'Control.GetMultiple',
   CONTROL_SET_MULTIPLE = 'Control.SetMultiple',
-  
+
   // Mixer methods
   MIXER_GET_INPUTS = 'Mixer.GetInputs',
   MIXER_GET_OUTPUTS = 'Mixer.GetOutputs',
@@ -148,17 +148,17 @@ export enum QSysMethod {
   MIXER_SET_CROSSPOINT_GAIN = 'Mixer.SetCrosspointGain',
   MIXER_GET_CROSSPOINT_MUTE = 'Mixer.GetCrosspointMute',
   MIXER_GET_CROSSPOINT_GAIN = 'Mixer.GetCrosspointGain',
-  
+
   // Snapshot methods
   SNAPSHOT_LOAD = 'Snapshot.Load',
   SNAPSHOT_SAVE = 'Snapshot.Save',
   SNAPSHOT_GET = 'Snapshot.Get',
   SNAPSHOT_GET_BANKS = 'Snapshot.GetBanks',
   SNAPSHOT_GET_SNAPSHOTS = 'Snapshot.GetSnapshots',
-  
+
   // Status methods
   STATUS_GET = 'StatusGet',
-  
+
   // Change group methods
   CHANGE_GROUP_ADD_CONTROL = 'ChangeGroup.AddControl',
   CHANGE_GROUP_REMOVE_CONTROL = 'ChangeGroup.RemoveControl',
@@ -168,7 +168,7 @@ export enum QSysMethod {
   CHANGE_GROUP_INVALIDATE = 'ChangeGroup.Invalidate',
   CHANGE_GROUP_AUTO_POLL = 'ChangeGroup.AutoPoll',
   CHANGE_GROUP_POLL = 'ChangeGroup.Poll',
-  
+
   // Notification methods
   ENGINE_STATUS = 'EngineStatus',
   CONTROL_CHANGE = 'ControlChange',
@@ -223,8 +223,6 @@ export interface QSysChangeGroupWithMeta extends QSysChangeGroup {
   ttl?: number;
   accessCount: number;
 }
-
-
 
 /**
  * Change group metrics
@@ -337,8 +335,6 @@ export interface QSysEngineStatus {
   isEmulator: boolean;
 }
 
-
-
 /**
  * Q-SYS client interface
  */
@@ -348,51 +344,93 @@ export interface QSysClient {
   disconnect(): Promise<void>;
   isConnected(): boolean;
   getState(): QSysConnectionState;
-  
+
   // Component methods
   getComponents(): Promise<QSysComponent[]>;
   getComponent(name: string): Promise<QSysComponent>;
   getControls(component: string): Promise<QSysControl[]>;
-  
+
   // Control methods
-  getControlValue(control: string, component?: string): Promise<QSysControlValue>;
-  setControlValue(control: string, value: QSysControlValue, component?: string): Promise<void>;
-  getControlValues(controls: Array<{ control: string; component?: string }>): Promise<QSysControl[]>;
-  setControlValues(controls: Array<{ control: string; value: QSysControlValue; component?: string }>): Promise<void>;
-  
+  getControlValue(
+    control: string,
+    component?: string
+  ): Promise<QSysControlValue>;
+  setControlValue(
+    control: string,
+    value: QSysControlValue,
+    component?: string
+  ): Promise<void>;
+  getControlValues(
+    controls: Array<{ control: string; component?: string }>
+  ): Promise<QSysControl[]>;
+  setControlValues(
+    controls: Array<{
+      control: string;
+      value: QSysControlValue;
+      component?: string;
+    }>
+  ): Promise<void>;
+
   // Mixer methods
   getMixerInputs(mixer: string): Promise<QSysMixerIO[]>;
   getMixerOutputs(mixer: string): Promise<QSysMixerIO[]>;
-  setCrosspointMute(mixer: string, input: number, output: number, mute: boolean): Promise<void>;
-  setCrosspointGain(mixer: string, input: number, output: number, gain: number): Promise<void>;
-  getCrosspointMute(mixer: string, input: number, output: number): Promise<boolean>;
-  getCrosspointGain(mixer: string, input: number, output: number): Promise<number>;
-  
+  setCrosspointMute(
+    mixer: string,
+    input: number,
+    output: number,
+    mute: boolean
+  ): Promise<void>;
+  setCrosspointGain(
+    mixer: string,
+    input: number,
+    output: number,
+    gain: number
+  ): Promise<void>;
+  getCrosspointMute(
+    mixer: string,
+    input: number,
+    output: number
+  ): Promise<boolean>;
+  getCrosspointGain(
+    mixer: string,
+    input: number,
+    output: number
+  ): Promise<number>;
+
   // Snapshot methods
   loadSnapshot(bank: number, snapshot: number, ramp?: number): Promise<void>;
   saveSnapshot(bank: number, snapshot: number, name?: string): Promise<void>;
   getSnapshotBanks(): Promise<QSysSnapshotBank[]>;
   getSnapshots(bank: number): Promise<QSysSnapshot[]>;
-  
+
   // Status methods
   getStatus(): Promise<QSysCoreStatus>;
-  
+
   // Change group methods
   addControlToChangeGroup(control: string, component?: string): Promise<void>;
-  removeControlFromChangeGroup(control: string, component?: string): Promise<void>;
+  removeControlFromChangeGroup(
+    control: string,
+    component?: string
+  ): Promise<void>;
   clearChangeGroup(): Promise<void>;
   invalidateChangeGroup(): Promise<void>;
   setAutoPolling(enabled: boolean, rate?: number): Promise<void>;
   poll(): Promise<QSysControlChange[]>;
-  
+
   // Event handling
   on(event: 'connected', listener: () => void): void;
   on(event: 'disconnected', listener: (error?: Error) => void): void;
   on(event: 'error', listener: (error: Error) => void): void;
-  on(event: 'controlChange', listener: (change: QSysControlChange) => void): void;
-  on(event: 'componentChange', listener: (change: QSysComponentChange) => void): void;
+  on(
+    event: 'controlChange',
+    listener: (change: QSysControlChange) => void
+  ): void;
+  on(
+    event: 'componentChange',
+    listener: (change: QSysComponentChange) => void
+  ): void;
   on(event: 'engineStatus', listener: (status: QSysEngineStatus) => void): void;
-  
+
   off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
-} 
+}

@@ -10,14 +10,14 @@ jest.mock('../../../../src/shared/utils/logger.js', () => ({
     info: jest.fn(),
     debug: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
   })),
   globalLogger: {
     info: jest.fn(),
     debug: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
-  }
+    error: jest.fn(),
+  },
 }));
 
 /**
@@ -33,7 +33,7 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       isConnected: jest.fn().mockReturnValue(true),
       getQrwc: jest.fn(),
       getComponent: jest.fn(),
-      setControlValue: jest.fn()
+      setControlValue: jest.fn(),
     } as any;
 
     adapter = new QRWCClientAdapter(mockOfficialClient);
@@ -45,26 +45,26 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       const mockComponents = {
         'Main Mixer': {
           controls: {
-            'gain': { state: -10 },
-            'mute': { state: false }
-          }
+            gain: { state: -10 },
+            mute: { state: false },
+          },
         },
         'Output Gain': {
           controls: {
-            'level': { state: 0 },
-            'mute': { state: true }
-          }
+            level: { state: 0 },
+            mute: { state: true },
+          },
         },
         'APM 1': {
           controls: {
             'input.1.gain': { state: -5 },
-            'input.1.mute': { state: false }
-          }
-        }
+            'input.1.mute': { state: false },
+          },
+        },
       };
 
       mockOfficialClient.getQrwc.mockReturnValue({
-        components: mockComponents
+        components: mockComponents,
       });
 
       const result = await adapter.sendCommand('Component.GetComponents', {});
@@ -72,7 +72,7 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       expect(result).toHaveProperty('result');
       expect(result.result).toBeInstanceOf(Array);
       expect(result.result).toHaveLength(3);
-      
+
       // Verify component structure
       const mainMixer = result.result.find((c: any) => c.Name === 'Main Mixer');
       expect(mainMixer).toBeDefined();
@@ -83,7 +83,7 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
 
     it('should handle empty components list', async () => {
       mockOfficialClient.getQrwc.mockReturnValue({
-        components: {}
+        components: {},
       });
 
       const result = await adapter.sendCommand('Component.GetComponents', {});
@@ -94,15 +94,17 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
     it('should throw error when QRC is not available', async () => {
       mockOfficialClient.getQrwc.mockReturnValue(null);
 
-      await expect(adapter.sendCommand('Component.GetComponents', {}))
-        .rejects.toThrow('QRC object not available');
+      await expect(
+        adapter.sendCommand('Component.GetComponents', {})
+      ).rejects.toThrow('QRC object not available');
     });
 
     it('should throw error when components property is missing', async () => {
       mockOfficialClient.getQrwc.mockReturnValue({});
 
-      await expect(adapter.sendCommand('Component.GetComponents', {}))
-        .rejects.toThrow('No components data available');
+      await expect(
+        adapter.sendCommand('Component.GetComponents', {})
+      ).rejects.toThrow('No components data available');
     });
   });
 
@@ -118,17 +120,19 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
           Type: 'Mixer',
           Controls: [
             { Name: 'gain', Value: -10, Type: 'Float' },
-            { Name: 'mute', Value: false, Type: 'Boolean' }
-          ]
+            { Name: 'mute', Value: false, Type: 'Boolean' },
+          ],
         };
 
         mockOfficialClient.getComponent.mockResolvedValue(mockComponent);
 
-        const result = await adapter.sendCommand('Component.Get', { 
-          Name: 'Main Mixer' 
+        const result = await adapter.sendCommand('Component.Get', {
+          Name: 'Main Mixer',
         });
 
-        expect(mockOfficialClient.getComponent).toHaveBeenCalledWith('Main Mixer');
+        expect(mockOfficialClient.getComponent).toHaveBeenCalledWith(
+          'Main Mixer'
+        );
         expect(result.result).toEqual(mockComponent);
       });
 
@@ -139,32 +143,38 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
           Controls: [
             { Name: 'gain', Value: -10, Type: 'Float' },
             { Name: 'mute', Value: false, Type: 'Boolean' },
-            { Name: 'solo', Value: true, Type: 'Boolean' }
-          ]
+            { Name: 'solo', Value: true, Type: 'Boolean' },
+          ],
         };
 
         mockOfficialClient.getComponent.mockResolvedValue(mockComponent);
 
-        const result = await adapter.sendCommand('Component.Get', { 
+        const result = await adapter.sendCommand('Component.Get', {
           Name: 'Main Mixer',
-          Controls: ['gain', 'mute']
+          Controls: ['gain', 'mute'],
         });
 
         expect(result.result.Controls).toHaveLength(2);
-        expect(result.result.Controls.map((c: any) => c.Name)).toEqual(['gain', 'mute']);
+        expect(result.result.Controls.map((c: any) => c.Name)).toEqual([
+          'gain',
+          'mute',
+        ]);
       });
 
       it('should handle missing component', async () => {
         mockOfficialClient.getComponent.mockResolvedValue(null);
 
-        await expect(adapter.sendCommand('Component.Get', { 
-          Name: 'NonExistent' 
-        })).rejects.toThrow('Component not found: NonExistent');
+        await expect(
+          adapter.sendCommand('Component.Get', {
+            Name: 'NonExistent',
+          })
+        ).rejects.toThrow('Component not found: NonExistent');
       });
 
       it('should validate component name parameter', async () => {
-        await expect(adapter.sendCommand('Component.Get', {}))
-          .rejects.toThrow('Missing required parameter: Name');
+        await expect(adapter.sendCommand('Component.Get', {})).rejects.toThrow(
+          'Missing required parameter: Name'
+        );
       });
     });
 
@@ -178,23 +188,23 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
           Name: 'Main Mixer',
           Controls: [
             { Name: 'gain', Value: -5, Success: true },
-            { Name: 'mute', Value: true, Success: true }
-          ]
+            { Name: 'mute', Value: true, Success: true },
+          ],
         });
 
         const result = await adapter.sendCommand('Component.Set', {
           Name: 'Main Mixer',
           Controls: [
             { Name: 'gain', Value: -5 },
-            { Name: 'mute', Value: true }
-          ]
+            { Name: 'mute', Value: true },
+          ],
         });
 
         expect(mockOfficialClient.setComponentControls).toHaveBeenCalledWith(
           'Main Mixer',
           [
             { Name: 'gain', Value: -5 },
-            { Name: 'mute', Value: true }
+            { Name: 'mute', Value: true },
           ]
         );
         expect(result.result).toHaveProperty('Name', 'Main Mixer');
@@ -205,9 +215,7 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
 
         await adapter.sendCommand('Component.Set', {
           Name: 'Fader Bank',
-          Controls: [
-            { Name: 'fader1', Value: 0, Ramp: 2.5 }
-          ]
+          Controls: [{ Name: 'fader1', Value: 0, Ramp: 2.5 }],
         });
 
         expect(mockOfficialClient.setComponentControls).toHaveBeenCalledWith(
@@ -217,20 +225,26 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       });
 
       it('should validate required parameters', async () => {
-        await expect(adapter.sendCommand('Component.Set', {
-          Controls: [{ Name: 'test', Value: 0 }]
-        })).rejects.toThrow('Missing required parameter: Name');
+        await expect(
+          adapter.sendCommand('Component.Set', {
+            Controls: [{ Name: 'test', Value: 0 }],
+          })
+        ).rejects.toThrow('Missing required parameter: Name');
 
-        await expect(adapter.sendCommand('Component.Set', {
-          Name: 'Test'
-        })).rejects.toThrow('Missing required parameter: Controls');
+        await expect(
+          adapter.sendCommand('Component.Set', {
+            Name: 'Test',
+          })
+        ).rejects.toThrow('Missing required parameter: Controls');
       });
 
       it('should validate controls array is not empty', async () => {
-        await expect(adapter.sendCommand('Component.Set', {
-          Name: 'Test',
-          Controls: []
-        })).rejects.toThrow('Controls array cannot be empty');
+        await expect(
+          adapter.sendCommand('Component.Set', {
+            Name: 'Test',
+            Controls: [],
+          })
+        ).rejects.toThrow('Controls array cannot be empty');
       });
     });
 
@@ -238,24 +252,30 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       it('should get controls for a specific component', async () => {
         const mockControls = [
           { Name: 'gain', Value: -10, Type: 'Float' },
-          { Name: 'mute', Value: false, Type: 'Boolean' }
+          { Name: 'mute', Value: false, Type: 'Boolean' },
         ];
 
-        mockOfficialClient.getComponentControls = jest.fn().mockResolvedValue(mockControls);
+        mockOfficialClient.getComponentControls = jest
+          .fn()
+          .mockResolvedValue(mockControls);
 
         const result = await adapter.sendCommand('Component.GetControls', {
-          Name: 'Main Mixer'
+          Name: 'Main Mixer',
         });
 
-        expect(mockOfficialClient.getComponentControls).toHaveBeenCalledWith('Main Mixer');
+        expect(mockOfficialClient.getComponentControls).toHaveBeenCalledWith(
+          'Main Mixer'
+        );
         expect(result.result).toEqual(mockControls);
       });
 
       it('should handle component with no controls', async () => {
-        mockOfficialClient.getComponentControls = jest.fn().mockResolvedValue([]);
+        mockOfficialClient.getComponentControls = jest
+          .fn()
+          .mockResolvedValue([]);
 
         const result = await adapter.sendCommand('Component.GetControls', {
-          Name: 'Empty Component'
+          Name: 'Empty Component',
         });
 
         expect(result.result).toEqual([]);
@@ -265,31 +285,34 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
     describe('Component.GetAllControls', () => {
       it('should get all controls from all components', async () => {
         const mockComponents = {
-          'Mixer1': {
+          Mixer1: {
             controls: {
-              'gain': { state: -10, type: 'Float' },
-              'mute': { state: false, type: 'Boolean' }
-            }
+              gain: { state: -10, type: 'Float' },
+              mute: { state: false, type: 'Boolean' },
+            },
           },
-          'Gain1': {
+          Gain1: {
             controls: {
-              'level': { state: 0, type: 'Float' }
-            }
-          }
+              level: { state: 0, type: 'Float' },
+            },
+          },
         };
 
         mockOfficialClient.getQrwc.mockReturnValue({
-          components: mockComponents
+          components: mockComponents,
         });
 
-        const result = await adapter.sendCommand('Component.GetAllControls', {});
+        const result = await adapter.sendCommand(
+          'Component.GetAllControls',
+          {}
+        );
 
         expect(result.result).toBeInstanceOf(Array);
         expect(result.result).toHaveLength(3); // 2 from Mixer1, 1 from Gain1
-        
+
         // Verify control structure
-        const gainControl = result.result.find((c: any) => 
-          c.Name === 'Mixer1.gain'
+        const gainControl = result.result.find(
+          (c: any) => c.Name === 'Mixer1.gain'
         );
         expect(gainControl).toBeDefined();
         expect(gainControl.Value).toBe(-10);
@@ -298,22 +321,24 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
 
       it('should handle regex filter parameter', async () => {
         const mockComponents = {
-          'Main Mixer': { controls: { 'gain': { state: -10 } } },
-          'Sub Mixer': { controls: { 'gain': { state: -5 } } },
-          'Output Gain': { controls: { 'level': { state: 0 } } }
+          'Main Mixer': { controls: { gain: { state: -10 } } },
+          'Sub Mixer': { controls: { gain: { state: -5 } } },
+          'Output Gain': { controls: { level: { state: 0 } } },
         };
 
         mockOfficialClient.getQrwc.mockReturnValue({
-          components: mockComponents
+          components: mockComponents,
         });
 
         const result = await adapter.sendCommand('Component.GetAllControls', {
-          Filter: 'Mixer'
+          Filter: 'Mixer',
         });
 
         // Should only include controls from components matching "Mixer"
         expect(result.result).toHaveLength(2);
-        expect(result.result.every((c: any) => c.Component.includes('Mixer'))).toBe(true);
+        expect(
+          result.result.every((c: any) => c.Component.includes('Mixer'))
+        ).toBe(true);
       });
     });
   });
@@ -327,28 +352,28 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       // Verify the response structure
       expect(result).toEqual({
         result: {
-          Platform: "Q-SYS Core",
-          Version: "Unknown",
-          DesignName: "Unknown",
-          DesignCode: "",
+          Platform: 'Q-SYS Core',
+          Version: 'Unknown',
+          DesignName: 'Unknown',
+          DesignCode: '',
           Status: {
-            Name: "OK",
+            Name: 'OK',
             Code: 0,
             PercentCPU: 0,
-            PercentMemory: 0
+            PercentMemory: 0,
           },
           IsConnected: true,
           IsRedundant: false,
           IsEmulator: false,
-          State: "Active",
-          name: "Q-SYS-Core-Connected",
-          version: "Unknown",
-          uptime: "Unknown",
-          status: "OK",
+          State: 'Active',
+          name: 'Q-SYS-Core-Connected',
+          version: 'Unknown',
+          uptime: 'Unknown',
+          status: 'OK',
           connected: true,
-          client: "official-qrwc",
-          note: "Limited status information available without raw command access"
-        }
+          client: 'official-qrwc',
+          note: 'Limited status information available without raw command access',
+        },
       });
     });
 
@@ -386,102 +411,104 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       it('should return actual Q-SYS Core status data when available', async () => {
         // Mock actual Q-SYS Status.Get response
         const mockStatusResponse: QSysStatusGetResponse = {
-          Platform: "Core 510i",
-          State: "Active",
-          DesignName: "Conference Room Audio",
-          DesignCode: "qALFilm6IcAz",
+          Platform: 'Core 510i',
+          State: 'Active',
+          DesignName: 'Conference Room Audio',
+          DesignCode: 'qALFilm6IcAz',
           IsRedundant: false,
           IsEmulator: false,
           Status: {
             Code: 0,
-            String: "OK"
+            String: 'OK',
           },
-          Version: "9.4.1",
-          IsConnected: true
+          Version: '9.4.1',
+          IsConnected: true,
         };
 
         mockSendRawCommand.mockResolvedValue(mockStatusResponse);
 
         // Execute Status.Get command
-        const result = await adapter.sendCommand("Status.Get", {});
+        const result = await adapter.sendCommand('Status.Get', {});
 
         // Verify raw command was called
-        expect(mockSendRawCommand).toHaveBeenCalledWith("Status.Get", {});
+        expect(mockSendRawCommand).toHaveBeenCalledWith('Status.Get', {});
 
         // Verify actual data is returned
         expect(result).toEqual({ result: mockStatusResponse });
         expect(result.result).toMatchObject({
-          Platform: "Core 510i",
-          Version: "9.4.1",
-          DesignName: "Conference Room Audio",
-          DesignCode: "qALFilm6IcAz",
-          State: "Active",
+          Platform: 'Core 510i',
+          Version: '9.4.1',
+          DesignName: 'Conference Room Audio',
+          DesignCode: 'qALFilm6IcAz',
+          State: 'Active',
           Status: {
             Code: 0,
-            String: "OK"
-          }
+            String: 'OK',
+          },
         });
       });
 
       it('should handle different Q-SYS Core models correctly', async () => {
         const mockStatusResponse: QSysStatusGetResponse = {
-          Platform: "Core Nano",
-          State: "Active",
-          DesignName: "Small Meeting Room",
-          DesignCode: "xyz123",
+          Platform: 'Core Nano',
+          State: 'Active',
+          DesignName: 'Small Meeting Room',
+          DesignCode: 'xyz123',
           IsRedundant: true,
           IsEmulator: false,
           Status: {
             Code: 0,
-            String: "OK"
+            String: 'OK',
           },
-          Version: "9.5.0"
+          Version: '9.5.0',
         };
 
         mockSendRawCommand.mockResolvedValue(mockStatusResponse);
 
-        const result = await adapter.sendCommand("Status.Get", {});
+        const result = await adapter.sendCommand('Status.Get', {});
 
         expect(result.result).toMatchObject({
-          Platform: "Core Nano",
-          Version: "9.5.0",
-          IsRedundant: true
+          Platform: 'Core Nano',
+          Version: '9.5.0',
+          IsRedundant: true,
         });
       });
 
       it('should throw error when raw command fails', async () => {
         // Mock raw command failure
-        mockSendRawCommand.mockRejectedValue(new Error('Raw command not supported'));
+        mockSendRawCommand.mockRejectedValue(
+          new Error('Raw command not supported')
+        );
 
         // Execute Status.Get command and expect it to throw
-        await expect(adapter.sendCommand("Status.Get", {})).rejects.toThrow(
+        await expect(adapter.sendCommand('Status.Get', {})).rejects.toThrow(
           'Unable to retrieve Q-SYS Core status: Raw command not supported. The Status.Get command may not be supported by your Q-SYS Core firmware version.'
         );
       });
 
       it('should handle StatusGet alias with raw command', async () => {
         const mockStatusResponse: QSysStatusGetResponse = {
-          Platform: "Core 110f",
-          State: "Active",
-          DesignName: "Theater System",
-          DesignCode: "abc789",
+          Platform: 'Core 110f',
+          State: 'Active',
+          DesignName: 'Theater System',
+          DesignCode: 'abc789',
           IsRedundant: false,
           IsEmulator: false,
           Status: {
             Code: 0,
-            String: "OK"
-          }
+            String: 'OK',
+          },
         };
 
         mockSendRawCommand.mockResolvedValue(mockStatusResponse);
 
         // Test with StatusGet alias
-        const result = await adapter.sendCommand("StatusGet", {});
+        const result = await adapter.sendCommand('StatusGet', {});
 
-        expect(mockSendRawCommand).toHaveBeenCalledWith("Status.Get", {});
+        expect(mockSendRawCommand).toHaveBeenCalledWith('Status.Get', {});
         expect(result.result).toMatchObject({
-          Platform: "Core 110f",
-          DesignName: "Theater System"
+          Platform: 'Core 110f',
+          DesignName: 'Theater System',
         });
       });
 
@@ -489,7 +516,7 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
         mockSendRawCommand.mockRejectedValue(new Error('Not connected'));
         mockOfficialClient.isConnected.mockReturnValue(false);
 
-        await expect(adapter.sendCommand("Status.Get", {})).rejects.toThrow(
+        await expect(adapter.sendCommand('Status.Get', {})).rejects.toThrow(
           'Unable to retrieve Q-SYS Core status: Not connected'
         );
       });

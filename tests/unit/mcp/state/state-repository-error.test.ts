@@ -4,7 +4,7 @@ import { StateRepositoryError } from '../../../../src/mcp/state/repository.js';
 describe('StateRepositoryError', () => {
   it('should create error with message and code', () => {
     const error = new StateRepositoryError('Test error', 'TEST_ERROR');
-    
+
     expect(error).toBeInstanceOf(Error);
     expect(error).toBeInstanceOf(StateRepositoryError);
     expect(error.message).toBe('Test error');
@@ -17,21 +17,21 @@ describe('StateRepositoryError', () => {
     const context = {
       controlName: 'test-control',
       value: 42,
-      operation: 'set'
+      operation: 'set',
     };
-    
+
     const error = new StateRepositoryError(
       'Failed to set control',
       'SET_FAILED',
       context
     );
-    
+
     expect(error.context).toEqual(context);
   });
 
   it('should have proper stack trace', () => {
     const error = new StateRepositoryError('Stack test', 'STACK_TEST');
-    
+
     expect(error.stack).toBeDefined();
     expect(error.stack).toContain('StateRepositoryError');
     expect(error.stack).toContain('Stack test');
@@ -41,10 +41,10 @@ describe('StateRepositoryError', () => {
     const throwError = () => {
       throw new StateRepositoryError('Throw test', 'THROW_TEST');
     };
-    
+
     expect(throwError).toThrow(StateRepositoryError);
     expect(throwError).toThrow('Throw test');
-    
+
     try {
       throwError();
     } catch (error) {
@@ -60,24 +60,26 @@ describe('StateRepositoryError', () => {
       new StateRepositoryError('Not found', 'NOT_FOUND'),
       new StateRepositoryError('Invalid state', 'INVALID_STATE'),
       new StateRepositoryError('Sync failed', 'SYNC_FAILED'),
-      new StateRepositoryError('Persistence error', 'PERSISTENCE_ERROR')
+      new StateRepositoryError('Persistence error', 'PERSISTENCE_ERROR'),
     ];
-    
+
     errors.forEach((error, index) => {
-      expect(error.code).toBe(['NOT_FOUND', 'INVALID_STATE', 'SYNC_FAILED', 'PERSISTENCE_ERROR'][index]);
+      expect(error.code).toBe(
+        ['NOT_FOUND', 'INVALID_STATE', 'SYNC_FAILED', 'PERSISTENCE_ERROR'][
+          index
+        ]
+      );
     });
   });
 
   it('should serialize to JSON properly', () => {
-    const error = new StateRepositoryError(
-      'JSON test',
-      'JSON_ERROR',
-      { detail: 'test' }
-    );
-    
+    const error = new StateRepositoryError('JSON test', 'JSON_ERROR', {
+      detail: 'test',
+    });
+
     const json = JSON.stringify(error);
     const parsed = JSON.parse(json);
-    
+
     // Note: Error objects don't serialize all properties by default
     // But we can still check the structure
     expect(typeof parsed).toBe('object');

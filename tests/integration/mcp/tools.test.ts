@@ -8,7 +8,7 @@ jest.mock('../../../src/shared/utils/logger.js', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-  }
+  },
 }));
 
 describe('MCP Tools Integration Tests', () => {
@@ -17,10 +17,10 @@ describe('MCP Tools Integration Tests', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    
+
     mockQrwcClient = {
       isConnected: jest.fn().mockReturnValue(true),
-      sendCommand: jest.fn()
+      sendCommand: jest.fn(),
     };
 
     registry = new MCPToolRegistry(mockQrwcClient);
@@ -32,13 +32,21 @@ describe('MCP Tools Integration Tests', () => {
       // Step 1: List all components
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'MainGain', Type: 'gain', Properties: { gain: 0, mute: false } },
-          { Name: 'OutputMixer', Type: 'mixer', Properties: { levels: [0, -6, -12] } }
-        ]
+          {
+            Name: 'MainGain',
+            Type: 'gain',
+            Properties: { gain: 0, mute: false },
+          },
+          {
+            Name: 'OutputMixer',
+            Type: 'mixer',
+            Properties: { levels: [0, -6, -12] },
+          },
+        ],
       });
 
       const componentsResult = await registry.callTool('list_components', {
-        includeProperties: true
+        includeProperties: true,
       });
 
       expect(componentsResult.isError).toBe(false);
@@ -50,13 +58,18 @@ describe('MCP Tools Integration Tests', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
           { Name: 'MainGain.gain', Value: 0, String: '0.0 dB', Position: 0.5 },
-          { Name: 'MainGain.mute', Value: false, String: 'unmuted', Position: 0 }
-        ]
+          {
+            Name: 'MainGain.mute',
+            Value: false,
+            String: 'unmuted',
+            Position: 0,
+          },
+        ],
       });
 
       const controlsResult = await registry.callTool('list_controls', {
         component: 'MainGain',
-        includeMetadata: true
+        includeMetadata: true,
       });
 
       expect(controlsResult.isError).toBe(false);
@@ -71,13 +84,23 @@ describe('MCP Tools Integration Tests', () => {
       // Step 1: Get current control values
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'MainGain.gain', Value: -10, String: '-10.0 dB', Position: 0.3 },
-          { Name: 'MainGain.mute', Value: false, String: 'unmuted', Position: 0 }
-        ]
+          {
+            Name: 'MainGain.gain',
+            Value: -10,
+            String: '-10.0 dB',
+            Position: 0.3,
+          },
+          {
+            Name: 'MainGain.mute',
+            Value: false,
+            String: 'unmuted',
+            Position: 0,
+          },
+        ],
       });
 
       const getResult = await registry.callTool('get_control_values', {
-        controls: ['MainGain.gain', 'MainGain.mute']
+        controls: ['MainGain.gain', 'MainGain.mute'],
       });
 
       expect(getResult.isError).toBe(false);
@@ -92,12 +115,14 @@ describe('MCP Tools Integration Tests', () => {
       const setResult = await registry.callTool('set_control_values', {
         controls: [
           { name: 'MainGain.gain', value: 0 },
-          { name: 'MainGain.mute', value: true }
-        ]
+          { name: 'MainGain.mute', value: true },
+        ],
       });
 
       expect(setResult.isError).toBe(false);
-      expect(setResult.content[0].text).toContain('Set 2/2 controls successfully');
+      expect(setResult.content[0].text).toContain(
+        'Set 2/2 controls successfully'
+      );
 
       // Verify correct QRWC commands were sent
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
@@ -106,8 +131,8 @@ describe('MCP Tools Integration Tests', () => {
           Name: 'MainGain',
           Controls: expect.arrayContaining([
             expect.objectContaining({ Name: 'gain', Value: 0 }),
-            expect.objectContaining({ Name: 'mute', Value: true })
-          ])
+            expect.objectContaining({ Name: 'mute', Value: true }),
+          ]),
         })
       );
 
@@ -115,12 +140,12 @@ describe('MCP Tools Integration Tests', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
           { Name: 'MainGain.gain', Value: 0, String: '0.0 dB', Position: 0.5 },
-          { Name: 'MainGain.mute', Value: true, String: 'muted', Position: 1 }
-        ]
+          { Name: 'MainGain.mute', Value: true, String: 'muted', Position: 1 },
+        ],
       });
 
       const verifyResult = await registry.callTool('get_control_values', {
-        controls: ['MainGain.gain', 'MainGain.mute']
+        controls: ['MainGain.gain', 'MainGain.mute'],
       });
 
       expect(verifyResult.isError).toBe(false);
@@ -134,9 +159,7 @@ describe('MCP Tools Integration Tests', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({ id: 'ramp-1' });
 
       const result = await registry.callTool('set_control_values', {
-        controls: [
-          { name: 'MainGain.gain', value: -20, ramp: 2.5 }
-        ]
+        controls: [{ name: 'MainGain.gain', value: -20, ramp: 2.5 }],
       });
 
       expect(result.isError).toBe(false);
@@ -144,9 +167,7 @@ describe('MCP Tools Integration Tests', () => {
         'Component.Set',
         expect.objectContaining({
           Name: 'MainGain',
-          Controls: [
-            { Name: 'gain', Value: -20, Ramp: 2.5 }
-          ]
+          Controls: [{ Name: 'gain', Value: -20, Ramp: 2.5 }],
         })
       );
     });
@@ -161,7 +182,7 @@ describe('MCP Tools Integration Tests', () => {
           IsEmulator: false,
           Status: {
             Code: 0,
-            String: 'OK'
+            String: 'OK',
           },
           Platform: 'Core 110f',
           DesignCode: 'ABCD1234',
@@ -169,21 +190,21 @@ describe('MCP Tools Integration Tests', () => {
             LAN_A: {
               IP: '192.168.1.100',
               Netmask: '255.255.255.0',
-              Gateway: '192.168.1.1'
-            }
+              Gateway: '192.168.1.1',
+            },
           },
           Performance: {
             CPU: 45.2,
             Memory: 62.8,
-            Temperature: 55.3
-          }
-        }
+            Temperature: 55.3,
+          },
+        },
       });
 
       const result = await registry.callTool('query_core_status', {
         includeDetails: true,
         includeNetworkInfo: true,
-        includePerformance: true
+        includePerformance: true,
       });
 
       expect(result.isError).toBe(false);
@@ -214,8 +235,8 @@ describe('MCP Tools Integration Tests', () => {
       const result = await registry.callTool('set_control_values', {
         controls: [
           { name: 'MainGain.gain', value: 0 },
-          { name: 'InvalidControl', value: 1 }
-        ]
+          { name: 'InvalidControl', value: 1 },
+        ],
       });
 
       expect(result.isError).toBe(true);
@@ -225,7 +246,7 @@ describe('MCP Tools Integration Tests', () => {
     it('should validate parameters before execution', async () => {
       // Invalid control type
       const result = await registry.callTool('list_controls', {
-        controlType: 'invalid_type'
+        controlType: 'invalid_type',
       });
 
       expect(result.isError).toBe(true);
@@ -239,8 +260,8 @@ describe('MCP Tools Integration Tests', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: {
           DesignName: 'Conference Room A',
-          Status: { Code: 0, String: 'OK' }
-        }
+          Status: { Code: 0, String: 'OK' },
+        },
       });
 
       const statusResult = await registry.callTool('query_core_status', {});
@@ -252,12 +273,12 @@ describe('MCP Tools Integration Tests', () => {
           { Name: 'MicGain1', Type: 'gain' },
           { Name: 'MicGain2', Type: 'gain' },
           { Name: 'ProgramGain', Type: 'gain' },
-          { Name: 'Compressor1', Type: 'compressor' }
-        ]
+          { Name: 'Compressor1', Type: 'compressor' },
+        ],
       });
 
       const componentsResult = await registry.callTool('list_components', {
-        filter: 'Gain'
+        filter: 'Gain',
       });
       expect(componentsResult.content[0].text).toContain('3 components'); // Filtered
 
@@ -269,20 +290,22 @@ describe('MCP Tools Integration Tests', () => {
       const muteResult = await registry.callTool('set_control_values', {
         controls: [
           { name: 'MicGain1.mute', value: true },
-          { name: 'MicGain2.mute', value: true }
-        ]
+          { name: 'MicGain2.mute', value: true },
+        ],
       });
-      expect(muteResult.content[0].text).toContain('Set 2/2 controls successfully');
+      expect(muteResult.content[0].text).toContain(
+        'Set 2/2 controls successfully'
+      );
 
       // Step 4: Set program level with ramp
       mockQrwcClient.sendCommand.mockResolvedValueOnce({ id: 'program-1' });
 
       const levelResult = await registry.callTool('set_control_values', {
-        controls: [
-          { name: 'ProgramGain.gain', value: -6, ramp: 1.0 }
-        ]
+        controls: [{ name: 'ProgramGain.gain', value: -6, ramp: 1.0 }],
       });
-      expect(levelResult.content[0].text).toContain('Set 1/1 controls successfully');
+      expect(levelResult.content[0].text).toContain(
+        'Set 1/1 controls successfully'
+      );
     });
   });
 
@@ -297,7 +320,7 @@ describe('MCP Tools Integration Tests', () => {
       const [components, controls, status] = await Promise.all([
         registry.callTool('list_components', {}),
         registry.callTool('list_controls', {}),
-        registry.callTool('query_core_status', {})
+        registry.callTool('query_core_status', {}),
       ]);
 
       expect(components.isError).toBe(false);
@@ -308,16 +331,16 @@ describe('MCP Tools Integration Tests', () => {
 
     it('should handle rapid sequential calls', async () => {
       const controlNames = Array.from({ length: 10 }, (_, i) => `Control${i}`);
-      
+
       // Mock responses for all calls
-      mockQrwcClient.sendCommand.mockImplementation((method) => {
+      mockQrwcClient.sendCommand.mockImplementation(method => {
         if (method === 'Control.Get') {
           return Promise.resolve({
             result: controlNames.map(name => ({
               Name: name,
               Value: Math.random(),
-              String: 'test'
-            }))
+              String: 'test',
+            })),
           });
         }
         return Promise.resolve({});
@@ -327,7 +350,7 @@ describe('MCP Tools Integration Tests', () => {
       const results = [];
       for (const name of controlNames) {
         const result = await registry.callTool('get_control_values', {
-          controls: [name]
+          controls: [name],
         });
         results.push(result);
       }

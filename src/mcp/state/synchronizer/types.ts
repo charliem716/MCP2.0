@@ -1,6 +1,6 @@
 /**
  * Synchronizer Types
- * 
+ *
  * Type definitions for state synchronization between cache and Q-SYS Core
  */
 
@@ -21,7 +21,7 @@ export interface SyncConfig {
 export enum SyncStrategy {
   PUSH = 'push',
   PULL = 'pull',
-  BIDIRECTIONAL = 'bidirectional'
+  BIDIRECTIONAL = 'bidirectional',
 }
 
 /**
@@ -31,7 +31,7 @@ export enum ConflictResolutionPolicy {
   LOCAL_WINS = 'local_wins',
   REMOTE_WINS = 'remote_wins',
   NEWEST_WINS = 'newest_wins',
-  MANUAL = 'manual'
+  MANUAL = 'manual',
 }
 
 /**
@@ -42,7 +42,7 @@ export enum SyncEvent {
   SYNC_COMPLETED = 'sync:completed',
   SYNC_FAILED = 'sync:failed',
   CONFLICT_DETECTED = 'conflict:detected',
-  CONFLICT_RESOLVED = 'conflict:resolved'
+  CONFLICT_RESOLVED = 'conflict:resolved',
 }
 
 /**

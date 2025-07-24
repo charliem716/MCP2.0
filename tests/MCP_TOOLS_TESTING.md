@@ -2,11 +2,13 @@
 
 ## Overview
 
-This guide covers testing the MCP (Model Context Protocol) tools for Q-SYS control, including unit tests, integration tests, and live system tests.
+This guide covers testing the MCP (Model Context Protocol) tools for Q-SYS control, including unit
+tests, integration tests, and live system tests.
 
 ## Test Coverage Status
 
 ### Unit Tests
+
 - ✅ **Components Tool**: 100% coverage (`tests/unit/mcp/tools/components.test.ts`)
 - ✅ **Controls Tools**: 91.55% coverage (`tests/unit/mcp/tools/controls.test.ts`)
 - ✅ **Status Tool**: 90.24% coverage (`tests/unit/mcp/tools/status.test.ts`)
@@ -14,6 +16,7 @@ This guide covers testing the MCP (Model Context Protocol) tools for Q-SYS contr
 - ✅ **Base Tool Class**: 100% coverage (`tests/unit/mcp/tools/base.test.ts`)
 
 ### Integration Tests
+
 - ✅ Component and control discovery workflows
 - ✅ Control manipulation with ramping
 - ✅ System status monitoring
@@ -23,6 +26,7 @@ This guide covers testing the MCP (Model Context Protocol) tools for Q-SYS contr
 ## Running Tests
 
 ### 1. Unit Tests Only
+
 ```bash
 # Run all MCP tool unit tests
 npm test -- tests/unit/mcp/tools/
@@ -32,6 +36,7 @@ npm test -- --coverage tests/unit/mcp/tools/
 ```
 
 ### 2. Integration Tests
+
 ```bash
 # Run integration tests
 npm test -- tests/integration/mcp/
@@ -43,6 +48,7 @@ npm test -- --coverage --testPathPattern="(tests/unit/mcp|tests/integration/mcp)
 ### 3. Live Q-SYS Core Tests
 
 **Prerequisites:**
+
 - A Q-SYS Core on your network
 - External Control enabled in Q-SYS Designer
 - Valid configuration in `qsys-core.config.json`
@@ -126,17 +132,20 @@ The live test (`tests/manual/test-mcp-tools-live.mjs`) validates:
 ## Troubleshooting
 
 ### Connection Issues
+
 - Verify Q-SYS Core IP and port (usually 443 for HTTPS)
 - Check "External Control" is enabled in Designer
 - Ensure firewall allows WebSocket connections
 - Try `ping <core-ip>` to test basic connectivity
 
 ### No Components Found
+
 - Components must be marked as "Scriptable" in Q-SYS Designer
 - Check that the design is running on the Core
 - Verify authentication credentials if required
 
 ### Test Failures
+
 - Check `dist/` folder exists (run `npm run build`)
 - Verify Node.js version >= 18
 - Check WebSocket library is installed (`npm install`)
@@ -156,12 +165,14 @@ The live test (`tests/manual/test-mcp-tools-live.mjs`) validates:
 ## Latest Test Results
 
 ### Comprehensive send_raw_command Test Suite
+
 - **Total Tests**: 14
 - **Passed**: 14 ✅
 - **Failed**: 0
 - **Success Rate**: 100%
 
 The `send_raw_command` tool has been fully fixed and tested:
+
 - Fixed QRWC interference by implementing separate WebSocket connection
 - Handled Q-SYS null ID bug with FIFO matching
 - All raw commands now execute in 5-50ms (previously timing out)

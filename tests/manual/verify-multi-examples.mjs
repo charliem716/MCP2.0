@@ -4,10 +4,13 @@ const mockClient = { isConnected: () => true };
 const tool = new QueryQSysAPITool(mockClient);
 
 // Test getting examples for Component.Set
-const result = await tool.execute({
-  query_type: 'examples',
-  method_name: 'Component.Set'
-}, { userId: 'test', timestamp: new Date().toISOString() });
+const result = await tool.execute(
+  {
+    query_type: 'examples',
+    method_name: 'Component.Set',
+  },
+  { userId: 'test', timestamp: new Date().toISOString() }
+);
 
 const response = JSON.parse(result.content[0].text);
 console.log('=== Component.Set Examples ===');
@@ -19,10 +22,13 @@ response.examples.forEach((ex, i) => {
 });
 
 // Test getting examples for Control.Get
-const result2 = await tool.execute({
-  query_type: 'examples',
-  method_name: 'Control.Get'
-}, { userId: 'test', timestamp: new Date().toISOString() });
+const result2 = await tool.execute(
+  {
+    query_type: 'examples',
+    method_name: 'Control.Get',
+  },
+  { userId: 'test', timestamp: new Date().toISOString() }
+);
 
 const response2 = JSON.parse(result2.content[0].text);
 console.log('\n=== Control.Get Examples ===');

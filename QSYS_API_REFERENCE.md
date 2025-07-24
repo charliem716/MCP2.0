@@ -1,6 +1,7 @@
 # Q-SYS JSON-RPC API Reference
 
-This document provides a comprehensive reference for the Q-SYS JSON-RPC API commands that can be used with the `send_raw_command` MCP tool.
+This document provides a comprehensive reference for the Q-SYS JSON-RPC API commands that can be
+used with the `send_raw_command` MCP tool.
 
 ## Important Notes
 
@@ -27,14 +28,17 @@ Q-SYS uses **inconsistent naming conventions** for methods:
 
 ### Response Format
 
-Q-SYS has a bug where it returns `"id": null` in responses instead of echoing the request ID. Our implementation handles this automatically.
+Q-SYS has a bug where it returns `"id": null` in responses instead of echoing the request ID. Our
+implementation handles this automatically.
 
 ---
 
 ## Connection Methods
 
 ### NoOp
+
 Simple ping/keep-alive command.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -44,7 +48,9 @@ Simple ping/keep-alive command.
 ```
 
 ### Logon
+
 Authenticate with Q-SYS Core.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -61,7 +67,9 @@ Authenticate with Q-SYS Core.
 ## Status Methods
 
 ### StatusGet
+
 Get current Core status and design information.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -71,6 +79,7 @@ Get current Core status and design information.
 ```
 
 **Response includes:**
+
 - `Platform`: Core model (e.g., "Core 500i")
 - `State`: "Idle", "Active", or "Standby"
 - `DesignName`: Currently loaded design name
@@ -80,6 +89,7 @@ Get current Core status and design information.
 - `Status`: Object with `Code` and `String`
 
 ### EngineStatus
+
 ⚠️ **Note**: This method is not callable - it's automatically sent by Q-SYS when status changes.
 
 ---
@@ -87,7 +97,9 @@ Get current Core status and design information.
 ## Named Control Methods
 
 ### Control.Get
+
 Get values of Named Controls.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -97,6 +109,7 @@ Get values of Named Controls.
 ```
 
 **Response format:**
+
 ```json
 {
   "result": [
@@ -110,7 +123,9 @@ Get values of Named Controls.
 ```
 
 ### Control.Set
+
 Set a Named Control value with optional ramp.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -118,7 +133,7 @@ Set a Named Control value with optional ramp.
   "params": {
     "Name": "ControlName",
     "Value": -10,
-    "Ramp": 2.0  // Optional, in seconds
+    "Ramp": 2.0 // Optional, in seconds
   }
 }
 ```
@@ -128,7 +143,9 @@ Set a Named Control value with optional ramp.
 ## Component Control Methods
 
 ### ComponentGetComponents
+
 Get list of all Named Components in the design.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -138,6 +155,7 @@ Get list of all Named Components in the design.
 ```
 
 **Response format:**
+
 ```json
 {
   "result": [
@@ -151,7 +169,9 @@ Get list of all Named Components in the design.
 ```
 
 ### ComponentGetControls
+
 Get all controls in a Named Component.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -163,23 +183,24 @@ Get all controls in a Named Component.
 ```
 
 ### Component.Get
+
 Get specific control values from a Named Component.
+
 ```json
 {
   "jsonrpc": "2.0",
   "method": "Component.Get",
   "params": {
     "Name": "ComponentName",
-    "Controls": [
-      { "Name": "gain" },
-      { "Name": "mute" }
-    ]
+    "Controls": [{ "Name": "gain" }, { "Name": "mute" }]
   }
 }
 ```
 
 ### Component.Set
+
 Set control values in a Named Component.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -190,7 +211,7 @@ Set control values in a Named Component.
       {
         "Name": "gain",
         "Value": -10,
-        "Ramp": 2.0  // Optional
+        "Ramp": 2.0 // Optional
       },
       {
         "Name": "mute",
@@ -208,7 +229,9 @@ Set control values in a Named Component.
 Change groups allow efficient polling of multiple controls.
 
 ### ChangeGroup.AddControl
+
 Add Named Controls to a change group.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -221,7 +244,9 @@ Add Named Controls to a change group.
 ```
 
 ### ChangeGroup.AddComponentControl
+
 Add component controls to a change group.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -230,17 +255,16 @@ Add component controls to a change group.
     "Id": "myChangeGroup",
     "Component": {
       "Name": "ComponentName",
-      "Controls": [
-        { "Name": "gain" },
-        { "Name": "mute" }
-      ]
+      "Controls": [{ "Name": "gain" }, { "Name": "mute" }]
     }
   }
 }
 ```
 
 ### ChangeGroup.Remove
+
 Remove controls from a change group.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -253,7 +277,9 @@ Remove controls from a change group.
 ```
 
 ### ChangeGroup.Poll
+
 Poll a change group for updates.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -265,20 +291,24 @@ Poll a change group for updates.
 ```
 
 ### ChangeGroup.AutoPoll
+
 Set up automatic polling at specified interval.
+
 ```json
 {
   "jsonrpc": "2.0",
   "method": "ChangeGroup.AutoPoll",
   "params": {
     "Id": "myChangeGroup",
-    "Rate": 5  // Seconds
+    "Rate": 5 // Seconds
   }
 }
 ```
 
 ### ChangeGroup.Clear
+
 Remove all controls from a change group.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -290,7 +320,9 @@ Remove all controls from a change group.
 ```
 
 ### ChangeGroup.Destroy
+
 Delete a change group.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -302,7 +334,9 @@ Delete a change group.
 ```
 
 ### ChangeGroup.Invalidate
+
 Force resend of all control values.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -318,28 +352,32 @@ Force resend of all control values.
 ## Snapshot Methods
 
 ### Snapshot.Load
+
 Load a snapshot with optional ramp time.
+
 ```json
 {
   "jsonrpc": "2.0",
   "method": "Snapshot.Load",
   "params": {
     "Name": "SnapshotBankName",
-    "Bank": 1,  // Snapshot number (1-based)
-    "Ramp": 2.5  // Optional, in seconds
+    "Bank": 1, // Snapshot number (1-based)
+    "Ramp": 2.5 // Optional, in seconds
   }
 }
 ```
 
 ### Snapshot.Save
+
 Save current state to a snapshot.
+
 ```json
 {
   "jsonrpc": "2.0",
   "method": "Snapshot.Save",
   "params": {
     "Name": "SnapshotBankName",
-    "Bank": 1  // Snapshot number (1-based)
+    "Bank": 1 // Snapshot number (1-based)
   }
 }
 ```
@@ -348,28 +386,29 @@ Save current state to a snapshot.
 
 ## Error Codes
 
-| Code | Description |
-|------|-------------|
-| -32700 | Parse error - Invalid JSON |
-| -32600 | Invalid request |
-| -32601 | Method not found |
-| -32602 | Invalid params |
-| -32603 | Server error |
-| 2 | Invalid Page Request ID |
-| 3 | Bad Page Request |
-| 4 | Missing file |
-| 5 | Change Groups exhausted |
-| 6 | Unknown change group |
-| 7 | Unknown component name |
-| 8 | Unknown control |
-| 9 | Illegal mixer channel index |
-| 10 | Logon required |
+| Code   | Description                 |
+| ------ | --------------------------- |
+| -32700 | Parse error - Invalid JSON  |
+| -32600 | Invalid request             |
+| -32601 | Method not found            |
+| -32602 | Invalid params              |
+| -32603 | Server error                |
+| 2      | Invalid Page Request ID     |
+| 3      | Bad Page Request            |
+| 4      | Missing file                |
+| 5      | Change Groups exhausted     |
+| 6      | Unknown change group        |
+| 7      | Unknown component name      |
+| 8      | Unknown control             |
+| 9      | Illegal mixer channel index |
+| 10     | Logon required              |
 
 ---
 
 ## Blocked Commands
 
 The following commands are **blocked for safety** by the MCP tool:
+
 - `Design.Save` / `DesignSave`
 - `Design.Delete` / `DesignDelete`
 - `Design.Deploy` / `DesignDeploy`
@@ -383,56 +422,57 @@ The following commands are **blocked for safety** by the MCP tool:
 ## Usage Examples with send_raw_command
 
 ### Example 1: Get Core Status
+
 ```javascript
 await send_raw_command({
-  method: "StatusGet",
-  params: {}
+  method: 'StatusGet',
+  params: {},
 });
 ```
 
 ### Example 2: Set a Named Control
+
 ```javascript
 await send_raw_command({
-  method: "Control.Set",
+  method: 'Control.Set',
   params: {
-    Name: "MainVolume",
+    Name: 'MainVolume',
     Value: -10,
-    Ramp: 2.0
-  }
+    Ramp: 2.0,
+  },
 });
 ```
 
 ### Example 3: Get Component Controls
+
 ```javascript
 await send_raw_command({
-  method: "Component.Get",
+  method: 'Component.Get',
   params: {
-    Name: "Mixer1",
-    Controls: [
-      { Name: "gain" },
-      { Name: "mute" }
-    ]
-  }
+    Name: 'Mixer1',
+    Controls: [{ Name: 'gain' }, { Name: 'mute' }],
+  },
 });
 ```
 
 ### Example 4: Create and Poll Change Group
+
 ```javascript
 // Add controls to change group
 await send_raw_command({
-  method: "ChangeGroup.AddControl",
+  method: 'ChangeGroup.AddControl',
   params: {
-    Id: "myGroup",
-    Controls: ["Volume1", "Volume2"]
-  }
+    Id: 'myGroup',
+    Controls: ['Volume1', 'Volume2'],
+  },
 });
 
 // Poll for changes
 await send_raw_command({
-  method: "ChangeGroup.Poll",
+  method: 'ChangeGroup.Poll',
   params: {
-    Id: "myGroup"
-  }
+    Id: 'myGroup',
+  },
 });
 ```
 
@@ -440,14 +480,19 @@ await send_raw_command({
 
 ## Best Practices
 
-1. **Use MCP Tools When Available**: Prefer using dedicated MCP tools like `get_control_values`, `set_control_values`, etc. over raw commands when possible.
+1. **Use MCP Tools When Available**: Prefer using dedicated MCP tools like `get_control_values`,
+   `set_control_values`, etc. over raw commands when possible.
 
-2. **Check Method Names**: Always verify the exact method name format (CamelCase vs. dot notation) from this reference.
+2. **Check Method Names**: Always verify the exact method name format (CamelCase vs. dot notation)
+   from this reference.
 
-3. **Handle Errors**: Q-SYS will return error -32601 for unknown methods. Always handle errors appropriately.
+3. **Handle Errors**: Q-SYS will return error -32601 for unknown methods. Always handle errors
+   appropriately.
 
-4. **Use Change Groups for Monitoring**: When monitoring multiple controls, use change groups for efficiency rather than polling individual controls.
+4. **Use Change Groups for Monitoring**: When monitoring multiple controls, use change groups for
+   efficiency rather than polling individual controls.
 
-5. **Specify Timeouts**: For critical operations, specify appropriate timeout values (default is 5000ms, max is 30000ms).
+5. **Specify Timeouts**: For critical operations, specify appropriate timeout values (default is
+   5000ms, max is 30000ms).
 
 6. **Test First**: Use `NoOp` to test connectivity before attempting complex operations.

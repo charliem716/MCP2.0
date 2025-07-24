@@ -2,8 +2,17 @@
  * WebSocket types for real-time communication
  */
 
-import type { ID, Timestamp, WebSocketState, ConnectionState } from './common.js';
-import type { QSysControlChange, QSysComponentChange, QSysEngineStatus } from './qsys.js';
+import type {
+  ID,
+  Timestamp,
+  WebSocketState,
+  ConnectionState,
+} from './common.js';
+import type {
+  QSysControlChange,
+  QSysComponentChange,
+  QSysEngineStatus,
+} from './qsys.js';
 import type { OpenAIChatMessage } from './openai.js';
 
 /**
@@ -15,13 +24,13 @@ export enum WebSocketMessageType {
   DISCONNECT = 'disconnect',
   PING = 'ping',
   PONG = 'pong',
-  
+
   // Chat messages
   CHAT_MESSAGE = 'chat_message',
   CHAT_TYPING = 'chat_typing',
   CHAT_RESPONSE = 'chat_response',
   CHAT_ERROR = 'chat_error',
-  
+
   // Voice messages
   VOICE_START = 'voice_start',
   VOICE_STOP = 'voice_stop',
@@ -29,19 +38,19 @@ export enum WebSocketMessageType {
   VOICE_TRANSCRIPTION = 'voice_transcription',
   VOICE_SYNTHESIS = 'voice_synthesis',
   VOICE_ERROR = 'voice_error',
-  
+
   // Q-SYS messages
   QSYS_CONTROL_CHANGE = 'qsys_control_change',
   QSYS_COMPONENT_CHANGE = 'qsys_component_change',
   QSYS_ENGINE_STATUS = 'qsys_engine_status',
   QSYS_CONNECTION_STATUS = 'qsys_connection_status',
   QSYS_ERROR = 'qsys_error',
-  
+
   // System messages
   SYSTEM_STATUS = 'system_status',
   SYSTEM_ERROR = 'system_error',
   SYSTEM_NOTIFICATION = 'system_notification',
-  
+
   // OpenAI Realtime messages
   REALTIME_SESSION_START = 'realtime_session_start',
   REALTIME_SESSION_END = 'realtime_session_end',
@@ -353,30 +362,39 @@ export interface WebSocketClient {
   sessionId?: ID;
   socket: WebSocket;
   info: WebSocketConnectionInfo;
-  
+
   // Connection management
   connect(): Promise<void>;
   disconnect(code?: number, reason?: string): Promise<void>;
   isConnected(): boolean;
   getStatus(): WebSocketConnectionStatus;
-  
+
   // Message handling
   send<T>(type: WebSocketMessageType, data: T): Promise<void>;
   sendMessage(message: WebSocketMessage): Promise<void>;
   onMessage<T>(type: WebSocketMessageType, handler: (data: T) => void): void;
-  offMessage(type: WebSocketMessageType, handler?: (...args: unknown[]) => void): void;
-  
+  offMessage(
+    type: WebSocketMessageType,
+    handler?: (...args: unknown[]) => void
+  ): void;
+
   // Subscription management
-  subscribe(type: string, filter?: Record<string, unknown>): Promise<WebSocketSubscription>;
+  subscribe(
+    type: string,
+    filter?: Record<string, unknown>
+  ): Promise<WebSocketSubscription>;
   unsubscribe(subscriptionId: ID): Promise<void>;
   listSubscriptions(): WebSocketSubscription[];
-  
+
   // Event handling
   on(event: 'connect', listener: () => void): void;
-  on(event: 'disconnect', listener: (code: number, reason: string) => void): void;
+  on(
+    event: 'disconnect',
+    listener: (code: number, reason: string) => void
+  ): void;
   on(event: 'error', listener: (error: Error) => void): void;
   on(event: 'message', listener: (message: WebSocketMessage) => void): void;
-  
+
   off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 }
@@ -389,22 +407,33 @@ export interface WebSocketServer {
   start(): Promise<void>;
   stop(): Promise<void>;
   isRunning(): boolean;
-  
+
   // Client management
   getClients(): WebSocketClient[];
   getClient(clientId: ID): WebSocketClient | undefined;
   getClientsByUserId(userId: ID): WebSocketClient[];
-  
+
   // Broadcasting
-  broadcast<T>(type: WebSocketMessageType, data: T, filter?: (client: WebSocketClient) => boolean): Promise<void>;
-  broadcastToSubscribers<T>(subscriptionType: string, type: WebSocketMessageType, data: T): Promise<void>;
-  
+  broadcast<T>(
+    type: WebSocketMessageType,
+    data: T,
+    filter?: (client: WebSocketClient) => boolean
+  ): Promise<void>;
+  broadcastToSubscribers<T>(
+    subscriptionType: string,
+    type: WebSocketMessageType,
+    data: T
+  ): Promise<void>;
+
   // Event handling
   on(event: 'connection', listener: (client: WebSocketClient) => void): void;
   on(event: 'disconnection', listener: (client: WebSocketClient) => void): void;
   on(event: 'error', listener: (error: Error) => void): void;
-  on(event: 'message', listener: (client: WebSocketClient, message: WebSocketMessage) => void): void;
-  
+  on(
+    event: 'message',
+    listener: (client: WebSocketClient, message: WebSocketMessage) => void
+  ): void;
+
   off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 }
@@ -429,6 +458,8 @@ export interface WebSocketServerConfig {
   }) => boolean;
   authentication?: {
     enabled: boolean;
-    verifyToken?: (token: string) => Promise<{ userId: ID; sessionId?: ID } | null>;
+    verifyToken?: (
+      token: string
+    ) => Promise<{ userId: ID; sessionId?: ID } | null>;
   };
-} 
+}

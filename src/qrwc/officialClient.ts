@@ -27,11 +27,11 @@ export interface OfficialQRWCClientOptions {
  * Events emitted by the Official QRWC Client
  */
 export interface OfficialQRWCClientEvents {
-  'connected': [data: { requiresCacheInvalidation: boolean; downtimeMs: number }];
-  'disconnected': [reason: string];
-  'reconnecting': [attempt: number];
-  'error': [error: Error];
-  'state_change': [state: ConnectionState];
+  connected: [data: { requiresCacheInvalidation: boolean; downtimeMs: number }];
+  disconnected: [reason: string];
+  reconnecting: [attempt: number];
+  error: [error: Error];
+  state_change: [state: ConnectionState];
 }
 
 /**
@@ -50,7 +50,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
   constructor(options: OfficialQRWCClientOptions) {
     super();
-    
+
     this.options = {
       host: options.host,
       port: options.port ?? 443,
@@ -58,9 +58,9 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       reconnectInterval: options.reconnectInterval ?? 5000,
       maxReconnectAttempts: options.maxReconnectAttempts ?? 5,
       connectionTimeout: options.connectionTimeout ?? 10000,
-      enableAutoReconnect: options.enableAutoReconnect ?? true
+      enableAutoReconnect: options.enableAutoReconnect ?? true,
     };
-    
+
     this.logger = createLogger(`official-qrwc-client-${options.host}`);
     this.setupGracefulShutdown();
   }
@@ -69,20 +69,23 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Connect to Q-SYS Core using the official QRWC library
    */
   async connect(): Promise<void> {
-    if (this.connectionState === ConnectionState.CONNECTING || this.connectionState === ConnectionState.CONNECTED) {
+    if (
+      this.connectionState === ConnectionState.CONNECTING ||
+      this.connectionState === ConnectionState.CONNECTED
+    ) {
       return;
     }
-    
+
     this.setState(ConnectionState.CONNECTING);
     this.logger.info('Connecting to Q-SYS Core using official QRWC library', {
       host: this.options.host,
-      port: this.options.port
+      port: this.options.port,
     });
 
     try {
       const url = `wss://${this.options.host}:${this.options.port}/qrc-public-api/v0`;
       this.ws = new WebSocket(url, {
-        rejectUnauthorized: false // Allow self-signed certificates
+        rejectUnauthorized: false, // Allow self-signed certificates
       });
 
       // Wait for WebSocket to open
@@ -91,45 +94,53 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       // Create QRWC instance with the open WebSocket
       this.qrwc = await Qrwc.createQrwc({
         socket: this.ws,
-        pollingInterval: this.options.pollingInterval
+        pollingInterval: this.options.pollingInterval,
       });
 
       this.setState(ConnectionState.CONNECTED);
       this.reconnectAttempts = 0;
-      
+
       // Calculate downtime and emit appropriate event
-      const downtime = this.disconnectTime ? 
-        Date.now() - this.disconnectTime.getTime() : 0;
-      
+      const downtime = this.disconnectTime
+        ? Date.now() - this.disconnectTime.getTime()
+        : 0;
+
       if (downtime > 0) {
         this.logger.info('Q-SYS Core reconnected after downtime', {
           downtimeMs: downtime,
-          requiresCacheInvalidation: downtime > 30000
+          requiresCacheInvalidation: downtime > 30000,
         });
       }
-      
+
       this.setupWebSocketHandlers();
-      
-      this.logger.info('Successfully connected to Q-SYS Core using official QRWC library');
-      
+
+      this.logger.info(
+        'Successfully connected to Q-SYS Core using official QRWC library'
+      );
+
       // Emit appropriate event based on downtime
       if (downtime > 30000) {
-        this.emit('connected', { requiresCacheInvalidation: true, downtimeMs: downtime });
+        this.emit('connected', {
+          requiresCacheInvalidation: true,
+          downtimeMs: downtime,
+        });
       } else {
-        this.emit('connected', { requiresCacheInvalidation: false, downtimeMs: downtime });
+        this.emit('connected', {
+          requiresCacheInvalidation: false,
+          downtimeMs: downtime,
+        });
       }
-      
+
       this.disconnectTime = null;
-      
     } catch (error) {
       this.setState(ConnectionState.DISCONNECTED);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to connect to Q-SYS Core', { error: errorMsg });
-      
+
       if (this.options.enableAutoReconnect) {
         this.scheduleReconnect();
       }
-      
+
       throw new QSysError(
         'Failed to connect to Q-SYS Core',
         QSysErrorCode.CONNECTION_FAILED,
@@ -143,35 +154,38 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    */
   disconnect(): void {
     // Prevent multiple disconnect calls
-    if (this.shutdownInProgress || this.connectionState === ConnectionState.DISCONNECTED) {
+    if (
+      this.shutdownInProgress ||
+      this.connectionState === ConnectionState.DISCONNECTED
+    ) {
       this.logger.debug('Already disconnected or shutting down');
       return;
     }
-    
+
     this.logger.debug('Disconnecting from Q-SYS Core...');
     this.logger.info('Disconnecting from Q-SYS Core');
     this.shutdownInProgress = true;
-    
+
     // Clear reconnect timer
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       delete this.reconnectTimer;
     }
-    
+
     // Close WebSocket connection
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
       delete this.ws;
     }
-    
+
     // Clear QRWC instance
     delete this.qrwc;
-    
+
     this.setState(ConnectionState.DISCONNECTED);
     this.emit('disconnected', 'Client disconnect');
-    
+
     this.logger.info('Disconnected successfully from Q-SYS Core');
-    
+
     // Reset shutdown flag to allow future connections
     this.shutdownInProgress = false;
   }
@@ -180,9 +194,11 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Check if client is connected
    */
   isConnected(): boolean {
-    return this.connectionState === ConnectionState.CONNECTED && 
-           this.ws?.readyState === WebSocket.OPEN &&
-           this.qrwc !== undefined;
+    return (
+      this.connectionState === ConnectionState.CONNECTED &&
+      this.ws?.readyState === WebSocket.OPEN &&
+      this.qrwc !== undefined
+    );
   }
 
   /**
@@ -198,7 +214,10 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    */
   async sendRawCommand(method: string, params: unknown): Promise<unknown> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new QSysError('WebSocket not connected', QSysErrorCode.CONNECTION_FAILED);
+      throw new QSysError(
+        'WebSocket not connected',
+        QSysErrorCode.CONNECTION_FAILED
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -207,11 +226,16 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
         jsonrpc: '2.0',
         method,
         params,
-        id
+        id,
       });
 
       const timeout = setTimeout(() => {
-        reject(new QSysError(`Command timeout: ${method}`, QSysErrorCode.COMMAND_FAILED));
+        reject(
+          new QSysError(
+            `Command timeout: ${method}`,
+            QSysErrorCode.COMMAND_FAILED
+          )
+        );
       }, 5000);
 
       const messageHandler = (data: WebSocket.Data) => {
@@ -220,13 +244,15 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
           if (response.id === id) {
             clearTimeout(timeout);
             this.ws?.off('message', messageHandler);
-            
+
             if (response.error) {
-              reject(new QSysError(
-                `Command failed: ${response.error.message}`,
-                QSysErrorCode.COMMAND_FAILED,
-                response.error
-              ));
+              reject(
+                new QSysError(
+                  `Command failed: ${response.error.message}`,
+                  QSysErrorCode.COMMAND_FAILED,
+                  response.error
+                )
+              );
             } else {
               resolve(response.result);
             }
@@ -238,7 +264,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
       this.ws!.on('message', messageHandler);
       this.ws!.send(message);
-      
+
       this.logger.debug('Sent raw command', { method, params });
     });
   }
@@ -256,7 +282,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   getConnectionOptions(): { host: string; port: number } {
     return {
       host: this.options.host,
-      port: this.options.port
+      port: this.options.port,
     };
   }
 
@@ -265,7 +291,10 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    */
   getComponent(componentName: string) {
     if (!this.qrwc) {
-      throw new QSysError('Not connected to Q-SYS Core', QSysErrorCode.CONNECTION_FAILED);
+      throw new QSysError(
+        'Not connected to Q-SYS Core',
+        QSysErrorCode.CONNECTION_FAILED
+      );
     }
     return this.qrwc.components[componentName];
   }
@@ -276,7 +305,10 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   getControl(componentName: string, controlName: string) {
     const component = this.getComponent(componentName);
     if (!component) {
-      throw new QSysError(`Component '${componentName}' not found`, QSysErrorCode.COMMAND_FAILED);
+      throw new QSysError(
+        `Component '${componentName}' not found`,
+        QSysErrorCode.COMMAND_FAILED
+      );
     }
     return component.controls[controlName];
   }
@@ -284,14 +316,25 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   /**
    * Set control value
    */
-  async setControlValue(componentName: string, controlName: string, value: number | string | boolean): Promise<void> {
+  async setControlValue(
+    componentName: string,
+    controlName: string,
+    value: number | string | boolean
+  ): Promise<void> {
     const control = this.getControl(componentName, controlName);
     if (!control) {
-      throw new QSysError(`Control '${controlName}' not found on component '${componentName}'`, QSysErrorCode.COMMAND_FAILED);
+      throw new QSysError(
+        `Control '${controlName}' not found on component '${componentName}'`,
+        QSysErrorCode.COMMAND_FAILED
+      );
     }
-    
+
     await control.update(value);
-    this.logger.debug('Control value updated', { componentName, controlName, value });
+    this.logger.debug('Control value updated', {
+      componentName,
+      controlName,
+      value,
+    });
   }
 
   /**
@@ -300,33 +343,53 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   getControlValue(componentName: string, controlName: string) {
     const control = this.getControl(componentName, controlName);
     if (!control) {
-      throw new QSysError(`Control '${controlName}' not found on component '${componentName}'`, QSysErrorCode.COMMAND_FAILED);
+      throw new QSysError(
+        `Control '${controlName}' not found on component '${componentName}'`,
+        QSysErrorCode.COMMAND_FAILED
+      );
     }
-    
+
     return control.state;
   }
 
   /**
    * Listen for control updates
    */
-  onControlUpdate(componentName: string, controlName: string, listener: (state: unknown) => void): void {
+  onControlUpdate(
+    componentName: string,
+    controlName: string,
+    listener: (state: unknown) => void
+  ): void {
     const control = this.getControl(componentName, controlName);
     if (!control) {
-      throw new QSysError(`Control '${controlName}' not found on component '${componentName}'`, QSysErrorCode.COMMAND_FAILED);
+      throw new QSysError(
+        `Control '${controlName}' not found on component '${componentName}'`,
+        QSysErrorCode.COMMAND_FAILED
+      );
     }
-    
+
     control.on('update', listener);
-    this.logger.debug('Added control update listener', { componentName, controlName });
+    this.logger.debug('Added control update listener', {
+      componentName,
+      controlName,
+    });
   }
 
   /**
    * Remove control update listener
    */
-  offControlUpdate(componentName: string, controlName: string, listener: (state: unknown) => void): void {
+  offControlUpdate(
+    componentName: string,
+    controlName: string,
+    listener: (state: unknown) => void
+  ): void {
     const control = this.getControl(componentName, controlName);
     if (control) {
       control.removeListener('update', listener);
-      this.logger.debug('Removed control update listener', { componentName, controlName });
+      this.logger.debug('Removed control update listener', {
+        componentName,
+        controlName,
+      });
     }
   }
 
@@ -349,7 +412,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
         resolve();
       });
 
-      this.ws.once('error', (error) => {
+      this.ws.once('error', error => {
         clearTimeout(timeout);
         reject(error);
       });
@@ -362,26 +425,29 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   private setupWebSocketHandlers(): void {
     if (!this.ws) return;
 
-    this.ws.on('error', (error) => {
+    this.ws.on('error', error => {
       this.logger.error('WebSocket error', { error: error.message });
       this.emit('error', error);
     });
 
     this.ws.on('close', (code, reason) => {
-      this.logger.info('WebSocket connection closed', { 
-        code, 
-        reason: reason.toString() 
+      this.logger.info('WebSocket connection closed', {
+        code,
+        reason: reason.toString(),
       });
-      
+
       if (this.connectionState === ConnectionState.CONNECTED) {
         this.setState(ConnectionState.DISCONNECTED);
         this.disconnectTime = new Date();
-        this.emit('disconnected', `Connection closed: ${code} ${String(reason)}`);
+        this.emit(
+          'disconnected',
+          `Connection closed: ${code} ${String(reason)}`
+        );
       }
-      
+
       // Clean up QRWC instance
       delete this.qrwc;
-      
+
       if (!this.shutdownInProgress && this.options.enableAutoReconnect) {
         this.scheduleReconnect();
       }
@@ -393,24 +459,24 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    */
   private scheduleReconnect(): void {
     if (this.shutdownInProgress) return;
-    
+
     // Switch to long-term reconnection mode after initial attempts
     if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
       this.logger.warn('Switching to long-term reconnection mode');
       const longTermDelay = 60000; // 1 minute intervals
-      
+
       this.logger.info('Scheduling long-term reconnection attempt', {
-        nextAttempt: new Date(Date.now() + longTermDelay).toISOString()
+        nextAttempt: new Date(Date.now() + longTermDelay).toISOString(),
       });
-      
+
       this.emit('reconnecting', this.reconnectAttempts + 1);
-      
+
       this.reconnectTimer = setTimeout(() => {
         this.reconnectAttempts++; // Continue counting attempts
         this.connect().catch((error: unknown) => {
-          this.logger.error('Long-term reconnection attempt failed', { 
+          this.logger.error('Long-term reconnection attempt failed', {
             error,
-            attempt: this.reconnectAttempts 
+            attempt: this.reconnectAttempts,
           });
         });
       }, longTermDelay);
@@ -425,7 +491,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
     this.logger.info('Scheduling reconnection attempt', {
       attempt: this.reconnectAttempts,
-      delay
+      delay,
     });
 
     this.emit('reconnecting', this.reconnectAttempts);
@@ -461,4 +527,4 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     process.on('SIGINT', shutdown);
     process.on('beforeExit', shutdown);
   }
-} 
+}

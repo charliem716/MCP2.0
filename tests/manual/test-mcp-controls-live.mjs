@@ -33,7 +33,13 @@ async function testControls() {
   try {
     // Connect to Q-SYS
     console.log('\n1️⃣ Connecting to Q-SYS Core...');
-    officialClient = new OfficialQRWCClient({ host, port, username, password, secure: port === 443 });
+    officialClient = new OfficialQRWCClient({
+      host,
+      port,
+      username,
+      password,
+      secure: port === 443,
+    });
     await officialClient.connect();
     console.log('   ✅ Connected!');
 
@@ -44,13 +50,13 @@ async function testControls() {
 
     // Test 1: List specific component controls
     console.log('\n2️⃣ Testing specific component controls:\n');
-    
+
     const testComponents = [
       'Main Output Gain',
-      'Table_Mic_Volume', 
+      'Table_Mic_Volume',
       'Main System Gain',
       'Soundbar',
-      'VoiceAgentController'
+      'VoiceAgentController',
     ];
 
     for (const componentName of testComponents) {
@@ -58,12 +64,12 @@ async function testControls() {
       try {
         const result = await registry.callTool('list_controls', {
           component: componentName,
-          includeMetadata: true
+          includeMetadata: true,
         });
-        
+
         if (!result.isError) {
           const lines = result.content[0].text.split('\\n');
-          console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
+          console.log(`   ${lines.slice(0, 10).join('\\n   ')}`);
         } else {
           console.log('   ❌ Error:', result.content[0].text);
         }
@@ -75,13 +81,15 @@ async function testControls() {
 
     // Test 2: Get control values for known controls
     console.log('\\n3️⃣ Testing get_control_values with specific controls:\\n');
-    
+
     // First, get some actual control names
     const componentsToTest = ['Main Output Gain', 'Table_Mic_Volume'];
     const controlsToRead = [];
-    
+
     for (const comp of componentsToTest) {
-      const listResult = await registry.callTool('list_controls', { component: comp });
+      const listResult = await registry.callTool('list_controls', {
+        component: comp,
+      });
       if (!listResult.isError) {
         // Extract control names from result
         const matches = listResult.content[0].text.matchAll(/• ([^:]+):/g);
@@ -94,13 +102,13 @@ async function testControls() {
 
     if (controlsToRead.length > 0) {
       console.log('Reading controls:', controlsToRead);
-      
+
       const getResult = await registry.callTool('get_control_values', {
-        controls: controlsToRead
+        controls: controlsToRead,
       });
-      
+
       if (!getResult.isError) {
-        console.log(`\\n${  getResult.content[0].text}`);
+        console.log(`\\n${getResult.content[0].text}`);
       } else {
         console.log('❌ Error:', getResult.content[0].text);
       }
@@ -108,21 +116,23 @@ async function testControls() {
 
     // Test 3: Direct QRWC access to understand control structure
     console.log('\\n4️⃣ Direct QRWC Component Analysis:\\n');
-    
+
     const qrwc = officialClient.getQrwc();
     if (qrwc) {
       // Show first 3 components with their controls
       const componentNames = Object.keys(qrwc.components).slice(0, 3);
-      
+
       for (const compName of componentNames) {
         console.log(`📦 Component: ${compName}`);
         const component = qrwc.components[compName];
-        
+
         if (component && component.controls) {
           const controlNames = Object.keys(component.controls).slice(0, 5);
           for (const ctrlName of controlNames) {
             const control = component.controls[ctrlName];
-            console.log(`   • ${ctrlName}: ${control.state} (type: ${typeof control.state})`);
+            console.log(
+              `   • ${ctrlName}: ${control.state} (type: ${typeof control.state})`
+            );
           }
         }
         console.log('');
@@ -132,8 +142,10 @@ async function testControls() {
     // Test 4: Test set_control_values (safe test - echo current value)
     console.log('\\n5️⃣ Testing set_control_values (SAFE - no changes):\\n');
     console.log('   ⚠️  Skipping write operations for safety');
-    console.log('   💡 To test writes, uncomment the code below and use caution!');
-    
+    console.log(
+      '   💡 To test writes, uncomment the code below and use caution!'
+    );
+
     // UNCOMMENT TO TEST WRITES (USE WITH CAUTION!)
     /*
     if (controlsToRead.length > 0 && controlsToRead[0].includes('gain')) {
@@ -160,9 +172,8 @@ async function testControls() {
     }
     */
 
-    console.log(`\\n${  '='.repeat(60)}`);
+    console.log(`\\n${'='.repeat(60)}`);
     console.log('✅ Control tests completed successfully!');
-
   } catch (error) {
     console.error('\\n❌ Test Failed:', error.message);
     console.error('Stack:', error.stack);

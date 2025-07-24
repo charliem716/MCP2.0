@@ -1,23 +1,28 @@
-import { z } from "zod";
-import type { EventEmitter } from "events";
-import type { globalLogger as logger } from "../../shared/utils/logger.js";
+import { z } from 'zod';
+import type { EventEmitter } from 'events';
+import type { globalLogger as logger } from '../../shared/utils/logger.js';
 
 /**
  * Q-SYS Control State Schema
  */
 export const ControlStateSchema = z.object({
-  name: z.string().describe("Unique control identifier"),
-  value: z.union([z.number(), z.string(), z.boolean()]).describe("Control value"),
-  timestamp: z.date().describe("Last update timestamp"),
-  source: z.enum(['qsys', 'cache', 'user']).describe("Value source"),
-  metadata: z.object({
-    type: z.string().optional().describe("Control type (gain, mute, etc)"),
-    component: z.string().optional().describe("Parent component name"),
-    min: z.number().optional().describe("Minimum value"),
-    max: z.number().optional().describe("Maximum value"),
-    step: z.number().optional().describe("Value increment step"),
-    units: z.string().optional().describe("Value units (dB, Hz, etc)"),
-  }).optional().describe("Control metadata")
+  name: z.string().describe('Unique control identifier'),
+  value: z
+    .union([z.number(), z.string(), z.boolean()])
+    .describe('Control value'),
+  timestamp: z.date().describe('Last update timestamp'),
+  source: z.enum(['qsys', 'cache', 'user']).describe('Value source'),
+  metadata: z
+    .object({
+      type: z.string().optional().describe('Control type (gain, mute, etc)'),
+      component: z.string().optional().describe('Parent component name'),
+      min: z.number().optional().describe('Minimum value'),
+      max: z.number().optional().describe('Maximum value'),
+      step: z.number().optional().describe('Value increment step'),
+      units: z.string().optional().describe('Value units (dB, Hz, etc)'),
+    })
+    .optional()
+    .describe('Control metadata'),
 });
 
 export type ControlState = z.infer<typeof ControlStateSchema>;
@@ -26,15 +31,24 @@ export type ControlState = z.infer<typeof ControlStateSchema>;
  * Change Group Schema for batch operations
  */
 export const ChangeGroupSchema = z.object({
-  id: z.string().uuid().describe("Unique change group identifier"),
-  controls: z.array(z.object({
-    name: z.string().describe("Control name"),
-    value: z.union([z.number(), z.string(), z.boolean()]).describe("New value"),
-    ramp: z.number().positive().optional().describe("Ramp time in seconds"),
-  })).min(1).describe("Controls to update"),
-  timestamp: z.date().describe("Change group creation time"),
-  status: z.enum(['pending', 'applying', 'completed', 'failed']).describe("Change group status"),
-  source: z.string().describe("Source of the change group"),
+  id: z.string().uuid().describe('Unique change group identifier'),
+  controls: z
+    .array(
+      z.object({
+        name: z.string().describe('Control name'),
+        value: z
+          .union([z.number(), z.string(), z.boolean()])
+          .describe('New value'),
+        ramp: z.number().positive().optional().describe('Ramp time in seconds'),
+      })
+    )
+    .min(1)
+    .describe('Controls to update'),
+  timestamp: z.date().describe('Change group creation time'),
+  status: z
+    .enum(['pending', 'applying', 'completed', 'failed'])
+    .describe('Change group status'),
+  source: z.string().describe('Source of the change group'),
 });
 
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
@@ -66,10 +80,10 @@ export interface CacheConfig {
 
 /**
  * State Repository Interface
- * 
+ *
  * Defines the contract for Q-SYS control state management including:
  * - CRUD operations for control states
- * - Change group management for batch updates  
+ * - Change group management for batch updates
  * - Cache invalidation and synchronization
  * - Performance monitoring and statistics
  */
@@ -90,7 +104,7 @@ export interface IStateRepository extends EventEmitter {
   getStates(controlNames: string[]): Promise<Map<string, ControlState>>;
 
   /**
-   * Set control state 
+   * Set control state
    */
   setState(controlName: string, state: ControlState): Promise<void>;
 
@@ -132,7 +146,10 @@ export interface IStateRepository extends EventEmitter {
   /**
    * Create a new change group for batch updates
    */
-  createChangeGroup(controls: ChangeGroup['controls'], source: string): Promise<ChangeGroup>;
+  createChangeGroup(
+    controls: ChangeGroup['controls'],
+    source: string
+  ): Promise<ChangeGroup>;
 
   /**
    * Get change group by ID
@@ -142,7 +159,10 @@ export interface IStateRepository extends EventEmitter {
   /**
    * Update change group status
    */
-  updateChangeGroupStatus(id: string, status: ChangeGroup['status']): Promise<boolean>;
+  updateChangeGroupStatus(
+    id: string,
+    status: ChangeGroup['status']
+  ): Promise<boolean>;
 
   /**
    * Remove completed/failed change groups
@@ -195,7 +215,7 @@ export enum StateRepositoryEvent {
   ChangeGroupCreated = 'changegroup:created',
   ChangeGroupCompleted = 'changegroup:completed',
   SyncCompleted = 'sync:completed',
-  Error = 'error'
+  Error = 'error',
 }
 
 /**
@@ -255,8 +275,8 @@ export class StateUtils {
    * Create a new control state
    */
   static createState(
-    name: string, 
-    value: ControlState['value'], 
+    name: string,
+    value: ControlState['value'],
     source: ControlState['source'] = 'cache',
     metadata?: ControlState['metadata']
   ): ControlState {
@@ -265,7 +285,7 @@ export class StateUtils {
       value,
       timestamp: new Date(),
       source,
-      metadata
+      metadata,
     };
   }
 
@@ -275,7 +295,7 @@ export class StateUtils {
   static isExpired(state: ControlState, ttlMs: number): boolean {
     const now = Date.now();
     const stateTime = state.timestamp.getTime();
-    return (now - stateTime) > ttlMs;
+    return now - stateTime > ttlMs;
   }
 
   /**
@@ -284,9 +304,12 @@ export class StateUtils {
   static calculateMemoryUsage(state: ControlState): number {
     const baseSize = 100; // Base object overhead
     const nameSize = state.name.length * 2; // UTF-16 encoding
-    const valueSize = typeof state.value === 'string' ? state.value.length * 2 : 8;
-    const metadataSize = state.metadata ? JSON.stringify(state.metadata).length * 2 : 0;
-    
+    const valueSize =
+      typeof state.value === 'string' ? state.value.length * 2 : 8;
+    const metadataSize = state.metadata
+      ? JSON.stringify(state.metadata).length * 2
+      : 0;
+
     return baseSize + nameSize + valueSize + metadataSize;
   }
 
@@ -294,15 +317,20 @@ export class StateUtils {
    * Compare two control states for equality
    */
   static areStatesEqual(state1: ControlState, state2: ControlState): boolean {
-    return state1.name === state2.name && 
-           state1.value === state2.value &&
-           state1.source === state2.source;
+    return (
+      state1.name === state2.name &&
+      state1.value === state2.value &&
+      state1.source === state2.source
+    );
   }
 
   /**
    * Compare two control values for equality
    */
-  static areValuesEqual(value1: ControlState['value'], value2: ControlState['value']): boolean {
+  static areValuesEqual(
+    value1: ControlState['value'],
+    value2: ControlState['value']
+  ): boolean {
     return value1 === value2;
   }
 
@@ -310,13 +338,13 @@ export class StateUtils {
    * Merge state metadata
    */
   static mergeMetadata(
-    base: ControlState['metadata'], 
+    base: ControlState['metadata'],
     updates: ControlState['metadata']
   ): ControlState['metadata'] {
     if (!base && !updates) return undefined;
     if (!base) return updates;
     if (!updates) return base;
-    
+
     return { ...base, ...updates };
   }
 
@@ -324,20 +352,26 @@ export class StateUtils {
    * Validate control value against metadata constraints
    */
   static validateValue(
-    value: ControlState['value'], 
+    value: ControlState['value'],
     metadata: ControlState['metadata']
   ): { valid: boolean; error?: string } {
     if (!metadata) return { valid: true };
 
     if (typeof value === 'number') {
       if (metadata.min !== undefined && value < metadata.min) {
-        return { valid: false, error: `Value ${value} below minimum ${metadata.min}` };
+        return {
+          valid: false,
+          error: `Value ${value} below minimum ${metadata.min}`,
+        };
       }
       if (metadata.max !== undefined && value > metadata.max) {
-        return { valid: false, error: `Value ${value} above maximum ${metadata.max}` };
+        return {
+          valid: false,
+          error: `Value ${value} above maximum ${metadata.max}`,
+        };
       }
     }
 
     return { valid: true };
   }
-} 
+}

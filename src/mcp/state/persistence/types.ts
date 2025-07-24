@@ -1,17 +1,17 @@
-import type { ControlState, CacheConfig } from "../repository.js";
+import type { ControlState, CacheConfig } from '../repository.js';
 
 /**
  * Persistence format (simplified to JSON only)
  */
 export enum PersistenceFormat {
-  JSON = 'json'
+  JSON = 'json',
 }
 
 /**
  * Compression type (simplified to none only)
  */
 export enum CompressionType {
-  None = 'none'
+  None = 'none',
 }
 
 /**

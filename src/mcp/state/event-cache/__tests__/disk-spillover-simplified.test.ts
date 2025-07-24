@@ -30,17 +30,21 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
         enabled: true,
         directory: testDir,
         thresholdMB: 2,
-        maxFileSizeMB: 1
-      }
+        maxFileSizeMB: 1,
+      },
     };
-    
+
     manager = new EventCacheManager(config);
     mockAdapter = new MockQRWCAdapter();
     manager.attachToAdapter(mockAdapter as any);
-    
+
     // Verify configuration is set
-    expect((manager as any).defaultConfig.diskSpilloverConfig?.enabled).toBe(true);
-    expect((manager as any).defaultConfig.diskSpilloverConfig?.directory).toBe(testDir);
+    expect((manager as any).defaultConfig.diskSpilloverConfig?.enabled).toBe(
+      true
+    );
+    expect((manager as any).defaultConfig.diskSpilloverConfig?.directory).toBe(
+      testDir
+    );
   });
 
   it('should store and query events without disk spillover', async () => {
@@ -48,28 +52,28 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
       maxEvents: 1000,
       maxAgeMs: 3600000,
       diskSpilloverConfig: {
-        enabled: false // Disabled
-      }
+        enabled: false, // Disabled
+      },
     };
-    
+
     manager = new EventCacheManager(config);
     mockAdapter = new MockQRWCAdapter();
     manager.attachToAdapter(mockAdapter as any);
-    
+
     const groupId = 'test-group';
-    
+
     // Add events
     for (let i = 0; i < 100; i++) {
       mockAdapter.emitChanges(groupId, [
-        { Name: 'control', Value: i, String: i.toString() }
+        { Name: 'control', Value: i, String: i.toString() },
       ]);
       await new Promise(resolve => setTimeout(resolve, 1));
     }
-    
+
     // Query events
     const results = await manager.query({ groupId });
     expect(results.length).toBe(100);
-    
+
     // Verify no disk operations occurred
     const stats = await fs.stat(testDir).catch(() => null);
     expect(stats).toBeNull();
@@ -85,28 +89,28 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
         enabled: true,
         directory: testDir,
         thresholdMB: 2,
-        maxFileSizeMB: 1
-      }
+        maxFileSizeMB: 1,
+      },
     };
-    
+
     manager = new EventCacheManager(config);
     mockAdapter = new MockQRWCAdapter();
     manager.attachToAdapter(mockAdapter as any);
-    
+
     // Add some events
     const groupId = 'test-group';
     for (let i = 0; i < 10; i++) {
       mockAdapter.emitChanges(groupId, [
-        { Name: 'control', Value: i, String: i.toString() }
+        { Name: 'control', Value: i, String: i.toString() },
       ]);
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Events should be queryable
     const results = await manager.query({ groupId });
     expect(results.length).toBe(10);
-    
+
     // Directory is created on init when disk spillover is enabled
     const stats = await fs.stat(testDir).catch(() => null);
     expect(stats).not.toBeNull(); // Directory should exist
@@ -121,25 +125,25 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
         enabled: true,
         directory: '', // Invalid
         thresholdMB: 1,
-        maxFileSizeMB: 1
-      }
+        maxFileSizeMB: 1,
+      },
     };
-    
+
     // Should not throw
     expect(() => {
       manager = new EventCacheManager(config);
     }).not.toThrow();
-    
+
     mockAdapter = new MockQRWCAdapter();
     manager.attachToAdapter(mockAdapter as any);
-    
+
     // Should still work without spillover
     mockAdapter.emitChanges('test', [
-      { Name: 'control', Value: 1, String: '1' }
+      { Name: 'control', Value: 1, String: '1' },
     ]);
-    
+
     await new Promise(resolve => setTimeout(resolve, 50));
-    
+
     const results = await manager.query({ groupId: 'test' });
     expect(results.length).toBe(1);
   });

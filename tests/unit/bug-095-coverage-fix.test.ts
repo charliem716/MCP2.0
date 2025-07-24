@@ -14,25 +14,30 @@ describe('BUG-095 Fix: Test Coverage Measurement', () => {
           lines: { total: 1000, covered: 200, skipped: 0, pct: 20 },
           statements: { total: 1200, covered: 240, skipped: 0, pct: 20 },
           functions: { total: 300, covered: 60, skipped: 0, pct: 20 },
-          branches: { total: 400, covered: 80, skipped: 0, pct: 20 }
+          branches: { total: 400, covered: 80, skipped: 0, pct: 20 },
         },
         'src/mcp/state/event-cache/manager.ts': {
           lines: { total: 100, covered: 80, skipped: 0, pct: 80 },
           statements: { total: 120, covered: 96, skipped: 0, pct: 80 },
           functions: { total: 30, covered: 24, skipped: 0, pct: 80 },
-          branches: { total: 40, covered: 32, skipped: 0, pct: 80 }
-        }
+          branches: { total: 40, covered: 32, skipped: 0, pct: 80 },
+        },
       };
-      
+
       if (!fs.existsSync(coverageDir)) {
         fs.mkdirSync(coverageDir, { recursive: true });
       }
-      fs.writeFileSync(coverageSummaryPath, JSON.stringify(mockCoverage, null, 2));
+      fs.writeFileSync(
+        coverageSummaryPath,
+        JSON.stringify(mockCoverage, null, 2)
+      );
     }
 
     // Read and validate coverage summary
-    const coverageSummary = JSON.parse(fs.readFileSync(coverageSummaryPath, 'utf8'));
-    
+    const coverageSummary = JSON.parse(
+      fs.readFileSync(coverageSummaryPath, 'utf8')
+    );
+
     // Verify coverage data structure
     expect(coverageSummary).toHaveProperty('total');
     expect(coverageSummary.total).toHaveProperty('lines');
@@ -45,7 +50,7 @@ describe('BUG-095 Fix: Test Coverage Measurement', () => {
       lines: coverageSummary.total.lines.pct,
       statements: coverageSummary.total.statements.pct,
       functions: coverageSummary.total.functions.pct,
-      branches: coverageSummary.total.branches.pct
+      branches: coverageSummary.total.branches.pct,
     };
 
     // All metrics should be numbers
@@ -63,7 +68,9 @@ describe('BUG-095 Fix: Test Coverage Measurement', () => {
 
   test('should identify event-cache files in coverage report', () => {
     // Read coverage summary
-    const coverageSummary = JSON.parse(fs.readFileSync(coverageSummaryPath, 'utf8'));
+    const coverageSummary = JSON.parse(
+      fs.readFileSync(coverageSummaryPath, 'utf8')
+    );
 
     // Check that we can identify event-cache files
     const eventCacheFiles = Object.keys(coverageSummary).filter(
@@ -76,12 +83,14 @@ describe('BUG-095 Fix: Test Coverage Measurement', () => {
 
   test('should be able to compare coverage metrics', () => {
     // Read current coverage
-    const currentCoverage = JSON.parse(fs.readFileSync(coverageSummaryPath, 'utf8'));
+    const currentCoverage = JSON.parse(
+      fs.readFileSync(coverageSummaryPath, 'utf8')
+    );
     const currentMetrics = {
       lines: currentCoverage.total.lines.pct,
       statements: currentCoverage.total.statements.pct,
       functions: currentCoverage.total.functions.pct,
-      branches: currentCoverage.total.branches.pct
+      branches: currentCoverage.total.branches.pct,
     };
 
     // Define baseline metrics (simulating main branch coverage)
@@ -89,7 +98,7 @@ describe('BUG-095 Fix: Test Coverage Measurement', () => {
       lines: 80,
       statements: 80,
       functions: 80,
-      branches: 80
+      branches: 80,
     };
 
     // Compare coverage
@@ -97,7 +106,7 @@ describe('BUG-095 Fix: Test Coverage Measurement', () => {
       lines: currentMetrics.lines - baselineMetrics.lines,
       statements: currentMetrics.statements - baselineMetrics.statements,
       functions: currentMetrics.functions - baselineMetrics.functions,
-      branches: currentMetrics.branches - baselineMetrics.branches
+      branches: currentMetrics.branches - baselineMetrics.branches,
     };
 
     // Verify comparison calculations work
@@ -121,10 +130,16 @@ describe('BUG-095 Fix: Test Coverage Measurement', () => {
 
     // Verify scripts don't fail on test failures
     expect(packageJson.scripts['test:coverage:measure']).toContain('|| true');
-    expect(packageJson.scripts['test:coverage:event-cache']).toContain('|| true');
+    expect(packageJson.scripts['test:coverage:event-cache']).toContain(
+      '|| true'
+    );
 
     // Verify scripts ignore thresholds
-    expect(packageJson.scripts['test:coverage:measure']).toContain("--coverageThreshold='{}'");
-    expect(packageJson.scripts['test:coverage:event-cache']).toContain("--coverageThreshold='{}'");
+    expect(packageJson.scripts['test:coverage:measure']).toContain(
+      "--coverageThreshold='{}'"
+    );
+    expect(packageJson.scripts['test:coverage:event-cache']).toContain(
+      "--coverageThreshold='{}'"
+    );
   });
 });

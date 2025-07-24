@@ -5,6 +5,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
 ## Phase 1: Stabilize Core (Day 1)
 
 ### Step 1.1: Fix Failing Tests
+
 - [ ] Fix memory management test timeouts
   - [ ] Increase test timeout to 60000ms
   - [ ] Optimize memory pressure test scenarios
@@ -24,6 +25,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
 - [ ] Verify all tests pass with `npm test`
 
 ### Step 1.2: Add Integration Test
+
 - [ ] Create `tests/integration/event-cache-real-world.test.ts`
 - [ ] Implement 33Hz polling simulation
   - [ ] 30 controls changing at 33Hz for 1 minute
@@ -40,6 +42,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
 ## Phase 2: Complete Missing Features (Days 2-3)
 
 ### Step 2.1: Query Optimization (Step 2.3)
+
 - [ ] Create `src/mcp/state/event-cache/query-cache.ts`
 - [ ] Implement LRU cache class
   - [ ] Max 100 cached queries
@@ -58,6 +61,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
   - [ ] Test TTL expiration
 
 ### Step 2.2: Subscribe Tool Implementation (Step 3.3)
+
 - [ ] Add `subscribeToChangeEventsTool` to `change-groups.ts`
 - [ ] Implement tool schema
   - [ ] groupId (required string)
@@ -77,6 +81,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
   - [ ] Test error handling
 
 ### Step 2.3: Load Testing (Step 4.2)
+
 - [ ] Create `tests/integration/event-cache-load.test.ts`
 - [ ] Implement sustained load test
   - [ ] 1000 events/second for 10 seconds
@@ -94,6 +99,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
 ## Phase 3: Production Hardening (Day 4)
 
 ### Step 3.1: Error Recovery
+
 - [ ] Add error handling to EventCacheManager
   - [ ] Implement handleError method
   - [ ] Add error event emission
@@ -113,6 +119,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
   - [ ] List current issues
 
 ### Step 3.2: Configuration Validation
+
 - [ ] Create `src/mcp/state/event-cache/config-validator.ts`
 - [ ] Validate memory limits
   - [ ] Minimum 10MB required
@@ -132,6 +139,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
   - [ ] List of warnings (informational)
 
 ### Step 3.3: Monitoring Integration
+
 - [ ] Add metrics to getStatistics()
   - [ ] Query cache hit rate
   - [ ] Error count and last error
@@ -149,6 +157,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
 ## Phase 4: Documentation (Day 4.5)
 
 ### Step 4.1: API Documentation (Step 4.3)
+
 - [ ] Create API overview section
   - [ ] System description
   - [ ] Key features
@@ -177,6 +186,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
 ## Verification Checklist
 
 ### Before Marking Complete
+
 - [ ] All unit tests pass (`npm test`)
 - [ ] Integration tests pass
 - [ ] Load tests meet performance targets
@@ -192,6 +202,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
   - [ ] Disk spillover activates at threshold
 
 ### Performance Targets
+
 - [ ] ✅ 33Hz event ingestion without drops
 - [ ] ✅ < 1ms event insertion latency
 - [ ] ✅ < 100ms query response for 10k events
@@ -201,6 +212,7 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
 - [ ] ✅ Graceful degradation under pressure
 
 ### Production Readiness
+
 - [ ] Error recovery tested
 - [ ] Configuration validation working
 - [ ] Health monitoring available

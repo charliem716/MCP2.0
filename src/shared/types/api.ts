@@ -3,7 +3,12 @@
  */
 
 import type { ID, Timestamp, HttpStatus, HttpMethod } from './common.js';
-import type { QSysComponent, QSysControl, QSysSnapshot, QSysCoreStatus } from './qsys.js';
+import type {
+  QSysComponent,
+  QSysControl,
+  QSysSnapshot,
+  QSysCoreStatus,
+} from './qsys.js';
 import type { OpenAIChatMessage } from './openai.js';
 
 /**
@@ -367,7 +372,9 @@ export interface APIRoute {
   path: string;
   method: HttpMethod;
   handler: (req: unknown, res: unknown, next: unknown) => Promise<void>;
-  middleware?: Array<(req: unknown, res: unknown, next: unknown) => Promise<void>>;
+  middleware?: Array<
+    (req: unknown, res: unknown, next: unknown) => Promise<void>
+  >;
   auth?: boolean;
   rateLimit?: RateLimitOptions;
   validation?: {
@@ -441,4 +448,4 @@ export interface OpenAPISpec {
     name: string;
     description?: string;
   }>;
-} 
+}

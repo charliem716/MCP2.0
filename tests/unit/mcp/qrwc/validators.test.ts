@@ -2,12 +2,12 @@
  * Tests for Q-SYS validators
  */
 
-import { 
-  validateControlValue, 
-  validateComponentName, 
+import {
+  validateControlValue,
+  validateComponentName,
   validateControlId,
   isQSYSError,
-  isRetryableError
+  isRetryableError,
 } from '../../../../src/mcp/qrwc/validators';
 
 describe('Q-SYS Validators', () => {
@@ -31,8 +31,14 @@ describe('Q-SYS Validators', () => {
       });
 
       it('should accept 0 and 1 directly', () => {
-        expect(validateControlValue('test.bool', 1, booleanInfo)).toEqual({ valid: true, value: 1 });
-        expect(validateControlValue('test.bool', 0, booleanInfo)).toEqual({ valid: true, value: 0 });
+        expect(validateControlValue('test.bool', 1, booleanInfo)).toEqual({
+          valid: true,
+          value: 1,
+        });
+        expect(validateControlValue('test.bool', 0, booleanInfo)).toEqual({
+          valid: true,
+          value: 0,
+        });
       });
 
       it('should convert string "true" to 1', () => {
@@ -46,7 +52,11 @@ describe('Q-SYS Validators', () => {
       });
 
       it('should reject invalid boolean values', () => {
-        const result = validateControlValue('test.bool', 'invalid', booleanInfo);
+        const result = validateControlValue(
+          'test.bool',
+          'invalid',
+          booleanInfo
+        );
         expect(result.valid).toBe(false);
         expect(result.error).toContain('Boolean control expects');
       });
@@ -78,7 +88,11 @@ describe('Q-SYS Validators', () => {
       });
 
       it('should reject non-numeric values', () => {
-        const result = validateControlValue('test.num', 'not a number', numberInfo);
+        const result = validateControlValue(
+          'test.num',
+          'not a number',
+          numberInfo
+        );
         expect(result.valid).toBe(false);
         expect(result.error).toContain('expects a number');
       });
@@ -98,13 +112,21 @@ describe('Q-SYS Validators', () => {
       });
 
       it('should reject strings that are too long', () => {
-        const result = validateControlValue('test.str', 'this is too long', stringInfo);
+        const result = validateControlValue(
+          'test.str',
+          'this is too long',
+          stringInfo
+        );
         expect(result.valid).toBe(false);
         expect(result.error).toContain('too long');
       });
 
       it('should reject objects', () => {
-        const result = validateControlValue('test.str', { key: 'value' }, stringInfo);
+        const result = validateControlValue(
+          'test.str',
+          { key: 'value' },
+          stringInfo
+        );
         expect(result.valid).toBe(false);
         expect(result.error).toContain('expects text');
       });
@@ -130,7 +152,7 @@ describe('Q-SYS Validators', () => {
       expect(result).toEqual({
         valid: true,
         componentName: 'Gain1',
-        controlName: 'Level'
+        controlName: 'Level',
       });
     });
 
@@ -149,7 +171,9 @@ describe('Q-SYS Validators', () => {
 
     it('should identify retryable error messages', () => {
       expect(isRetryableError({ message: 'Connection timeout' })).toBe(true);
-      expect(isRetryableError({ message: 'temporarily unavailable' })).toBe(true);
+      expect(isRetryableError({ message: 'temporarily unavailable' })).toBe(
+        true
+      );
     });
 
     it('should reject non-retryable errors', () => {

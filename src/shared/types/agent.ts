@@ -3,7 +3,12 @@
  */
 
 import type { ID, Timestamp } from './common.js';
-import type { OpenAIModel, OpenAIVoice, OpenAITool, OpenAIChatMessage } from './openai.js';
+import type {
+  OpenAIModel,
+  OpenAIVoice,
+  OpenAITool,
+  OpenAIChatMessage,
+} from './openai.js';
 import type { MCPToolHandler } from './mcp.js';
 import type { QSysClient } from './qsys.js';
 
@@ -276,47 +281,76 @@ export interface Agent {
   config: AgentConfig;
   context: AgentContext;
   memory: AgentMemory;
-  
+
   // Core functionality
   initialize(): Promise<void>;
   shutdown(): Promise<void>;
-  
+
   // Conversation management
-  startConversation(userId?: ID, sessionId?: ID): Promise<AgentConversationState>;
+  startConversation(
+    userId?: ID,
+    sessionId?: ID
+  ): Promise<AgentConversationState>;
   endConversation(conversationId: ID): Promise<void>;
-  sendMessage(conversationId: ID, message: string, context?: Record<string, unknown>): Promise<AgentResponse>;
-  getConversationHistory(conversationId: ID, limit?: number): Promise<OpenAIChatMessage[]>;
-  
+  sendMessage(
+    conversationId: ID,
+    message: string,
+    context?: Record<string, unknown>
+  ): Promise<AgentResponse>;
+  getConversationHistory(
+    conversationId: ID,
+    limit?: number
+  ): Promise<OpenAIChatMessage[]>;
+
   // Voice capabilities
-  processVoiceInput(audio: ArrayBuffer, conversationId: ID): Promise<AgentResponse>;
+  processVoiceInput(
+    audio: ArrayBuffer,
+    conversationId: ID
+  ): Promise<AgentResponse>;
   synthesizeVoice(text: string, voice?: OpenAIVoice): Promise<ArrayBuffer>;
-  
+
   // Tool management
   registerTool(handler: MCPToolHandler): void;
   unregisterTool(name: string): void;
-  executeTool(name: string, parameters: Record<string, unknown>, context: AgentToolContext): Promise<AgentToolResult>;
-  
+  executeTool(
+    name: string,
+    parameters: Record<string, unknown>,
+    context: AgentToolContext
+  ): Promise<AgentToolResult>;
+
   // Q-SYS integration
   setQSysClient(client: QSysClient): void;
   getQSysStatus(): Promise<SystemState['qsysCore']>;
-  
+
   // Memory and learning
-  updateMemory(conversationId: ID, data: Record<string, unknown>): Promise<void>;
+  updateMemory(
+    conversationId: ID,
+    data: Record<string, unknown>
+  ): Promise<void>;
   getMemory(conversationId: ID): Promise<Record<string, unknown>>;
   learn(data: AgentLearningData): Promise<void>;
-  
+
   // Metrics and monitoring
   getMetrics(): Promise<AgentMetrics>;
   resetMetrics(): Promise<void>;
-  
+
   // Event handling
-  on(event: 'conversation_started', listener: (state: AgentConversationState) => void): void;
+  on(
+    event: 'conversation_started',
+    listener: (state: AgentConversationState) => void
+  ): void;
   on(event: 'conversation_ended', listener: (conversationId: ID) => void): void;
-  on(event: 'message_received', listener: (conversationId: ID, message: string) => void): void;
+  on(
+    event: 'message_received',
+    listener: (conversationId: ID, message: string) => void
+  ): void;
   on(event: 'message_sent', listener: (response: AgentResponse) => void): void;
   on(event: 'tool_executed', listener: (result: AgentToolResult) => void): void;
-  on(event: 'error', listener: (error: Error, context?: Record<string, unknown>) => void): void;
-  
+  on(
+    event: 'error',
+    listener: (error: Error, context?: Record<string, unknown>) => void
+  ): void;
+
   off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
 }
@@ -340,16 +374,22 @@ export interface AgentManager {
   getAgent(id: ID): Agent | undefined;
   removeAgent(id: ID): Promise<void>;
   listAgents(): Agent[];
-  
+
   // Global operations
-  broadcastMessage(message: string, filter?: (agent: Agent) => boolean): Promise<void>;
+  broadcastMessage(
+    message: string,
+    filter?: (agent: Agent) => boolean
+  ): Promise<void>;
   getGlobalMetrics(): Promise<AgentMetrics>;
-  
+
   // Event handling
   on(event: 'agent_created', listener: (agent: Agent) => void): void;
   on(event: 'agent_removed', listener: (agentId: ID) => void): void;
-  on(event: 'global_error', listener: (error: Error, agentId?: ID) => void): void;
-  
+  on(
+    event: 'global_error',
+    listener: (error: Error, agentId?: ID) => void
+  ): void;
+
   off(event: string, listener: (...args: unknown[]) => void): void;
   removeAllListeners(event?: string): void;
-} 
+}

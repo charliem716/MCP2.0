@@ -1,17 +1,17 @@
-import { EventEmitter } from "events";
-import { globalLogger as logger } from "../../shared/utils/logger.js";
-import type { IStateRepository } from "./repository.js";
+import { EventEmitter } from 'events';
+import { globalLogger as logger } from '../../shared/utils/logger.js';
+import type { IStateRepository } from './repository.js';
 
 /**
  * Cache invalidation strategies
  */
 export enum InvalidationStrategy {
-  TTL = 'ttl',                    // Time-based expiration
-  Manual = 'manual',              // Manual invalidation
-  EventDriven = 'event-driven',   // Based on events
+  TTL = 'ttl', // Time-based expiration
+  Manual = 'manual', // Manual invalidation
+  EventDriven = 'event-driven', // Based on events
   PatternBased = 'pattern-based', // Pattern matching
-  Dependency = 'dependency',      // Dependency-based invalidation
-  LRU = 'lru'                    // Least Recently Used eviction
+  Dependency = 'dependency', // Dependency-based invalidation
+  LRU = 'lru', // Least Recently Used eviction
 }
 
 /**
@@ -24,7 +24,7 @@ export enum InvalidationTrigger {
   UserAction = 'user-action',
   DependencyChanged = 'dependency-changed',
   PatternMatch = 'pattern-match',
-  MemoryPressure = 'memory-pressure'
+  MemoryPressure = 'memory-pressure',
 }
 
 /**
@@ -73,12 +73,12 @@ export enum CacheInvalidationEvent {
   RuleRemoved = 'rule:removed',
   RuleTriggered = 'rule:triggered',
   Invalidated = 'invalidated',
-  Error = 'error'
+  Error = 'error',
 }
 
 /**
  * Advanced Cache Invalidation Manager
- * 
+ *
  * Provides sophisticated cache invalidation with:
  * - Multiple invalidation strategies (TTL, manual, event-driven, pattern-based)
  * - Configurable rules and triggers
@@ -106,7 +106,9 @@ export class CacheInvalidationManager extends EventEmitter {
    */
   addRule(rule: InvalidationRule): void {
     if (this.rules.has(rule.id)) {
-      logger.warn('Invalidation rule already exists, updating', { ruleId: rule.id });
+      logger.warn('Invalidation rule already exists, updating', {
+        ruleId: rule.id,
+      });
       this.removeRule(rule.id);
     }
 
@@ -128,11 +130,11 @@ export class CacheInvalidationManager extends EventEmitter {
     }
 
     this.emit(CacheInvalidationEvent.RuleAdded, rule);
-    
+
     logger.debug('Invalidation rule added', {
       ruleId: rule.id,
       strategy: rule.strategy,
-      trigger: rule.trigger
+      trigger: rule.trigger,
     });
   }
 
@@ -166,7 +168,7 @@ export class CacheInvalidationManager extends EventEmitter {
     this.rules.delete(ruleId);
 
     this.emit(CacheInvalidationEvent.RuleRemoved, rule);
-    
+
     logger.debug('Invalidation rule removed', { ruleId });
     return true;
   }
@@ -175,7 +177,7 @@ export class CacheInvalidationManager extends EventEmitter {
    * Trigger invalidation by rule ID
    */
   async triggerRule(
-    ruleId: string, 
+    ruleId: string,
     reason = 'Manual trigger'
   ): Promise<InvalidationResult> {
     const rule = this.rules.get(ruleId);
@@ -190,7 +192,7 @@ export class CacheInvalidationManager extends EventEmitter {
         controlsInvalidated: [],
         successCount: 0,
         errorCount: 0,
-        executionTimeMs: 0
+        executionTimeMs: 0,
       };
     }
 
@@ -201,12 +203,12 @@ export class CacheInvalidationManager extends EventEmitter {
    * Trigger invalidation by pattern
    */
   async invalidateByPattern(
-    pattern: RegExp, 
+    pattern: RegExp,
     reason = 'Pattern match'
   ): Promise<string[]> {
     const allKeys = await this.stateRepository.getKeys();
     const matchingKeys = allKeys.filter(key => pattern.test(key));
-    
+
     if (matchingKeys.length > 0) {
       await this.stateRepository.invalidateStates(matchingKeys);
       this.invalidationCount += matchingKeys.length;
@@ -215,13 +217,13 @@ export class CacheInvalidationManager extends EventEmitter {
         controlNames: matchingKeys,
         trigger: InvalidationTrigger.PatternMatch,
         reason,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       logger.info('Pattern-based invalidation completed', {
         pattern: pattern.toString(),
         invalidated: matchingKeys.length,
-        reason
+        reason,
       });
     }
 
@@ -232,7 +234,7 @@ export class CacheInvalidationManager extends EventEmitter {
    * Trigger invalidation by dependency
    */
   async invalidateByDependency(
-    dependencyName: string, 
+    dependencyName: string,
     reason = 'Dependency changed'
   ): Promise<InvalidationResult[]> {
     const dependentRules = this.dependencyGraph.get(dependencyName);
@@ -241,7 +243,7 @@ export class CacheInvalidationManager extends EventEmitter {
     }
 
     const results: InvalidationResult[] = [];
-    
+
     // Sort rules by priority (highest first)
     const sortedRules = Array.from(dependentRules)
       .map(ruleId => this.rules.get(ruleId)!)
@@ -256,7 +258,7 @@ export class CacheInvalidationManager extends EventEmitter {
         logger.error('Failed to execute dependency rule', {
           ruleId: rule.id,
           dependency: dependencyName,
-          error
+          error,
         });
       }
     }
@@ -286,10 +288,10 @@ export class CacheInvalidationManager extends EventEmitter {
     if (!rule) return false;
 
     rule.enabled = enabled;
-    
+
     logger.debug('Invalidation rule enabled state changed', {
       ruleId,
-      enabled
+      enabled,
     });
 
     return true;
@@ -301,10 +303,10 @@ export class CacheInvalidationManager extends EventEmitter {
   getStatistics() {
     const enabledRules = Array.from(this.rules.values()).filter(r => r.enabled);
     const strategyCount = new Map<InvalidationStrategy, number>();
-    
+
     for (const rule of enabledRules) {
       strategyCount.set(
-        rule.strategy, 
+        rule.strategy,
         (strategyCount.get(rule.strategy) || 0) + 1
       );
     }
@@ -317,7 +319,7 @@ export class CacheInvalidationManager extends EventEmitter {
       strategyBreakdown: Object.fromEntries(strategyCount),
       dependencyCount: this.dependencyGraph.size,
       activeTTLTimers: this.ttlTimers.size,
-      uptimeMs: Date.now() - this.startTime
+      uptimeMs: Date.now() - this.startTime,
     };
   }
 
@@ -334,7 +336,7 @@ export class CacheInvalidationManager extends EventEmitter {
     // Clear data structures
     this.rules.clear();
     this.dependencyGraph.clear();
-    
+
     this.invalidationCount = 0;
 
     logger.debug('Cache invalidation manager cleared');
@@ -355,7 +357,7 @@ export class CacheInvalidationManager extends EventEmitter {
    * Execute an invalidation rule
    */
   private async executeRule(
-    rule: InvalidationRule, 
+    rule: InvalidationRule,
     reason: string
   ): Promise<InvalidationResult> {
     const startTime = Date.now();
@@ -364,7 +366,7 @@ export class CacheInvalidationManager extends EventEmitter {
     this.emit(CacheInvalidationEvent.RuleTriggered, {
       rule,
       reason,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     try {
@@ -374,7 +376,9 @@ export class CacheInvalidationManager extends EventEmitter {
         case InvalidationStrategy.Manual:
         case InvalidationStrategy.EventDriven:
           if (rule.pattern) {
-            controlsToInvalidate = await this.getControlsByPattern(rule.pattern);
+            controlsToInvalidate = await this.getControlsByPattern(
+              rule.pattern
+            );
           } else {
             // Invalidate all if no pattern specified
             controlsToInvalidate = await this.stateRepository.getKeys();
@@ -383,7 +387,9 @@ export class CacheInvalidationManager extends EventEmitter {
 
         case InvalidationStrategy.PatternBased:
           if (!rule.pattern) {
-            throw new Error(`Pattern required for pattern-based rule: ${rule.id}`);
+            throw new Error(
+              `Pattern required for pattern-based rule: ${rule.id}`
+            );
           }
           controlsToInvalidate = await this.getControlsByPattern(rule.pattern);
           break;
@@ -400,7 +406,9 @@ export class CacheInvalidationManager extends EventEmitter {
           break;
 
         default:
-          throw new Error(`Unsupported invalidation strategy: ${rule.strategy}`);
+          throw new Error(
+            `Unsupported invalidation strategy: ${rule.strategy}`
+          );
       }
 
       // Execute invalidation
@@ -414,7 +422,7 @@ export class CacheInvalidationManager extends EventEmitter {
         controlsInvalidated: controlsToInvalidate,
         successCount: controlsToInvalidate.length,
         errorCount: 0,
-        executionTimeMs: Date.now() - startTime
+        executionTimeMs: Date.now() - startTime,
       };
 
       this.emit(CacheInvalidationEvent.Invalidated, {
@@ -422,18 +430,17 @@ export class CacheInvalidationManager extends EventEmitter {
         controlNames: controlsToInvalidate,
         trigger: rule.trigger,
         timestamp: new Date(),
-        reason
+        reason,
       } as InvalidationEvent);
 
       logger.debug('Invalidation rule executed successfully', {
         ruleId: rule.id,
         invalidated: controlsToInvalidate.length,
         executionTimeMs: result.executionTimeMs,
-        reason
+        reason,
       });
 
       return result;
-
     } catch (error) {
       const result: InvalidationResult = {
         ruleId: rule.id,
@@ -441,19 +448,19 @@ export class CacheInvalidationManager extends EventEmitter {
         successCount: 0,
         errorCount: 1,
         executionTimeMs: Date.now() - startTime,
-        errors: [error instanceof Error ? error.message : String(error)]
+        errors: [error instanceof Error ? error.message : String(error)],
       };
 
       this.emit(CacheInvalidationEvent.Error, {
         error,
         rule,
-        reason
+        reason,
       });
 
       logger.error('Invalidation rule execution failed', {
         ruleId: rule.id,
         error: error instanceof Error ? error.message : String(error),
-        reason
+        reason,
       });
 
       return result;
@@ -479,7 +486,7 @@ export class CacheInvalidationManager extends EventEmitter {
       void (async () => {
         try {
           await this.triggerRule(rule.id, 'TTL expired');
-          
+
           // Reschedule if rule is still enabled
           if (rule.enabled && this.rules.has(rule.id)) {
             this.setupTTLTimer(rule);
@@ -487,7 +494,7 @@ export class CacheInvalidationManager extends EventEmitter {
         } catch (error) {
           logger.error('TTL rule execution failed', {
             ruleId: rule.id,
-            error
+            error,
           });
         }
       })();
@@ -495,4 +502,4 @@ export class CacheInvalidationManager extends EventEmitter {
 
     this.ttlTimers.set(rule.id, timer);
   }
-} 
+}

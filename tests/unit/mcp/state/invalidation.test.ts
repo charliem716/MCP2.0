@@ -1,12 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { 
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  jest,
+} from '@jest/globals';
+import {
   CacheInvalidationManager,
   InvalidationStrategy,
   InvalidationTrigger,
   CacheInvalidationEvent,
   type InvalidationRule,
   type InvalidationEvent,
-  type InvalidationResult
+  type InvalidationResult,
 } from '../../../../src/mcp/state/invalidation.js';
 import { EventEmitter } from 'events';
 import type { IStateRepository } from '../../../../src/mcp/state/repository.js';
@@ -30,7 +37,7 @@ class MockStateRepository extends EventEmitter implements IStateRepository {
     evictionCount: 0,
     memoryUsage: 0,
     hitRatio: 0,
-    uptime: 0
+    uptime: 0,
   });
   createChangeGroup = jest.fn();
   getChangeGroup = jest.fn().mockResolvedValue(null);
@@ -77,7 +84,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.TimeExpired,
         ttlMs: 60000,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       const ruleAddedListener = jest.fn();
@@ -96,12 +103,14 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
-      
-      expect(() => manager.addRule(rule)).toThrow('Rule with ID rule1 already exists');
+
+      expect(() => manager.addRule(rule)).toThrow(
+        'Rule with ID rule1 already exists'
+      );
     });
 
     it('should start TTL timer for TTL-based rules', () => {
@@ -112,7 +121,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.TimeExpired,
         ttlMs: 5000,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       mockRepository.getKeys.mockResolvedValue(['control1', 'control2']);
@@ -134,7 +143,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.PatternMatch,
         pattern: /^mixer\./,
         enabled: true,
-        priority: 2
+        priority: 2,
       };
 
       manager.addRule(rule);
@@ -149,7 +158,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.DependencyChanged,
         dependencies: ['control1', 'control2'],
         enabled: true,
-        priority: 3
+        priority: 3,
       };
 
       manager.addRule(rule);
@@ -165,7 +174,7 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       const ruleRemovedListener = jest.fn();
@@ -187,7 +196,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.TimeExpired,
         ttlMs: 5000,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
@@ -212,26 +221,32 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       const triggeredListener = jest.fn();
       const invalidatedListener = jest.fn();
-      
+
       manager.on(CacheInvalidationEvent.RuleTriggered, triggeredListener);
       manager.on(CacheInvalidationEvent.Invalidated, invalidatedListener);
 
       manager.addRule(rule);
-      
+
       const controlNames = ['control1', 'control2'];
-      const result = await manager.triggerRule('manual-rule', controlNames, 'User requested');
+      const result = await manager.triggerRule(
+        'manual-rule',
+        controlNames,
+        'User requested'
+      );
 
       expect(result).toBeDefined();
       expect(result.ruleId).toBe('manual-rule');
       expect(result.controlsInvalidated).toEqual(controlNames);
       expect(result.successCount).toBe(2);
-      
-      expect(mockRepository.invalidateStates).toHaveBeenCalledWith(controlNames);
+
+      expect(mockRepository.invalidateStates).toHaveBeenCalledWith(
+        controlNames
+      );
       expect(triggeredListener).toHaveBeenCalled();
       expect(invalidatedListener).toHaveBeenCalled();
     });
@@ -244,24 +259,28 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.PatternMatch,
         pattern: /^mixer\./,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
-      
+
       mockRepository.getKeys.mockResolvedValue([
         'mixer.gain',
         'mixer.mute',
         'speaker.volume',
-        'mixer.pan'
+        'mixer.pan',
       ]);
 
-      const result = await manager.triggerRule('pattern-rule', [], 'Pattern match');
+      const result = await manager.triggerRule(
+        'pattern-rule',
+        [],
+        'Pattern match'
+      );
 
       expect(mockRepository.invalidateStates).toHaveBeenCalledWith([
         'mixer.gain',
         'mixer.mute',
-        'mixer.pan'
+        'mixer.pan',
       ]);
       expect(result.controlsInvalidated).toHaveLength(3);
     });
@@ -273,14 +292,15 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: false,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
-      
-      await expect(manager.triggerRule('disabled-rule', ['control1'], 'Test'))
-        .rejects.toThrow('Rule disabled-rule is not enabled');
-      
+
+      await expect(
+        manager.triggerRule('disabled-rule', ['control1'], 'Test')
+      ).rejects.toThrow('Rule disabled-rule is not enabled');
+
       expect(mockRepository.invalidateStates).not.toHaveBeenCalled();
     });
 
@@ -291,17 +311,23 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       const errorListener = jest.fn();
       manager.on(CacheInvalidationEvent.Error, errorListener);
 
       manager.addRule(rule);
-      
-      mockRepository.invalidateStates.mockRejectedValueOnce(new Error('Invalidation failed'));
 
-      const result = await manager.triggerRule('error-rule', ['control1'], 'Test');
+      mockRepository.invalidateStates.mockRejectedValueOnce(
+        new Error('Invalidation failed')
+      );
+
+      const result = await manager.triggerRule(
+        'error-rule',
+        ['control1'],
+        'Test'
+      );
 
       expect(result.errorCount).toBe(1);
       expect(result.errors).toContain('Invalidation failed');
@@ -318,7 +344,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.DependencyChanged,
         dependencies: ['master.gain'],
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       const rule2: InvalidationRule = {
@@ -328,10 +354,13 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.DependencyChanged,
         dependencies: ['master.gain', 'master.mute'],
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
-      mockRepository.getKeys.mockResolvedValue(['channel1.gain', 'channel2.gain']);
+      mockRepository.getKeys.mockResolvedValue([
+        'channel1.gain',
+        'channel2.gain',
+      ]);
 
       manager.addRule(rule1);
       manager.addRule(rule2);
@@ -350,7 +379,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.DependencyChanged,
         dependencies: ['control2'],
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       const rule2: InvalidationRule = {
@@ -360,7 +389,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.DependencyChanged,
         dependencies: ['control1'],
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       mockRepository.getKeys.mockResolvedValue(['control1', 'control2']);
@@ -385,7 +414,7 @@ describe('CacheInvalidationManager', () => {
           strategy: InvalidationStrategy.Manual,
           trigger: InvalidationTrigger.UserAction,
           enabled: true,
-          priority: 1
+          priority: 1,
         },
         {
           id: 'rule2',
@@ -394,8 +423,8 @@ describe('CacheInvalidationManager', () => {
           trigger: InvalidationTrigger.TimeExpired,
           ttlMs: 5000,
           enabled: true,
-          priority: 2
-        }
+          priority: 2,
+        },
       ];
 
       rules.forEach(rule => manager.addRule(rule));
@@ -412,7 +441,7 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       const highPriority: InvalidationRule = {
@@ -421,7 +450,7 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 10
+        priority: 10,
       };
 
       manager.addRule(lowPriority);
@@ -441,16 +470,16 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
-      
+
       await manager.triggerRule('test-rule', ['control1'], 'Test');
       await manager.triggerRule('test-rule', ['control2', 'control3'], 'Test');
 
       const stats = manager.getStatistics();
-      
+
       expect(stats.totalInvalidations).toBe(2);
       expect(stats.totalControlsInvalidated).toBe(3);
       expect(stats.ruleCount).toBe(1);
@@ -467,7 +496,7 @@ describe('CacheInvalidationManager', () => {
         trigger: InvalidationTrigger.TimeExpired,
         ttlMs: 5000,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(ttlRule);
@@ -485,7 +514,7 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
@@ -503,13 +532,13 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
-      
+
       const result = await manager.triggerRule('empty-rule', [], 'Empty test');
-      
+
       expect(result.controlsInvalidated).toHaveLength(0);
       expect(result.successCount).toBe(0);
     });
@@ -521,16 +550,25 @@ describe('CacheInvalidationManager', () => {
         strategy: InvalidationStrategy.Manual,
         trigger: InvalidationTrigger.UserAction,
         enabled: true,
-        priority: 1
+        priority: 1,
       };
 
       manager.addRule(rule);
-      
-      const largeControlList = Array.from({ length: 1000 }, (_, i) => `control${i}`);
-      const result = await manager.triggerRule('large-rule', largeControlList, 'Large test');
-      
+
+      const largeControlList = Array.from(
+        { length: 1000 },
+        (_, i) => `control${i}`
+      );
+      const result = await manager.triggerRule(
+        'large-rule',
+        largeControlList,
+        'Large test'
+      );
+
       expect(result.controlsInvalidated).toHaveLength(1000);
-      expect(mockRepository.invalidateStates).toHaveBeenCalledWith(largeControlList);
+      expect(mockRepository.invalidateStates).toHaveBeenCalledWith(
+        largeControlList
+      );
     });
   });
 });

@@ -1,5 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { LRUCache, EvictionPolicy, CacheEvent } from '../../../../src/mcp/state/lru-cache.js';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  jest,
+} from '@jest/globals';
+import {
+  LRUCache,
+  EvictionPolicy,
+  CacheEvent,
+} from '../../../../src/mcp/state/lru-cache.js';
 
 describe('LRUCache', () => {
   let cache: LRUCache<string, any>;
@@ -18,7 +29,7 @@ describe('LRUCache', () => {
   describe('constructor and initialization', () => {
     it('should create cache with default configuration', () => {
       cache = new LRUCache();
-      
+
       expect(cache.size).toBe(0);
       expect(cache.getStatistics().totalEntries).toBe(0);
       expect(cache.getStatistics().hitCount).toBe(0);
@@ -27,24 +38,24 @@ describe('LRUCache', () => {
 
     it('should create cache with custom configuration', () => {
       cache = new LRUCache(
-        100,        // maxEntries
-        60000,      // ttlMs (1 minute)
-        10485760,   // maxMemoryBytes (10MB)
+        100, // maxEntries
+        60000, // ttlMs (1 minute)
+        10485760, // maxMemoryBytes (10MB)
         EvictionPolicy.LRU,
-        30000       // cleanupIntervalMs (30 seconds)
+        30000 // cleanupIntervalMs (30 seconds)
       );
-      
+
       expect(cache.size).toBe(0);
     });
 
     it('should start cleanup timer', () => {
       cache = new LRUCache(100, 60000, 10485760, EvictionPolicy.LRU, 30000);
-      
+
       const spy = jest.spyOn(cache, 'removeExpired');
-      
+
       // Fast-forward time by cleanup interval
       jest.advanceTimersByTime(30000);
-      
+
       expect(spy).toHaveBeenCalled();
     });
   });
@@ -56,7 +67,7 @@ describe('LRUCache', () => {
 
     it('should set and get values', () => {
       const result = cache.set('key1', 'value1');
-      
+
       expect(result).toBe(true);
       expect(cache.get('key1')).toBe('value1');
       expect(cache.size).toBe(1);
@@ -69,19 +80,19 @@ describe('LRUCache', () => {
     it('should update existing values', () => {
       cache.set('key1', 'value1');
       cache.set('key1', 'value2');
-      
+
       expect(cache.get('key1')).toBe('value2');
       expect(cache.size).toBe(1);
     });
 
     it('should track hit and miss statistics', () => {
       cache.set('key1', 'value1');
-      
+
       // Hit
       cache.get('key1');
       // Miss
       cache.get('nonexistent');
-      
+
       const stats = cache.getStatistics();
       expect(stats.hitCount).toBe(1);
       expect(stats.missCount).toBe(1);
@@ -92,15 +103,15 @@ describe('LRUCache', () => {
       const hitListener = jest.fn();
       const missListener = jest.fn();
       const setListener = jest.fn();
-      
+
       cache.on(CacheEvent.Hit, hitListener);
       cache.on(CacheEvent.Miss, missListener);
       cache.on(CacheEvent.Set, setListener);
-      
+
       cache.set('key1', 'value1');
       cache.get('key1');
       cache.get('nonexistent');
-      
+
       expect(setListener).toHaveBeenCalledWith('key1', 'value1', true);
       expect(hitListener).toHaveBeenCalledWith('key1', 'value1');
       expect(missListener).toHaveBeenCalledWith('nonexistent');
@@ -116,10 +127,10 @@ describe('LRUCache', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // key1 is now the least recently used
       cache.set('key4', 'value4');
-      
+
       expect(cache.has('key1')).toBe(false);
       expect(cache.has('key2')).toBe(true);
       expect(cache.has('key3')).toBe(true);
@@ -131,13 +142,13 @@ describe('LRUCache', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // Access key1, making it most recently used
       cache.get('key1');
-      
+
       // Now key2 is least recently used
       cache.set('key4', 'value4');
-      
+
       expect(cache.has('key1')).toBe(true);
       expect(cache.has('key2')).toBe(false);
       expect(cache.has('key3')).toBe(true);
@@ -148,13 +159,13 @@ describe('LRUCache', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // Update key1, making it most recently used
       cache.set('key1', 'updated');
-      
+
       // Now key2 is least recently used
       cache.set('key4', 'value4');
-      
+
       expect(cache.get('key1')).toBe('updated');
       expect(cache.has('key2')).toBe(false);
       expect(cache.has('key3')).toBe(true);
@@ -164,13 +175,17 @@ describe('LRUCache', () => {
     it('should emit eviction event', () => {
       const evictListener = jest.fn();
       cache.on(CacheEvent.Evict, evictListener);
-      
+
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
       cache.set('key4', 'value4'); // Should evict key1
-      
-      expect(evictListener).toHaveBeenCalledWith('key1', 'value1', EvictionPolicy.LRU);
+
+      expect(evictListener).toHaveBeenCalledWith(
+        'key1',
+        'value1',
+        EvictionPolicy.LRU
+      );
     });
 
     it('should track eviction count', () => {
@@ -179,7 +194,7 @@ describe('LRUCache', () => {
       cache.set('key3', 'value3');
       cache.set('key4', 'value4');
       cache.set('key5', 'value5');
-      
+
       const stats = cache.getStatistics();
       expect(stats.evictionCount).toBe(2);
     });
@@ -192,36 +207,36 @@ describe('LRUCache', () => {
 
     it('should return expired values as null', () => {
       cache.set('key1', 'value1');
-      
+
       expect(cache.get('key1')).toBe('value1');
-      
+
       // Advance time past TTL
       jest.advanceTimersByTime(1500);
-      
+
       expect(cache.get('key1')).toBeNull();
     });
 
     it('should not include expired items in has()', () => {
       cache.set('key1', 'value1');
-      
+
       expect(cache.has('key1')).toBe(true);
-      
+
       jest.advanceTimersByTime(1500);
-      
+
       expect(cache.has('key1')).toBe(false);
     });
 
     it('should remove expired items during cleanup', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
-      
+
       jest.advanceTimersByTime(500);
       cache.set('key3', 'value3'); // This one won't be expired
-      
+
       jest.advanceTimersByTime(600); // key1 and key2 are now expired
-      
+
       const removed = cache.removeExpired();
-      
+
       expect(removed).toBe(2);
       expect(cache.has('key1')).toBe(false);
       expect(cache.has('key2')).toBe(false);
@@ -231,12 +246,12 @@ describe('LRUCache', () => {
     it('should emit expire event', () => {
       const expireListener = jest.fn();
       cache.on(CacheEvent.Expire, expireListener);
-      
+
       cache.set('key1', 'value1');
-      
+
       jest.advanceTimersByTime(1500);
       cache.removeExpired();
-      
+
       expect(expireListener).toHaveBeenCalledWith('key1');
     });
 
@@ -253,7 +268,7 @@ describe('LRUCache', () => {
 
     it('should track memory usage', () => {
       cache.set('key1', 'a'.repeat(100));
-      
+
       const stats = cache.getStatistics();
       expect(stats.memoryUsage).toBeGreaterThan(200); // String + overhead
     });
@@ -261,18 +276,18 @@ describe('LRUCache', () => {
     it('should evict based on memory limit', () => {
       const evictListener = jest.fn();
       cache.on(CacheEvent.Evict, evictListener);
-      
+
       // Each string is ~200 bytes + overhead
       cache.set('key1', 'a'.repeat(100));
       cache.set('key2', 'b'.repeat(100));
       cache.set('key3', 'c'.repeat(100));
       cache.set('key4', 'd'.repeat(100));
       cache.set('key5', 'e'.repeat(100));
-      
+
       // Should have evicted some entries due to memory limit
       expect(evictListener).toHaveBeenCalled();
       expect(cache.size).toBeLessThan(5);
-      
+
       const stats = cache.getStatistics();
       expect(stats.memoryUsage).toBeLessThanOrEqual(1024);
     });
@@ -280,14 +295,14 @@ describe('LRUCache', () => {
     it('should refuse to add if item is too large', () => {
       const largeValue = 'x'.repeat(1000); // Much larger than 1KB limit
       const result = cache.set('large', largeValue);
-      
+
       expect(result).toBe(false);
       expect(cache.has('large')).toBe(false);
     });
 
     it('should calculate memory for different value types', () => {
       cache = new LRUCache<string, any>(100, 60000, 10000); // 10KB limit
-      
+
       cache.set('string', 'test string');
       cache.set('number', 42);
       cache.set('boolean', true);
@@ -295,7 +310,7 @@ describe('LRUCache', () => {
       cache.set('date', new Date());
       cache.set('null', null);
       cache.set('undefined', undefined);
-      
+
       const stats = cache.getStatistics();
       expect(stats.memoryUsage).toBeGreaterThan(0);
       expect(cache.size).toBe(7);
@@ -309,9 +324,9 @@ describe('LRUCache', () => {
 
     it('should delete existing keys', () => {
       cache.set('key1', 'value1');
-      
+
       const result = cache.delete('key1');
-      
+
       expect(result).toBe(true);
       expect(cache.has('key1')).toBe(false);
       expect(cache.size).toBe(0);
@@ -325,10 +340,10 @@ describe('LRUCache', () => {
     it('should emit evict event on delete', () => {
       const evictListener = jest.fn();
       cache.on(CacheEvent.Evict, evictListener);
-      
+
       cache.set('key1', 'value1');
       cache.delete('key1');
-      
+
       expect(evictListener).toHaveBeenCalledWith('key1', 'value1', 'manual');
     });
 
@@ -336,9 +351,9 @@ describe('LRUCache', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       cache.clear();
-      
+
       expect(cache.size).toBe(0);
       expect(cache.has('key1')).toBe(false);
       expect(cache.has('key2')).toBe(false);
@@ -348,12 +363,12 @@ describe('LRUCache', () => {
     it('should emit clear event', () => {
       const clearListener = jest.fn();
       cache.on(CacheEvent.Clear, clearListener);
-      
+
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
-      
+
       cache.clear();
-      
+
       expect(clearListener).toHaveBeenCalledWith(2);
     });
 
@@ -361,9 +376,9 @@ describe('LRUCache', () => {
       cache.set('key1', 'value1');
       cache.get('key1');
       cache.get('nonexistent');
-      
+
       cache.clear();
-      
+
       const stats = cache.getStatistics();
       expect(stats.totalEntries).toBe(0);
       expect(stats.memoryUsage).toBe(0);
@@ -382,10 +397,10 @@ describe('LRUCache', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // Access key1 to make it most recent
       cache.get('key1');
-      
+
       const keys = cache.keys();
       expect(keys).toEqual(['key1', 'key3', 'key2']);
     });
@@ -394,37 +409,37 @@ describe('LRUCache', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       // Access key2 to change order
       cache.get('key2');
-      
+
       const values = cache.values();
       expect(values).toEqual(['value2', 'value3', 'value1']);
     });
 
     it('should exclude expired items from keys', () => {
       cache = new LRUCache<string, any>(10, 1000);
-      
+
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
-      
+
       jest.advanceTimersByTime(1500);
-      
+
       cache.set('key3', 'value3'); // Not expired
-      
+
       const keys = cache.keys();
       expect(keys).toEqual(['key3']);
     });
 
     it('should exclude expired items from values', () => {
       cache = new LRUCache<string, any>(10, 1000);
-      
+
       cache.set('key1', 'value1');
-      
+
       jest.advanceTimersByTime(1500);
-      
+
       cache.set('key2', 'value2'); // Not expired
-      
+
       const values = cache.values();
       expect(values).toEqual(['value2']);
     });
@@ -445,9 +460,9 @@ describe('LRUCache', () => {
       cache.set('key2', 'value2');
       cache.get('key1'); // hit
       cache.get('key3'); // miss
-      
+
       const stats = cache.getStatistics();
-      
+
       expect(stats.totalEntries).toBe(2);
       expect(stats.hitCount).toBe(1);
       expect(stats.missCount).toBe(1);
@@ -459,7 +474,7 @@ describe('LRUCache', () => {
 
     it('should handle zero hit ratio', () => {
       cache.get('nonexistent'); // Only misses
-      
+
       const stats = cache.getStatistics();
       expect(stats.hitRatio).toBe(0);
     });
@@ -472,17 +487,23 @@ describe('LRUCache', () => {
 
   describe('shutdown and cleanup', () => {
     beforeEach(() => {
-      cache = new LRUCache<string, any>(10, 1000, 1024, EvictionPolicy.LRU, 5000);
+      cache = new LRUCache<string, any>(
+        10,
+        1000,
+        1024,
+        EvictionPolicy.LRU,
+        5000
+      );
     });
 
     it('should stop cleanup timer on shutdown', () => {
       const spy = jest.spyOn(cache, 'removeExpired');
-      
+
       cache.shutdown();
-      
+
       // Advance time past cleanup interval
       jest.advanceTimersByTime(10000);
-      
+
       // removeExpired should not be called after shutdown
       expect(spy).not.toHaveBeenCalled();
     });
@@ -490,34 +511,34 @@ describe('LRUCache', () => {
     it('should clear cache on shutdown', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
-      
+
       cache.shutdown();
-      
+
       expect(cache.size).toBe(0);
     });
 
     it('should remove all listeners on shutdown', () => {
       const listener = jest.fn();
       cache.on(CacheEvent.Hit, listener);
-      
+
       cache.shutdown();
       cache.emit(CacheEvent.Hit, 'key', 'value');
-      
+
       expect(listener).not.toHaveBeenCalled();
     });
 
     it('should handle errors during cleanup', () => {
       const errorListener = jest.fn();
       cache.on('error', errorListener);
-      
+
       // Mock removeExpired to throw an error
       jest.spyOn(cache, 'removeExpired').mockImplementation(() => {
         throw new Error('Cleanup error');
       });
-      
+
       // Trigger cleanup
       jest.advanceTimersByTime(5000);
-      
+
       expect(errorListener).toHaveBeenCalledWith(expect.any(Error));
     });
   });
@@ -531,7 +552,7 @@ describe('LRUCache', () => {
       for (let i = 0; i < 10; i++) {
         cache.set('key', `value${i}`);
       }
-      
+
       expect(cache.size).toBe(1);
       expect(cache.get('key')).toBe('value9');
     });
@@ -541,7 +562,7 @@ describe('LRUCache', () => {
       cache.set('key2', 'same');
       cache.set('key3', 'same');
       cache.set('key4', 'same'); // Should evict key1
-      
+
       expect(cache.has('key1')).toBe(false);
       expect(cache.get('key2')).toBe('same');
       expect(cache.get('key3')).toBe('same');
@@ -550,7 +571,7 @@ describe('LRUCache', () => {
 
     it('should handle rapid get/set operations', () => {
       const operations = 1000;
-      
+
       for (let i = 0; i < operations; i++) {
         const key = `key${i % 5}`; // Cycle through 5 keys
         if (i % 2 === 0) {
@@ -559,7 +580,7 @@ describe('LRUCache', () => {
           cache.get(key);
         }
       }
-      
+
       expect(cache.size).toBeLessThanOrEqual(3);
       const stats = cache.getStatistics();
       expect(stats.hitCount + stats.missCount).toBeGreaterThan(0);
@@ -570,12 +591,12 @@ describe('LRUCache', () => {
       for (let i = 0; i < 10; i++) {
         cache.set(`key${i}`, `value${i}`);
       }
-      
+
       // Random operations
       for (let i = 0; i < 100; i++) {
         const op = Math.random();
         const key = `key${Math.floor(Math.random() * 20)}`;
-        
+
         if (op < 0.4) {
           cache.get(key);
         } else if (op < 0.8) {
@@ -586,12 +607,12 @@ describe('LRUCache', () => {
           cache.has(key);
         }
       }
-      
+
       // Verify invariants
       expect(cache.size).toBeLessThanOrEqual(3);
       expect(cache.keys().length).toBe(cache.size);
       expect(cache.values().length).toBe(cache.size);
-      
+
       const stats = cache.getStatistics();
       expect(stats.totalEntries).toBe(cache.size);
       expect(stats.memoryUsage).toBeGreaterThanOrEqual(0);

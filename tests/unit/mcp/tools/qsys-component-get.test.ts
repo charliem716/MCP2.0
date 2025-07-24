@@ -15,13 +15,13 @@ describe('GetComponentControlsTool', () => {
     // Mock QRWC client
     mockQrwcClient = {
       sendCommand: jest.fn(),
-      isConnected: jest.fn().mockReturnValue(true)
+      isConnected: jest.fn().mockReturnValue(true),
     };
 
     // Mock context
     mockContext = {
       userId: 'test-user',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     tool = new GetComponentControlsTool(mockQrwcClient);
@@ -29,7 +29,9 @@ describe('GetComponentControlsTool', () => {
 
   it('should have correct tool name and description', () => {
     expect(tool.name).toBe('qsys_component_get');
-    expect(tool.description).toBe('Get specific control values from a named component');
+    expect(tool.description).toBe(
+      'Get specific control values from a named component'
+    );
   });
 
   it('should successfully get component controls', async () => {
@@ -42,39 +44,36 @@ describe('GetComponentControlsTool', () => {
             Name: 'ent.xfade.gain',
             Value: -10.5,
             String: '-10.5dB',
-            Position: 0.5
+            Position: 0.5,
           },
           {
             Name: 'bgm.xfade.gain',
             Value: -5.0,
             String: '-5.0dB',
-            Position: 0.75
-          }
-        ]
-      }
+            Position: 0.75,
+          },
+        ],
+      },
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
     const params = {
       component: 'My APM',
-      controls: ['ent.xfade.gain', 'bgm.xfade.gain']
+      controls: ['ent.xfade.gain', 'bgm.xfade.gain'],
     };
 
     const result = await tool.execute(params, mockContext);
 
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.Get', {
       Name: 'My APM',
-      Controls: [
-        { Name: 'ent.xfade.gain' },
-        { Name: 'bgm.xfade.gain' }
-      ]
+      Controls: [{ Name: 'ent.xfade.gain' }, { Name: 'bgm.xfade.gain' }],
     });
 
     expect(result.isError).toBe(false);
     expect(result.content).toHaveLength(1);
     expect(result.content[0].type).toBe('text');
-    
+
     const responseData = JSON.parse(result.content[0].text);
     expect(responseData.component).toBe('My APM');
     expect(responseData.controls).toHaveLength(2);
@@ -83,7 +82,7 @@ describe('GetComponentControlsTool', () => {
       value: -10.5,
       string: '-10.5dB',
       position: 0.5,
-      error: undefined
+      error: undefined,
     });
   });
 
@@ -97,24 +96,24 @@ describe('GetComponentControlsTool', () => {
             Name: 'valid.control',
             Value: 0,
             String: '0dB',
-            Position: 0.5
+            Position: 0.5,
           },
           {
             Name: 'invalid.control',
             Value: null,
             String: 'N/A',
             Position: 0,
-            Error: 'Control not found'
-          }
-        ]
-      }
+            Error: 'Control not found',
+          },
+        ],
+      },
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
     const params = {
       component: 'My APM',
-      controls: ['valid.control', 'invalid.control']
+      controls: ['valid.control', 'invalid.control'],
     };
 
     const result = await tool.execute(params, mockContext);
@@ -131,36 +130,38 @@ describe('GetComponentControlsTool', () => {
 
     const params = {
       component: 'NonExistent',
-      controls: ['some.control']
+      controls: ['some.control'],
     };
 
     const result = await tool.execute(params, mockContext);
-    
+
     expect(result.isError).toBe(true);
     expect(result.content[0].type).toBe('text');
     const errorResponse = JSON.parse(result.content[0].text);
     expect(errorResponse.error).toBe(true);
-    expect(errorResponse.message).toContain("Component 'NonExistent' not found");
+    expect(errorResponse.message).toContain(
+      "Component 'NonExistent' not found"
+    );
   });
 
   it('should handle invalid response format', async () => {
     // Mock invalid response (missing Controls)
     const mockResponse = {
       result: {
-        Name: 'My APM'
+        Name: 'My APM',
         // Missing Controls array
-      }
+      },
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
     const params = {
       component: 'My APM',
-      controls: ['some.control']
+      controls: ['some.control'],
     };
 
     const result = await tool.execute(params, mockContext);
-    
+
     expect(result.isError).toBe(true);
     const errorResponse = JSON.parse(result.content[0].text);
     expect(errorResponse.message).toContain('missing Controls array');
@@ -170,15 +171,15 @@ describe('GetComponentControlsTool', () => {
     const mockResponse = {
       result: {
         Name: 'My APM',
-        Controls: []
-      }
+        Controls: [],
+      },
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
     const params = {
       component: 'My APM',
-      controls: []
+      controls: [],
     };
 
     const result = await tool.execute(params, mockContext);
@@ -202,7 +203,10 @@ describe('GetComponentControlsTool', () => {
     expect(errorResponse.message).toContain('controls: Required');
 
     // Test invalid controls type
-    result = await tool.execute({ component: 'Test', controls: 'not-array' } as any, mockContext);
+    result = await tool.execute(
+      { component: 'Test', controls: 'not-array' } as any,
+      mockContext
+    );
     expect(result.isError).toBe(true);
     errorResponse = JSON.parse(result.content[0].text);
     expect(errorResponse.message).toContain('Expected array');

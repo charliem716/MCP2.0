@@ -2,7 +2,9 @@
 
 ## Executive Summary
 
-This document provides a detailed, phased implementation plan for building a voice and text-controlled Q-SYS demonstration system. The architecture emphasizes modularity, clean code practices, and scalability while maintaining a maximum file size of 500 lines per module.
+This document provides a detailed, phased implementation plan for building a voice and
+text-controlled Q-SYS demonstration system. The architecture emphasizes modularity, clean code
+practices, and scalability while maintaining a maximum file size of 500 lines per module.
 
 ## Architecture Overview
 
@@ -197,6 +199,7 @@ mcp-voice-text-qsys/
 ### Phase 1: Foundation (Week 1)
 
 #### 1.1 Project Setup
+
 - Initialize TypeScript project with strict configuration
 - Set up ESLint with recommended rules
 - Configure Prettier for code formatting
@@ -204,18 +207,21 @@ mcp-voice-text-qsys/
 - Create GitHub repository with CI/CD
 
 #### 1.2 Core Infrastructure
+
 - Implement logger utility with Winston
 - Set up environment configuration
 - Create TypeScript type definitions
 - Implement error handling framework
 
 #### 1.3 QRWC Client
+
 - WebSocket connection management
 - QRC command implementation
 - Connection retry logic
 - Event-based architecture
 
 **Deliverables:**
+
 - Working project structure
 - QRWC client that can connect to Q-SYS Core
 - Basic logging and error handling
@@ -223,12 +229,14 @@ mcp-voice-text-qsys/
 ### Phase 2: MCP Server (Week 1)
 
 #### 2.1 MCP Protocol Implementation
+
 - stdio transport setup
 - JSON-RPC 2.0 handler
 - Method registry pattern
 - Error response handling
 
 #### 2.2 Q-SYS Tools
+
 - list_components tool
 - list_controls tool
 - get_control_values tool
@@ -236,11 +244,13 @@ mcp-voice-text-qsys/
 - query_core_status tool
 
 #### 2.3 State Management
+
 - Control state caching
 - Change group implementation
 - State synchronization
 
 **Deliverables:**
+
 - Functional MCP server
 - Q-SYS control capabilities
 - State management system
@@ -248,24 +258,28 @@ mcp-voice-text-qsys/
 ### Phase 3: OpenAI Agent Integration (Week 2)
 
 #### 3.1 Agent Setup
+
 - Initialize OpenAI Agents SDK
 - Configure agent with Q-SYS instructions
 - Tool registration system
 - Context management
 
 #### 3.2 Voice Integration
+
 - RealtimeAgent configuration
 - WebRTC audio capture
 - Voice activity detection
 - Audio streaming pipeline
 
 #### 3.3 Text Processing
+
 - Text command parser
 - Intent recognition
 - Response formatting
 - Error recovery
 
 **Deliverables:**
+
 - Working agent that understands Q-SYS commands
 - Voice input processing
 - Text command processing
@@ -273,24 +287,28 @@ mcp-voice-text-qsys/
 ### Phase 4: REST API & Web UI (Week 2)
 
 #### 4.1 REST API Server
+
 - Express.js setup with TypeScript
 - Authentication middleware
 - CORS configuration
 - Route implementation
 
 #### 4.2 API Endpoints
+
 - POST /api/chat/send
 - GET /api/chat/history
 - WebSocket /api/voice
 - SSE /api/events
 
 #### 4.3 Web UI Components
+
 - Status bar component
 - Conversation history
 - Control panel
 - Voice/text input
 
 **Deliverables:**
+
 - Complete REST API
 - Functional web UI
 - Real-time updates via SSE
@@ -298,24 +316,28 @@ mcp-voice-text-qsys/
 ### Phase 5: Integration & Testing (Week 3)
 
 #### 5.1 System Integration
+
 - End-to-end connectivity
 - Performance optimization
 - Error handling refinement
 - Memory leak prevention
 
 #### 5.2 Testing Suite
+
 - Unit tests for all modules
 - Integration tests for API
 - E2E tests for user flows
 - Load testing
 
 #### 5.3 Documentation
+
 - API documentation with OpenAPI
 - Deployment guide
 - User manual
 - Developer documentation
 
 **Deliverables:**
+
 - Fully integrated system
 - Comprehensive test suite
 - Complete documentation
@@ -323,33 +345,36 @@ mcp-voice-text-qsys/
 ## Module Design Patterns
 
 ### 1. Service Pattern
+
 ```typescript
 // services/base.service.ts
 export abstract class BaseService {
   protected logger: Logger;
-  
+
   constructor(protected config: ServiceConfig) {
     this.logger = createLogger(this.constructor.name);
   }
-  
+
   abstract initialize(): Promise<void>;
   abstract shutdown(): Promise<void>;
 }
 ```
 
 ### 2. Command Pattern for Tools
+
 ```typescript
 // agent/tools/base.tool.ts
 export abstract class BaseTool {
   abstract name: string;
   abstract description: string;
   abstract parameters: z.ZodSchema;
-  
+
   abstract execute(params: unknown): Promise<ToolResult>;
 }
 ```
 
 ### 3. Event-Driven Architecture
+
 ```typescript
 // shared/events/emitter.ts
 export class TypedEventEmitter<T> extends EventEmitter {
@@ -359,6 +384,7 @@ export class TypedEventEmitter<T> extends EventEmitter {
 ```
 
 ### 4. Repository Pattern for State
+
 ```typescript
 // mcp/state/repository.ts
 export interface StateRepository<T> {
@@ -406,11 +432,13 @@ export interface StateRepository<T> {
 ## Future Expansion Considerations
 
 ### 1. Multi-Core Support
+
 - Abstract core connection management
 - Load balancing between cores
 - Failover mechanisms
 
 ### 2. Plugin Architecture
+
 ```typescript
 // plugin/interface.ts
 export interface Plugin {
@@ -422,16 +450,19 @@ export interface Plugin {
 ```
 
 ### 3. Advanced UI Features
+
 - Drag-and-drop control arrangement
 - Custom control widgets
 - Real-time visualization
 
 ### 4. Extended Protocol Support
+
 - OSC integration
 - MIDI control
 - DMX lighting control
 
 ### 5. Cloud Integration
+
 - Remote access capabilities
 - Cloud-based logging
 - Analytics dashboard
@@ -465,6 +496,7 @@ export interface Plugin {
 ## Deployment Architecture
 
 ### 1. Docker Containerization
+
 ```dockerfile
 # Multi-stage build for optimization
 FROM node:20-alpine AS builder
@@ -475,11 +507,13 @@ FROM node:20-alpine AS runtime
 ```
 
 ### 2. Environment Configuration
+
 - Development: Local with hot reload
 - Staging: Docker Compose
 - Production: Kubernetes ready
 
 ### 3. Monitoring & Logging
+
 - Structured logging with Winston
 - Metrics collection with Prometheus
 - Distributed tracing ready
@@ -524,22 +558,22 @@ export class QRWCClient extends TypedEventEmitter<QRWCEvents> {
   private ws?: WebSocket;
   private reconnectTimer?: NodeJS.Timeout;
   private changeGroups = new Map<string, ChangeGroup>();
-  
+
   constructor(
     private config: QRWCConfig,
     private logger: Logger
   ) {
     super();
   }
-  
+
   async connect(): Promise<void> {
     const url = `ws://${this.config.host}:${this.config.port || 443}`;
     this.ws = new WebSocket(url);
-    
+
     this.ws.on('open', () => this.handleOpen());
-    this.ws.on('message', (data) => this.handleMessage(data));
+    this.ws.on('message', data => this.handleMessage(data));
     this.ws.on('close', () => this.handleClose());
-    this.ws.on('error', (err) => this.handleError(err));
+    this.ws.on('error', err => this.handleError(err));
   }
 }
 ```
@@ -551,33 +585,31 @@ export class QRWCClient extends TypedEventEmitter<QRWCEvents> {
 export class SetMixerGainTool extends BaseTool {
   name = 'set_mixer_gain';
   description = 'Set the gain level for a mixer input or output';
-  
+
   parameters = z.object({
     mixer: z.string().describe('Name of the mixer'),
     channel: z.string().describe('Input or output channel (e.g., "1", "1-4", "*")'),
     type: z.enum(['input', 'output']).describe('Channel type'),
     gain: z.number().min(-100).max(20).describe('Gain in dB'),
-    ramp: z.number().optional().describe('Ramp time in seconds')
+    ramp: z.number().optional().describe('Ramp time in seconds'),
   });
-  
+
   async execute(params: z.infer<typeof this.parameters>): Promise<ToolResult> {
-    const command = params.type === 'input' 
-      ? 'Mixer.SetInputGain'
-      : 'Mixer.SetOutputGain';
-      
+    const command = params.type === 'input' ? 'Mixer.SetInputGain' : 'Mixer.SetOutputGain';
+
     const result = await this.qrwc.sendCommand({
       method: command,
       params: {
         Name: params.mixer,
         [params.type === 'input' ? 'Inputs' : 'Outputs']: params.channel,
         Value: params.gain,
-        ...(params.ramp && { Ramp: params.ramp })
-      }
+        ...(params.ramp && { Ramp: params.ramp }),
+      },
     });
-    
+
     return {
       success: true,
-      message: `Set ${params.type} ${params.channel} to ${params.gain}dB`
+      message: `Set ${params.type} ${params.channel} to ${params.gain}dB`,
     };
   }
 }
@@ -589,7 +621,7 @@ export class SetMixerGainTool extends BaseTool {
 // agent/voice/index.ts
 export class VoiceAgentManager {
   private agent: RealtimeAgent;
-  
+
   async initialize(): Promise<void> {
     this.agent = new RealtimeAgent({
       name: 'Q-SYS Control Assistant',
@@ -620,7 +652,7 @@ export class WebRTCAudioCapture {
     this.audioContext = null;
     this.processor = null;
   }
-  
+
   async initialize() {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -628,41 +660,41 @@ export class WebRTCAudioCapture {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 16000
-        }
+          sampleRate: 16000,
+        },
       });
-      
+
       this.audioContext = new AudioContext({ sampleRate: 16000 });
       const source = this.audioContext.createMediaStreamSource(this.stream);
-      
+
       // Create a script processor for real-time processing
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-      
+
       source.connect(this.processor);
       this.processor.connect(this.audioContext.destination);
-      
+
       return true;
     } catch (error) {
       console.error('Failed to initialize audio capture:', error);
       return false;
     }
   }
-  
+
   onAudioData(callback) {
     if (!this.processor) return;
-    
-    this.processor.onaudioprocess = (event) => {
+
+    this.processor.onaudioprocess = event => {
       const inputData = event.inputBuffer.getChannelData(0);
       const pcm16 = this.convertFloat32ToPCM16(inputData);
       callback(pcm16);
     };
   }
-  
+
   convertFloat32ToPCM16(float32Array) {
     const pcm16 = new Int16Array(float32Array.length);
     for (let i = 0; i < float32Array.length; i++) {
       const s = Math.max(-1, Math.min(1, float32Array[i]));
-      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
     return pcm16;
   }
@@ -678,20 +710,20 @@ export default () => ({
   inputText: '',
   isRecording: false,
   audioCapture: null,
-  
+
   async init() {
     // Subscribe to SSE for real-time updates
     this.$watch('messages', () => {
       this.$nextTick(() => this.scrollToBottom());
     });
-    
+
     // Initialize audio capture
     this.audioCapture = new WebRTCAudioCapture();
-    
+
     // Load conversation history
     await this.loadHistory();
   },
-  
+
   async loadHistory() {
     try {
       const response = await fetch('/api/chat/history');
@@ -701,33 +733,33 @@ export default () => ({
       console.error('Failed to load history:', error);
     }
   },
-  
+
   async sendMessage() {
     if (!this.inputText.trim()) return;
-    
+
     const message = {
       role: 'user',
       text: this.inputText,
-      ts: Date.now()
+      ts: Date.now(),
     };
-    
+
     this.messages.push(message);
     this.inputText = '';
-    
+
     try {
       const response = await fetch('/api/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: message.text })
+        body: JSON.stringify({ message: message.text }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to send message');
     } catch (error) {
       console.error('Send message error:', error);
       this.showError('Failed to send message');
     }
   },
-  
+
   async toggleRecording() {
     if (!this.isRecording) {
       const success = await this.audioCapture.initialize();
@@ -735,7 +767,7 @@ export default () => ({
         this.showError('Failed to access microphone');
         return;
       }
-      
+
       this.isRecording = true;
       this.startVoiceStream();
     } else {
@@ -743,11 +775,11 @@ export default () => ({
       this.stopVoiceStream();
     }
   },
-  
+
   scrollToBottom() {
     const container = this.$refs.messagesContainer;
     container.scrollTop = container.scrollHeight;
-  }
+  },
 });
 ```
 
@@ -760,49 +792,51 @@ export class ToolHandler implements MethodHandler {
     private toolRegistry: ToolRegistry,
     private qrwcClient: QRWCClient
   ) {}
-  
+
   async handle(method: string, params: any): Promise<any> {
     switch (method) {
       case 'tools/list':
         return this.listTools();
-        
+
       case 'tools/call':
         return this.callTool(params);
-        
+
       default:
         throw new Error(`Unknown method: ${method}`);
     }
   }
-  
+
   private async listTools(): Promise<ToolListResponse> {
     const tools = this.toolRegistry.getAllTools();
-    
+
     return {
       tools: tools.map(tool => ({
         name: tool.name,
         description: tool.description,
-        inputSchema: zodToJsonSchema(tool.parameters)
-      }))
+        inputSchema: zodToJsonSchema(tool.parameters),
+      })),
     };
   }
-  
+
   private async callTool(params: ToolCallParams): Promise<ToolCallResponse> {
     const tool = this.toolRegistry.getTool(params.name);
     if (!tool) {
       throw new Error(`Tool not found: ${params.name}`);
     }
-    
+
     // Validate parameters
     const validatedParams = tool.parameters.parse(params.arguments);
-    
+
     // Execute tool
     const result = await tool.execute(validatedParams);
-    
+
     return {
-      content: [{
-        type: 'text',
-        text: result.message
-      }]
+      content: [
+        {
+          type: 'text',
+          text: result.message,
+        },
+      ],
     };
   }
 }
@@ -812,33 +846,33 @@ export class ToolHandler implements MethodHandler {
 
 ### Week 1: Foundation & Core Infrastructure
 
-| Day | Tasks | Deliverables |
-|-----|-------|--------------|
-| 1 | • Project setup<br>• TypeScript configuration<br>• Development environment | Working development environment |
-| 2 | • Logger implementation<br>• Error handling framework<br>• Basic types | Core utilities ready |
-| 3 | • QRWC WebSocket client<br>• Connection management<br>• Event handling | Can connect to Q-SYS |
-| 4 | • QRC command implementation<br>• State management basics | Can send/receive QRC commands |
-| 5 | • Testing framework<br>• CI/CD pipeline<br>• Documentation structure | Automated testing ready |
+| Day | Tasks                                                                      | Deliverables                    |
+| --- | -------------------------------------------------------------------------- | ------------------------------- |
+| 1   | • Project setup<br>• TypeScript configuration<br>• Development environment | Working development environment |
+| 2   | • Logger implementation<br>• Error handling framework<br>• Basic types     | Core utilities ready            |
+| 3   | • QRWC WebSocket client<br>• Connection management<br>• Event handling     | Can connect to Q-SYS            |
+| 4   | • QRC command implementation<br>• State management basics                  | Can send/receive QRC commands   |
+| 5   | • Testing framework<br>• CI/CD pipeline<br>• Documentation structure       | Automated testing ready         |
 
 ### Week 2: MCP Server & Agent Integration
 
-| Day | Tasks | Deliverables |
-|-----|-------|--------------|
-| 6 | • MCP server setup<br>• stdio transport<br>• JSON-RPC handler | Basic MCP server running |
-| 7 | • Tool implementation<br>• State synchronization<br>• Change groups | Q-SYS tools working |
-| 8 | • OpenAI Agent setup<br>• Tool registration<br>• Basic instructions | Text commands working |
-| 9 | • Voice integration<br>• RealtimeAgent config<br>• Audio streaming | Voice input working |
-| 10 | • Conversation history<br>• Context management<br>• Error recovery | Complete agent system |
+| Day | Tasks                                                               | Deliverables             |
+| --- | ------------------------------------------------------------------- | ------------------------ |
+| 6   | • MCP server setup<br>• stdio transport<br>• JSON-RPC handler       | Basic MCP server running |
+| 7   | • Tool implementation<br>• State synchronization<br>• Change groups | Q-SYS tools working      |
+| 8   | • OpenAI Agent setup<br>• Tool registration<br>• Basic instructions | Text commands working    |
+| 9   | • Voice integration<br>• RealtimeAgent config<br>• Audio streaming  | Voice input working      |
+| 10  | • Conversation history<br>• Context management<br>• Error recovery  | Complete agent system    |
 
 ### Week 3: API, UI & Integration
 
-| Day | Tasks | Deliverables |
-|-----|-------|--------------|
-| 11 | • Express.js setup<br>• REST API routes<br>• WebSocket handlers | API server running |
-| 12 | • Web UI structure<br>• Alpine.js components<br>• Tailwind styling | Basic UI working |
-| 13 | • WebRTC implementation<br>• SSE integration<br>• Real-time updates | Complete UI features |
-| 14 | • End-to-end testing<br>• Performance optimization<br>• Bug fixes | Integrated system |
-| 15 | • Documentation<br>• Deployment guide<br>• Demo preparation | Ready for demo |
+| Day | Tasks                                                               | Deliverables         |
+| --- | ------------------------------------------------------------------- | -------------------- |
+| 11  | • Express.js setup<br>• REST API routes<br>• WebSocket handlers     | API server running   |
+| 12  | • Web UI structure<br>• Alpine.js components<br>• Tailwind styling  | Basic UI working     |
+| 13  | • WebRTC implementation<br>• SSE integration<br>• Real-time updates | Complete UI features |
+| 14  | • End-to-end testing<br>• Performance optimization<br>• Bug fixes   | Integrated system    |
+| 15  | • Documentation<br>• Deployment guide<br>• Demo preparation         | Ready for demo       |
 
 ## Testing Strategy
 
@@ -849,35 +883,35 @@ export class ToolHandler implements MethodHandler {
 describe('QRWCCommands', () => {
   let commands: QRWCCommands;
   let mockClient: jest.Mocked<QRWCClient>;
-  
+
   beforeEach(() => {
     mockClient = createMockQRWCClient();
     commands = new QRWCCommands(mockClient);
   });
-  
+
   describe('setControlValue', () => {
     it('should send correct command for simple control', async () => {
       await commands.setControlValue('MainGain', -10);
-      
-      expect(mockClient.sendCommand).toHaveBeenCalledWith({
-        method: 'Control.Set',
-        params: {
-          Name: 'MainGain',
-          Value: -10
-        }
-      });
-    });
-    
-    it('should handle ramp time parameter', async () => {
-      await commands.setControlValue('MainGain', -10, { ramp: 2.5 });
-      
+
       expect(mockClient.sendCommand).toHaveBeenCalledWith({
         method: 'Control.Set',
         params: {
           Name: 'MainGain',
           Value: -10,
-          Ramp: 2.5
-        }
+        },
+      });
+    });
+
+    it('should handle ramp time parameter', async () => {
+      await commands.setControlValue('MainGain', -10, { ramp: 2.5 });
+
+      expect(mockClient.sendCommand).toHaveBeenCalledWith({
+        method: 'Control.Set',
+        params: {
+          Name: 'MainGain',
+          Value: -10,
+          Ramp: 2.5,
+        },
       });
     });
   });
@@ -891,27 +925,25 @@ describe('QRWCCommands', () => {
 describe('Chat API', () => {
   let app: Application;
   let agent: MockAgent;
-  
+
   beforeAll(async () => {
     agent = new MockAgent();
     app = await createTestApp({ agent });
   });
-  
+
   describe('POST /api/chat/send', () => {
     it('should process text message and return response', async () => {
       const response = await request(app)
         .post('/api/chat/send')
         .send({ message: 'Set main volume to -10dB' })
         .expect(200);
-        
+
       expect(response.body).toMatchObject({
         success: true,
-        response: expect.stringContaining('volume set to -10dB')
+        response: expect.stringContaining('volume set to -10dB'),
       });
-      
-      expect(agent.processMessage).toHaveBeenCalledWith(
-        'Set main volume to -10dB'
-      );
+
+      expect(agent.processMessage).toHaveBeenCalledWith('Set main volume to -10dB');
     });
   });
 });
@@ -932,19 +964,16 @@ export const logger = winston.createLogger({
   defaultMeta: { service: 'mcp-qsys' },
   transports: [
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      )
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
     }),
-    new winston.transports.File({ 
-      filename: 'logs/error.log', 
-      level: 'error' 
+    new winston.transports.File({
+      filename: 'logs/error.log',
+      level: 'error',
     }),
-    new winston.transports.File({ 
-      filename: 'logs/combined.log' 
-    })
-  ]
+    new winston.transports.File({
+      filename: 'logs/combined.log',
+    }),
+  ],
 });
 
 // Usage example
@@ -952,7 +981,7 @@ logger.info('QRC command executed', {
   command: 'Control.Set',
   control: 'MainGain',
   value: -10,
-  duration: 45 // ms
+  duration: 45, // ms
 });
 ```
 
@@ -968,8 +997,8 @@ router.get('/health', (req, res) => {
     checks: {
       qsys: qrwcClient.isConnected() ? 'connected' : 'disconnected',
       agent: agentManager.isReady() ? 'ready' : 'initializing',
-      memory: process.memoryUsage()
-    }
+      memory: process.memoryUsage(),
+    },
   });
 });
 
@@ -977,19 +1006,19 @@ router.get('/health/detailed', async (req, res) => {
   const checks = await Promise.all([
     checkQSYSConnection(),
     checkAgentStatus(),
-    checkDatabaseConnection()
+    checkDatabaseConnection(),
   ]);
-  
+
   res.json({
     status: checks.every(c => c.healthy) ? 'healthy' : 'unhealthy',
     checks: checks.reduce((acc, check) => {
       acc[check.name] = {
         healthy: check.healthy,
         message: check.message,
-        latency: check.latency
+        latency: check.latency,
       };
       return acc;
-    }, {})
+    }, {}),
   });
 });
 ```
@@ -1036,34 +1065,35 @@ export const configSchema = z.object({
     username: z.string().optional(),
     password: z.string().optional(),
     reconnectInterval: z.number().default(5000),
-    heartbeatInterval: z.number().default(30000)
+    heartbeatInterval: z.number().default(30000),
   }),
-  
+
   openai: z.object({
     apiKey: z.string(),
     organization: z.string().optional(),
     model: z.string().default('gpt-4'),
-    voice: z.string().default('nova')
+    voice: z.string().default('nova'),
   }),
-  
+
   server: z.object({
     port: z.number().default(443),
     corsOrigins: z.array(z.string()).default(['*']),
     maxRequestSize: z.string().default('10mb'),
     rateLimit: z.object({
       windowMs: z.number().default(60000),
-      max: z.number().default(100)
-    })
+      max: z.number().default(100),
+    }),
   }),
-  
+
   features: z.object({
     voice: z.boolean().default(true),
     historyPersistence: z.boolean().default(true),
-    maxHistoryLength: z.number().default(1000)
-  })
+    maxHistoryLength: z.number().default(1000),
+  }),
 });
 
 export type Config = z.infer<typeof configSchema>;
 ```
 
-This comprehensive implementation plan provides a clear roadmap for building the MCP Voice/Text-Controlled Q-SYS Demo with modern, scalable architecture and best practices throughout. 
+This comprehensive implementation plan provides a clear roadmap for building the MCP
+Voice/Text-Controlled Q-SYS Demo with modern, scalable architecture and best practices throughout.

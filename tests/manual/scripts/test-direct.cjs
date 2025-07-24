@@ -6,29 +6,29 @@ const tests = [
   {
     name: 'Summary mode (default)',
     args: {},
-    expected: { hasNoControls: true, hasSummary: true, smallSize: true }
+    expected: { hasNoControls: true, hasSummary: true, smallSize: true },
   },
   {
     name: 'Filtered mode without filter (error)',
     args: { mode: 'filtered' },
-    expectError: true
+    expectError: true,
   },
   {
     name: 'Full mode (backward compat)',
     args: { mode: 'full', pagination: { limit: 2 } },
-    expected: { hasControls: true, limitRespected: true }
-  }
+    expected: { hasControls: true, limitRespected: true },
+  },
 ];
 
 const proc = spawn('npm', ['run', 'dev'], {
-  stdio: ['pipe', 'pipe', 'pipe']
+  stdio: ['pipe', 'pipe', 'pipe'],
 });
 
 let testIndex = 0;
 let ready = false;
 let buffer = '';
 
-proc.stdout.on('data', (chunk) => {
+proc.stdout.on('data', chunk => {
   buffer += chunk.toString();
   if (!ready && buffer.includes('AI agents can now control')) {
     ready = true;
@@ -37,7 +37,7 @@ proc.stdout.on('data', (chunk) => {
   }
 });
 
-proc.stderr.on('data', (chunk) => {
+proc.stderr.on('data', chunk => {
   const text = chunk.toString();
   if (!text.includes('dotenv')) {
     process.stderr.write(text);
@@ -58,38 +58,40 @@ function runNextTest() {
 
   const test = tests[testIndex];
   console.log(`Test ${testIndex + 1}: ${test.name}`);
-  
+
   const req = {
-    jsonrpc: "2.0",
-    method: "tools/call",
+    jsonrpc: '2.0',
+    method: 'tools/call',
     params: {
-      name: "qsys_get_all_controls",
-      arguments: test.args
+      name: 'qsys_get_all_controls',
+      arguments: test.args,
     },
-    id: testIndex + 1
+    id: testIndex + 1,
   };
-  
-  proc.stdin.write(JSON.stringify(req) + '\n');
+
+  proc.stdin.write(`${JSON.stringify(req)}\n`);
 }
 
 // Process responses
 setInterval(() => {
   const lines = buffer.split('\n');
   buffer = lines.pop() || '';
-  
+
   for (const line of lines) {
     if (!line.trim() || !line.startsWith('{')) continue;
-    
+
     try {
       const msg = JSON.parse(line);
-      
+
       if (msg.id === testIndex + 1) {
         const test = tests[testIndex];
         let passed = false;
-        
+
         if (test.expectError) {
-          passed = msg.result && msg.result.isError;
-          console.log(`  ${passed ? '✅' : '❌'} Error: ${passed ? 'Yes' : 'No'}`);
+          passed = msg.result?.isError;
+          console.log(
+            `  ${passed ? '✅' : '❌'} Error: ${passed ? 'Yes' : 'No'}`
+          );
           if (passed && msg.result.content[0].text) {
             const error = JSON.parse(msg.result.content[0].text);
             console.log(`  Message: "${error.message}"`);
@@ -97,26 +99,34 @@ setInterval(() => {
         } else if (msg.result && !msg.result.isError) {
           const response = JSON.parse(msg.result.content[0].text);
           const size = JSON.stringify(response).length;
-          
+
           if (test.expected.hasNoControls) {
             passed = !response.controls && response.summary;
-            console.log(`  ${passed ? '✅' : '❌'} No controls array: ${!response.controls}`);
-            console.log(`  ${response.summary ? '✅' : '❌'} Has summary: ${!!response.summary}`);
+            console.log(
+              `  ${passed ? '✅' : '❌'} No controls array: ${!response.controls}`
+            );
+            console.log(
+              `  ${response.summary ? '✅' : '❌'} Has summary: ${!!response.summary}`
+            );
             console.log(`  ${size < 2000 ? '✅' : '❌'} Size: ${size} bytes`);
           } else if (test.expected.hasControls) {
             passed = response.controls && response.controls.length <= 2;
-            console.log(`  ${response.controls ? '✅' : '❌'} Has controls: ${!!response.controls}`);
-            console.log(`  ${passed ? '✅' : '❌'} Limit respected: ${response.controls?.length || 0} <= 2`);
+            console.log(
+              `  ${response.controls ? '✅' : '❌'} Has controls: ${!!response.controls}`
+            );
+            console.log(
+              `  ${passed ? '✅' : '❌'} Limit respected: ${response.controls?.length || 0} <= 2`
+            );
           }
         }
-        
+
         if (!passed && !test.expectError) {
           console.log('\n❌ Test failed!');
           console.log('Response:', JSON.stringify(msg, null, 2));
           proc.kill();
           process.exit(1);
         }
-        
+
         testIndex++;
         setTimeout(runNextTest, 500);
       }

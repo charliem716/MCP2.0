@@ -2,7 +2,9 @@
 
 ## Breaking Change: query() is now async
 
-As of Step 2.2, the `EventCacheManager.query()` method has been changed from synchronous to asynchronous to support disk spillover functionality. This allows the event cache to load historical events from disk when memory limits are exceeded.
+As of Step 2.2, the `EventCacheManager.query()` method has been changed from synchronous to
+asynchronous to support disk spillover functionality. This allows the event cache to load historical
+events from disk when memory limits are exceeded.
 
 ## Migration Options
 
@@ -18,7 +20,8 @@ const events = eventCache.query({ groupId: 'my-group' });
 const events = eventCache.querySync({ groupId: 'my-group' });
 ```
 
-**Note:** `querySync()` is deprecated and only queries in-memory events. It does not support disk spillover.
+**Note:** `querySync()` is deprecated and only queries in-memory events. It does not support disk
+spillover.
 
 ### Option 2: Migrate to Async (Recommended)
 
@@ -50,10 +53,10 @@ async function processEvents() {
 
 ## API Comparison
 
-| Method | Synchronous | Disk Support | Status |
-|--------|------------|--------------|---------|
-| `query()` | No (async) | Yes | Current |
-| `querySync()` | Yes | No | Deprecated |
+| Method        | Synchronous | Disk Support | Status     |
+| ------------- | ----------- | ------------ | ---------- |
+| `query()`     | No (async)  | Yes          | Current    |
+| `querySync()` | Yes         | No           | Deprecated |
 
 ## Benefits of Async Query
 
@@ -66,29 +69,29 @@ async function processEvents() {
 ```typescript
 class MyService {
   private eventCache: EventCacheManager;
-  
+
   // Keep sync method during migration
   getRecentEventsSync(groupId: string): CachedEvent[] {
     // Shows deprecation warning in logs
-    return this.eventCache.querySync({ 
+    return this.eventCache.querySync({
       groupId,
-      startTime: Date.now() - 60000 
+      startTime: Date.now() - 60000,
     });
   }
-  
+
   // Add new async method
   async getRecentEvents(groupId: string): Promise<CachedEvent[]> {
-    return await this.eventCache.query({ 
+    return await this.eventCache.query({
       groupId,
-      startTime: Date.now() - 60000 
+      startTime: Date.now() - 60000,
     });
   }
-  
+
   // Migrate callers gradually
   async migrateExample() {
     // During migration
     const syncEvents = this.getRecentEventsSync('group1');
-    
+
     // After migration
     const asyncEvents = await this.getRecentEvents('group1');
   }
@@ -104,6 +107,7 @@ class MyService {
 ## Need Help?
 
 If you encounter issues during migration:
+
 1. Check that all `query()` calls use `await`
 2. Ensure containing functions are marked as `async`
 3. Run tests to catch any missed conversions

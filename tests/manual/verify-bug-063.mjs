@@ -17,7 +17,7 @@ console.log('==================================================');
 async function runTest() {
   const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
     env: { ...process.env, NODE_ENV: 'test', LOG_LEVEL: 'debug' },
-    stdio: ['pipe', 'pipe', 'pipe']
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
 
   const results = {
@@ -25,26 +25,28 @@ async function runTest() {
     timeoutProtection: false,
     stateCheck: false,
     signalHandled: false,
-    exitClean: false
+    exitClean: false,
   };
 
   // Capture output
   const output = [];
-  
-  proc.stdout.on('data', (data) => {
-    output.push(`[STDOUT] ${  data.toString().trim()}`);
+
+  proc.stdout.on('data', data => {
+    output.push(`[STDOUT] ${data.toString().trim()}`);
   });
 
-  proc.stderr.on('data', (data) => {
+  proc.stderr.on('data', data => {
     const line = data.toString();
-    output.push(`[STDERR] ${  line.trim()}`);
-    
+    output.push(`[STDERR] ${line.trim()}`);
+
     // Check for expected behaviors
     if (line.includes('Cleaning up resources')) results.cleanupStarted = true;
     if (line.includes('10 second timeout')) results.timeoutProtection = true;
-    if (line.includes('State persistence check completed')) results.stateCheck = true;
+    if (line.includes('State persistence check completed'))
+      results.stateCheck = true;
     if (line.includes('SIGTERM received')) results.signalHandled = true;
-    if (line.includes('MCP server shut down successfully')) results.exitClean = true;
+    if (line.includes('MCP server shut down successfully'))
+      results.exitClean = true;
   });
 
   // Wait for startup
@@ -55,8 +57,8 @@ async function runTest() {
   proc.kill('SIGTERM');
 
   // Wait for exit
-  await new Promise((resolve) => {
-    proc.on('exit', (code) => {
+  await new Promise(resolve => {
+    proc.on('exit', code => {
       console.log(`📥 Process exited with code: ${code}`);
       resolve();
     });
@@ -65,23 +67,30 @@ async function runTest() {
   // Show results
   console.log('\n📊 Results:');
   console.log(`- Cleanup started: ${results.cleanupStarted ? '✅' : '❌'}`);
-  console.log(`- Timeout protection present: ${results.timeoutProtection ? '✅' : '❌'}`);
+  console.log(
+    `- Timeout protection present: ${results.timeoutProtection ? '✅' : '❌'}`
+  );
   console.log(`- State persistence check: ${results.stateCheck ? '✅' : '❌'}`);
   console.log(`- Signal handled: ${results.signalHandled ? '✅' : '❌'}`);
   console.log(`- Clean exit: ${results.exitClean ? '✅' : '❌'}`);
 
   // Show relevant logs
   console.log('\n📝 Relevant logs:');
-  output.filter(line => 
-    line.includes('SIGTERM') || 
-    line.includes('Cleaning') || 
-    line.includes('State persistence') ||
-    line.includes('shutdown')
-  ).forEach(line => console.log(line));
+  output
+    .filter(
+      line =>
+        line.includes('SIGTERM') ||
+        line.includes('Cleaning') ||
+        line.includes('State persistence') ||
+        line.includes('shutdown')
+    )
+    .forEach(line => console.log(line));
 
   const allPassed = Object.values(results).filter(v => v).length >= 3;
-  console.log(`\n${allPassed ? '✅ PASSED' : '❌ FAILED'}: BUG-063 fix ${allPassed ? 'verified' : 'needs review'}`);
-  
+  console.log(
+    `\n${allPassed ? '✅ PASSED' : '❌ FAILED'}: BUG-063 fix ${allPassed ? 'verified' : 'needs review'}`
+  );
+
   process.exit(allPassed ? 0 : 1);
 }
 

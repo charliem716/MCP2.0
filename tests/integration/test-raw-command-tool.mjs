@@ -14,7 +14,7 @@ async function testRawCommandTool() {
 
   // Create and start MCP server
   const server = new MCPServer();
-  
+
   try {
     console.log('Starting MCP server...');
     await server.start();
@@ -22,7 +22,7 @@ async function testRawCommandTool() {
 
     // Get the tool registry
     const registry = server.getToolRegistry();
-    
+
     // Check if tool is registered
     if (!registry.hasTool('send_raw_command')) {
       throw new Error('send_raw_command tool not found in registry!');
@@ -33,9 +33,9 @@ async function testRawCommandTool() {
     console.log('Test 1: Sending Status.Get command...');
     try {
       const statusResult = await registry.callTool('send_raw_command', {
-        method: 'Status.Get'
+        method: 'Status.Get',
       });
-      
+
       console.log('✅ Status.Get response:');
       console.log(JSON.parse(statusResult.content[0].text), '\n');
     } catch (error) {
@@ -47,27 +47,35 @@ async function testRawCommandTool() {
     try {
       const invalidResult = await registry.callTool('send_raw_command', {
         method: 'Invalid.Command',
-        params: { test: true }
+        params: { test: true },
       });
-      
+
       const response = JSON.parse(invalidResult.content[0].text);
       if (response.success === false) {
         console.log('✅ Invalid command handled correctly:');
         console.log(response.error, '\n');
       }
     } catch (error) {
-      console.log('✅ Invalid command rejected as expected:', error.message, '\n');
+      console.log(
+        '✅ Invalid command rejected as expected:',
+        error.message,
+        '\n'
+      );
     }
 
     // Test 3: Blocked command (should be rejected)
     console.log('Test 3: Testing blocked command (Core.Reboot)...');
     try {
       await registry.callTool('send_raw_command', {
-        method: 'Core.Reboot'
+        method: 'Core.Reboot',
       });
       console.error('❌ Blocked command was not rejected!');
     } catch (error) {
-      console.log('✅ Blocked command rejected correctly:', error.message, '\n');
+      console.log(
+        '✅ Blocked command rejected correctly:',
+        error.message,
+        '\n'
+      );
     }
 
     // Test 4: Component.Get command
@@ -75,18 +83,18 @@ async function testRawCommandTool() {
     try {
       const components = await registry.callTool('list_components', {});
       const componentList = JSON.parse(components.content[0].text);
-      
+
       if (componentList.components && componentList.components.length > 0) {
         const firstComponent = componentList.components[0];
         console.log(`Testing Component.Get for: ${firstComponent.name}`);
-        
+
         const componentResult = await registry.callTool('send_raw_command', {
           method: 'Component.Get',
           params: {
-            Name: firstComponent.name
-          }
+            Name: firstComponent.name,
+          },
         });
-        
+
         console.log('✅ Component.Get response:');
         console.log(JSON.parse(componentResult.content[0].text), '\n');
       }
@@ -95,7 +103,6 @@ async function testRawCommandTool() {
     }
 
     console.log('=== All tests completed ===');
-
   } catch (error) {
     console.error('Test failed:', error);
   } finally {

@@ -1,6 +1,6 @@
 /**
  * Q-SYS API Response Types
- * 
+ *
  * These interfaces match the exact response formats from the Q-SYS QRWC API
  * as documented in qrc-reference.md
  */
@@ -66,7 +66,7 @@ export interface QSysComponentControlsResponse {
     ValueMax?: number;
     StringMin?: string;
     StringMax?: string;
-    Component?: string;  // Component name (added by adapter for GetAllControls)
+    Component?: string; // Component name (added by adapter for GetAllControls)
   }>;
 }
 
@@ -99,8 +99,8 @@ export interface QSysComponentGetResponse {
 export interface QSysChangeGroupPollResponse {
   Id: string;
   Changes: Array<{
-    Name?: string;  // For named controls
-    Component?: string;  // For component controls
+    Name?: string; // For named controls
+    Component?: string; // For component controls
     Value: number | string | boolean;
     String: string;
   }>;
@@ -154,7 +154,9 @@ export function isQSysError(response: unknown): response is QSysErrorResponse {
 /**
  * Type guard to check if response has a result
  */
-export function isQSysResult<T>(response: unknown): response is QSysMethodResult<T> {
+export function isQSysResult<T>(
+  response: unknown
+): response is QSysMethodResult<T> {
   return (
     typeof response === 'object' &&
     response !== null &&

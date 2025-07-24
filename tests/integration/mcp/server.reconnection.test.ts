@@ -2,7 +2,14 @@
  * Integration tests for MCP Server reconnection handling (BUG-050)
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 import { MCPQSysServer } from '../../../src/mcp/server.js';
 import { OfficialQRWCClient } from '../../../src/qrwc/officialClient.js';
 import { QRWCClientAdapter } from '../../../src/mcp/qrwc/adapter.js';
@@ -17,18 +24,18 @@ jest.mock('../../../src/shared/utils/logger.js', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
-  }
+    debug: jest.fn(),
+  },
 }));
 jest.mock('@modelcontextprotocol/sdk/server/index.js', () => ({
   Server: jest.fn().mockImplementation(() => ({
     setRequestHandler: jest.fn(),
     connect: jest.fn(),
-    onerror: undefined
-  }))
+    onerror: undefined,
+  })),
 }));
 jest.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
-  StdioServerTransport: jest.fn().mockImplementation(() => ({}))
+  StdioServerTransport: jest.fn().mockImplementation(() => ({})),
 }));
 
 describe('MCP Server - Reconnection Handling', () => {
@@ -44,18 +51,18 @@ describe('MCP Server - Reconnection Handling', () => {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
-      debug: jest.fn()
+      debug: jest.fn(),
     };
 
     jest.doMock('../../../src/shared/utils/logger.js', () => ({
-      globalLogger: mockLogger
+      globalLogger: mockLogger,
     }));
 
     // Create mock instances
     const QRWCClientMock = jest.mocked(OfficialQRWCClient);
     mockQrwcClient = new QRWCClientMock({
       host: 'test',
-      port: 443
+      port: 443,
     }) as jest.Mocked<OfficialQRWCClient>;
 
     // Add event emitter functionality
@@ -66,7 +73,7 @@ describe('MCP Server - Reconnection Handling', () => {
       }
       eventHandlers.get(event)!.push(handler);
     }) as any;
-    
+
     mockQrwcClient.emit = jest.fn((event: string, ...args: any[]) => {
       const handlers = eventHandlers.get(event) || [];
       handlers.forEach(handler => handler(...args));
@@ -76,11 +83,15 @@ describe('MCP Server - Reconnection Handling', () => {
     mockQrwcClient.isConnected = jest.fn().mockReturnValue(true);
 
     const QRWCAdapterMock = jest.mocked(QRWCClientAdapter);
-    mockAdapter = new QRWCAdapterMock(mockQrwcClient) as jest.Mocked<QRWCClientAdapter>;
+    mockAdapter = new QRWCAdapterMock(
+      mockQrwcClient
+    ) as jest.Mocked<QRWCClientAdapter>;
     mockAdapter.clearAllCaches = jest.fn();
 
     const ToolRegistryMock = jest.mocked(MCPToolRegistry);
-    mockToolRegistry = new ToolRegistryMock(mockAdapter) as jest.Mocked<MCPToolRegistry>;
+    mockToolRegistry = new ToolRegistryMock(
+      mockAdapter
+    ) as jest.Mocked<MCPToolRegistry>;
     mockToolRegistry.initialize = jest.fn().mockResolvedValue(undefined);
     mockToolRegistry.listTools = jest.fn().mockResolvedValue([]);
     mockToolRegistry.getToolCount = jest.fn().mockReturnValue(0);
@@ -97,26 +108,35 @@ describe('MCP Server - Reconnection Handling', () => {
     await server.start();
 
     // Should have registered event handlers
-    expect(mockQrwcClient.on).toHaveBeenCalledWith('connected', expect.any(Function));
-    expect(mockQrwcClient.on).toHaveBeenCalledWith('disconnected', expect.any(Function));
-    expect(mockQrwcClient.on).toHaveBeenCalledWith('reconnecting', expect.any(Function));
+    expect(mockQrwcClient.on).toHaveBeenCalledWith(
+      'connected',
+      expect.any(Function)
+    );
+    expect(mockQrwcClient.on).toHaveBeenCalledWith(
+      'disconnected',
+      expect.any(Function)
+    );
+    expect(mockQrwcClient.on).toHaveBeenCalledWith(
+      'reconnecting',
+      expect.any(Function)
+    );
   });
 
   it('should clear caches on reconnection with long downtime', async () => {
     await server.start();
 
     // Simulate reconnection with long downtime
-    mockQrwcClient.emit('connected' as any, { 
-      requiresCacheInvalidation: true, 
-      downtimeMs: 45000 
+    mockQrwcClient.emit('connected' as any, {
+      requiresCacheInvalidation: true,
+      downtimeMs: 45000,
     });
 
     // Should clear adapter caches
     expect(mockAdapter.clearAllCaches).toHaveBeenCalled();
-    
+
     // Should re-initialize tool registry
     expect(mockToolRegistry.initialize).toHaveBeenCalledTimes(2); // Once on start, once on reconnect
-    
+
     // Should log the cache clearing
     expect(mockLogger.warn).toHaveBeenCalledWith(
       'Long disconnection detected - clearing caches',
@@ -126,23 +146,23 @@ describe('MCP Server - Reconnection Handling', () => {
 
   it('should not clear caches on reconnection with short downtime', async () => {
     await server.start();
-    
+
     // Reset mock calls after start
     mockAdapter.clearAllCaches.mockClear();
     mockToolRegistry.initialize.mockClear();
 
     // Simulate reconnection with short downtime
-    mockQrwcClient.emit('connected' as any, { 
-      requiresCacheInvalidation: false, 
-      downtimeMs: 15000 
+    mockQrwcClient.emit('connected' as any, {
+      requiresCacheInvalidation: false,
+      downtimeMs: 15000,
     });
 
     // Should NOT clear adapter caches
     expect(mockAdapter.clearAllCaches).not.toHaveBeenCalled();
-    
+
     // Should NOT re-initialize tool registry
     expect(mockToolRegistry.initialize).not.toHaveBeenCalled();
-    
+
     // Should log normal reconnection
     expect(mockLogger.info).toHaveBeenCalledWith(
       'Q-SYS Core reconnected',
@@ -186,9 +206,9 @@ describe('MCP Server - Reconnection Handling', () => {
     mockToolRegistry.initialize.mockRejectedValueOnce(new Error('Init failed'));
 
     // Simulate reconnection with cache invalidation
-    mockQrwcClient.emit('connected' as any, { 
-      requiresCacheInvalidation: true, 
-      downtimeMs: 60000 
+    mockQrwcClient.emit('connected' as any, {
+      requiresCacheInvalidation: true,
+      downtimeMs: 60000,
     });
 
     // Should log the error
@@ -221,12 +241,12 @@ describe('MCP Server - Reconnection Handling', () => {
         emit: jest.fn((event: string, ...args: any[]) => {
           const handlers = simpleEventHandlers.get(event) || [];
           handlers.forEach(handler => handler(...args));
-        })
+        }),
       };
 
       // Create simplified mock adapter
       simpleAdapter = {
-        clearAllCaches: jest.fn()
+        clearAllCaches: jest.fn(),
       };
     });
 
@@ -235,18 +255,20 @@ describe('MCP Server - Reconnection Handling', () => {
       simpleQrwcClient.on('connected', (data: any) => {
         if (data.requiresCacheInvalidation) {
           mockLogger.warn('Long disconnection detected - clearing caches', {
-            downtimeMs: data.downtimeMs
+            downtimeMs: data.downtimeMs,
           });
           simpleAdapter.clearAllCaches();
         } else {
-          mockLogger.info('Q-SYS Core reconnected', { downtimeMs: data.downtimeMs });
+          mockLogger.info('Q-SYS Core reconnected', {
+            downtimeMs: data.downtimeMs,
+          });
         }
       });
 
       // Test long downtime scenario
-      simpleQrwcClient.emit('connected', { 
-        requiresCacheInvalidation: true, 
-        downtimeMs: 45000 
+      simpleQrwcClient.emit('connected', {
+        requiresCacheInvalidation: true,
+        downtimeMs: 45000,
       });
 
       expect(simpleAdapter.clearAllCaches).toHaveBeenCalled();
@@ -261,9 +283,9 @@ describe('MCP Server - Reconnection Handling', () => {
       mockLogger.info.mockClear();
 
       // Test short downtime scenario
-      simpleQrwcClient.emit('connected', { 
-        requiresCacheInvalidation: false, 
-        downtimeMs: 15000 
+      simpleQrwcClient.emit('connected', {
+        requiresCacheInvalidation: false,
+        downtimeMs: 15000,
       });
 
       expect(simpleAdapter.clearAllCaches).not.toHaveBeenCalled();
@@ -275,7 +297,7 @@ describe('MCP Server - Reconnection Handling', () => {
 
     it('should handle event handler registration order', () => {
       const events: string[] = [];
-      
+
       // Track registration order
       simpleQrwcClient.on = jest.fn((event: string, handler: Function) => {
         events.push(event);

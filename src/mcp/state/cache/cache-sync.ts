@@ -1,14 +1,14 @@
-import { globalLogger as logger } from "../../../shared/utils/logger.js";
-import type { ControlState } from "../repository.js";
-import { StateRepositoryEvent, StateRepositoryError } from "../repository.js";
-import type { CoreCache } from "./core-cache.js";
-import type { StatePersistenceManager } from "../persistence/manager.js";
-import type { CacheInvalidationManager } from "../invalidation.js";
-import type { StateSynchronizer } from "../synchronizer.js";
+import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import type { ControlState } from '../repository.js';
+import { StateRepositoryEvent, StateRepositoryError } from '../repository.js';
+import type { CoreCache } from './core-cache.js';
+import type { StatePersistenceManager } from '../persistence/manager.js';
+import type { CacheInvalidationManager } from '../invalidation.js';
+import type { StateSynchronizer } from '../synchronizer.js';
 
 /**
  * Cache Synchronization and Persistence
- * 
+ *
  * Handles cache synchronization, persistence, and invalidation operations
  */
 export class CacheSyncManager {
@@ -47,24 +47,24 @@ export class CacheSyncManager {
       logger.warn('Invalidation manager not configured');
       return;
     }
-    
+
     const invalidated: string[] = [];
-    
+
     for (const name of controlNames) {
       if (await this.coreCache.removeControl(name)) {
         invalidated.push(name);
       }
     }
-    
+
     if (invalidated.length > 0) {
       logger.info('States invalidated', {
         requested: controlNames.length,
-        invalidated: invalidated.length
+        invalidated: invalidated.length,
       });
-      
+
       this.coreCache.emit(StateRepositoryEvent.StateInvalidated, {
         controlNames: invalidated,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
   }
@@ -76,7 +76,7 @@ export class CacheSyncManager {
     const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
     const keys = await this.coreCache.getKeys();
     const toInvalidate = keys.filter((key: string) => regex.test(key));
-    
+
     await this.invalidateStates(toInvalidate);
   }
 
@@ -90,39 +90,38 @@ export class CacheSyncManager {
         'NOT_CONFIGURED'
       );
     }
-    
+
     logger.info('Starting cache synchronization', { source });
-    
+
     try {
       const startTime = Date.now();
-      
+
       // Get current cache state
       const cacheStates = new Map<string, ControlState>();
       const keys = await this.coreCache.getKeys();
-      
+
       for (const key of keys) {
         const state = await this.coreCache.getState(key);
         if (state) {
           cacheStates.set(key, state);
         }
       }
-      
+
       // Perform synchronization
       const result = await this.synchronizer.synchronize(cacheStates, source);
-      
+
       // Update cache with synchronized states
       if (result.updates.size > 0) {
         await this.coreCache.setStates(result.updates);
       }
-      
+
       const duration = Date.now() - startTime;
       logger.info('Cache synchronization completed', {
         source,
         duration,
         updates: result.updates.size,
-        conflicts: result.conflicts.length
+        conflicts: result.conflicts.length,
       });
-      
     } catch (error) {
       logger.error('Cache synchronization failed', { source, error });
       throw error;
@@ -137,25 +136,24 @@ export class CacheSyncManager {
       logger.warn('Persistence not enabled');
       return;
     }
-    
+
     try {
       const states = new Map<string, ControlState>();
       const keys = await this.coreCache.getKeys();
-      
+
       for (const key of keys) {
         const state = await this.coreCache.getState(key);
         if (state) {
           states.set(key, state);
         }
       }
-      
+
       await this.persistenceManager.saveState(states, {
         cacheConfig: this.coreCache.getCacheConfig(),
-        timestamp: new Date()
+        timestamp: new Date(),
       });
-      
+
       logger.info('Cache persisted', { stateCount: states.size });
-      
     } catch (error) {
       logger.error('Cache persistence failed', { error });
       throw error;
@@ -170,19 +168,18 @@ export class CacheSyncManager {
       logger.warn('Persistence not enabled');
       return;
     }
-    
+
     try {
       const states = await this.persistenceManager.loadState();
-      
+
       if (states && states.size > 0) {
         await this.coreCache.setStates(states);
-        logger.info('Cache restored from persistence', { 
-          stateCount: states.size 
+        logger.info('Cache restored from persistence', {
+          stateCount: states.size,
         });
       } else {
         logger.info('No persisted state to restore');
       }
-      
     } catch (error) {
       logger.error('Cache restoration failed', { error });
       // Don't throw - cache can operate without restored state

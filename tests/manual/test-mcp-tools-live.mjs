@@ -44,7 +44,7 @@ async function testMCPTools() {
       port,
       username,
       password,
-      secure: port === 443
+      secure: port === 443,
     });
 
     console.log('   Connecting to Q-SYS Core...');
@@ -56,7 +56,11 @@ async function testMCPTools() {
     adapter = new QRWCClientAdapter(officialClient);
     registry = new MCPToolRegistry(adapter);
     await registry.initialize();
-    console.log('   ✅ Registry initialized with', registry.getToolCount(), 'tools');
+    console.log(
+      '   ✅ Registry initialized with',
+      registry.getToolCount(),
+      'tools'
+    );
 
     // Step 3: List available tools
     console.log('\n3️⃣ Available MCP Tools:');
@@ -72,14 +76,16 @@ async function testMCPTools() {
     console.log('📋 TEST: list_components');
     try {
       const result = await registry.callTool('list_components', {
-        includeProperties: true
+        includeProperties: true,
       });
-      
+
       if (result.isError) {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
         console.log('   ✅ Success!');
-        console.log(`   ${  result.content[0].text.split('\\n').slice(0, 5).join('\\n   ')}`);
+        console.log(
+          `   ${result.content[0].text.split('\\n').slice(0, 5).join('\\n   ')}`
+        );
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -91,15 +97,15 @@ async function testMCPTools() {
       const result = await registry.callTool('query_core_status', {
         includeDetails: true,
         includeNetworkInfo: true,
-        includePerformance: true
+        includePerformance: true,
       });
-      
+
       if (result.isError) {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
+        console.log(`   ${lines.slice(0, 10).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -110,15 +116,15 @@ async function testMCPTools() {
     try {
       const result = await registry.callTool('list_controls', {
         controlType: 'all',
-        includeMetadata: true
+        includeMetadata: true,
       });
-      
+
       if (result.isError) {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
+        console.log(`   ${lines.slice(0, 10).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -135,16 +141,16 @@ async function testMCPTools() {
         if (controlMatch) {
           const controlName = controlMatch[1].trim();
           console.log(`   Testing with control: ${controlName}`);
-          
+
           const result = await registry.callTool('get_control_values', {
-            controls: [controlName]
+            controls: [controlName],
           });
-          
+
           if (result.isError) {
             console.error('   ❌ Error:', result.content[0].text);
           } else {
             console.log('   ✅ Success!');
-            console.log(`   ${  result.content[0].text}`);
+            console.log(`   ${result.content[0].text}`);
           }
         } else {
           console.log('   ⚠️  No controls found to test');
@@ -165,18 +171,18 @@ async function testMCPTools() {
         if (componentMatch) {
           const componentName = componentMatch[1].trim();
           console.log(`   Testing with component: ${componentName}`);
-          
+
           const result = await registry.callTool('get_component_controls', {
             componentName,
-            includeValues: true
+            includeValues: true,
           });
-          
+
           if (result.isError) {
             console.error('   ❌ Error:', result.content[0].text);
           } else {
             console.log('   ✅ Success!');
             const lines = result.content[0].text.split('\\n');
-            console.log(`   ${  lines.slice(0, 5).join('\\n   ')}`);
+            console.log(`   ${lines.slice(0, 5).join('\\n   ')}`);
           }
         } else {
           console.log('   ⚠️  No components found to test');
@@ -193,15 +199,15 @@ async function testMCPTools() {
         limit: 5,
         offset: 0,
         includeValues: true,
-        includeMetadata: true
+        includeMetadata: true,
       });
-      
+
       if (result.isError) {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log(`   ${  lines.slice(0, 10).join('\\n   ')}`);
+        console.log(`   ${lines.slice(0, 10).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -212,15 +218,15 @@ async function testMCPTools() {
     try {
       const result = await registry.callTool('query_qsys_api', {
         endpoint: '/api/v0/cores',
-        method: 'GET'
+        method: 'GET',
       });
-      
+
       if (result.isError) {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
         console.log('   ✅ Success!');
         const lines = result.content[0].text.split('\\n');
-        console.log(`   ${  lines.slice(0, 5).join('\\n   ')}`);
+        console.log(`   ${lines.slice(0, 5).join('\\n   ')}`);
       }
     } catch (error) {
       console.error('   ❌ Exception:', error.message);
@@ -231,9 +237,9 @@ async function testMCPTools() {
     try {
       const result = await registry.callTool('send_raw_command', {
         command: 'cgp',
-        params: []
+        params: [],
       });
-      
+
       if (result.isError) {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
@@ -246,16 +252,18 @@ async function testMCPTools() {
 
     // Test 9: Set Control Values (interactive - only if safe)
     console.log('\\n🎚️  TEST: set_control_values');
-    console.log('   ⚠️  Skipping set_control_values to avoid changing live system');
+    console.log(
+      '   ⚠️  Skipping set_control_values to avoid changing live system'
+    );
     console.log('   💡 To test manually, use: npm run mcp-client');
 
     // Test 10: Echo tool (always safe)
     console.log('\\n🔊 TEST: echo');
     try {
       const result = await registry.callTool('echo', {
-        message: 'Hello from MCP Tools Test!'
+        message: 'Hello from MCP Tools Test!',
       });
-      
+
       if (result.isError) {
         console.error('   ❌ Error:', result.content[0].text);
       } else {
@@ -266,18 +274,17 @@ async function testMCPTools() {
     }
 
     // Summary
-    console.log(`\\n${  '='.repeat(60)}`);
+    console.log(`\\n${'='.repeat(60)}`);
     console.log('📊 Test Summary:');
     console.log('   • Connection: ✅ Successful');
     console.log('   • Tools Loaded: ✅', registry.getToolCount(), 'tools');
     console.log('   • Read Operations: ✅ Working');
     console.log('   • Write Operations: ⚠️  Not tested (safety)');
     console.log('\\n✨ MCP Tools are functional with live Q-SYS Core!');
-
   } catch (error) {
     console.error('\\n❌ Test Failed:', error.message);
     console.error('\\nStack:', error.stack);
-    
+
     if (error.message.includes('ECONNREFUSED')) {
       console.error('\\n🔍 Connection refused. Check:');
       console.error('   • Q-SYS Core is powered on');

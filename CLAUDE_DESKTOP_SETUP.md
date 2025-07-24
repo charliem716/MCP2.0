@@ -3,26 +3,27 @@
 ## Quick Setup
 
 1. **Build the MCP server:**
+
    ```bash
    cd /Users/charliemccarrel/Desktop/Builds/MCP2.0
    npm run build
    ```
 
 2. **Edit Claude Desktop config:**
+
    ```bash
    # Open Claude Desktop config
    open ~/Library/Application\ Support/Claude/claude_desktop_config.json
    ```
 
 3. **Add this configuration to the file:**
+
    ```json
    {
      "mcpServers": {
        "qsys": {
          "command": "node",
-         "args": [
-           "/Users/charliemccarrel/Desktop/Builds/MCP2.0/dist/index.js"
-         ],
+         "args": ["/Users/charliemccarrel/Desktop/Builds/MCP2.0/dist/index.js"],
          "env": {
            "NODE_ENV": "production"
          }
@@ -32,6 +33,7 @@
    ```
 
    If you already have other MCP servers, add it to the existing `mcpServers` object:
+
    ```json
    {
      "mcpServers": {
@@ -40,9 +42,7 @@
        },
        "qsys": {
          "command": "node",
-         "args": [
-           "/Users/charliemccarrel/Desktop/Builds/MCP2.0/dist/index.js"
-         ],
+         "args": ["/Users/charliemccarrel/Desktop/Builds/MCP2.0/dist/index.js"],
          "env": {
            "NODE_ENV": "production"
          }
@@ -99,14 +99,13 @@ Once connected, you can ask Claude things like:
 ## Alternative: Using NPX (if published)
 
 If the package were published to npm, you could use:
+
 ```json
 {
   "mcpServers": {
     "qsys": {
       "command": "npx",
-      "args": [
-        "mcp-voice-text-qsys"
-      ],
+      "args": ["mcp-voice-text-qsys"],
       "env": {
         "NODE_ENV": "production"
       }
@@ -118,10 +117,12 @@ If the package were published to npm, you could use:
 ## Logs and Debugging
 
 The MCP server logs to:
+
 - Console output (visible in Claude's MCP server logs)
 - Log files in the project directory (if configured)
 
 To see server logs in Claude Desktop:
+
 1. Open Claude Desktop
 2. Check the developer console for MCP server output
 3. Look for lines starting with the MCP server name

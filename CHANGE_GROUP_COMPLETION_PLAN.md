@@ -1,7 +1,9 @@
 # Change Group Full Completion Plan
 
 ## Current Status
+
 ✅ **Phase 1: Adapter Implementation** - COMPLETE
+
 - All 8 JSON-RPC methods implemented and tested
 - AutoPoll timer management working
 - Proper cleanup on disconnect
@@ -10,9 +12,11 @@
 ## Remaining Work
 
 ### Phase 2: MCP Tools Implementation
+
 Create `src/mcp/tools/change-groups.ts` with the following tools:
 
 #### Required Tools (Priority 1)
+
 1. **CreateChangeGroupTool**
    - Purpose: Create a new change group with specified ID
    - Schema: `{ groupId: string }`
@@ -34,9 +38,9 @@ Create `src/mcp/tools/change-groups.ts` with the following tools:
    - Implementation: Call ChangeGroup.Destroy
 
 #### Optional Tools (Priority 2)
+
 5. **RemoveControlsFromChangeGroupTool**
    - Schema: `{ groupId: string, controlNames: string[] }`
-   
 6. **ClearChangeGroupTool**
    - Schema: `{ groupId: string }`
 
@@ -49,11 +53,14 @@ Create `src/mcp/tools/change-groups.ts` with the following tools:
    - Implementation: Need to add a method to adapter to list groups
 
 ### Phase 3: Tool Registration
+
 Update `src/mcp/handlers/index.ts`:
+
 - Import all change group tools
 - Add to `registerQSysTools()` method
 
 ### Phase 4: Additional Testing
+
 1. **Tool Tests** (`tests/unit/mcp/tools/change-groups.test.ts`)
    - Test each tool's schema validation
    - Test successful execution
@@ -71,6 +78,7 @@ Update `src/mcp/handlers/index.ts`:
    - Test tool execution (call_tool)
 
 ### Phase 5: Documentation Updates
+
 1. Update `QSYS_API_REFERENCE.md` with Change Group examples
 2. Add Change Group section to main README
 3. Create `docs/change-groups-guide.md` with usage examples
@@ -78,6 +86,7 @@ Update `src/mcp/handlers/index.ts`:
 ## Implementation Steps
 
 ### Step 1: Add List Method to Adapter (15 min)
+
 ```typescript
 // In adapter.ts
 listChangeGroups(): Array<{id: string, controlCount: number}> {
@@ -89,25 +98,30 @@ listChangeGroups(): Array<{id: string, controlCount: number}> {
 ```
 
 ### Step 2: Create MCP Tools (2 hours)
+
 - Use existing tool patterns from controls.ts and components.ts
 - Each tool ~50-70 LOC
 - Total: ~400-500 LOC
 
 ### Step 3: Register Tools (30 min)
+
 - Update handlers/index.ts
 - Import and register all tools
 
 ### Step 4: Write Tests (2 hours)
+
 - Unit tests for each tool
 - Integration tests for workflows
 - Server integration tests
 
 ### Step 5: Documentation (1 hour)
+
 - API reference updates
 - Usage guide
 - Examples
 
 ## Success Criteria
+
 - [ ] All 8 MCP tools implemented and registered
 - [ ] Tools accessible via MCP server
 - [ ] All tests passing (unit + integration)
@@ -115,8 +129,10 @@ listChangeGroups(): Array<{id: string, controlCount: number}> {
 - [ ] No regression in existing functionality
 
 ## Estimated Time
+
 - Total: ~6 hours
 - Can be completed in phases if needed
 
 ## Next Action
+
 Start with Step 1: Add listChangeGroups() method to adapter to support the ListChangeGroupsTool.

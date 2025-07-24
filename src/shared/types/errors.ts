@@ -136,7 +136,7 @@ export abstract class BaseError extends Error {
     code: string,
     severity: ErrorSeverity = ErrorSeverity.MEDIUM,
     category: ErrorCategory = ErrorCategory.INTERNAL,
-    context?: ErrorContext  
+    context?: ErrorContext
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -178,7 +178,13 @@ export class ValidationError extends BaseError {
     fields: ValidationErrorField[],
     context?: ErrorContext
   ) {
-    super(message, 'VALIDATION_ERROR', ErrorSeverity.MEDIUM, ErrorCategory.VALIDATION, context);
+    super(
+      message,
+      'VALIDATION_ERROR',
+      ErrorSeverity.MEDIUM,
+      ErrorCategory.VALIDATION,
+      context
+    );
     this.fields = fields;
   }
 
@@ -195,8 +201,16 @@ export class ValidationError extends BaseError {
  */
 export class NotFoundError extends BaseError {
   constructor(resource: string, id?: ID, context?: ErrorContext) {
-    const message = id ? `${resource} with ID ${id} not found` : `${resource} not found`;
-    super(message, 'NOT_FOUND', ErrorSeverity.LOW, ErrorCategory.NOT_FOUND, context);
+    const message = id
+      ? `${resource} with ID ${id} not found`
+      : `${resource} not found`;
+    super(
+      message,
+      'NOT_FOUND',
+      ErrorSeverity.LOW,
+      ErrorCategory.NOT_FOUND,
+      context
+    );
   }
 }
 
@@ -205,7 +219,13 @@ export class NotFoundError extends BaseError {
  */
 export class UnauthorizedError extends BaseError {
   constructor(message = 'Unauthorized', context?: ErrorContext) {
-    super(message, 'UNAUTHORIZED', ErrorSeverity.HIGH, ErrorCategory.AUTHENTICATION, context);
+    super(
+      message,
+      'UNAUTHORIZED',
+      ErrorSeverity.HIGH,
+      ErrorCategory.AUTHENTICATION,
+      context
+    );
   }
 }
 
@@ -214,7 +234,13 @@ export class UnauthorizedError extends BaseError {
  */
 export class ForbiddenError extends BaseError {
   constructor(message = 'Forbidden', context?: ErrorContext) {
-    super(message, 'FORBIDDEN', ErrorSeverity.HIGH, ErrorCategory.AUTHORIZATION, context);
+    super(
+      message,
+      'FORBIDDEN',
+      ErrorSeverity.HIGH,
+      ErrorCategory.AUTHORIZATION,
+      context
+    );
   }
 }
 
@@ -223,7 +249,13 @@ export class ForbiddenError extends BaseError {
  */
 export class ConflictError extends BaseError {
   constructor(message: string, context?: ErrorContext) {
-    super(message, 'CONFLICT', ErrorSeverity.MEDIUM, ErrorCategory.CONFLICT, context);
+    super(
+      message,
+      'CONFLICT',
+      ErrorSeverity.MEDIUM,
+      ErrorCategory.CONFLICT,
+      context
+    );
   }
 }
 
@@ -233,8 +265,18 @@ export class ConflictError extends BaseError {
 export class RateLimitError extends BaseError {
   public readonly retryAfter?: number | undefined;
 
-  constructor(message = 'Rate limit exceeded', retryAfter?: number  , context?: ErrorContext  ) {
-    super(message, 'RATE_LIMIT_EXCEEDED', ErrorSeverity.MEDIUM, ErrorCategory.RATE_LIMIT, context);
+  constructor(
+    message = 'Rate limit exceeded',
+    retryAfter?: number,
+    context?: ErrorContext
+  ) {
+    super(
+      message,
+      'RATE_LIMIT_EXCEEDED',
+      ErrorSeverity.MEDIUM,
+      ErrorCategory.RATE_LIMIT,
+      context
+    );
     this.retryAfter = retryAfter;
   }
 }
@@ -248,11 +290,17 @@ export class ExternalAPIError extends BaseError {
 
   constructor(
     message: string,
-    statusCode?: number  ,
+    statusCode?: number,
     responseBody?: unknown,
-    context?: ErrorContext  
+    context?: ErrorContext
   ) {
-    super(message, 'EXTERNAL_API_ERROR', ErrorSeverity.HIGH, ErrorCategory.EXTERNAL_API, context);
+    super(
+      message,
+      'EXTERNAL_API_ERROR',
+      ErrorSeverity.HIGH,
+      ErrorCategory.EXTERNAL_API,
+      context
+    );
     this.statusCode = statusCode;
     this.responseBody = responseBody;
   }
@@ -262,12 +310,14 @@ export class ExternalAPIError extends BaseError {
  * Q-SYS specific error class
  */
 export class QSysError extends BaseError {
-  constructor(
-    message: string,
-    code: QSysErrorCode,
-    context?: ErrorContext
-  ) {
-    super(message, code, ErrorSeverity.HIGH, ErrorCategory.EXTERNAL_API, context);
+  constructor(message: string, code: QSysErrorCode, context?: ErrorContext) {
+    super(
+      message,
+      code,
+      ErrorSeverity.HIGH,
+      ErrorCategory.EXTERNAL_API,
+      context
+    );
   }
 }
 
@@ -275,12 +325,14 @@ export class QSysError extends BaseError {
  * OpenAI specific error class
  */
 export class OpenAIError extends BaseError {
-  constructor(
-    message: string,
-    code: OpenAIErrorCode,
-    context?: ErrorContext
-  ) {
-    super(message, code, ErrorSeverity.HIGH, ErrorCategory.EXTERNAL_API, context);
+  constructor(message: string, code: OpenAIErrorCode, context?: ErrorContext) {
+    super(
+      message,
+      code,
+      ErrorSeverity.HIGH,
+      ErrorCategory.EXTERNAL_API,
+      context
+    );
   }
 }
 
@@ -288,12 +340,14 @@ export class OpenAIError extends BaseError {
  * MCP specific error class
  */
 export class MCPError extends BaseError {
-  constructor(
-    message: string,
-    code: MCPErrorCode,
-    context?: ErrorContext
-  ) {
-    super(message, code, ErrorSeverity.HIGH, ErrorCategory.EXTERNAL_API, context);
+  constructor(message: string, code: MCPErrorCode, context?: ErrorContext) {
+    super(
+      message,
+      code,
+      ErrorSeverity.HIGH,
+      ErrorCategory.EXTERNAL_API,
+      context
+    );
   }
 }
 
@@ -302,7 +356,13 @@ export class MCPError extends BaseError {
  */
 export class ConfigurationError extends BaseError {
   constructor(message: string, context?: ErrorContext) {
-    super(message, 'CONFIGURATION_ERROR', ErrorSeverity.CRITICAL, ErrorCategory.CONFIGURATION, context);
+    super(
+      message,
+      'CONFIGURATION_ERROR',
+      ErrorSeverity.CRITICAL,
+      ErrorCategory.CONFIGURATION,
+      context
+    );
   }
 }
 
@@ -311,7 +371,13 @@ export class ConfigurationError extends BaseError {
  */
 export class NetworkError extends BaseError {
   constructor(message: string, context?: ErrorContext) {
-    super(message, 'NETWORK_ERROR', ErrorSeverity.HIGH, ErrorCategory.NETWORK, context);
+    super(
+      message,
+      'NETWORK_ERROR',
+      ErrorSeverity.HIGH,
+      ErrorCategory.NETWORK,
+      context
+    );
   }
 }
 
@@ -320,7 +386,13 @@ export class NetworkError extends BaseError {
  */
 export class DatabaseError extends BaseError {
   constructor(message: string, context?: ErrorContext) {
-    super(message, 'DATABASE_ERROR', ErrorSeverity.HIGH, ErrorCategory.DATABASE, context);
+    super(
+      message,
+      'DATABASE_ERROR',
+      ErrorSeverity.HIGH,
+      ErrorCategory.DATABASE,
+      context
+    );
   }
 }
 
@@ -332,9 +404,15 @@ export type ErrorHandler = (error: Error, context?: ErrorContext) => void;
 /**
  * Error recovery function type
  */
-export type ErrorRecovery<T> = (error: Error, context?: ErrorContext) => Promise<T>;
+export type ErrorRecovery<T> = (
+  error: Error,
+  context?: ErrorContext
+) => Promise<T>;
 
 /**
  * Error transformation function type
  */
-export type ErrorTransform = (error: Error, context?: ErrorContext) => BaseError; 
+export type ErrorTransform = (
+  error: Error,
+  context?: ErrorContext
+) => BaseError;

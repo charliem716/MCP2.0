@@ -17,7 +17,7 @@ const client = new Qrwc({
   port,
   username,
   password,
-  WebSocket
+  WebSocket,
 });
 
 async function testControlSet() {
@@ -31,7 +31,7 @@ async function testControlSet() {
     console.log('2️⃣ Getting current control values...');
     const getResponse = await client.sendCommand({
       method: 'Control.Get',
-      params: ['gain_1', 'mute_1']
+      params: ['gain_1', 'mute_1'],
     });
     console.log('Current values:', JSON.stringify(getResponse, null, 2));
 
@@ -41,8 +41,8 @@ async function testControlSet() {
       method: 'Control.Set',
       params: {
         Name: 'mute_1',
-        Value: true
-      }
+        Value: true,
+      },
     });
     console.log('Mute response:', JSON.stringify(muteResponse, null, 2));
 
@@ -53,7 +53,7 @@ async function testControlSet() {
     console.log('\n4️⃣ Verifying mute state...');
     const verifyMute = await client.sendCommand({
       method: 'Control.Get',
-      params: ['mute_1']
+      params: ['mute_1'],
     });
     console.log('Mute state:', JSON.stringify(verifyMute, null, 2));
 
@@ -63,8 +63,8 @@ async function testControlSet() {
       method: 'Control.Set',
       params: {
         Name: 'mute_1',
-        Value: false
-      }
+        Value: false,
+      },
     });
     console.log('Unmute response:', JSON.stringify(unmuteResponse, null, 2));
 
@@ -75,7 +75,7 @@ async function testControlSet() {
     console.log('\n6️⃣ Verifying unmute state...');
     const verifyUnmute = await client.sendCommand({
       method: 'Control.Get',
-      params: ['mute_1']
+      params: ['mute_1'],
     });
     console.log('Unmute state:', JSON.stringify(verifyUnmute, null, 2));
 
@@ -86,8 +86,8 @@ async function testControlSet() {
       params: {
         Name: 'gain_1',
         Value: -10.0,
-        Ramp: 2.0
-      }
+        Ramp: 2.0,
+      },
     });
     console.log('Gain set response:', JSON.stringify(gainResponse, null, 2));
 
@@ -96,7 +96,6 @@ async function testControlSet() {
     console.log('- Control.Set command works correctly');
     console.log('- Mute control responds to true/false values');
     console.log('- Gain control accepts numeric values with ramp');
-
   } catch (error) {
     console.error('\n❌ Error during testing:', error.message);
     if (error.code) {

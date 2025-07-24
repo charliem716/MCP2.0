@@ -2,7 +2,8 @@
 
 ## Current Limitations
 
-When a Q-SYS Core reboots (typically 1-2 minutes for file load), the current reconnection mechanism may fail because:
+When a Q-SYS Core reboots (typically 1-2 minutes for file load), the current reconnection mechanism
+may fail because:
 
 1. **Retry window too short**: Only ~95 seconds of attempts
 2. **No state persistence**: Component/control data is lost
@@ -16,8 +17,8 @@ Edit `qsys-core.config.json`:
 {
   "qsysCore": {
     "connectionSettings": {
-      "reconnectInterval": 10000,     // 10 seconds (was 5000)
-      "maxReconnectAttempts": 20,     // 20 attempts (was 5)
+      "reconnectInterval": 10000, // 10 seconds (was 5000)
+      "maxReconnectAttempts": 20, // 20 attempts (was 5)
       "timeout": 10000
     }
   }
@@ -59,7 +60,7 @@ this.qrwcClient.on('connected', () => {
   this.emit('core_reconnected');
 });
 
-this.qrwcClient.on('disconnected', (reason) => {
+this.qrwcClient.on('disconnected', reason => {
   this.logger.warn('Q-SYS Core disconnected', { reason });
   this.emit('core_disconnected', reason);
 });
@@ -95,7 +96,7 @@ export class ConnectionStatusTool extends BaseQSysTool {
       connected: this.qrwcClient.isConnected(),
       lastDisconnect: this.qrwcClient.lastDisconnectTime,
       reconnectAttempts: this.qrwcClient.reconnectAttempts,
-      uptime: this.qrwcClient.connectionUptime
+      uptime: this.qrwcClient.connectionUptime,
     };
     return { content: [{ type: 'text', text: JSON.stringify(status) }] };
   }
@@ -114,6 +115,7 @@ To test the reconnection behavior:
 ## Monitoring During File Load
 
 Watch the logs:
+
 ```bash
 tail -f logs/mcp-combined.log | grep -E "(disconnect|reconnect|attempt)"
 ```

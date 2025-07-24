@@ -13,7 +13,14 @@ export interface Logger {
   debug(message: string, meta?: unknown): void;
 }
 
-export type LogLevel = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
+export type LogLevel =
+  | 'error'
+  | 'warn'
+  | 'info'
+  | 'http'
+  | 'verbose'
+  | 'debug'
+  | 'silly';
 
 export interface LoggerConfig {
   level: LogLevel;
@@ -31,7 +38,8 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const isTest = process.env['NODE_ENV'] === 'test';
   const isMCPMode = process.env['MCP_MODE'] === 'true';
 
-  const level = (process.env['LOG_LEVEL'] as LogLevel | undefined) ?? 
+  const level =
+    (process.env['LOG_LEVEL'] as LogLevel | undefined) ??
     (isDevelopment ? 'debug' : isProduction ? 'info' : 'error');
 
   // Base format for all environments
@@ -39,7 +47,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
     winston.format.metadata({
-      fillExcept: ['message', 'level', 'timestamp', 'service']
+      fillExcept: ['message', 'level', 'timestamp', 'service'],
     })
   );
 
@@ -47,7 +55,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const devFormat = winston.format.combine(
     baseFormat,
     winston.format.colorize(),
-    winston.format.printf((info) => {
+    winston.format.printf(info => {
       const { timestamp, level, message, service, metadata } = info as {
         timestamp: string;
         level: string;
@@ -55,22 +63,22 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
         service: string;
         metadata?: unknown;
       };
-      const meta = metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0 
-        ? ` ${JSON.stringify(metadata)}` 
-        : '';
+      const meta =
+        metadata &&
+        typeof metadata === 'object' &&
+        Object.keys(metadata).length > 0
+          ? ` ${JSON.stringify(metadata)}`
+          : '';
       return `${timestamp} [${service}] ${level}: ${message}${meta}`;
     })
   );
 
   // Production format as structured JSON
-  const prodFormat = winston.format.combine(
-    baseFormat,
-    winston.format.json()
-  );
+  const prodFormat = winston.format.combine(baseFormat, winston.format.json());
 
   // Test format - minimal output
   const testFormat = winston.format.combine(
-    winston.format.printf((info) => {
+    winston.format.printf(info => {
       const { level, message, service } = info as {
         level: string;
         message: string;
@@ -94,7 +102,8 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     transports.push(
       new winston.transports.Console({
         level: 'error',
-        silent: process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS']
+        silent:
+          process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS'],
       })
     );
   } else if (isDevelopment) {
@@ -102,7 +111,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     transports.push(
       new winston.transports.Console({
         level: 'debug',
-        format: devFormat
+        format: devFormat,
       })
     );
   } else {
@@ -114,7 +123,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     level,
     format,
     transports,
-    defaultMeta: { service: serviceName }
+    defaultMeta: { service: serviceName },
   };
 }
 
@@ -123,14 +132,14 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
  */
 export function createLogger(serviceName: string): Logger {
   const config = createLoggerConfig(serviceName);
-  
+
   const logger = winston.createLogger({
     level: config.level,
     format: config.format,
     defaultMeta: config.defaultMeta,
     transports: config.transports,
     exitOnError: false,
-    silent: process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS']
+    silent: process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS'],
   });
 
   // Handle unhandled promise rejections in production
@@ -150,4 +159,4 @@ export function createLogger(serviceName: string): Logger {
 /**
  * Global logger instance for the application
  */
-export const globalLogger = createLogger('MCP-QSys-Demo'); 
+export const globalLogger = createLogger('MCP-QSys-Demo');

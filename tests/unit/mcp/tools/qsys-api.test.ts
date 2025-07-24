@@ -13,12 +13,12 @@ describe('QueryQSysAPITool', () => {
 
   beforeEach(() => {
     mockQrwcClient = {
-      isConnected: jest.fn().mockReturnValue(true)
+      isConnected: jest.fn().mockReturnValue(true),
     };
 
     mockContext = {
       userId: 'test-user',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     tool = new QueryQSysAPITool(mockQrwcClient);
@@ -34,20 +34,20 @@ describe('QueryQSysAPITool', () => {
   it('should query methods by component type', async () => {
     const params = {
       query_type: 'methods' as const,
-      component_type: 'mixer' as const
+      component_type: 'mixer' as const,
     };
 
     const result = await tool.execute(params, mockContext);
 
     expect(result.isError).toBe(false);
     const response = JSON.parse(result.content[0].text);
-    
+
     expect(response.query_type).toBe('methods');
     expect(response.methods).toBeDefined();
     expect(response.count).toBeGreaterThan(0);
-    
-    const mixerMethods = response.methods.filter((m: any) => 
-      m.name.includes('Mixer') || m.category === 'Mixer'
+
+    const mixerMethods = response.methods.filter(
+      (m: any) => m.name.includes('Mixer') || m.category === 'Mixer'
     );
     expect(mixerMethods.length).toBeGreaterThan(0);
   });
@@ -55,21 +55,24 @@ describe('QueryQSysAPITool', () => {
   it('should search for methods by keyword', async () => {
     const params = {
       query_type: 'methods' as const,
-      search: 'gain'
+      search: 'gain',
     };
 
     const result = await tool.execute(params, mockContext);
 
     const response = JSON.parse(result.content[0].text);
-    expect(response.methods.some((m: any) => 
-      m.name.toLowerCase().includes('gain') || 
-      m.description.toLowerCase().includes('gain')
-    )).toBe(true);
+    expect(
+      response.methods.some(
+        (m: any) =>
+          m.name.toLowerCase().includes('gain') ||
+          m.description.toLowerCase().includes('gain')
+      )
+    ).toBe(true);
   });
 
   it('should query component types', async () => {
     const params = {
-      query_type: 'components' as const
+      query_type: 'components' as const,
     };
 
     const result = await tool.execute(params, mockContext);
@@ -78,7 +81,7 @@ describe('QueryQSysAPITool', () => {
     expect(response.query_type).toBe('components');
     expect(response.component_types).toBeDefined();
     expect(response.count).toBeGreaterThan(0);
-    
+
     const types = response.component_types.map((t: any) => t.type);
     expect(types).toContain('mixer');
     expect(types).toContain('gain');
@@ -86,7 +89,7 @@ describe('QueryQSysAPITool', () => {
 
   it('should query control types', async () => {
     const params = {
-      query_type: 'controls' as const
+      query_type: 'controls' as const,
     };
 
     const result = await tool.execute(params, mockContext);
@@ -94,7 +97,7 @@ describe('QueryQSysAPITool', () => {
     const response = JSON.parse(result.content[0].text);
     expect(response.query_type).toBe('controls');
     expect(response.control_types).toBeDefined();
-    
+
     const types = response.control_types.map((t: any) => t.type);
     expect(types).toContain('gain');
     expect(types).toContain('mute');
@@ -104,7 +107,7 @@ describe('QueryQSysAPITool', () => {
   it('should get examples for specific method', async () => {
     const params = {
       query_type: 'examples' as const,
-      method_name: 'Component.Set'
+      method_name: 'Component.Set',
     };
 
     const result = await tool.execute(params, mockContext);
@@ -118,7 +121,7 @@ describe('QueryQSysAPITool', () => {
   it('should handle search with no results', async () => {
     const params = {
       query_type: 'methods' as const,
-      search: 'nonexistentmethod'
+      search: 'nonexistentmethod',
     };
 
     const result = await tool.execute(params, mockContext);
@@ -131,25 +134,33 @@ describe('QueryQSysAPITool', () => {
   it('should filter by method category', async () => {
     const params = {
       query_type: 'methods' as const,
-      method_category: 'Snapshot' as const
+      method_category: 'Snapshot' as const,
     };
 
     const result = await tool.execute(params, mockContext);
 
     const response = JSON.parse(result.content[0].text);
-    expect(response.methods.every((m: any) => m.category === 'Snapshot')).toBe(true);
+    expect(response.methods.every((m: any) => m.category === 'Snapshot')).toBe(
+      true
+    );
   });
 
   it('should validate parameters', async () => {
     // Invalid query_type
-    let result = await tool.execute({ query_type: 'invalid' } as any, mockContext);
+    let result = await tool.execute(
+      { query_type: 'invalid' } as any,
+      mockContext
+    );
     expect(result.isError).toBe(true);
 
     // Invalid component_type
-    result = await tool.execute({ 
-      query_type: 'methods' as const, 
-      component_type: 'invalid' as any 
-    }, mockContext);
+    result = await tool.execute(
+      {
+        query_type: 'methods' as const,
+        component_type: 'invalid' as any,
+      },
+      mockContext
+    );
     expect(result.isError).toBe(true);
   });
 });

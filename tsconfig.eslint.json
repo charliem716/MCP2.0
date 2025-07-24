@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "scripts/**/*",
+    "*.ts",
+    "*.mts",
+    "*.mjs",
+    "*.js",
+    "*.cjs",
+    "jest.config.ts",
+    "eslint.config.mjs",
+    "src/mcp/state/event-cache/__tests__/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "debug-*.ts",
+    "verify-*.cjs",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}

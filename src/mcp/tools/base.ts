@@ -1,13 +1,17 @@
-import { z } from "zod";
-import { globalLogger as logger } from "../../shared/utils/logger.js";
-import type { QRWCClientInterface } from "../qrwc/adapter.js";
-import type { ToolCallResult } from "../handlers/index.js";
+import { z } from 'zod';
+import { globalLogger as logger } from '../../shared/utils/logger.js';
+import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { ToolCallResult } from '../handlers/index.js';
 
 /**
  * Base schema for all Q-SYS tool parameters
  */
 export const BaseToolParamsSchema = z.object({
-  requestId: z.string().uuid().optional().describe("Optional request ID for tracking"),
+  requestId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe('Optional request ID for tracking'),
 });
 
 /**
@@ -29,16 +33,16 @@ export interface ToolExecutionResult extends ToolCallResult {
 
 /**
  * Abstract base class for all Q-SYS control tools
- * 
+ *
  * Provides:
  * - Zod schema validation for parameters
- * - Standardized error handling  
+ * - Standardized error handling
  * - Execution timing and logging
  * - Type-safe QRWC client access
  */
 export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
   protected readonly logger = logger;
-  
+
   constructor(
     protected readonly qrwcClient: QRWCClientInterface,
     public readonly name: string,
@@ -55,7 +59,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       type: 'object' as const,
       properties: this.getSchemaProperties(),
       required: this.getRequiredFields(),
-      additionalProperties: false
+      additionalProperties: false,
     };
   }
 
@@ -67,13 +71,13 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
     const context: ToolExecutionContext = {
       ...(requestId && { requestId }),
       startTime: Date.now(),
-      toolName: this.name
+      toolName: this.name,
     };
 
     try {
-      this.logger.debug(`Executing tool: ${this.name}`, { 
+      this.logger.debug(`Executing tool: ${this.name}`, {
         context,
-        rawParams 
+        rawParams,
       });
 
       // Validate parameters using Zod
@@ -81,43 +85,44 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
 
       // Check QRWC connection
       if (!this.qrwcClient.isConnected()) {
-        throw new Error("Q-SYS Core not connected");
+        throw new Error('Q-SYS Core not connected');
       }
 
       // Execute the tool-specific logic
       const result = await this.executeInternal(validatedParams, context);
 
       const executionTime = Date.now() - context.startTime;
-      
+
       this.logger.debug(`Tool execution completed: ${this.name}`, {
         context,
         executionTimeMs: executionTime,
-        success: !result.isError
+        success: !result.isError,
       });
 
       return {
         ...result,
         executionTimeMs: executionTime,
-        context
+        context,
       };
-
     } catch (error) {
       const executionTime = Date.now() - context.startTime;
-      
+
       this.logger.error(`Tool execution failed: ${this.name}`, {
         context,
         error: error instanceof Error ? error.message : String(error),
-        executionTimeMs: executionTime
+        executionTimeMs: executionTime,
       });
 
       return {
-        content: [{
-          type: 'text',
-          text: this.formatErrorResponse(error)
-        }],
+        content: [
+          {
+            type: 'text',
+            text: this.formatErrorResponse(error),
+          },
+        ],
         isError: true,
         executionTimeMs: executionTime,
-        context
+        context,
       };
     }
   }
@@ -131,9 +136,9 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       return this.paramsSchema.parse(rawParams || {});
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const formattedErrors = error.errors.map(err => 
-          `${err.path.join('.')}: ${err.message}`
-        ).join('; ');
+        const formattedErrors = error.errors
+          .map(err => `${err.path.join('.')}: ${err.message}`)
+          .join('; ');
         throw new Error(`Parameter validation failed: ${formattedErrors}`);
       }
       throw error;
@@ -144,7 +149,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    * Abstract method for tool-specific implementation
    */
   protected abstract executeInternal(
-    params: TParams, 
+    params: TParams,
     context: ToolExecutionContext
   ): Promise<ToolCallResult>;
 
@@ -167,7 +172,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       toolName: this.name,
       message: error instanceof Error ? error.message : String(error),
       code: (error as { code?: string })?.code || 'UNKNOWN_ERROR',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     return JSON.stringify(errorObj);
   }
@@ -189,7 +194,9 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
   private extractRequestId(rawParams: unknown): string | undefined {
     if (typeof rawParams === 'object' && rawParams !== null) {
       const params = rawParams as Record<string, unknown>;
-      return typeof params['requestId'] === 'string' ? params['requestId'] : undefined;
+      return typeof params['requestId'] === 'string'
+        ? params['requestId']
+        : undefined;
     }
     return undefined;
   }
@@ -203,7 +210,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
     if (!this.paramsSchema || typeof this.paramsSchema !== 'object') {
       return {};
     }
-    
+
     // Type guard to check if this is a ZodObject
     // Define interface for Zod schema with internal properties
     interface ZodSchemaWithInternals {
@@ -212,22 +219,26 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       };
       shape?: Record<string, unknown>;
     }
-    
-    const schemaWithShape = this.paramsSchema as unknown as ZodSchemaWithInternals;
-    if (!schemaWithShape._def || schemaWithShape._def.typeName !== z.ZodFirstPartyTypeKind.ZodObject) {
+
+    const schemaWithShape = this
+      .paramsSchema as unknown as ZodSchemaWithInternals;
+    if (
+      !schemaWithShape._def ||
+      schemaWithShape._def.typeName !== z.ZodFirstPartyTypeKind.ZodObject
+    ) {
       return {};
     }
-    
+
     const shape = schemaWithShape.shape;
     if (!shape) return {};
 
     const properties: Record<string, unknown> = {};
-    
+
     for (const [key, zodSchema] of Object.entries(shape)) {
       const schema = zodSchema as z.ZodSchema;
       properties[key] = this.zodSchemaToJsonSchema(schema);
     }
-    
+
     return properties;
   }
 
@@ -239,19 +250,19 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
     if (!(this.paramsSchema instanceof z.ZodObject)) {
       return [];
     }
-    
+
     const shape = this.paramsSchema.shape;
     if (!shape) return [];
 
     const required: string[] = [];
-    
+
     for (const [key, zodSchema] of Object.entries(shape)) {
       const schema = zodSchema as z.ZodSchema;
       if (!schema.isOptional()) {
         required.push(key);
       }
     }
-    
+
     return required;
   }
 
@@ -261,7 +272,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
   private zodSchemaToJsonSchema(schema: z.ZodSchema): unknown {
     // Access Zod internal definition - required for schema introspection
     const def = (schema as z.ZodTypeAny)._def;
-    
+
     switch (def.typeName) {
       case 'ZodString':
         return { type: 'string', description: def.description };
@@ -270,28 +281,30 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       case 'ZodBoolean':
         return { type: 'boolean', description: def.description };
       case 'ZodArray':
-        return { 
+        return {
           type: 'array',
           items: this.zodSchemaToJsonSchema(def.type),
-          description: def.description 
+          description: def.description,
         };
       case 'ZodObject':
         const properties: Record<string, unknown> = {};
         const shape = def.shape();
         for (const [key, nestedSchema] of Object.entries(shape)) {
-          properties[key] = this.zodSchemaToJsonSchema(nestedSchema as z.ZodSchema);
+          properties[key] = this.zodSchemaToJsonSchema(
+            nestedSchema as z.ZodSchema
+          );
         }
         return { type: 'object', properties, description: def.description };
       case 'ZodOptional':
         return this.zodSchemaToJsonSchema(def.innerType);
       case 'ZodEnum':
-        return { 
+        return {
           type: 'string',
           enum: def.values,
-          description: def.description 
+          description: def.description,
         };
       default:
         return { type: 'string', description: def.description };
     }
   }
-} 
+}

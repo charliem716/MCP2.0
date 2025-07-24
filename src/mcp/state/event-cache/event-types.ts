@@ -15,23 +15,32 @@ export const EVENT_TYPES = {
   CHANGE: 'change',
   THRESHOLD_CROSSED: 'threshold_crossed',
   STATE_TRANSITION: 'state_transition',
-  SIGNIFICANT_CHANGE: 'significant_change'
+  SIGNIFICANT_CHANGE: 'significant_change',
 } as const;
 
-export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
+export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 
 /**
  * Type guard for EventType
  */
 export function isEventType(value: unknown): value is EventType {
-  return typeof value === 'string' && Object.values(EVENT_TYPES).includes(value as EventType);
+  return (
+    typeof value === 'string' &&
+    Object.values(EVENT_TYPES).includes(value as EventType)
+  );
 }
 
 /**
  * Type guard for ControlValue
  */
 export function isControlValue(value: unknown): value is ControlValue {
-  return value === null || value === undefined || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  return (
+    value === null ||
+    value === undefined ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
 }
 
 /**
@@ -73,39 +82,53 @@ function hasValidRequiredFields(candidate: Record<string, unknown>): boolean {
  */
 function hasValidOptionalFields(candidate: Record<string, unknown>): boolean {
   // Check previousValue
-  if (candidate['previousValue'] !== undefined && !isControlValue(candidate['previousValue'])) {
+  if (
+    candidate['previousValue'] !== undefined &&
+    !isControlValue(candidate['previousValue'])
+  ) {
     return false;
   }
-  
+
   // Check previousString
-  if (candidate['previousString'] !== undefined && typeof candidate['previousString'] !== 'string') {
+  if (
+    candidate['previousString'] !== undefined &&
+    typeof candidate['previousString'] !== 'string'
+  ) {
     return false;
   }
-  
+
   // Check numeric fields
   const numericFields = ['delta', 'duration', 'threshold'];
   for (const field of numericFields) {
-    if (candidate[field] !== undefined && typeof candidate[field] !== 'number') {
+    if (
+      candidate[field] !== undefined &&
+      typeof candidate[field] !== 'number'
+    ) {
       return false;
     }
   }
-  
+
   // Check eventType
-  if (candidate['eventType'] !== undefined && !isEventType(candidate['eventType'])) {
+  if (
+    candidate['eventType'] !== undefined &&
+    !isEventType(candidate['eventType'])
+  ) {
     return false;
   }
-  
+
   return true;
 }
 
 /**
  * Type guard for SerializedCachedEvent
  */
-export function isSerializedCachedEvent(obj: unknown): obj is SerializedCachedEvent {
+export function isSerializedCachedEvent(
+  obj: unknown
+): obj is SerializedCachedEvent {
   if (typeof obj !== 'object' || obj === null) return false;
-  
+
   const candidate = obj as Record<string, unknown>;
-  
+
   return hasValidRequiredFields(candidate) && hasValidOptionalFields(candidate);
 }
 
@@ -114,9 +137,9 @@ export function isSerializedCachedEvent(obj: unknown): obj is SerializedCachedEv
  */
 export interface TypedQRWCAdapterEvents {
   'changeGroup:changes': (event: ChangeGroupEvent) => void;
-  'error': (error: Error) => void;
-  'disconnected': () => void;
-  'connected': () => void;
+  error: (error: Error) => void;
+  disconnected: () => void;
+  connected: () => void;
 }
 
 /**
@@ -144,13 +167,14 @@ export interface ControlChange {
  */
 export function isControlChange(obj: unknown): obj is ControlChange {
   if (typeof obj !== 'object' || obj === null) return false;
-  
+
   const candidate = obj as Record<string, unknown>;
-  
+
   return (
     typeof candidate['Name'] === 'string' &&
     isControlValue(candidate['Value']) &&
-    (candidate['String'] === undefined || typeof candidate['String'] === 'string')
+    (candidate['String'] === undefined ||
+      typeof candidate['String'] === 'string')
   );
 }
 
@@ -159,9 +183,9 @@ export function isControlChange(obj: unknown): obj is ControlChange {
  */
 export function isChangeGroupEvent(obj: unknown): obj is ChangeGroupEvent {
   if (typeof obj !== 'object' || obj === null) return false;
-  
+
   const candidate = obj as Record<string, unknown>;
-  
+
   return (
     typeof candidate['groupId'] === 'string' &&
     Array.isArray(candidate['changes']) &&
@@ -179,7 +203,11 @@ export function getMapValue<K, V>(map: Map<K, V>, key: K): V | undefined {
   return map.get(key);
 }
 
-export function getMapValueOrDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
+export function getMapValueOrDefault<K, V>(
+  map: Map<K, V>,
+  key: K,
+  defaultValue: V
+): V {
   return map.get(key) ?? defaultValue;
 }
 
@@ -192,7 +220,7 @@ export function parseSerializedEvents(data: string): SerializedCachedEvent[] {
     if (!Array.isArray(parsed)) {
       throw new Error('Expected array of events');
     }
-    
+
     const events: SerializedCachedEvent[] = [];
     for (const item of parsed) {
       if (isSerializedCachedEvent(item)) {
@@ -201,9 +229,11 @@ export function parseSerializedEvents(data: string): SerializedCachedEvent[] {
         // Skip invalid serialized event
       }
     }
-    
+
     return events;
   } catch (error) {
-    throw new Error(`Failed to parse serialized events: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to parse serialized events: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }

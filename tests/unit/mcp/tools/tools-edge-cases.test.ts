@@ -1,6 +1,9 @@
 import { ListComponentsTool } from '../../../../src/mcp/tools/components.js';
 import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status.js';
-import { SetControlValuesTool, ListControlsTool } from '../../../../src/mcp/tools/controls.js';
+import {
+  SetControlValuesTool,
+  ListControlsTool,
+} from '../../../../src/mcp/tools/controls.js';
 
 describe('MCP Tools - Edge Cases for 100% Coverage', () => {
   let mockQrwcClient: any;
@@ -8,7 +11,7 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
   beforeEach(() => {
     mockQrwcClient = {
       isConnected: jest.fn().mockReturnValue(true),
-      sendCommand: jest.fn()
+      sendCommand: jest.fn(),
     };
   });
 
@@ -18,8 +21,8 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
           { Name: 'Component1' }, // No Type property
-          { Name: 'Component2', Type: 'gain' }
-        ]
+          { Name: 'Component2', Type: 'gain' },
+        ],
       });
 
       const result = await tool.execute({});
@@ -30,9 +33,7 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
     it('should handle includeProperties:false branch', async () => {
       const tool = new ListComponentsTool(mockQrwcClient);
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [
-          { Name: 'Component1', Type: 'gain', Properties: { gain: 0 } }
-        ]
+        result: [{ Name: 'Component1', Type: 'gain', Properties: { gain: 0 } }],
       });
 
       const result = await tool.execute({ includeProperties: false });
@@ -46,8 +47,8 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: {
           Status: { Code: 0 }, // No String property
-          DesignName: 'Test'
-        }
+          DesignName: 'Test',
+        },
       });
 
       const result = await tool.execute({});
@@ -59,17 +60,19 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: {
           Status: { Code: 0, String: 'OK' },
-          DesignName: 'Test'
-        }
+          DesignName: 'Test',
+        },
       });
 
       const result = await tool.execute({
         includeDetails: false,
         includeNetworkInfo: false,
-        includePerformance: false
+        includePerformance: false,
       });
-      
-      expect(result.content[0].text).not.toContain('Detailed System Information');
+
+      expect(result.content[0].text).not.toContain(
+        'Detailed System Information'
+      );
       expect(result.content[0].text).not.toContain('Network Configuration');
       expect(result.content[0].text).not.toContain('Performance Metrics');
     });
@@ -82,8 +85,8 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
 
       const result = await tool.execute({
         controls: [
-          { name: 'TestControl', value: 1 } // No ramp
-        ]
+          { name: 'TestControl', value: 1 }, // No ramp
+        ],
       });
 
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
@@ -97,7 +100,7 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
       mockQrwcClient.sendCommand.mockRejectedValueOnce('String error');
 
       const result = await tool.execute({
-        controls: [{ name: 'TestControl', value: 1 }]
+        controls: [{ name: 'TestControl', value: 1 }],
       });
 
       expect(result.content[0].text).toContain('Failed - String error');
@@ -110,8 +113,8 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
           { Name: 'Control1' }, // Missing Value
-          { Name: 'Control2', Value: 0 }
-        ]
+          { Name: 'Control2', Value: 0 },
+        ],
       });
 
       const result = await tool.execute({});
@@ -121,9 +124,7 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
     it('should handle includeMetadata:false branch', async () => {
       const tool = new ListControlsTool(mockQrwcClient);
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [
-          { Name: 'Control1', Value: 0, ValueMin: -100, ValueMax: 10 }
-        ]
+        result: [{ Name: 'Control1', Value: 0, ValueMin: -100, ValueMax: 10 }],
       });
 
       const result = await tool.execute({ includeMetadata: false });
@@ -134,9 +135,7 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
     it('should handle unknown control type', async () => {
       const tool = new ListControlsTool(mockQrwcClient);
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [
-          { Name: 'UnknownControl', Value: 0 }
-        ]
+        result: [{ Name: 'UnknownControl', Value: 0 }],
       });
 
       const result = await tool.execute({ controlType: 'all' });

@@ -26,37 +26,37 @@ describe('BUG-073 Fix: Background cleanup timer', () => {
     eventCache = new EventCacheManager({
       maxEvents: 100,
       maxAgeMs: 1000, // 1 second
-      cleanupIntervalMs: 500 // Cleanup every 500ms
+      cleanupIntervalMs: 500, // Cleanup every 500ms
     });
-    
+
     eventCache.attachToAdapter(mockAdapter as any);
-    
+
     // Add some events
     const now = Date.now();
     mockAdapter.emit('changeGroup:changes', {
       groupId: 'test-group',
       changes: [
         { Name: 'control1', Value: 1, String: '1' },
-        { Name: 'control2', Value: 2, String: '2' }
+        { Name: 'control2', Value: 2, String: '2' },
       ],
       timestamp: BigInt(now * 1_000_000),
-      timestampMs: now
+      timestampMs: now,
     });
-    
+
     // Verify events are stored
     let events = eventCache.querySync({ groupId: 'test-group' });
     expect(events).toHaveLength(2);
-    
+
     // Advance time past maxAge but before cleanup interval
     jest.advanceTimersByTime(1200); // 1.2 seconds
-    
+
     // Events still there (cleanup hasn't run yet)
     events = eventCache.querySync({ groupId: 'test-group' });
     expect(events).toHaveLength(2);
-    
+
     // Advance time to trigger cleanup
     jest.advanceTimersByTime(300); // Total 1.5 seconds (3 cleanup intervals)
-    
+
     // Now events should be cleaned up
     events = eventCache.querySync({ groupId: 'test-group' });
     expect(events).toHaveLength(0);
@@ -66,19 +66,19 @@ describe('BUG-073 Fix: Background cleanup timer', () => {
     eventCache = new EventCacheManager({
       maxEvents: 100,
       maxAgeMs: 100,
-      cleanupIntervalMs: 100
+      cleanupIntervalMs: 100,
     });
-    
+
     eventCache.attachToAdapter(mockAdapter as any);
-    
+
     let cleanupEmitted = false;
     let totalEvicted = 0;
-    
-    eventCache.on('cleanup', (data) => {
+
+    eventCache.on('cleanup', data => {
       cleanupEmitted = true;
       totalEvicted = data.totalEvicted;
     });
-    
+
     // Add events
     const now = Date.now();
     mockAdapter.emit('changeGroup:changes', {
@@ -86,15 +86,15 @@ describe('BUG-073 Fix: Background cleanup timer', () => {
       changes: [
         { Name: 'control1', Value: 1, String: '1' },
         { Name: 'control2', Value: 2, String: '2' },
-        { Name: 'control3', Value: 3, String: '3' }
+        { Name: 'control3', Value: 3, String: '3' },
       ],
       timestamp: BigInt(now * 1_000_000),
-      timestampMs: now
+      timestampMs: now,
     });
-    
+
     // Advance time to trigger cleanup
     jest.advanceTimersByTime(200);
-    
+
     expect(cleanupEmitted).toBe(true);
     expect(totalEvicted).toBe(3);
   });
@@ -104,43 +104,43 @@ describe('BUG-073 Fix: Background cleanup timer', () => {
     eventCache = new EventCacheManager({
       maxEvents: 100,
       maxAgeMs: 200, // 200ms
-      cleanupIntervalMs: 100 // Cleanup every 100ms
+      cleanupIntervalMs: 100, // Cleanup every 100ms
     });
-    
+
     eventCache.attachToAdapter(mockAdapter as any);
-    
+
     // Add events to two groups at different times
     const baseTime = Date.now();
-    
+
     // Group 1 - older events
     mockAdapter.emit('changeGroup:changes', {
       groupId: 'group1',
       changes: [{ Name: 'old', Value: 1, String: '1' }],
       timestamp: BigInt(baseTime * 1_000_000),
-      timestampMs: baseTime
+      timestampMs: baseTime,
     });
-    
+
     // Wait 150ms - group1 events still valid
     jest.advanceTimersByTime(150);
-    
+
     // Group 2 - newer events
     const laterTime = baseTime + 150;
     mockAdapter.emit('changeGroup:changes', {
       groupId: 'group2',
       changes: [{ Name: 'new', Value: 2, String: '2' }],
       timestamp: BigInt(laterTime * 1_000_000),
-      timestampMs: laterTime
+      timestampMs: laterTime,
     });
-    
+
     // Advance another 100ms (total 250ms from group1, 100ms from group2)
     // This triggers cleanup and group1 should be evicted
     jest.advanceTimersByTime(100);
-    
+
     // Group 1 should be cleaned (250ms > 200ms maxAge)
     // Group 2 should remain (100ms < 200ms maxAge)
     const group1Events = eventCache.query({ groupId: 'group1' });
     const group2Events = eventCache.query({ groupId: 'group2' });
-    
+
     expect(group1Events).toHaveLength(0);
     expect(group2Events).toHaveLength(1);
   });
@@ -149,9 +149,9 @@ describe('BUG-073 Fix: Background cleanup timer', () => {
     eventCache = new EventCacheManager({
       maxEvents: 100,
       maxAgeMs: 1000,
-      cleanupIntervalMs: 500
+      cleanupIntervalMs: 500,
     });
-    
+
     // The timer should be unref'd
     // This test mainly ensures the code runs without error
     expect(() => eventCache.destroy()).not.toThrow();
@@ -161,21 +161,21 @@ describe('BUG-073 Fix: Background cleanup timer', () => {
     eventCache = new EventCacheManager({
       maxEvents: 100,
       maxAgeMs: 0, // No age limit
-      cleanupIntervalMs: 500
+      cleanupIntervalMs: 500,
     });
-    
+
     // Add mock to check if setInterval is called
     const setIntervalSpy = jest.spyOn(global, 'setInterval');
-    
+
     // Create new instance
     const cache2 = new EventCacheManager({
       maxEvents: 100,
-      maxAgeMs: 0
+      maxAgeMs: 0,
     });
-    
+
     // Should not have called setInterval
     expect(setIntervalSpy).not.toHaveBeenCalled();
-    
+
     cache2.destroy();
     setIntervalSpy.mockRestore();
   });

@@ -1,17 +1,22 @@
 # Change Group Implementation Preparation Plan
 
 ## Overview
-This document outlines the preparatory work needed before implementing BUG-034 (Change Group Methods). Based on a comprehensive codebase analysis, we've identified 2-3 days of preparation work required to ensure a smooth implementation.
+
+This document outlines the preparatory work needed before implementing BUG-034 (Change Group
+Methods). Based on a comprehensive codebase analysis, we've identified 2-3 days of preparation work
+required to ensure a smooth implementation.
 
 ## Current State Assessment
 
 ### Ready Components
+
 - ✅ Complete type definitions in `src/shared/types/qsys.ts`
 - ✅ Sophisticated ChangeGroupManager implementation in `src/mcp/state/change-group/`
 - ✅ Well-structured QRWC adapter with error handling patterns
 - ✅ Integration test infrastructure
 
 ### Blocking Issues
+
 - ❌ 3,356 ESLint errors (mostly console.log statements)
 - ❌ Adapter file too large (937 lines)
 - ❌ No connection between ChangeGroupManager and adapter
@@ -22,10 +27,11 @@ This document outlines the preparatory work needed before implementing BUG-034 (
 ### Phase 1: Critical Fixes (1-2 days)
 
 #### 1.1 Fix Console.log Statements (BUG-023)
-**Priority**: Critical
-**Time**: 1 day
+
+**Priority**: Critical **Time**: 1 day
 
 Tasks:
+
 - [ ] Run `npm run lint:fix` to auto-fix what's possible
 - [ ] Replace all `console.*` calls with Winston logger:
   ```typescript
@@ -38,10 +44,11 @@ Tasks:
 - [ ] Ensure all logging uses proper log levels (debug, info, warn, error)
 
 #### 1.2 Basic Adapter Refactoring (Partial BUG-040)
-**Priority**: High
-**Time**: 0.5-1 day
+
+**Priority**: High **Time**: 0.5-1 day
 
 Tasks:
+
 - [ ] Extract control validation logic to `src/mcp/qrwc/validators.ts`
 - [ ] Move type conversion helpers to `src/mcp/qrwc/converters.ts`
 - [ ] Create clear sections in adapter with comments:
@@ -54,7 +61,9 @@ Tasks:
 ### Phase 2: Foundation Setup (1 day)
 
 #### 2.1 Wire ChangeGroupManager to Adapter
+
 Tasks:
+
 - [ ] Add to adapter class:
   ```typescript
   private changeGroups = new Map<string, ChangeGroup>();
@@ -67,7 +76,9 @@ Tasks:
 - [ ] Add cleanup in disconnect method
 
 #### 2.2 Create Change Group Storage Structure
+
 Tasks:
+
 - [ ] Define storage interface for change groups
 - [ ] Implement persistence for change groups (optional)
 - [ ] Add change group metrics collection
@@ -75,13 +86,17 @@ Tasks:
 ### Phase 3: Pre-Implementation Setup (0.5 day)
 
 #### 3.1 Test Infrastructure
+
 Tasks:
+
 - [ ] Create `tests/unit/change-group/` directory
 - [ ] Set up mock Q-SYS responses for Change Group methods
 - [ ] Create test fixtures for change group scenarios
 
 #### 3.2 Documentation
+
 Tasks:
+
 - [ ] Document Change Group workflow in CLAUDE.md
 - [ ] Add Change Group examples to API documentation
 - [ ] Create troubleshooting guide for common issues
@@ -100,6 +115,7 @@ Before starting BUG-034 implementation, verify:
 ## Risk Mitigation
 
 ### Identified Risks
+
 1. **Q-SYS Core Behavior**: Unknown actual responses
    - Mitigation: Start with manual testing against real Core
    - Document all response formats
@@ -115,6 +131,7 @@ Before starting BUG-034 implementation, verify:
 ## Success Criteria
 
 The preparation is complete when:
+
 1. Zero ESLint errors in src/ directory
 2. Adapter file has clear Change Group section
 3. ChangeGroupManager is wired to adapter
@@ -124,13 +141,14 @@ The preparation is complete when:
 ## Estimated Timeline
 
 - **Phase 1**: 1-2 days
-- **Phase 2**: 1 day  
+- **Phase 2**: 1 day
 - **Phase 3**: 0.5 day
 - **Total**: 2.5-3.5 days
 
 ## Next Steps
 
 After completing preparation:
+
 1. Create feature branch `feature/bug-034-change-groups`
 2. Implement methods in order:
    - ChangeGroup.AddControl

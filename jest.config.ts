@@ -45,16 +45,8 @@ const config: Config = {
   restoreMocks: true,
   resetMocks: true,
   maxWorkers: '50%',
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/dist/',
-    '/coverage/',
-  ],
-  watchPathIgnorePatterns: [
-    '/node_modules/',
-    '/dist/',
-    '/coverage/',
-  ],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
+  watchPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
   globals: {
     'ts-jest': {
       useESM: true,
@@ -62,9 +54,7 @@ const config: Config = {
     },
   },
   extensionsToTreatAsEsm: ['.ts'],
-  modulePathIgnorePatterns: [
-    '<rootDir>/dist/',
-  ],
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
 };
 
-export default config; 
+export default config;

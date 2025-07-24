@@ -8,7 +8,7 @@ import {
   qsysToMcpControl,
   mcpToQsysControlValue,
   parseControlId,
-  formatControlId
+  formatControlId,
 } from '../../../../src/mcp/qrwc/converters';
 
 describe('Q-SYS Converters', () => {
@@ -33,13 +33,25 @@ describe('Q-SYS Converters', () => {
 
     it('should handle simple value types', () => {
       expect(extractControlValue(42)).toEqual({ value: 42, type: 'Number' });
-      expect(extractControlValue('hello')).toEqual({ value: 'hello', type: 'String' });
-      expect(extractControlValue(true)).toEqual({ value: true, type: 'Boolean' });
+      expect(extractControlValue('hello')).toEqual({
+        value: 'hello',
+        type: 'String',
+      });
+      expect(extractControlValue(true)).toEqual({
+        value: true,
+        type: 'Boolean',
+      });
     });
 
     it('should handle null and undefined', () => {
-      expect(extractControlValue(null)).toEqual({ value: null, type: 'String' });
-      expect(extractControlValue(undefined)).toEqual({ value: undefined, type: 'String' });
+      expect(extractControlValue(null)).toEqual({
+        value: null,
+        type: 'String',
+      });
+      expect(extractControlValue(undefined)).toEqual({
+        value: undefined,
+        type: 'String',
+      });
     });
   });
 
@@ -48,14 +60,14 @@ describe('Q-SYS Converters', () => {
       const component = {
         state: {
           Type: 'Gain',
-          Properties: ['Level', 'Mute']
-        }
+          Properties: ['Level', 'Mute'],
+        },
       };
       const result = qsysToMcpComponent('Gain1', component);
       expect(result).toEqual({
         Name: 'Gain1',
         Type: 'Gain',
-        Properties: ['Level', 'Mute']
+        Properties: ['Level', 'Mute'],
       });
     });
 
@@ -64,7 +76,7 @@ describe('Q-SYS Converters', () => {
       expect(result).toEqual({
         Name: 'Unknown',
         Type: 'Component',
-        Properties: []
+        Properties: [],
       });
     });
   });
@@ -78,7 +90,7 @@ describe('Q-SYS Converters', () => {
         ID: 'Gain1.Level',
         Value: 0.5,
         String: '0.5',
-        Type: 'Float'
+        Type: 'Float',
       });
     });
 
@@ -90,7 +102,7 @@ describe('Q-SYS Converters', () => {
         ID: 'Gain1.Mute',
         Value: 1,
         String: '1',
-        Type: 'Boolean'
+        Type: 'Boolean',
       });
     });
   });
@@ -114,7 +126,9 @@ describe('Q-SYS Converters', () => {
     });
 
     it('should pass through unknown types', () => {
-      expect(mcpToQsysControlValue({ custom: 'value' }, 'Custom')).toEqual({ custom: 'value' });
+      expect(mcpToQsysControlValue({ custom: 'value' }, 'Custom')).toEqual({
+        custom: 'value',
+      });
     });
   });
 
@@ -123,7 +137,7 @@ describe('Q-SYS Converters', () => {
       const result = parseControlId('Gain1.Level');
       expect(result).toEqual({
         componentName: 'Gain1',
-        controlName: 'Level'
+        controlName: 'Level',
       });
     });
 

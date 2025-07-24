@@ -15,30 +15,52 @@ const mockClient = {
     console.log(`  Control: "${control}"`);
     console.log(`  Value: ${value}`);
     return Promise.resolve();
-  }
+  },
 };
 
 const adapter = new QRWCClientAdapter(mockClient);
 
 async function runTests() {
   const testCases = [
-    { name: 'MainMixer.gain', value: 0.5, expectedComp: 'MainMixer', expectedCtrl: 'gain' },
-    { name: 'masterVolume', value: -6, expectedComp: '', expectedCtrl: 'masterVolume' },
-    { name: 'Output.channel.1.mute', value: 1, expectedComp: 'Output', expectedCtrl: 'channel.1.mute' },
-    { name: 'Comp.sub.system.control', value: 'test', expectedComp: 'Comp', expectedCtrl: 'sub.system.control' }
+    {
+      name: 'MainMixer.gain',
+      value: 0.5,
+      expectedComp: 'MainMixer',
+      expectedCtrl: 'gain',
+    },
+    {
+      name: 'masterVolume',
+      value: -6,
+      expectedComp: '',
+      expectedCtrl: 'masterVolume',
+    },
+    {
+      name: 'Output.channel.1.mute',
+      value: 1,
+      expectedComp: 'Output',
+      expectedCtrl: 'channel.1.mute',
+    },
+    {
+      name: 'Comp.sub.system.control',
+      value: 'test',
+      expectedComp: 'Comp',
+      expectedCtrl: 'sub.system.control',
+    },
   ];
 
   let allPassed = true;
 
   for (const test of testCases) {
     console.log(`\nTesting: ${test.name}`);
-    console.log(`Expected: Component="\${${  test.expectedComp  }}", Control="\${${  test.expectedCtrl  }}"`);
-    
+    console.log(
+      `Expected: Component="\${${test.expectedComp}}", Control="\${${test.expectedCtrl}}"`
+    );
+
     try {
       await adapter.sendCommand('Control.SetValues', {
-        Controls: [{ Name: test.name, Value: test.value }]
+        Controls: [{ Name: test.name, Value: test.value }],
       });
-      
+
       // Test passes if no error thrown
       console.log('✅ Parsing correct!');
     } catch (error) {
@@ -47,9 +69,11 @@ async function runTests() {
     }
   }
 
-  console.log(`\n${  '='.repeat(60)}`);
+  console.log(`\n${'='.repeat(60)}`);
   if (allPassed) {
-    console.log('✅ BUG-024 FULLY FIXED: All control name patterns parse correctly!');
+    console.log(
+      '✅ BUG-024 FULLY FIXED: All control name patterns parse correctly!'
+    );
   } else {
     console.log('❌ BUG-024 STILL HAS ISSUES');
   }

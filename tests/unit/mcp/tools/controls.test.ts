@@ -1,7 +1,7 @@
-import { 
-  ListControlsTool, 
-  GetControlValuesTool, 
-  SetControlValuesTool 
+import {
+  ListControlsTool,
+  GetControlValuesTool,
+  SetControlValuesTool,
 } from '../../../../src/mcp/tools/controls.js';
 import { globalLogger } from '../../../../src/shared/utils/logger.js';
 
@@ -11,7 +11,7 @@ jest.mock('../../../../src/shared/utils/logger.js', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-  }
+  },
 }));
 
 describe('ListControlsTool', () => {
@@ -22,7 +22,7 @@ describe('ListControlsTool', () => {
     jest.clearAllMocks();
     mockQrwcClient = {
       sendCommand: jest.fn(),
-      isConnected: jest.fn().mockReturnValue(true)
+      isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new ListControlsTool(mockQrwcClient);
     // @ts-ignore - accessing private property for testing
@@ -46,16 +46,16 @@ describe('ListControlsTool', () => {
               MinValue: -100,
               MaxValue: 20,
               Units: 'dB',
-              Step: 0.1
-            }
+              Step: 0.1,
+            },
           },
           {
             Name: 'MainMixer.input.1.mute',
             Component: 'MainMixer',
             Value: false,
             Properties: {
-              ValueType: 'Boolean'
-            }
+              ValueType: 'Boolean',
+            },
           },
           {
             Name: 'ZoneAmpControl.output.1.gain',
@@ -64,33 +64,42 @@ describe('ListControlsTool', () => {
               MinValue: -80,
               MaxValue: 12,
               Units: 'dB',
-              Step: 0.5
-            }
-          }
-        ]
+              Step: 0.5,
+            },
+          },
+        ],
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({});
-      
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.GetAllControls', {});
+
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Component.GetAllControls',
+        {}
+      );
       expect(result.isError).toBe(false);
       expect(result.content[0].text).toContain('Found 3 controls');
-      expect(result.content[0].text).toContain('MainMixer.input.1.gain (gain): -12.5');
-      expect(result.content[0].text).toContain('MainMixer.input.1.mute (mute): false');
-      expect(result.content[0].text).toContain('ZoneAmpControl.output.1.gain (gain): -6');
+      expect(result.content[0].text).toContain(
+        'MainMixer.input.1.gain (gain): -12.5'
+      );
+      expect(result.content[0].text).toContain(
+        'MainMixer.input.1.mute (mute): false'
+      );
+      expect(result.content[0].text).toContain(
+        'ZoneAmpControl.output.1.gain (gain): -6'
+      );
     });
 
     it('should handle empty response gracefully', async () => {
       const mockResponse = {
-        result: []
+        result: [],
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({});
-      
+
       expect(result.isError).toBe(false);
       expect(result.content[0].text).toContain('No controls found');
     });
@@ -101,7 +110,7 @@ describe('ListControlsTool', () => {
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({});
-      
+
       expect(result.isError).toBe(false);
       expect(result.content[0].text).toContain('No controls found');
     });
@@ -112,21 +121,24 @@ describe('ListControlsTool', () => {
           {
             Name: 'MainMixer.input.1.gain',
             Component: 'MainMixer',
-            Value: -12.5
+            Value: -12.5,
           },
           {
             Name: 'ZoneAmpControl.output.1.gain',
             Component: 'ZoneAmpControl',
-            Value: -6.0
-          }
-        ]
+            Value: -6.0,
+          },
+        ],
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({ component: 'MainMixer' });
-      
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.GetControls', { Name: 'MainMixer' });
+
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Component.GetControls',
+        { Name: 'MainMixer' }
+      );
       expect(result.content[0].text).toContain('Found 1 control');
       expect(result.content[0].text).toContain('MainMixer.input.1.gain');
       expect(result.content[0].text).not.toContain('ZoneAmpControl');
@@ -139,21 +151,21 @@ describe('ListControlsTool', () => {
             Name: 'MainMixer.input.1.gain',
             Component: 'MainMixer',
             Value: -12.5,
-            Properties: { Units: 'dB' }
+            Properties: { Units: 'dB' },
           },
           {
             Name: 'MainMixer.input.1.mute',
             Component: 'MainMixer',
             Value: false,
-            Properties: { ValueType: 'Boolean' }
-          }
-        ]
+            Properties: { ValueType: 'Boolean' },
+          },
+        ],
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({ controlType: 'gain' });
-      
+
       expect(result.content[0].text).toContain('Found 1 control');
       expect(result.content[0].text).toContain('gain');
       expect(result.content[0].text).not.toContain('mute');
@@ -170,16 +182,16 @@ describe('ListControlsTool', () => {
               MinValue: -100,
               MaxValue: 20,
               Units: 'dB',
-              Step: 0.1
-            }
-          }
-        ]
+              Step: 0.1,
+            },
+          },
+        ],
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({ includeMetadata: true });
-      
+
       expect(result.content[0].text).toContain('Metadata:');
       expect(result.content[0].text).toContain('min: -100');
       expect(result.content[0].text).toContain('max: 20');
@@ -194,14 +206,14 @@ describe('ListControlsTool', () => {
           { Name: 'Device.mute_button', Value: false },
           { Name: 'Device.input_select', Value: 1 },
           { Name: 'Device.output_select', Value: 2 },
-          { Name: 'Device.unknown_control', Value: 'test' }
-        ]
+          { Name: 'Device.unknown_control', Value: 'test' },
+        ],
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({});
-      
+
       expect(result.content[0].text).toContain('some_gain_control (gain)');
       expect(result.content[0].text).toContain('mute_button (mute)');
       expect(result.content[0].text).toContain('input_select (input_select)');
@@ -213,14 +225,14 @@ describe('ListControlsTool', () => {
       const mockResponse = {
         result: [
           { Name: 'DeviceA.control1', Value: 0 },
-          { Name: 'DeviceB.sub.control2', Value: 1 }
-        ]
+          { Name: 'DeviceB.sub.control2', Value: 1 },
+        ],
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
       const result = await tool.execute({});
-      
+
       // Check that component names were extracted correctly
       expect(result.content[0].text).toContain('DeviceA.control1');
       expect(result.content[0].text).toContain('DeviceB.sub.control2');
@@ -241,8 +253,8 @@ describe('ListControlsTool', () => {
     it('should handle control without component prefix', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'SimpleControl', Value: 1 } // No dot in name
-        ]
+          { Name: 'SimpleControl', Value: 1 }, // No dot in name
+        ],
       });
 
       const result = await tool.execute({ component: 'TestComponent' });
@@ -254,8 +266,8 @@ describe('ListControlsTool', () => {
         result: [
           { Name: 'Control1', Value: 0, Position: null },
           { Name: 'Control2', Value: 1, Position: undefined },
-          { Name: 'Control3', Value: 2 } // No Position property
-        ]
+          { Name: 'Control3', Value: 2 }, // No Position property
+        ],
       });
 
       const result = await tool.execute({});
@@ -273,7 +285,7 @@ describe('GetControlValuesTool', () => {
     jest.clearAllMocks();
     mockQrwcClient = {
       sendCommand: jest.fn(),
-      isConnected: jest.fn().mockReturnValue(true)
+      isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new GetControlValuesTool(mockQrwcClient);
     // @ts-ignore - accessing private property for testing
@@ -289,17 +301,22 @@ describe('GetControlValuesTool', () => {
     const mockResponse = {
       result: [
         { Name: 'MainMixer.gain', Value: -12.5, String: '-12.5 dB' },
-        { Name: 'MainMixer.mute', Value: false, String: 'Off' }
-      ]
+        { Name: 'MainMixer.mute', Value: false, String: 'Off' },
+      ],
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-    const result = await tool.execute({ controls: ['MainMixer.gain', 'MainMixer.mute'] });
-    
-    expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.GetValues', {
-      Names: ['MainMixer.gain', 'MainMixer.mute']
+    const result = await tool.execute({
+      controls: ['MainMixer.gain', 'MainMixer.mute'],
     });
+
+    expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+      'Control.GetValues',
+      {
+        Names: ['MainMixer.gain', 'MainMixer.mute'],
+      }
+    );
     expect(result.isError).toBe(false);
     expect(result.content[0].text).toContain('MainMixer.gain: -12.5');
     expect(result.content[0].text).toContain('MainMixer.mute: false');
@@ -307,17 +324,15 @@ describe('GetControlValuesTool', () => {
 
   it('should handle missing controls gracefully', async () => {
     const mockResponse = {
-      result: [
-        { Name: 'MainMixer.gain', Value: -12.5 }
-      ]
+      result: [{ Name: 'MainMixer.gain', Value: -12.5 }],
     };
 
     mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-    const result = await tool.execute({ 
-      controls: ['MainMixer.gain', 'NonExistent.control'] 
+    const result = await tool.execute({
+      controls: ['MainMixer.gain', 'NonExistent.control'],
     });
-    
+
     expect(result.isError).toBe(false);
     expect(result.content[0].text).toContain('MainMixer.gain: -12.5');
     expect(result.content[0].text).toContain('NonExistent.control: N/A');
@@ -329,8 +344,8 @@ describe('GetControlValuesTool', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
           { Name: 'Control1', Value: null, String: null },
-          { Name: 'Control2' } // Missing Value and String
-        ]
+          { Name: 'Control2' }, // Missing Value and String
+        ],
       });
 
       const result = await tool.execute({ controls: ['Control1', 'Control2'] });
@@ -348,7 +363,7 @@ describe('SetControlValuesTool', () => {
     jest.clearAllMocks();
     mockQrwcClient = {
       sendCommand: jest.fn(),
-      isConnected: jest.fn().mockReturnValue(true)
+      isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new SetControlValuesTool(mockQrwcClient);
     // @ts-ignore - accessing private property for testing
@@ -363,21 +378,21 @@ describe('SetControlValuesTool', () => {
   it('should set named control values successfully', async () => {
     mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
 
-    const result = await tool.execute({ 
+    const result = await tool.execute({
       controls: [
         { name: 'MainGain', value: -10 },
-        { name: 'MainMute', value: true }
-      ]
+        { name: 'MainMute', value: true },
+      ],
     });
-    
+
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(2);
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
       Name: 'MainGain',
-      Value: -10
+      Value: -10,
     });
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
       Name: 'MainMute',
-      Value: true
+      Value: true,
     });
     expect(result.isError).toBe(false);
     expect(result.content[0].text).toContain('✓ MainGain: -10');
@@ -388,21 +403,21 @@ describe('SetControlValuesTool', () => {
   it('should set component control values successfully', async () => {
     mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
 
-    const result = await tool.execute({ 
+    const result = await tool.execute({
       controls: [
         { name: 'Main Output Gain.gain', value: -10 },
-        { name: 'Main Output Gain.mute', value: true }
-      ]
+        { name: 'Main Output Gain.mute', value: true },
+      ],
     });
-    
+
     // Should batch controls by component
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(1);
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.Set', {
       Name: 'Main Output Gain',
       Controls: [
         { Name: 'gain', Value: -10 },
-        { Name: 'mute', Value: true }
-      ]
+        { Name: 'mute', Value: true },
+      ],
     });
     expect(result.isError).toBe(false);
     expect(result.content[0].text).toContain('✓ Main Output Gain.gain: -10');
@@ -413,50 +428,48 @@ describe('SetControlValuesTool', () => {
   it('should handle ramp parameter for component controls', async () => {
     mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
 
-    const result = await tool.execute({ 
-      controls: [
-        { name: 'Main Output Gain.gain', value: -5, ramp: 2.5 }
-      ]
+    const result = await tool.execute({
+      controls: [{ name: 'Main Output Gain.gain', value: -5, ramp: 2.5 }],
     });
-    
+
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.Set', {
       Name: 'Main Output Gain',
-      Controls: [
-        { Name: 'gain', Value: -5, Ramp: 2.5 }
-      ]
+      Controls: [{ Name: 'gain', Value: -5, Ramp: 2.5 }],
     });
-    expect(result.content[0].text).toContain('✓ Main Output Gain.gain: -5 (ramped over 2.5s)');
+    expect(result.content[0].text).toContain(
+      '✓ Main Output Gain.gain: -5 (ramped over 2.5s)'
+    );
   });
 
   it('should handle mixed named and component controls', async () => {
     mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
 
-    const result = await tool.execute({ 
+    const result = await tool.execute({
       controls: [
-        { name: 'MainGain', value: -10 },  // Named control
-        { name: 'Main Output Gain.gain', value: -5 },  // Component control
-        { name: 'Main Output Gain.mute', value: true }  // Component control
-      ]
+        { name: 'MainGain', value: -10 }, // Named control
+        { name: 'Main Output Gain.gain', value: -5 }, // Component control
+        { name: 'Main Output Gain.mute', value: true }, // Component control
+      ],
     });
-    
+
     // Should make 2 calls: 1 for named control, 1 for component controls
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(2);
-    
+
     // Named control call
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
       Name: 'MainGain',
-      Value: -10
+      Value: -10,
     });
-    
+
     // Component controls batched together
     expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.Set', {
       Name: 'Main Output Gain',
       Controls: [
         { Name: 'gain', Value: -5 },
-        { Name: 'mute', Value: true }
-      ]
+        { Name: 'mute', Value: true },
+      ],
     });
-    
+
     expect(result.isError).toBe(false);
     expect(result.content[0].text).toContain('Set 3/3 controls successfully');
   });
@@ -466,13 +479,13 @@ describe('SetControlValuesTool', () => {
       .mockResolvedValueOnce({ success: true })
       .mockRejectedValueOnce(new Error('Control not found'));
 
-    const result = await tool.execute({ 
+    const result = await tool.execute({
       controls: [
         { name: 'Main Output Gain.gain', value: -10 },
-        { name: 'Invalid.control', value: 0 }
-      ]
+        { name: 'Invalid.control', value: 0 },
+      ],
     });
-    
+
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('✓ Main Output Gain.gain: -10');
     expect(result.content[0].text).toContain('✗ Invalid.control: Failed');
@@ -484,69 +497,53 @@ describe('SetControlValuesTool', () => {
     it('should use Control.Set for named controls', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
 
-      await tool.execute({ 
-        controls: [{ name: 'TestControl', value: 50 }]
+      await tool.execute({
+        controls: [{ name: 'TestControl', value: 50 }],
       });
-      
+
       // Verify the correct command for named controls
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'Control.Set',
-        {
-          Name: 'TestControl',
-          Value: 50
-        }
-      );
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
+        Name: 'TestControl',
+        Value: 50,
+      });
     });
 
     it('should use Component.Set for component controls', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
 
-      await tool.execute({ 
-        controls: [{ name: 'TestComponent.testControl', value: 50 }]
+      await tool.execute({
+        controls: [{ name: 'TestComponent.testControl', value: 50 }],
       });
-      
+
       // Verify the correct command for component controls
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'Component.Set',
-        {
-          Name: 'TestComponent',
-          Controls: [
-            { Name: 'testControl', Value: 50 }
-          ]
-        }
-      );
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.Set', {
+        Name: 'TestComponent',
+        Controls: [{ Name: 'testControl', Value: 50 }],
+      });
     });
 
     it('should pass ramp parameter correctly for both control types', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
 
-      await tool.execute({ 
+      await tool.execute({
         controls: [
           { name: 'FaderControl', value: -6, ramp: 1.5 },
-          { name: 'Mixer.fader', value: -3, ramp: 2.0 }
-        ]
+          { name: 'Mixer.fader', value: -3, ramp: 2.0 },
+        ],
       });
-      
+
       // Named control with ramp
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'Control.Set',
-        {
-          Name: 'FaderControl',
-          Value: -6,
-          Ramp: 1.5
-        }
-      );
-      
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
+        Name: 'FaderControl',
+        Value: -6,
+        Ramp: 1.5,
+      });
+
       // Component control with ramp
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'Component.Set',
-        {
-          Name: 'Mixer',
-          Controls: [
-            { Name: 'fader', Value: -3, Ramp: 2.0 }
-          ]
-        }
-      );
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.Set', {
+        Name: 'Mixer',
+        Controls: [{ Name: 'fader', Value: -3, Ramp: 2.0 }],
+      });
     });
   });
 
@@ -556,8 +553,8 @@ describe('SetControlValuesTool', () => {
       // Pass invalid control structure to trigger error in prepareCommand
       const result = await tool.execute({
         controls: [
-          { name: null as any, value: 1 } // Invalid name
-        ]
+          { name: null as any, value: 1 }, // Invalid name
+        ],
       });
 
       expect(result.isError).toBe(true);
@@ -569,8 +566,8 @@ describe('SetControlValuesTool', () => {
 
       await tool.execute({
         controls: [
-          { name: 'Comp.Sub.control', value: 1 } // Multiple dots
-        ]
+          { name: 'Comp.Sub.control', value: 1 }, // Multiple dots
+        ],
       });
 
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
@@ -578,8 +575,8 @@ describe('SetControlValuesTool', () => {
         expect.objectContaining({
           Name: 'Comp',
           Controls: expect.arrayContaining([
-            expect.objectContaining({ Name: 'Sub.control' })
-          ])
+            expect.objectContaining({ Name: 'Sub.control' }),
+          ]),
         })
       );
     });
@@ -590,7 +587,7 @@ describe('SetControlValuesTool', () => {
       });
 
       const result = await tool.execute({
-        controls: [{ name: 'Test', value: 1 }]
+        controls: [{ name: 'Test', value: 1 }],
       });
 
       expect(result.content[0].text).toContain('Failed - String exception');
@@ -607,7 +604,7 @@ describe('ListControlsTool - BUG-055 regression', () => {
     jest.clearAllMocks();
     mockQrwcClient = {
       sendCommand: jest.fn(),
-      isConnected: jest.fn().mockReturnValue(true)
+      isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new ListControlsTool(mockQrwcClient);
   });
@@ -615,11 +612,11 @@ describe('ListControlsTool - BUG-055 regression', () => {
   it('should handle undefined result gracefully', async () => {
     // Mock response with undefined result
     mockQrwcClient.sendCommand.mockResolvedValueOnce({
-      result: undefined
+      result: undefined,
     });
 
     const result = await tool.execute({ component: 'test' });
-    
+
     expect(result.isError).toBe(false);
     expect(result.content[0].type).toBe('text');
     expect(result.content[0].text).toContain('[]');
@@ -634,14 +631,14 @@ describe('ListControlsTool - BUG-055 regression', () => {
           {
             Name: 'Volume',
             Value: 0.5,
-            Type: 'float'
-          }
-        ]
-      }
+            Type: 'float',
+          },
+        ],
+      },
     });
 
     const result = await tool.execute({ component: 'TestComponent' });
-    
+
     expect(result.isError).toBe(false);
     const responseText = result.content[0].text;
     expect(responseText).toContain('TestComponent');

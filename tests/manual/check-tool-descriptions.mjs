@@ -11,9 +11,15 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Load modules
-const { OfficialQRWCClient } = await import('../../dist/src/qrwc/officialClient.js');
-const { QRWCClientAdapter } = await import('../../dist/src/mcp/qrwc/adapter.js');
-const { MCPToolRegistry } = await import('../../dist/src/mcp/handlers/index.js');
+const { OfficialQRWCClient } = await import(
+  '../../dist/src/qrwc/officialClient.js'
+);
+const { QRWCClientAdapter } = await import(
+  '../../dist/src/mcp/qrwc/adapter.js'
+);
+const { MCPToolRegistry } = await import(
+  '../../dist/src/mcp/handlers/index.js'
+);
 
 // Load config
 const configPath = join(__dirname, '../../qsys-core.config.json');

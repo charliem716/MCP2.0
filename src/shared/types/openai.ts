@@ -7,7 +7,7 @@ import type { ID, Timestamp } from './common.js';
 /**
  * OpenAI model names
  */
-export type OpenAIModel = 
+export type OpenAIModel =
   | 'gpt-4'
   | 'gpt-4-turbo'
   | 'gpt-4-turbo-preview'
@@ -17,7 +17,7 @@ export type OpenAIModel =
 /**
  * OpenAI voice options for TTS
  */
-export type OpenAIVoice = 
+export type OpenAIVoice =
   | 'alloy'
   | 'echo'
   | 'fable'
@@ -28,18 +28,12 @@ export type OpenAIVoice =
 /**
  * OpenAI audio formats
  */
-export type OpenAIAudioFormat = 
-  | 'mp3'
-  | 'opus'
-  | 'aac'
-  | 'flac'
-  | 'wav'
-  | 'pcm';
+export type OpenAIAudioFormat = 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm';
 
 /**
  * OpenAI message role
  */
-export type OpenAIMessageRole = 
+export type OpenAIMessageRole =
   | 'system'
   | 'user'
   | 'assistant'
@@ -106,7 +100,10 @@ export interface OpenAIChatCompletionRequest {
   functions?: OpenAIFunction[];
   function_call?: 'auto' | 'none' | { name: string };
   tools?: OpenAITool[];
-  tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
+  tool_choice?:
+    | 'auto'
+    | 'none'
+    | { type: 'function'; function: { name: string } };
   temperature?: number;
   top_p?: number;
   n?: number;
@@ -125,7 +122,12 @@ export interface OpenAIChatCompletionRequest {
 export interface OpenAIChatCompletionChoice {
   index: number;
   message: OpenAIChatMessage;
-  finish_reason: 'stop' | 'length' | 'function_call' | 'tool_calls' | 'content_filter';
+  finish_reason:
+    | 'stop'
+    | 'length'
+    | 'function_call'
+    | 'tool_calls'
+    | 'content_filter';
 }
 
 /**
@@ -156,7 +158,13 @@ export interface OpenAIChatCompletionChunk {
   choices: Array<{
     index: number;
     delta: Partial<OpenAIChatMessage>;
-    finish_reason: 'stop' | 'length' | 'function_call' | 'tool_calls' | 'content_filter' | null;
+    finish_reason:
+      | 'stop'
+      | 'length'
+      | 'function_call'
+      | 'tool_calls'
+      | 'content_filter'
+      | null;
   }>;
   usage?: {
     prompt_tokens: number;
@@ -315,7 +323,8 @@ export interface OpenAIRealtimeEventBase {
 /**
  * OpenAI realtime session update event
  */
-export interface OpenAIRealtimeSessionUpdateEvent extends OpenAIRealtimeEventBase {
+export interface OpenAIRealtimeSessionUpdateEvent
+  extends OpenAIRealtimeEventBase {
   type: 'session.update';
   session: Partial<OpenAIRealtimeSession>;
 }
@@ -323,7 +332,8 @@ export interface OpenAIRealtimeSessionUpdateEvent extends OpenAIRealtimeEventBas
 /**
  * OpenAI realtime input audio buffer append event
  */
-export interface OpenAIRealtimeInputAudioBufferAppendEvent extends OpenAIRealtimeEventBase {
+export interface OpenAIRealtimeInputAudioBufferAppendEvent
+  extends OpenAIRealtimeEventBase {
   type: 'input_audio_buffer.append';
   audio: string; // base64 encoded audio
 }
@@ -331,7 +341,8 @@ export interface OpenAIRealtimeInputAudioBufferAppendEvent extends OpenAIRealtim
 /**
  * OpenAI realtime response create event
  */
-export interface OpenAIRealtimeResponseCreateEvent extends OpenAIRealtimeEventBase {
+export interface OpenAIRealtimeResponseCreateEvent
+  extends OpenAIRealtimeEventBase {
   type: 'response.create';
   response?: {
     modalities?: Array<'text' | 'audio'>;
@@ -405,16 +416,20 @@ export interface OpenAIRealtimeResponse {
  */
 export interface OpenAIClient {
   // Chat completions
-  createChatCompletion(request: OpenAIChatCompletionRequest): Promise<OpenAIChatCompletionResponse>;
-  createChatCompletionStream(request: OpenAIChatCompletionRequest): AsyncIterableIterator<OpenAIChatCompletionChunk>;
-  
+  createChatCompletion(
+    request: OpenAIChatCompletionRequest
+  ): Promise<OpenAIChatCompletionResponse>;
+  createChatCompletionStream(
+    request: OpenAIChatCompletionRequest
+  ): AsyncIterableIterator<OpenAIChatCompletionChunk>;
+
   // Text-to-speech
   createSpeech(request: OpenAITTSRequest): Promise<ArrayBuffer>;
-  
+
   // Speech-to-text
   createTranscription(request: OpenAISTTRequest): Promise<OpenAISTTResponse>;
   createTranslation(request: OpenAISTTRequest): Promise<OpenAISTTResponse>;
-  
+
   // Realtime API
   createRealtimeSession(config: OpenAIRealtimeConfig): Promise<WebSocket>;
 }
@@ -431,21 +446,31 @@ export interface OpenAIAgent {
   tools: OpenAITool[];
   temperature: number;
   maxTokens: number;
-  
+
   // Conversation management
   createConversation(systemPrompt?: string): Promise<OpenAIConversationContext>;
-  sendMessage(conversationId: ID, message: string, context?: Record<string, unknown>): Promise<OpenAIChatMessage>;
-  sendMessageStream(conversationId: ID, message: string, context?: Record<string, unknown>): AsyncIterableIterator<OpenAIChatCompletionChunk>;
-  
+  sendMessage(
+    conversationId: ID,
+    message: string,
+    context?: Record<string, unknown>
+  ): Promise<OpenAIChatMessage>;
+  sendMessageStream(
+    conversationId: ID,
+    message: string,
+    context?: Record<string, unknown>
+  ): AsyncIterableIterator<OpenAIChatCompletionChunk>;
+
   // Tool management
   registerTool(tool: OpenAITool): void;
   unregisterTool(name: string): void;
   executeTool(name: string, args: Record<string, unknown>): Promise<unknown>;
-  
+
   // Voice capabilities
   textToSpeech(text: string, voice?: OpenAIVoice): Promise<ArrayBuffer>;
   speechToText(audio: ArrayBuffer): Promise<string>;
-  
+
   // Realtime capabilities
-  createRealtimeSession(config?: Partial<OpenAIRealtimeConfig>): Promise<WebSocket>;
-} 
+  createRealtimeSession(
+    config?: Partial<OpenAIRealtimeConfig>
+  ): Promise<WebSocket>;
+}

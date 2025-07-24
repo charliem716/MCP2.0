@@ -1,17 +1,20 @@
-import type { MCPTool } from "../../shared/types/mcp.js";
-import { globalLogger as logger } from "../../shared/utils/logger.js";
-import type { QRWCClientInterface } from "../qrwc/adapter.js";
+import type { MCPTool } from '../../shared/types/mcp.js';
+import { globalLogger as logger } from '../../shared/utils/logger.js';
+import type { QRWCClientInterface } from '../qrwc/adapter.js';
 
 // Import all Q-SYS tools
-import { createListComponentsTool, createGetComponentControlsTool } from "../tools/components.js";
-import { 
+import {
+  createListComponentsTool,
+  createGetComponentControlsTool,
+} from '../tools/components.js';
+import {
   createListControlsTool,
   createGetControlValuesTool,
-  createSetControlValuesTool 
-} from "../tools/controls.js";
-import { createQueryCoreStatusTool } from "../tools/status.js";
-import { createGetAllControlsTool } from "../tools/discovery.js";
-import { createQueryQSysAPITool } from "../tools/qsys-api.js";
+  createSetControlValuesTool,
+} from '../tools/controls.js';
+import { createQueryCoreStatusTool } from '../tools/status.js';
+import { createGetAllControlsTool } from '../tools/discovery.js';
+import { createQueryQSysAPITool } from '../tools/qsys-api.js';
 import {
   createCreateChangeGroupTool,
   createAddControlsToChangeGroupTool,
@@ -21,10 +24,10 @@ import {
   createClearChangeGroupTool,
   createSetChangeGroupAutoPollTool,
   createListChangeGroupsTool,
-  createReadChangeGroupEventsTool
-} from "../tools/change-groups.js";
-import type { EventCacheManager } from "../state/event-cache/manager.js";
-import type { BaseQSysTool, ToolExecutionResult } from "../tools/base.js";
+  createReadChangeGroupEventsTool,
+} from '../tools/change-groups.js';
+import type { EventCacheManager } from '../state/event-cache/manager.js';
+import type { BaseQSysTool, ToolExecutionResult } from '../tools/base.js';
 
 /**
  * Tool call result structure (legacy compatibility)
@@ -46,12 +49,14 @@ export interface BaseTool {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: MCPTool['inputSchema'];
-  execute(args: Record<string, unknown>): Promise<ToolCallResult | ToolExecutionResult>;
+  execute(
+    args: Record<string, unknown>
+  ): Promise<ToolCallResult | ToolExecutionResult>;
 }
 
 /**
  * Tool Registry for managing all Q-SYS control tools
- * 
+ *
  * Centralizes tool registration, validation, and execution with:
  * - Comprehensive Zod schema validation
  * - Real Q-SYS tool implementations
@@ -66,7 +71,7 @@ export class MCPToolRegistry {
     private qrwcClient: QRWCClientInterface,
     private eventCacheManager?: EventCacheManager
   ) {
-    logger.debug("MCPToolRegistry created");
+    logger.debug('MCPToolRegistry created');
   }
 
   /**
@@ -74,12 +79,12 @@ export class MCPToolRegistry {
    */
   initialize(): void {
     if (this.initialized) {
-      logger.warn("MCPToolRegistry already initialized");
+      logger.warn('MCPToolRegistry already initialized');
       return;
     }
 
     try {
-      logger.info("Initializing MCP tool registry with Q-SYS tools...");
+      logger.info('Initializing MCP tool registry with Q-SYS tools...');
 
       // Register all Q-SYS tools
       this.registerQSysTools();
@@ -89,11 +94,10 @@ export class MCPToolRegistry {
 
       this.initialized = true;
       logger.info(`Tool registry initialized with ${this.tools.size} tools`, {
-        tools: Array.from(this.tools.keys())
+        tools: Array.from(this.tools.keys()),
       });
-
     } catch (error) {
-      logger.error("Failed to initialize tool registry", { error });
+      logger.error('Failed to initialize tool registry', { error });
       throw error;
     }
   }
@@ -124,7 +128,9 @@ export class MCPToolRegistry {
 
     // Add event cache tool if available
     if (this.eventCacheManager) {
-      qsysTools.push(createReadChangeGroupEventsTool(this.qrwcClient, this.eventCacheManager));
+      qsysTools.push(
+        createReadChangeGroupEventsTool(this.qrwcClient, this.eventCacheManager)
+      );
     }
 
     qsysTools.forEach(tool => {
@@ -142,20 +148,22 @@ export class MCPToolRegistry {
       name: qsysTool.name,
       description: qsysTool.description,
       inputSchema: qsysTool.inputSchema,
-      execute: async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+      execute: async (
+        args: Record<string, unknown>
+      ): Promise<ToolExecutionResult> => {
         const result: ToolExecutionResult = await qsysTool.execute(args);
-        
+
         // Log execution metrics
         if (result.executionTimeMs > 1000) {
           logger.warn(`Slow tool execution: ${qsysTool.name}`, {
             executionTimeMs: result.executionTimeMs,
-            context: result.context
+            context: result.context,
           });
         }
 
         // Return full result with metadata
         return result;
-      }
+      },
     };
 
     this.registerTool(adaptedTool);
@@ -168,26 +176,31 @@ export class MCPToolRegistry {
     // Echo tool for testing
     this.registerTool({
       name: 'echo',
-      description: 'Test MCP connection by echoing a message. Returns "Echo: {message}" confirming connectivity. Use before complex operations to verify connection. Example: {message:"test"} returns "Echo: test".',
+      description:
+        'Test MCP connection by echoing a message. Returns "Echo: {message}" confirming connectivity. Use before complex operations to verify connection. Example: {message:"test"} returns "Echo: test".',
       inputSchema: {
         type: 'object',
         properties: {
           message: {
             type: 'string',
-            description: 'Text message to echo back for connectivity verification'
-          }
+            description:
+              'Text message to echo back for connectivity verification',
+          },
         },
-        required: ['message']
+        required: ['message'],
       },
-      execute: async (args) => ({
-        content: [{
-          type: 'text',
-          text: `Echo: ${args['message']}`
-        }]
-      })
+      execute: async args =>
+        Promise.resolve({
+          content: [
+            {
+              type: 'text',
+              text: `Echo: ${String(args['message'])}`,
+            },
+          ],
+        }),
     });
 
-    logger.debug("Legacy testing tools registered");
+    logger.debug('Legacy testing tools registered');
   }
 
   /**
@@ -208,63 +221,70 @@ export class MCPToolRegistry {
    */
   async listTools(): Promise<MCPTool[]> {
     if (!this.initialized) {
-      throw new Error("Tool registry not initialized");
+      throw new Error('Tool registry not initialized');
     }
 
     const tools = Array.from(this.tools.values()).map(tool => ({
       name: tool.name,
       description: tool.description,
-      inputSchema: tool.inputSchema
+      inputSchema: tool.inputSchema,
     }));
 
     logger.debug(`Listing ${tools.length} available tools`);
-    return tools;
+    return Promise.resolve(tools);
   }
 
   /**
    * Execute a tool by name
    */
-  async callTool(name: string, args?: Record<string, unknown>): Promise<ToolCallResult | ToolExecutionResult> {
+  async callTool(
+    name: string,
+    args?: Record<string, unknown>
+  ): Promise<ToolCallResult | ToolExecutionResult> {
     if (!this.initialized) {
-      throw new Error("Tool registry not initialized");
+      throw new Error('Tool registry not initialized');
     }
 
     const tool = this.tools.get(name);
     if (!tool) {
       const availableTools = Array.from(this.tools.keys()).join(', ');
-      throw new Error(`Tool '${name}' not found. Available tools: ${availableTools}`);
+      throw new Error(
+        `Tool '${name}' not found. Available tools: ${availableTools}`
+      );
     }
 
     try {
       logger.debug(`Executing tool: ${name}`, { args });
       const startTime = Date.now();
-      
+
       const result = await tool.execute(args ?? {});
       const executionTime = Date.now() - startTime;
-      
+
       // Check if result has extended metadata
       if ('executionTimeMs' in result && 'context' in result) {
-        logger.debug(`Tool execution completed: ${name}`, { 
+        logger.debug(`Tool execution completed: ${name}`, {
           executionTimeMs: result.executionTimeMs,
           context: result.context,
-          success: !result.isError 
+          success: !result.isError,
         });
       } else {
-        logger.debug(`Tool execution completed: ${name}`, { 
+        logger.debug(`Tool execution completed: ${name}`, {
           executionTimeMs: executionTime,
-          success: !result.isError 
+          success: !result.isError,
         });
       }
-      
+
       return result;
     } catch (error) {
       logger.error(`Tool execution failed: ${name}`, { error, args });
       return {
-        content: [{
-          type: 'text',
-          text: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
-        }],
-        isError: true
+        content: [
+          {
+            type: 'text',
+            text: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
   }
@@ -294,14 +314,15 @@ export class MCPToolRegistry {
    * Cleanup resources
    */
   async cleanup(): Promise<void> {
-    logger.info("Cleaning up tool registry...", {
+    logger.info('Cleaning up tool registry...', {
       toolCount: this.tools.size,
-      tools: this.getToolNames()
+      tools: this.getToolNames(),
     });
-    
+
     this.tools.clear();
     this.initialized = false;
-    
-    logger.info("Tool registry cleanup completed");
+
+    logger.info('Tool registry cleanup completed');
+    return Promise.resolve();
   }
-} 
+}

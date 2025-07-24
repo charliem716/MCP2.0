@@ -10,14 +10,14 @@ let successCount = 0;
 const client = new OfficialQRWCClient({
   host: 'test.local',
   port: 443,
-  enableAutoReconnect: false
+  enableAutoReconnect: false,
 });
 
 // Access the private logger property to count calls
 const clientAny = client;
 if (clientAny.logger) {
   const originalInfo = clientAny.logger.info;
-  clientAny.logger.info = function(message, ...args) {
+  clientAny.logger.info = function (message, ...args) {
     if (message.includes('Disconnecting from Q-SYS Core')) {
       disconnectCount++;
     }
@@ -43,10 +43,15 @@ console.log(`- "Disconnected successfully" calls: ${successCount}`);
 const expectedDisconnect = 1;
 const expectedSuccess = 1;
 
-if (disconnectCount === expectedDisconnect && successCount === expectedSuccess) {
+if (
+  disconnectCount === expectedDisconnect &&
+  successCount === expectedSuccess
+) {
   console.log(`\n✅ PASSED: Bug is fixed! Only logged once despite 100 calls.`);
 } else {
-  console.log(`\n❌ FAILED: Expected ${expectedDisconnect} disconnect and ${expectedSuccess} success, got ${disconnectCount} and ${successCount}`);
+  console.log(
+    `\n❌ FAILED: Expected ${expectedDisconnect} disconnect and ${expectedSuccess} success, got ${disconnectCount} and ${successCount}`
+  );
 }
 
 // Test 2: Check state after disconnect

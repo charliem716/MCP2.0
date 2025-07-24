@@ -8,7 +8,7 @@ import {
   RemoveControlsFromChangeGroupTool,
   ClearChangeGroupTool,
   SetChangeGroupAutoPollTool,
-  ListChangeGroupsTool
+  ListChangeGroupsTool,
 } from '../../../../src/mcp/tools/change-groups.js';
 
 describe('Change Group Tools', () => {
@@ -18,7 +18,7 @@ describe('Change Group Tools', () => {
     mockQrwcClient = {
       isConnected: jest.fn().mockReturnValue(true),
       sendCommand: jest.fn(),
-      listChangeGroups: jest.fn()
+      listChangeGroups: jest.fn(),
     } as any;
   });
 
@@ -39,19 +39,23 @@ describe('Change Group Tools', () => {
 
       const result = await tool.execute({ groupId: 'test-group-1' });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.AddControl', {
-        Id: 'test-group-1',
-        Controls: []
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.AddControl',
+        {
+          Id: 'test-group-1',
+          Controls: [],
+        }
+      );
       expect(result.content[0].text).toContain('"success":true');
       expect(result.content[0].text).toContain('test-group-1');
     });
 
     it('should warn when creating a group with existing ID', async () => {
-      const warning = "Change group 'test-group-1' already exists. Using existing group with 2 controls.";
-      mockQrwcClient.sendCommand.mockResolvedValueOnce({ 
+      const warning =
+        "Change group 'test-group-1' already exists. Using existing group with 2 controls.";
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: true,
-        warning: warning
+        warning: warning,
       });
 
       const result = await tool.execute({ groupId: 'test-group-1' });
@@ -65,7 +69,9 @@ describe('Change Group Tools', () => {
     it('should validate parameters', async () => {
       const result = await tool.execute({ groupId: '' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('String must contain at least 1 character');
+      expect(result.content[0].text).toContain(
+        'String must contain at least 1 character'
+      );
     });
   });
 
@@ -77,24 +83,29 @@ describe('Change Group Tools', () => {
     });
 
     it('should add controls to a change group', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: { addedCount: 2 } });
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
+        result: { addedCount: 2 },
+      });
 
-      const result = await tool.execute({ 
+      const result = await tool.execute({
         groupId: 'test-group-1',
-        controlNames: ['Gain1.gain', 'Gain1.mute']
+        controlNames: ['Gain1.gain', 'Gain1.mute'],
       });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.AddControl', {
-        Id: 'test-group-1',
-        Controls: ['Gain1.gain', 'Gain1.mute']
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.AddControl',
+        {
+          Id: 'test-group-1',
+          Controls: ['Gain1.gain', 'Gain1.mute'],
+        }
+      );
       expect(result.content[0].text).toContain('"controlsAdded":2');
     });
 
     it('should require at least one control', async () => {
-      const result = await tool.execute({ 
+      const result = await tool.execute({
         groupId: 'test-group-1',
-        controlNames: []
+        controlNames: [],
       });
       expect(result.isError).toBe(true);
     });
@@ -111,17 +122,18 @@ describe('Change Group Tools', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: {
           Id: 'test-group-1',
-          Changes: [
-            { Name: 'Gain1.gain', Value: -10, String: '-10dB' }
-          ]
-        }
+          Changes: [{ Name: 'Gain1.gain', Value: -10, String: '-10dB' }],
+        },
       });
 
       const result = await tool.execute({ groupId: 'test-group-1' });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.Poll', {
-        Id: 'test-group-1'
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Poll',
+        {
+          Id: 'test-group-1',
+        }
+      );
       expect(result.content[0].text).toContain('"changeCount":1');
       expect(result.content[0].text).toContain('"hasChanges":true');
     });
@@ -130,8 +142,8 @@ describe('Change Group Tools', () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: {
           Id: 'test-group-1',
-          Changes: []
-        }
+          Changes: [],
+        },
       });
 
       const result = await tool.execute({ groupId: 'test-group-1' });
@@ -151,9 +163,12 @@ describe('Change Group Tools', () => {
 
       const result = await tool.execute({ groupId: 'test-group-1' });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.Destroy', {
-        Id: 'test-group-1'
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Destroy',
+        {
+          Id: 'test-group-1',
+        }
+      );
       expect(result.content[0].text).toContain('destroyed successfully');
     });
   });
@@ -168,15 +183,18 @@ describe('Change Group Tools', () => {
     it('should remove controls from a change group', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: true });
 
-      const result = await tool.execute({ 
+      const result = await tool.execute({
         groupId: 'test-group-1',
-        controlNames: ['Gain1.gain']
+        controlNames: ['Gain1.gain'],
       });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.Remove', {
-        Id: 'test-group-1',
-        Controls: ['Gain1.gain']
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Remove',
+        {
+          Id: 'test-group-1',
+          Controls: ['Gain1.gain'],
+        }
+      );
       expect(result.content[0].text).toContain('"controlsRemoved":1');
     });
   });
@@ -193,9 +211,12 @@ describe('Change Group Tools', () => {
 
       const result = await tool.execute({ groupId: 'test-group-1' });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.Clear', {
-        Id: 'test-group-1'
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Clear',
+        {
+          Id: 'test-group-1',
+        }
+      );
       expect(result.content[0].text).toContain('All controls cleared');
     });
   });
@@ -210,16 +231,19 @@ describe('Change Group Tools', () => {
     it('should enable auto-poll with custom interval', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: true });
 
-      const result = await tool.execute({ 
+      const result = await tool.execute({
         groupId: 'test-group-1',
         enabled: true,
-        intervalSeconds: 2.5
+        intervalSeconds: 2.5,
       });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.AutoPoll', {
-        Id: 'test-group-1',
-        Rate: 2.5
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.AutoPoll',
+        {
+          Id: 'test-group-1',
+          Rate: 2.5,
+        }
+      );
       expect(result.content[0].text).toContain('"autoPollEnabled":true');
       expect(result.content[0].text).toContain('"intervalSeconds":2.5');
     });
@@ -227,15 +251,18 @@ describe('Change Group Tools', () => {
     it('should enable auto-poll with default interval', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: true });
 
-      const result = await tool.execute({ 
+      const result = await tool.execute({
         groupId: 'test-group-1',
-        enabled: true
+        enabled: true,
       });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('ChangeGroup.AutoPoll', {
-        Id: 'test-group-1',
-        Rate: 1.0
-      });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.AutoPoll',
+        {
+          Id: 'test-group-1',
+          Rate: 1.0,
+        }
+      );
     });
 
     it('should disable auto-poll and clear timer', async () => {
@@ -243,26 +270,26 @@ describe('Change Group Tools', () => {
       const mockTimer = { ref: jest.fn(), unref: jest.fn() } as any;
       const autoPollTimers = new Map([['test-group-1', mockTimer]]);
       const autoPollFailureCounts = new Map([['test-group-1', 3]]);
-      
+
       (mockQrwcClient as any).autoPollTimers = autoPollTimers;
       (mockQrwcClient as any).autoPollFailureCounts = autoPollFailureCounts;
-      
+
       // Mock clearInterval
       const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
 
-      const result = await tool.execute({ 
+      const result = await tool.execute({
         groupId: 'test-group-1',
-        enabled: false
+        enabled: false,
       });
 
       // Verify timer was cleared
       expect(clearIntervalSpy).toHaveBeenCalledWith(mockTimer);
       expect(autoPollTimers.has('test-group-1')).toBe(false);
       expect(autoPollFailureCounts.has('test-group-1')).toBe(false);
-      
+
       expect(result.content[0].text).toContain('"autoPollEnabled":false');
       expect(result.content[0].text).toContain('Auto-poll disabled');
-      
+
       clearIntervalSpy.mockRestore();
     });
 
@@ -270,9 +297,9 @@ describe('Change Group Tools', () => {
       // Mock adapter without timer for this group
       (mockQrwcClient as any).autoPollTimers = new Map();
 
-      const result = await tool.execute({ 
+      const result = await tool.execute({
         groupId: 'test-group-1',
-        enabled: false
+        enabled: false,
       });
 
       // Should still return success even if no timer was active
@@ -291,10 +318,12 @@ describe('Change Group Tools', () => {
     it('should list active change groups', async () => {
       const mockGroups = [
         { id: 'group1', controlCount: 3, hasAutoPoll: true },
-        { id: 'group2', controlCount: 1, hasAutoPoll: false }
+        { id: 'group2', controlCount: 1, hasAutoPoll: false },
       ];
-      
-      (mockQrwcClient as any).listChangeGroups = jest.fn().mockReturnValue(mockGroups);
+
+      (mockQrwcClient as any).listChangeGroups = jest
+        .fn()
+        .mockReturnValue(mockGroups);
 
       const result = await tool.execute({});
 
@@ -332,7 +361,7 @@ describe('Change Group Tools', () => {
         new RemoveControlsFromChangeGroupTool(mockQrwcClient),
         new ClearChangeGroupTool(mockQrwcClient),
         new SetChangeGroupAutoPollTool(mockQrwcClient),
-        new ListChangeGroupsTool(mockQrwcClient)
+        new ListChangeGroupsTool(mockQrwcClient),
       ];
 
       tools.forEach(tool => {

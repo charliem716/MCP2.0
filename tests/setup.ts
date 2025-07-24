@@ -13,7 +13,7 @@ const originalConsoleWarn = console.warn;
 beforeEach(() => {
   // Reset mocks before each test
   jest.clearAllMocks();
-  
+
   // Mock console methods
   console.error = jest.fn();
   console.warn = jest.fn();
@@ -28,7 +28,8 @@ afterEach(() => {
 // Global test utilities
 (globalThis as any).testUtils = {
   // Add common test utilities here
-  delay: async (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms)),
+  delay: async (ms: number): Promise<void> =>
+    new Promise(resolve => setTimeout(resolve, ms)),
   mockLogger: {
     info: jest.fn(),
     error: jest.fn(),
@@ -58,4 +59,4 @@ declare global {
 }
 
 // Make this an external module to allow global augmentation
-export {}; 
+export {};

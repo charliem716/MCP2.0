@@ -32,24 +32,23 @@
     "rootDir": "./",
     "removeComments": false,
     "isolatedModules": true,
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node", "jest"]
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*", "tests/**/*", "scripts/**/*", "*.ts", "*.mjs", "*.js"],
   "exclude": [
     "node_modules",
     "dist",
+    "coverage",
     "src/index-phase1.ts",
-    "src/index-phase2.ts"
+    "src/index-phase2.ts",
+    "debug-*.ts",
+    "verify-*.cjs",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"
   }
-} 
+}

@@ -19,20 +19,20 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       setControlValue: jest.fn().mockResolvedValue(undefined),
       getQrwc: jest.fn().mockReturnValue({
         components: {
-          'MainMixer': {
+          MainMixer: {
             controls: {
-              'gain': { state: 0.5 },
-              'mute': { state: false }
-            }
+              gain: { state: 0.5 },
+              mute: { state: false },
+            },
           },
-          'OutputGain': {
+          OutputGain: {
             controls: {
-              'level': { state: -10 },
-              'mute': { state: true }
-            }
-          }
-        }
-      })
+              level: { state: -10 },
+              mute: { state: true },
+            },
+          },
+        },
+      }),
     } as any;
 
     adapter = new QRWCClientAdapter(mockClient);
@@ -43,16 +43,18 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       it('should correctly parse component.control format for Control.Set', async () => {
         // Test setting a control with component.control format
         const result = await adapter.sendCommand('Control.SetValues', {
-          Controls: [{
-            Name: 'MainMixer.gain',
-            Value: 0.75
-          }]
+          Controls: [
+            {
+              Name: 'MainMixer.gain',
+              Value: 0.75,
+            },
+          ],
         });
 
         // Verify the mock was called with correct component and control names
         expect(mockClient.setControlValue).toHaveBeenCalledWith(
-          'MainMixer',  // component name should be first
-          'gain',       // control name should be second
+          'MainMixer', // component name should be first
+          'gain', // control name should be second
           0.75
         );
       });
@@ -60,15 +62,17 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       it('should handle control-only names (no component)', async () => {
         // Test setting a control without component prefix
         const result = await adapter.sendCommand('Control.SetValues', {
-          Controls: [{
-            Name: 'masterVolume',
-            Value: -6
-          }]
+          Controls: [
+            {
+              Name: 'masterVolume',
+              Value: -6,
+            },
+          ],
         });
 
         // Verify the mock was called with empty component name
         expect(mockClient.setControlValue).toHaveBeenCalledWith(
-          '',             // empty component name
+          '', // empty component name
           'masterVolume', // control name
           -6
         );
@@ -80,30 +84,47 @@ describe('QRWCClientAdapter - Core Functionality', () => {
           Controls: [
             { Name: 'MainMixer.gain', Value: 0.5 },
             { Name: 'OutputGain.mute', Value: true },
-            { Name: 'masterMute', Value: false }
-          ]
+            { Name: 'masterMute', Value: false },
+          ],
         });
 
         // Verify all calls were made correctly
         expect(mockClient.setControlValue).toHaveBeenCalledTimes(3);
-        expect(mockClient.setControlValue).toHaveBeenNthCalledWith(1, 'MainMixer', 'gain', 0.5);
-        expect(mockClient.setControlValue).toHaveBeenNthCalledWith(2, 'OutputGain', 'mute', true);
-        expect(mockClient.setControlValue).toHaveBeenNthCalledWith(3, '', 'masterMute', false);
+        expect(mockClient.setControlValue).toHaveBeenNthCalledWith(
+          1,
+          'MainMixer',
+          'gain',
+          0.5
+        );
+        expect(mockClient.setControlValue).toHaveBeenNthCalledWith(
+          2,
+          'OutputGain',
+          'mute',
+          true
+        );
+        expect(mockClient.setControlValue).toHaveBeenNthCalledWith(
+          3,
+          '',
+          'masterMute',
+          false
+        );
       });
 
       it('should handle controls with dots in control names', async () => {
         // Test edge case: control name itself contains dots
         const result = await adapter.sendCommand('Control.SetValues', {
-          Controls: [{
-            Name: 'MyComponent.channel.1.gain',
-            Value: -3
-          }]
+          Controls: [
+            {
+              Name: 'MyComponent.channel.1.gain',
+              Value: -3,
+            },
+          ],
         });
 
         // Should only split on first dot
         expect(mockClient.setControlValue).toHaveBeenCalledWith(
-          'MyComponent',      // component name
-          'channel.1.gain',   // rest is control name
+          'MyComponent', // component name
+          'channel.1.gain', // rest is control name
           -3
         );
       });
@@ -112,7 +133,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
     describe('Control value retrieval', () => {
       it('should correctly retrieve control values', async () => {
         const result = await adapter.sendCommand('Control.GetMultiple', {
-          Controls: ['MainMixer.gain', 'OutputGain.mute']
+          Controls: ['MainMixer.gain', 'OutputGain.mute'],
         });
 
         expect(result.result).toBeDefined();
@@ -120,12 +141,12 @@ describe('QRWCClientAdapter - Core Functionality', () => {
         expect(result.result[0]).toEqual({
           Name: 'MainMixer.gain',
           Value: 0.5,
-          String: '0.5'
+          String: '0.5',
         });
         expect(result.result[1]).toEqual({
-          Name: 'OutputGain.mute', 
+          Name: 'OutputGain.mute',
           Value: true,
-          String: 'true'
+          String: 'true',
         });
       });
     });
@@ -136,7 +157,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       it('should validate parameters with Zod schema', () => {
         const schema = z.object({
           name: z.string(),
-          value: z.number().min(0).max(100)
+          value: z.number().min(0).max(100),
         });
 
         const validParams = { name: 'test', value: 50 };
@@ -147,11 +168,11 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       it('should throw descriptive error for invalid parameters', () => {
         const schema = z.object({
           name: z.string(),
-          value: z.number().min(0).max(100)
+          value: z.number().min(0).max(100),
         });
 
         const invalidParams = { name: 'test', value: 150 };
-        
+
         expect(() => {
           (adapter as any).validateParams(invalidParams, schema);
         }).toThrow('Parameter validation failed');
@@ -159,17 +180,19 @@ describe('QRWCClientAdapter - Core Functionality', () => {
 
       it('should handle nested validation errors', () => {
         const schema = z.object({
-          controls: z.array(z.object({
-            name: z.string(),
-            value: z.number()
-          }))
+          controls: z.array(
+            z.object({
+              name: z.string(),
+              value: z.number(),
+            })
+          ),
         });
 
         const invalidParams = {
           controls: [
             { name: 'test1', value: 'not a number' },
-            { name: 123, value: 45 }
-          ]
+            { name: 123, value: 45 },
+          ],
         };
 
         expect(() => {
@@ -183,7 +206,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
         const input = "test'; DROP TABLE controls; --";
         const sanitized = (adapter as any).sanitizeInput(input);
         expect(sanitized).not.toContain("'");
-        expect(sanitized).not.toContain(";");
+        expect(sanitized).not.toContain(';');
       });
 
       it('should handle undefined and null inputs gracefully', () => {
@@ -196,14 +219,14 @@ describe('QRWCClientAdapter - Core Functionality', () => {
           'gain',
           'input.1.mute',
           'crosspoint_1_2',
-          'Channel-1.Level'
+          'Channel-1.Level',
         ];
 
         const invalidNames = [
           'control name with spaces',
           'control@special#chars',
           '../../../etc/passwd',
-          'control\nwith\nnewlines'
+          'control\nwith\nnewlines',
         ];
 
         validNames.forEach(name => {
@@ -226,11 +249,11 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       it('should handle component name as string parameter', async () => {
         mockClient.getComponent = jest.fn().mockResolvedValue({
           Name: 'Main Mixer',
-          Controls: []
+          Controls: [],
         });
 
         await adapter.sendCommand('Component.Get', {
-          Name: 'Main Mixer'
+          Name: 'Main Mixer',
         });
 
         expect(mockClient.getComponent).toHaveBeenCalledWith('Main Mixer');
@@ -241,13 +264,13 @@ describe('QRWCClientAdapter - Core Functionality', () => {
           Name: 'Main Mixer',
           Controls: [
             { Name: 'gain', Value: -10 },
-            { Name: 'mute', Value: false }
-          ]
+            { Name: 'mute', Value: false },
+          ],
         });
 
         const result = await adapter.sendCommand('Component.Get', {
           Name: 'Main Mixer',
-          Controls: ['gain', 'mute']
+          Controls: ['gain', 'mute'],
         });
 
         expect(mockClient.getComponent).toHaveBeenCalledWith('Main Mixer');
@@ -263,15 +286,15 @@ describe('QRWCClientAdapter - Core Functionality', () => {
           Name: 'Main Mixer',
           Controls: [
             { Name: 'gain', Value: -5 },
-            { Name: 'mute', Value: true }
-          ]
+            { Name: 'mute', Value: true },
+          ],
         });
 
         expect(mockClient.setComponentControls).toHaveBeenCalledWith(
           'Main Mixer',
           [
             { Name: 'gain', Value: -5 },
-            { Name: 'mute', Value: true }
+            { Name: 'mute', Value: true },
           ]
         );
       });
@@ -281,9 +304,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
 
         await adapter.sendCommand('Component.Set', {
           Name: 'Fader Bank',
-          Controls: [
-            { Name: 'level', Value: 0, Ramp: 2.5 }
-          ]
+          Controls: [{ Name: 'level', Value: 0, Ramp: 2.5 }],
         });
 
         expect(mockClient.setComponentControls).toHaveBeenCalledWith(
@@ -297,9 +318,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
 
         await adapter.sendCommand('Component.Set', {
           Name: 'Selector',
-          Controls: [
-            { Name: 'selection', Position: 0.5 }
-          ]
+          Controls: [{ Name: 'selection', Position: 0.5 }],
         });
 
         expect(mockClient.setComponentControls).toHaveBeenCalledWith(
@@ -312,7 +331,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
     describe('Control.Get parameter formats', () => {
       it('should handle single control name', async () => {
         const result = await adapter.sendCommand('Control.Get', {
-          Name: 'MainVolume'
+          Name: 'MainVolume',
         });
 
         expect(result.result).toHaveProperty('Name', 'MainVolume');
@@ -320,7 +339,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
 
       it('should handle array of control names', async () => {
         const result = await adapter.sendCommand('Control.Get', {
-          Names: ['MainVolume', 'MainMute', 'Gain1']
+          Names: ['MainVolume', 'MainMute', 'Gain1'],
         });
 
         expect(result.result).toHaveLength(3);
@@ -331,29 +350,41 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       it('should handle single control with Name/Value', async () => {
         await adapter.sendCommand('Control.Set', {
           Name: 'MainVolume',
-          Value: -10
+          Value: -10,
         });
 
-        expect(mockClient.setControlValue).toHaveBeenCalledWith('', 'MainVolume', -10);
+        expect(mockClient.setControlValue).toHaveBeenCalledWith(
+          '',
+          'MainVolume',
+          -10
+        );
       });
 
       it('should handle control with Position', async () => {
         await adapter.sendCommand('Control.Set', {
           Name: 'Fader1',
-          Position: 0.75
+          Position: 0.75,
         });
 
-        expect(mockClient.setControlValue).toHaveBeenCalledWith('', 'Fader1', 0.75);
+        expect(mockClient.setControlValue).toHaveBeenCalledWith(
+          '',
+          'Fader1',
+          0.75
+        );
       });
 
       it('should handle control with Ramp', async () => {
         await adapter.sendCommand('Control.Set', {
           Name: 'MainVolume',
           Value: 0,
-          Ramp: 3.0
+          Ramp: 3.0,
         });
 
-        expect(mockClient.setControlValue).toHaveBeenCalledWith('', 'MainVolume', 0);
+        expect(mockClient.setControlValue).toHaveBeenCalledWith(
+          '',
+          'MainVolume',
+          0
+        );
       });
     });
 
@@ -361,57 +392,78 @@ describe('QRWCClientAdapter - Core Functionality', () => {
       it('should coerce string numbers to numbers when needed', async () => {
         await adapter.sendCommand('Control.Set', {
           Name: 'Gain',
-          Value: '10.5' as any // Simulating wrong type from client
+          Value: '10.5' as any, // Simulating wrong type from client
         });
 
-        expect(mockClient.setControlValue).toHaveBeenCalledWith('', 'Gain', 10.5);
+        expect(mockClient.setControlValue).toHaveBeenCalledWith(
+          '',
+          'Gain',
+          10.5
+        );
       });
 
       it('should handle boolean string conversion', async () => {
         await adapter.sendCommand('Control.Set', {
           Name: 'Mute',
-          Value: 'true' as any
+          Value: 'true' as any,
         });
 
-        expect(mockClient.setControlValue).toHaveBeenCalledWith('', 'Mute', true);
+        expect(mockClient.setControlValue).toHaveBeenCalledWith(
+          '',
+          'Mute',
+          true
+        );
 
         await adapter.sendCommand('Control.Set', {
           Name: 'Mute',
-          Value: 'false' as any
+          Value: 'false' as any,
         });
 
-        expect(mockClient.setControlValue).toHaveBeenCalledWith('', 'Mute', false);
+        expect(mockClient.setControlValue).toHaveBeenCalledWith(
+          '',
+          'Mute',
+          false
+        );
       });
 
       it('should reject invalid type conversions', async () => {
-        await expect(adapter.sendCommand('Control.Set', {
-          Name: 'Gain',
-          Value: 'not a number' as any
-        })).rejects.toThrow();
+        await expect(
+          adapter.sendCommand('Control.Set', {
+            Name: 'Gain',
+            Value: 'not a number' as any,
+          })
+        ).rejects.toThrow();
       });
     });
   });
 
   describe('Error Handling', () => {
     it('should handle network errors gracefully', async () => {
-      mockClient.setControlValue.mockRejectedValue(new Error('Network timeout'));
+      mockClient.setControlValue.mockRejectedValue(
+        new Error('Network timeout')
+      );
 
-      await expect(adapter.sendCommand('Control.Set', {
-        Name: 'test',
-        Value: 0
-      })).rejects.toThrow('Network timeout');
+      await expect(
+        adapter.sendCommand('Control.Set', {
+          Name: 'test',
+          Value: 0,
+        })
+      ).rejects.toThrow('Network timeout');
     });
 
     it('should validate required parameters', async () => {
-      await expect(adapter.sendCommand('Control.Set', {
-        // Missing required Name parameter
-        Value: 0
-      } as any)).rejects.toThrow();
+      await expect(
+        adapter.sendCommand('Control.Set', {
+          // Missing required Name parameter
+          Value: 0,
+        } as any)
+      ).rejects.toThrow();
     });
 
     it('should handle malformed command names', async () => {
-      await expect(adapter.sendCommand('Invalid.Command' as any, {}))
-        .rejects.toThrow();
+      await expect(
+        adapter.sendCommand('Invalid.Command' as any, {})
+      ).rejects.toThrow();
     });
   });
 
@@ -419,10 +471,12 @@ describe('QRWCClientAdapter - Core Functionality', () => {
     it('should check connection before operations', async () => {
       mockClient.isConnected.mockReturnValue(false);
 
-      await expect(adapter.sendCommand('Control.Set', {
-        Name: 'test',
-        Value: 0
-      })).rejects.toThrow('Not connected');
+      await expect(
+        adapter.sendCommand('Control.Set', {
+          Name: 'test',
+          Value: 0,
+        })
+      ).rejects.toThrow('Not connected');
     });
 
     it('should pass through connect/disconnect calls', async () => {

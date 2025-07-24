@@ -3,12 +3,14 @@
 ## Prerequisites
 
 1. Ensure you have a `.env` file with the required configuration:
+
 ```bash
 cp .env.example .env
 # Edit .env with your Q-SYS Core details
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
@@ -16,11 +18,13 @@ npm install
 ## Running the Application
 
 ### Development Mode
+
 ```bash
 npm run dev
 ```
 
 ### Production Mode
+
 ```bash
 npm run build
 npm start
@@ -39,6 +43,7 @@ npm start
 ## Graceful Shutdown
 
 Press `Ctrl+C` to stop the application. It will:
+
 - Dispose of QRC commands
 - Disconnect from Q-SYS Core
 - Clean up all resources
@@ -46,21 +51,24 @@ Press `Ctrl+C` to stop the application. It will:
 ## Troubleshooting
 
 ### Connection Failed
+
 - Check your Q-SYS Core is accessible at the configured host/port
 - Verify username/password are correct
 - Ensure firewall allows connection on port 8443 (or your configured port)
 
 ### Environment Errors
+
 - Run `npm run check:env` to validate your configuration
 - Check the `.env.example` file for required variables
 
 ## Next Steps
 
 With Phase 1 complete, the application can now:
+
 - Connect to Q-SYS Core
 - Authenticate successfully
 - Send/receive QRC commands
 - Manage change groups
 - Handle errors gracefully
 
-Phase 2 will add the MCP server functionality. 
+Phase 2 will add the MCP server functionality.

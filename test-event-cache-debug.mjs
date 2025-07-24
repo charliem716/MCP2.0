@@ -6,7 +6,7 @@ console.log('Testing event cache...\n');
 // Create manager
 const manager = new EventCacheManager({
   maxEvents: 1000,
-  maxAgeMs: 60000
+  maxAgeMs: 60000,
 });
 
 // Create mock adapter
@@ -19,9 +19,7 @@ const event = {
   timestamp: BigInt(Date.now()) * 1000000n,
   timestampMs: Date.now(),
   sequenceNumber: 1,
-  changes: [
-    { Name: 'TestControl', Value: 42, String: '42' }
-  ]
+  changes: [{ Name: 'TestControl', Value: 42, String: '42' }],
 };
 
 console.log('Emitting event:', event);
@@ -34,11 +32,11 @@ setTimeout(async () => {
   if (results.length > 0) {
     console.log('First event:', results[0]);
   }
-  
+
   // Also try querySync
   const syncResults = manager.querySync({ groupId: 'test-group' });
   console.log('\nQuerySync results:', syncResults.length, 'events');
-  
+
   manager.destroy();
   process.exit(0);
 }, 100);

@@ -17,7 +17,7 @@ process.chdir(__dirname);
 // Disable all console output that would interfere with JSON-RPC
 process.env.NODE_ENV = 'production';
 process.env.MCP_MODE = 'true';
-process.env.LOG_LEVEL = 'error';  // Only log errors
+process.env.LOG_LEVEL = 'error'; // Only log errors
 process.env.DISABLE_CONSOLE_LOGS = 'true';
 
 // Spawn the actual MCP server
@@ -29,16 +29,16 @@ const server = spawn('node', ['dist/src/index.js'], {
     NODE_ENV: 'production',
     MCP_MODE: 'true',
     LOG_LEVEL: 'error',
-    DISABLE_CONSOLE_LOGS: 'true'
-  }
+    DISABLE_CONSOLE_LOGS: 'true',
+  },
 });
 
 // Handle exit
-server.on('error', (err) => {
+server.on('error', err => {
   // Don't use console.error in MCP mode
   process.exit(1);
 });
 
-server.on('exit', (code) => {
+server.on('exit', code => {
   process.exit(code || 0);
 });
