@@ -5,8 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { EventCacheManager } from '../manager.js';
-import type { EventCacheConfig } from '../manager.js';
+import { EventCacheManager, type EventCacheConfig } from '../manager.js';
 import { MockQRWCAdapter } from '../test-helpers.js';
 
 // Mock the logger

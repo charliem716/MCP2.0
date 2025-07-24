@@ -2,8 +2,8 @@
  * Tests for EventCacheManager disk spillover functionality
  */
 
-import { EventCacheManager, EventCacheConfig } from '../manager.js';
-import { QRWCClientAdapter } from '../../../qrwc/adapter.js';
+import { EventCacheManager, type EventCacheConfig } from '../manager.js';
+import type { QRWCClientAdapter } from '../../../qrwc/adapter.js';
 import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -33,7 +33,7 @@ describe('EventCacheManager Disk Spillover', () => {
     // Clean up test directory
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch (e) {
+    } catch (_e) {
       // Ignore if doesn't exist
     }
     
@@ -61,7 +61,7 @@ describe('EventCacheManager Disk Spillover', () => {
     // Clean up test directory
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch (e) {
+    } catch (_e) {
       // Ignore
     }
   });

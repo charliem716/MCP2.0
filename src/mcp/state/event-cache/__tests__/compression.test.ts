@@ -2,8 +2,7 @@
  * Tests for EventCacheManager compression functionality
  */
 
-import { EventCacheManager } from '../manager.js';
-import type { EventCacheConfig } from '../manager.js';
+import { EventCacheManager, type EventCacheConfig } from '../manager.js';
 import type { QRWCClientAdapter } from '../../../qrwc/adapter.js';
 import { MockQRWCAdapter } from '../test-helpers.js';
 
