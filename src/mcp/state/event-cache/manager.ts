@@ -221,12 +221,7 @@ export class EventCacheManager extends EventEmitter {
       this.startCompressionTimer();
     }
 
-    // Initialize disk spillover if enabled
-    if (this.defaultConfig.diskSpilloverConfig?.enabled) {
-      this.diskSpillover.initialize().catch(error => {
-        logger.error('Failed to initialize disk spillover', { error });
-      });
-    }
+    // Disk spillover will initialize itself when needed
   }
 
   /**
@@ -951,9 +946,35 @@ export class EventCacheManager extends EventEmitter {
   }
 
   /**
-   * Get statistics for a change group
+   * Get statistics for a change group or all groups
    */
-  getStatistics(groupId: string): CacheStatistics | null {
+  getStatistics(groupId?: string): any {
+    // If no groupId provided, return global statistics
+    if (groupId === undefined) {
+      const allStats = this.getAllStatistics();
+      let totalEvents = 0;
+      let totalMemoryUsage = 0;
+      const groups: Array<any> = [];
+
+      for (const [gId, stats] of allStats.entries()) {
+        totalEvents += stats.eventCount;
+        totalMemoryUsage += stats.memoryUsage;
+        groups.push({ 
+          groupId: gId, 
+          ...stats,
+          // Add totalEvents alias for backward compatibility
+          totalEvents: stats.eventCount 
+        });
+      }
+
+      return { 
+        totalEvents, 
+        groups,
+        memoryUsageMB: totalMemoryUsage / (1024 * 1024)
+      };
+    }
+
+    // Return statistics for specific group
     const buffer = this.buffers.get(groupId);
     if (!buffer) return null;
 
@@ -1009,6 +1030,7 @@ export class EventCacheManager extends EventEmitter {
 
     return stats;
   }
+
 
   /**
    * Clear events for a specific group

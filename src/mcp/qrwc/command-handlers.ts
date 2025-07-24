@@ -126,12 +126,18 @@ export function handleControlGet(
   }
 
   const results = controls.map(controlObj => {
-    if (typeof controlObj !== 'object' || !controlObj) {
-      throw new Error('Invalid control object');
+    let fullName: string;
+    
+    // Handle both string and object formats
+    if (typeof controlObj === 'string') {
+      fullName = controlObj;
+    } else if (typeof controlObj === 'object' && controlObj !== null) {
+      const obj = controlObj as Record<string, unknown>;
+      fullName = String(obj['Name'] ?? obj['name'] ?? '');
+    } else {
+      throw new Error('Invalid control format');
     }
 
-    const obj = controlObj as Record<string, unknown>;
-    const fullName = String(obj['Name'] ?? obj['name'] ?? '');
     const [componentName, controlName] = fullName.split('.');
 
     if (!componentName || !controlName) {

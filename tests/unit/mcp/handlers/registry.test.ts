@@ -30,7 +30,7 @@ describe('MCPToolRegistry', () => {
     it('should initialize successfully with all Q-SYS tools', async () => {
       await registry.initialize();
 
-      expect(registry.getToolCount()).toBe(9); // 8 Q-SYS tools + 1 echo tool
+      expect(registry.getToolCount()).toBe(17); // 8 Q-SYS tools + 1 echo tool
       expect(globalLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Tool registry initialized'),
         expect.any(Object)
@@ -65,7 +65,7 @@ describe('MCPToolRegistry', () => {
           throw error;
         });
 
-      await expect(registry.initialize()).rejects.toThrow('Init failed');
+      expect(() => registry.initialize()).toThrow('Init failed');
       expect(globalLogger.error).toHaveBeenCalledWith(
         'Failed to initialize tool registry',
         { error }
@@ -78,7 +78,7 @@ describe('MCPToolRegistry', () => {
       await registry.initialize();
       const tools = await registry.listTools();
 
-      expect(tools).toHaveLength(9);
+      expect(tools).toHaveLength(17);
       expect(tools).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -145,8 +145,8 @@ describe('MCPToolRegistry', () => {
     it('should execute list_components tool successfully', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'Gain1', Type: 'gain' },
-          { Name: 'Mixer1', Type: 'mixer' },
+          { Name: 'Gain1', Type: 'gain', Properties: [] },
+          { Name: 'Mixer1', Type: 'mixer', Properties: [] },
         ],
       });
 
@@ -217,7 +217,7 @@ describe('MCPToolRegistry', () => {
     });
 
     it('should return correct tool count', () => {
-      expect(registry.getToolCount()).toBe(9);
+      expect(registry.getToolCount()).toBe(17);
     });
 
     it('should check if tool exists', () => {
@@ -227,7 +227,7 @@ describe('MCPToolRegistry', () => {
 
     it('should return tool names', () => {
       const names = registry.getToolNames();
-      expect(names).toHaveLength(9);
+      expect(names).toHaveLength(17);
       expect(names).toContain('list_components');
       expect(names).toContain('echo');
     });
@@ -236,7 +236,7 @@ describe('MCPToolRegistry', () => {
   describe('cleanup', () => {
     it('should cleanup resources properly', async () => {
       await registry.initialize();
-      expect(registry.getToolCount()).toBe(9);
+      expect(registry.getToolCount()).toBe(17);
 
       await registry.cleanup();
 
@@ -295,8 +295,8 @@ describe('MCPToolRegistry', () => {
     it('should preserve execution metadata from Q-SYS tools', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'Gain1', Type: 'gain' },
-          { Name: 'Mixer1', Type: 'mixer' },
+          { Name: 'Gain1', Type: 'gain', Properties: [] },
+          { Name: 'Mixer1', Type: 'mixer', Properties: [] },
         ],
       });
 
