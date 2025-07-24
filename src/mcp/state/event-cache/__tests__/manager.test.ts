@@ -35,13 +35,13 @@ describe('EventCacheManager', () => {
   });
 
   describe('initialization', () => {
-    it('should create with default config', async () => {
+    it('should create with default config', () => {
       const cache = new EventCacheManager();
       expect(cache).toBeDefined();
       expect(cache.getGroupIds()).toEqual([]);
     });
 
-    it('should create with custom config', async () => {
+    it('should create with custom config', () => {
       const cache = new EventCacheManager({
         maxEvents: 5000,
         maxAgeMs: 300000
@@ -51,7 +51,7 @@ describe('EventCacheManager', () => {
   });
 
   describe('attachToAdapter', () => {
-    it('should attach to adapter and listen for events', async () => {
+    it('should attach to adapter and listen for events', () => {
       eventCache.attachToAdapter(mockAdapter);
       
       expect(mockAdapter.on).toHaveBeenCalledWith(
@@ -60,7 +60,7 @@ describe('EventCacheManager', () => {
       );
     });
 
-    it('should not attach twice', async () => {
+    it('should not attach twice', () => {
       eventCache.attachToAdapter(mockAdapter);
       eventCache.attachToAdapter(mockAdapter);
       
@@ -277,7 +277,7 @@ describe('EventCacheManager', () => {
       }
     });
 
-    it('should calculate statistics for a group', async () => {
+    it('should calculate statistics for a group', () => {
       const stats = eventCache.getStatistics('stats-group');
       
       expect(stats).toBeDefined();
@@ -290,12 +290,12 @@ describe('EventCacheManager', () => {
       expect(stats.eventsPerSecond).toBeGreaterThanOrEqual(0);
     });
 
-    it('should return null for non-existent group', async () => {
+    it('should return null for non-existent group', () => {
       const stats = eventCache.getStatistics('non-existent');
       expect(stats).toBeNull();
     });
 
-    it('should get all statistics', async () => {
+    it('should get all statistics', () => {
       const allStats = eventCache.getAllStatistics();
       
       expect(allStats.size).toBe(1);
@@ -336,7 +336,7 @@ describe('EventCacheManager', () => {
       expect(events).toHaveLength(0);
     });
 
-    it('should return false for non-existent group', async () => {
+    it('should return false for non-existent group', () => {
       const result = eventCache.clearGroup('non-existent');
       expect(result).toBe(false);
     });
