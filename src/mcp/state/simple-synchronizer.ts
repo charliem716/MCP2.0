@@ -15,7 +15,7 @@ export class SimpleSynchronizer {
   constructor(
     private repository: IStateRepository,
     private qrwcAdapter: QRWCClientInterface,
-    private intervalMs: number = 5000
+    private intervalMs = 5000
   ) {}
   
   /**

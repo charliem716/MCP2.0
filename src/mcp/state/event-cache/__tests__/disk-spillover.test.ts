@@ -8,8 +8,8 @@ import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-// Mock adapter
-class MockAdapter extends EventEmitter implements Partial<QRWCClientAdapter> {
+// Mock adapter that implements only what EventCacheManager needs
+class MockAdapter extends EventEmitter {
   emitChanges(groupId: string, changes: Array<{ Name: string; Value: unknown; String: string }>): void {
     const now = Date.now();
     const timestamp = process.hrtime.bigint();
@@ -52,7 +52,7 @@ describe('EventCacheManager Disk Spillover', () => {
     
     manager = new EventCacheManager(config);
     mockAdapter = new MockAdapter();
-    manager.attachToAdapter(mockAdapter);
+    manager.attachToAdapter(mockAdapter as any);
   });
   
   afterEach(async () => {
@@ -187,7 +187,7 @@ describe('EventCacheManager Disk Spillover', () => {
       
       // Check chronological order
       for (let i = 1; i < results.length; i++) {
-        expect(results[i].timestampMs).toBeGreaterThanOrEqual(results[i-1].timestampMs);
+        expect(results[i]!.timestampMs).toBeGreaterThanOrEqual(results[i-1]!.timestampMs);
       }
     });
   });
@@ -242,7 +242,7 @@ describe('EventCacheManager Disk Spillover', () => {
       
       const badManager = new EventCacheManager(badConfig);
       const adapter = new MockAdapter();
-      badManager.attachToAdapter(adapter);
+      badManager.attachToAdapter(adapter as any);
       
       // Try to trigger spillover
       for (let i = 0; i < 1000; i++) {
@@ -254,7 +254,7 @@ describe('EventCacheManager Disk Spillover', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Spillover should be disabled
-      expect(badConfig.diskSpilloverConfig.enabled).toBe(false);
+      expect(badConfig.diskSpilloverConfig!.enabled).toBe(false);
       
       badManager.destroy();
     });

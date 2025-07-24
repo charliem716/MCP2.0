@@ -54,7 +54,7 @@ export interface EventQuery {
   };
   limit?: number;
   offset?: number;
-  aggregation?: 'raw' | 'changes_only' | 'summary';
+  aggregation?: 'raw' | 'changes_only';
   eventTypes?: Array<'change' | 'threshold_crossed' | 'state_transition' | 'significant_change'>;
 }
 
@@ -297,23 +297,45 @@ export class EventCacheManager extends EventEmitter {
     const previousTime = getMapValue(lastTimes, change.Name);
     const eventType = this.detectEventType(change.Name, previousValue, change.Value);
     
-    return {
+    const event: CachedEvent = {
       groupId,
       controlName: change.Name,
       timestamp,
       timestampMs,
       value: change.Value,
       string: change.String ?? String(change.Value),
-      previousValue,
-      previousString: previousValue !== undefined && previousValue !== null ? String(previousValue) : undefined,
-      delta: this.calculateDelta(previousValue, change.Value),
-      duration: previousTime ? timestampMs - previousTime : undefined,
-      sequenceNumber: this.globalSequence++,
-      eventType,
-      threshold: eventType === 'threshold_crossed' 
-        ? this.findCrossedThreshold(change.Name, previousValue, change.Value)
-        : undefined
+      sequenceNumber: this.globalSequence++
     };
+    
+    if (previousValue !== undefined) {
+      event.previousValue = previousValue;
+    }
+    
+    if (previousValue !== undefined && previousValue !== null) {
+      event.previousString = String(previousValue);
+    }
+    
+    const delta = this.calculateDelta(previousValue, change.Value);
+    if (delta !== undefined) {
+      event.delta = delta;
+    }
+    
+    if (previousTime) {
+      event.duration = timestampMs - previousTime;
+    }
+    
+    if (eventType) {
+      event.eventType = eventType;
+    }
+    
+    if (eventType === 'threshold_crossed') {
+      const threshold = this.findCrossedThreshold(change.Name, previousValue, change.Value);
+      if (threshold !== undefined) {
+        event.threshold = threshold;
+      }
+    }
+    
+    return event;
   }
   
   /**
@@ -509,7 +531,7 @@ export class EventCacheManager extends EventEmitter {
   }
   
   /**
-   * Query historical events
+   * Query historical events (async version with disk spillover support)
    */
   async query(params: EventQuery): Promise<CachedEvent[]> {
     const queryParams = this.normalizeQueryParams(params);
@@ -530,15 +552,38 @@ export class EventCacheManager extends EventEmitter {
   }
   
   /**
+   * Query historical events synchronously (memory only, for backwards compatibility)
+   * @deprecated Use async query() method instead for full functionality including disk spillover
+   */
+  querySync(params: EventQuery): CachedEvent[] {
+    logger.warn('EventCacheManager.querySync() is deprecated. Use async query() method instead for full disk spillover support.');
+    
+    const queryParams = this.normalizeQueryParams(params);
+    this.logQueryStart(queryParams);
+    
+    // Query only memory buffers (synchronous)
+    const memoryEvents = this.queryMemoryBuffers(queryParams);
+    
+    // Process results
+    let results = [...memoryEvents];
+    results = this.sortEventsByTimestamp(results);
+    results = this.applyAggregation(results, queryParams.aggregation);
+    results = this.applyPagination(results, queryParams.offset, queryParams.limit);
+    
+    this.logQueryComplete(results, queryParams);
+    return results;
+  }
+  
+  /**
    * Normalize query parameters with defaults
    */
   private normalizeQueryParams(params: EventQuery): Required<EventQuery> {
     return {
-      groupId: params.groupId,
+      groupId: params.groupId ?? '',
       startTime: params.startTime ?? Date.now() - 60000,
       endTime: params.endTime ?? Date.now(),
       controlNames: params.controlNames ?? [],
-      valueFilter: params.valueFilter,
+      valueFilter: params.valueFilter ?? { operator: 'eq' as const },
       limit: params.limit ?? 1000,
       offset: params.offset ?? 0,
       aggregation: params.aggregation ?? 'raw',
@@ -654,6 +699,7 @@ export class EventCacheManager extends EventEmitter {
     if (aggregation === 'changes_only') {
       return this.filterChangesOnly(events);
     }
+    // TODO: Implement 'summary' aggregation when needed
     return events;
   }
   
@@ -803,14 +849,22 @@ export class EventCacheManager extends EventEmitter {
       ? rates.reduce((a, b) => a + b, 0) / rates.length 
       : 0;
     
-    return {
+    const stats: CacheStatistics = {
       eventCount: buffer.getSize(),
-      oldestEvent: oldestEvent?.timestampMs,
-      newestEvent: newestEvent?.timestampMs,
       memoryUsage: this.estimateMemoryUsage(buffer.getSize()),
       controlsTracked: uniqueControls.size,
       eventsPerSecond: avgRate
     };
+    
+    if (oldestEvent) {
+      stats.oldestEvent = oldestEvent.timestampMs;
+    }
+    
+    if (newestEvent) {
+      stats.newestEvent = newestEvent.timestampMs;
+    }
+    
+    return stats;
   }
   
   /**
@@ -1047,15 +1101,15 @@ export class EventCacheManager extends EventEmitter {
     age: number,
     config: NonNullable<EventCacheConfig['compressionConfig']>
   ): boolean {
-    if (age < config.recentWindowMs) {
+    if (age < (config.recentWindowMs ?? 60000)) {
       return true; // Keep all recent events
     }
     
-    if (age < config.mediumWindowMs) {
+    if (age < (config.mediumWindowMs ?? 600000)) {
       return this.shouldKeepMediumAgeEvent(event, lastKeptEvent, config);
     }
     
-    if (age < config.ancientWindowMs) {
+    if (age < (config.ancientWindowMs ?? 3600000)) {
       return this.shouldKeepAncientEvent(event, lastKeptEvent);
     }
     
@@ -1073,7 +1127,7 @@ export class EventCacheManager extends EventEmitter {
     if (!lastKeptEvent) return true; // Always keep first event
     
     const timeSinceLastKept = event.timestampMs - lastKeptEvent.timestampMs;
-    if (timeSinceLastKept < config.minTimeBetweenEventsMs) {
+    if (timeSinceLastKept < (config.minTimeBetweenEventsMs ?? 100)) {
       return false;
     }
     
@@ -1081,7 +1135,7 @@ export class EventCacheManager extends EventEmitter {
       return true;
     }
     
-    return this.isSignificantChangeForCompression(event.value, lastKeptEvent.value, config.significantChangePercent);
+    return this.isSignificantChangeForCompression(event.value, lastKeptEvent.value, config.significantChangePercent ?? 5);
   }
   
   /**
@@ -1095,7 +1149,7 @@ export class EventCacheManager extends EventEmitter {
       return true;
     }
     
-    return lastKeptEvent && event.value !== lastKeptEvent.value;
+    return lastKeptEvent ? event.value !== lastKeptEvent.value : false;
   }
   
   /**
@@ -1248,7 +1302,7 @@ export class EventCacheManager extends EventEmitter {
    */
   private async initializeDiskSpillover(): Promise<void> {
     const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
-    if (!spilloverConfig?.enabled) return;
+    if (!spilloverConfig?.enabled || !spilloverConfig.directory) return;
     
     const dir = spilloverConfig.directory;
     try {
@@ -1296,8 +1350,8 @@ export class EventCacheManager extends EventEmitter {
     const timestamp = Date.now();
     const filename = `${groupId}-${timestamp}-${events.length}.json`;
     const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
-    if (!spilloverConfig) {
-      throw new Error('Disk spillover config not initialized');
+    if (!spilloverConfig?.directory) {
+      throw new Error('Disk spillover config or directory not initialized');
     }
     const filepath = path.join(spilloverConfig.directory, filename);
     
@@ -1364,7 +1418,7 @@ export class EventCacheManager extends EventEmitter {
     endTime: number
   ): Promise<CachedEvent[]> {
     const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
-    if (!spilloverConfig?.enabled) {
+    if (!spilloverConfig?.enabled || !spilloverConfig.directory) {
       return [];
     }
     
@@ -1479,15 +1533,41 @@ export class EventCacheManager extends EventEmitter {
    * Deserialize a single event
    */
   private deserializeEvent(serialized: SerializedCachedEvent): CachedEvent {
-    return {
-      ...serialized,
+    const event: CachedEvent = {
+      groupId: serialized.groupId,
+      controlName: serialized.controlName,
       timestamp: BigInt(serialized.timestamp),
-      eventType: serialized.eventType && isEventType(serialized.eventType) 
-        ? serialized.eventType 
-        : undefined,
+      timestampMs: serialized.timestampMs,
       value: serialized.value,
-      previousValue: serialized.previousValue
+      string: serialized.string,
+      sequenceNumber: serialized.sequenceNumber
     };
+    
+    if (serialized.eventType && isEventType(serialized.eventType)) {
+      event.eventType = serialized.eventType;
+    }
+    
+    if (serialized.previousValue !== undefined) {
+      event.previousValue = serialized.previousValue;
+    }
+    
+    if (serialized.previousString !== undefined) {
+      event.previousString = serialized.previousString;
+    }
+    
+    if (serialized.delta !== undefined) {
+      event.delta = serialized.delta;
+    }
+    
+    if (serialized.duration !== undefined) {
+      event.duration = serialized.duration;
+    }
+    
+    if (serialized.threshold !== undefined) {
+      event.threshold = serialized.threshold;
+    }
+    
+    return event;
   }
   
   /**
@@ -1506,7 +1586,7 @@ export class EventCacheManager extends EventEmitter {
    */
   private async cleanupSpilloverFiles(): Promise<void> {
     const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
-    if (!spilloverConfig?.enabled) return;
+    if (!spilloverConfig?.enabled || !spilloverConfig.directory) return;
     
     const dir = spilloverConfig.directory;
     const maxAge = this.defaultConfig.maxAgeMs;

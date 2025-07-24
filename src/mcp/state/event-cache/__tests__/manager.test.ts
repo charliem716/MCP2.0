@@ -18,14 +18,14 @@ jest.mock('../../../../shared/utils/logger.js', () => ({
 
 describe('EventCacheManager', () => {
   let eventCache: EventCacheManager;
-  let mockAdapter: MockQRWCAdapter & { on?: jest.Mock };
+  let mockAdapter: MockQRWCAdapter & { on?: jest.Mock | undefined };
 
   beforeEach(() => {
     // Create a fresh mock adapter for each test
-    mockAdapter = new MockQRWCAdapter();
+    const baseAdapter = new MockQRWCAdapter();
     // Add jest spy for testing
-    const originalOn = mockAdapter.on.bind(mockAdapter);
-    mockAdapter.on = jest.fn(originalOn) as any;
+    const originalOn = baseAdapter.on.bind(baseAdapter);
+    mockAdapter = Object.assign(baseAdapter, { on: jest.fn(originalOn) as any });
     
     // Create a fresh event cache for each test
     eventCache = new EventCacheManager({
@@ -52,7 +52,7 @@ describe('EventCacheManager', () => {
 
   describe('attachToAdapter', () => {
     it('should attach to adapter and listen for events', () => {
-      eventCache.attachToAdapter(mockAdapter);
+      eventCache.attachToAdapter(mockAdapter as any);
       
       expect(mockAdapter.on).toHaveBeenCalledWith(
         'changeGroup:changes',
@@ -61,8 +61,8 @@ describe('EventCacheManager', () => {
     });
 
     it('should not attach twice', () => {
-      eventCache.attachToAdapter(mockAdapter);
-      eventCache.attachToAdapter(mockAdapter);
+      eventCache.attachToAdapter(mockAdapter as any);
+      eventCache.attachToAdapter(mockAdapter as any);
       
       expect(mockAdapter.on).toHaveBeenCalledTimes(1);
     });
@@ -70,7 +70,7 @@ describe('EventCacheManager', () => {
 
   describe('event handling', () => {
     beforeEach(() => {
-      eventCache.attachToAdapter(mockAdapter);
+      eventCache.attachToAdapter(mockAdapter as any);
     });
 
     it('should store events from change group', (done) => {
@@ -147,7 +147,7 @@ describe('EventCacheManager', () => {
 
   describe('query', () => {
     beforeEach(() => {
-      eventCache.attachToAdapter(mockAdapter);
+      eventCache.attachToAdapter(mockAdapter as any);
       
       // Add some test events in the past
       const baseTime = Date.now() - 30000; // 30 seconds ago
@@ -258,7 +258,7 @@ describe('EventCacheManager', () => {
 
   describe('statistics', () => {
     beforeEach(() => {
-      eventCache.attachToAdapter(mockAdapter);
+      eventCache.attachToAdapter(mockAdapter as any);
       
       // Add test events in the past
       const baseTime = Date.now() - 5000; // 5 seconds ago
@@ -305,7 +305,7 @@ describe('EventCacheManager', () => {
 
   describe('clear operations', () => {
     beforeEach(() => {
-      eventCache.attachToAdapter(mockAdapter);
+      eventCache.attachToAdapter(mockAdapter as any);
       
       // Add events to multiple groups
       for (const group of ['group1', 'group2', 'group3']) {
@@ -353,7 +353,7 @@ describe('EventCacheManager', () => {
 
   describe('value filter operators', () => {
     beforeEach(() => {
-      eventCache.attachToAdapter(mockAdapter);
+      eventCache.attachToAdapter(mockAdapter as any);
       
       // Add test events with various values
       const baseTime = Date.now() - 500; // 500ms ago to ensure they're in query range

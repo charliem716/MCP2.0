@@ -8,7 +8,7 @@ import { MockQRWCAdapter } from '../test-helpers.js';
 
 // Mock adapter with emit helper
 class MockAdapter extends MockQRWCAdapter {
-  emitChanges(groupId: string, changes: Array<{Name: string, Value: unknown, String?: string}>): void {
+  override emitChanges(groupId: string, changes: Array<{Name: string, Value: unknown, String?: string}>): void {
     const now = Date.now();
     const timestamp = process.hrtime.bigint();
     
@@ -43,7 +43,7 @@ describe('EventCacheManager Compression', () => {
     
     manager = new EventCacheManager(config);
     mockAdapter = new MockAdapter();
-    manager.attachToAdapter(mockAdapter as QRWCClientAdapter);
+    manager.attachToAdapter(mockAdapter as any);
   });
   
   afterEach(() => {
@@ -131,7 +131,7 @@ describe('EventCacheManager Compression', () => {
       
       // Should only have state transitions: true->false, false->true, true->false
       const transitions = results.filter((e, i) => 
-        i === 0 || e.value !== results[i-1].value
+        i === 0 || e.value !== results[i-1]!.value
       );
       
       expect(transitions.length).toBeLessThanOrEqual(4);
@@ -216,7 +216,7 @@ describe('EventCacheManager Compression', () => {
       };
       
       const smallManager = new EventCacheManager(config);
-      smallManager.attachToAdapter(mockAdapter);
+      smallManager.attachToAdapter(mockAdapter as any);
       
       let memoryPressureEmitted = false;
       smallManager.on('memoryPressure', () => {

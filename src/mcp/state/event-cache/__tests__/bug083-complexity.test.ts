@@ -41,12 +41,11 @@ describe('BUG-083: Refactored Methods', () => {
         directory: '/tmp/test-spillover',
         thresholdMB: 1,
         maxFileSizeMB: 10,
-        maxAgeHours: 24
       },
       globalMemoryLimitMB: 0.5, // Lower limit to 0.5MB for testing
       memoryCheckIntervalMs: 50 // Faster checks for testing
     });
-    manager.attachToAdapter(mockAdapter);
+    manager.attachToAdapter(mockAdapter as any);
   });
 
   afterEach(() => {
@@ -252,7 +251,7 @@ describe('BUG-083: Refactored Methods', () => {
           enabled: false // Disable compression for this test
         }
       });
-      testManager.attachToAdapter(mockAdapter);
+      testManager.attachToAdapter(mockAdapter as any);
       
       const groupId = 'test-group';
 
@@ -354,7 +353,7 @@ describe('BUG-083: Refactored Methods', () => {
         mockAdapter.emit('changeGroup:changes', {
           groupId,
           changes: [{ Name: 'control', Value: i, String: i.toString() }],
-          timestamp: BigInt(timestamps[i] * 1_000_000),
+          timestamp: BigInt(timestamps[i]! * 1_000_000),
           timestampMs: timestamps[i],
           sequenceNumber: i
         });
@@ -364,7 +363,7 @@ describe('BUG-083: Refactored Methods', () => {
       
       // Events should be sorted by timestamp
       for (let i = 1; i < events.length; i++) {
-        expect(events[i].timestampMs).toBeGreaterThanOrEqual(events[i - 1].timestampMs);
+        expect(events[i]!.timestampMs).toBeGreaterThanOrEqual(events[i - 1]!.timestampMs);
       }
     });
   });
