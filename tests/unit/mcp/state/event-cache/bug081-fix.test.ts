@@ -52,8 +52,12 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
     // Add small delay to ensure event processing completes
     await new Promise(resolve => setTimeout(resolve, 10));
     
-    // Should now have one event
-    const eventsAfter = eventCache.querySync({ groupId: 'test' });
+    // Should now have one event - query with explicit time range
+    const eventsAfter = eventCache.querySync({ 
+      groupId: 'test',
+      startTime: Date.now() - 5000,
+      endTime: Date.now() + 1000
+    });
     expect(eventsAfter).toHaveLength(1);
   });
 
@@ -76,8 +80,15 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
       sequenceNumber: 1
     });
     
-    // Verify events were stored
-    const events = eventCache.querySync({ groupId: 'test-group' });
+    // Add small delay to ensure event processing completes
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
+    // Verify events were stored with explicit time range
+    const events = eventCache.querySync({ 
+      groupId: 'test-group',
+      startTime: now - 1000,
+      endTime: now + 1000
+    });
     expect(events).toHaveLength(3);
     
     // Verify event properties
@@ -163,7 +174,15 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
       sequenceNumber: 1
     });
     
-    const events = eventCache.querySync({ groupId: 'test-group' });
+    // Add small delay to ensure event processing completes
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
+    // Query with explicit time range to ensure we catch the events
+    const events = eventCache.querySync({ 
+      groupId: 'test-group',
+      startTime: now - 1000, // 1 second before
+      endTime: now + 1000   // 1 second after
+    });
     expect(events).toHaveLength(5);
     
     // Verify each type was stored correctly
