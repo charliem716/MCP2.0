@@ -37,7 +37,7 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
     
     // Should not crash - query returns empty because invalid events are rejected
-    const events = await eventCache.query({ groupId: 'test' });
+    const events = eventCache.querySync({ groupId: 'test' });
     expect(events).toHaveLength(0);
     
     // Now emit a valid event to prove the system still works
@@ -53,7 +53,7 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
     
     // Should now have one event
-    const eventsAfter = await eventCache.query({ groupId: 'test' });
+    const eventsAfter = eventCache.querySync({ groupId: 'test' });
     expect(eventsAfter).toHaveLength(1);
   });
 
@@ -77,7 +77,7 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
     });
     
     // Verify events were stored
-    const events = await eventCache.query({ groupId: 'test-group' });
+    const events = eventCache.querySync({ groupId: 'test-group' });
     expect(events).toHaveLength(3);
     
     // Verify event properties
@@ -124,7 +124,7 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
     // Add another small delay to ensure processing is complete
     await new Promise(resolve => setTimeout(resolve, 10));
     
-    const events = await eventCache.query({ 
+    const events = eventCache.querySync({ 
       groupId: 'test-group',
       controlNames: ['gain']
     });
@@ -163,7 +163,7 @@ describe('BUG-081 Fix: Type safety in event cache', () => {
       sequenceNumber: 1
     });
     
-    const events = await eventCache.query({ groupId: 'test-group' });
+    const events = eventCache.querySync({ groupId: 'test-group' });
     expect(events).toHaveLength(5);
     
     // Verify each type was stored correctly
