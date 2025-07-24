@@ -3,12 +3,15 @@
  */
 
 import { EventEmitter } from 'events';
-import type { ChangeGroupEvent, ControlChange } from './event-types.js';
+import type { ChangeGroupEvent } from './types.js';
+import type { ControlChange } from './event-types.js';
 
 /**
  * Mock adapter for testing that satisfies the event cache requirements
  */
 export class MockQRWCAdapter extends EventEmitter {
+  private sequenceNumber = 0;
+  
   isConnected(): boolean {
     return true;
   }
@@ -38,12 +41,16 @@ export class MockQRWCAdapter extends EventEmitter {
   
   // Helper method to emit change events properly
   emitChanges(groupId: string, changes: Array<{ Name: string; Value: unknown; String?: string }>): void {
+    const now = Date.now();
+    // Ensure unique timestamps by adding sequence number as nanoseconds
+    const timestamp = BigInt(now) * 1000000n + BigInt(this.sequenceNumber);
+    
     const event: ChangeGroupEvent = {
       groupId,
       changes: changes as ControlChange[],
-      timestamp: process.hrtime.bigint(),
-      timestampMs: Date.now(),
-      sequenceNumber: 0
+      timestamp,
+      timestampMs: now,
+      sequenceNumber: this.sequenceNumber++
     };
     this.emit('changeGroup:changes', event);
   }

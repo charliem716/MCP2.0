@@ -6,25 +6,11 @@ import { EventCacheManager, type EventCacheConfig } from '../manager.js';
 import type { QRWCClientAdapter } from '../../../qrwc/adapter.js';
 import { MockQRWCAdapter } from '../test-helpers.js';
 
-// Mock adapter with emit helper
-class MockAdapter extends MockQRWCAdapter {
-  override emitChanges(groupId: string, changes: Array<{Name: string, Value: unknown, String?: string}>): void {
-    const now = Date.now();
-    const timestamp = process.hrtime.bigint();
-    
-    this.emit('changeGroup:changes', {
-      groupId,
-      changes,
-      timestamp,
-      timestampMs: now,
-      sequenceNumber: 0
-    });
-  }
-}
+// Use the base MockQRWCAdapter which now has proper timestamp handling
 
 describe('EventCacheManager Compression', () => {
   let manager: EventCacheManager;
-  let mockAdapter: MockAdapter;
+  let mockAdapter: MockQRWCAdapter;
   
   beforeEach(() => {
     const config: EventCacheConfig = {
@@ -42,7 +28,7 @@ describe('EventCacheManager Compression', () => {
     };
     
     manager = new EventCacheManager(config);
-    mockAdapter = new MockAdapter();
+    mockAdapter = new MockQRWCAdapter();
     manager.attachToAdapter(mockAdapter as any);
   });
   

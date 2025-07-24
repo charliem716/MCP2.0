@@ -1,4 +1,4 @@
-# MCP Voice/Text-Controlled Q-SYS Demo - Implementation Checklist
+3# MCP Voice/Text-Controlled Q-SYS Demo - Implementation Checklist
 
 ## Overview
 This checklist tracks progress for the MCP Voice/Text-Controlled Q-SYS Demo implementation. Check off tasks as they are completed. Bugs should be tracked separately in individual bug reports.
