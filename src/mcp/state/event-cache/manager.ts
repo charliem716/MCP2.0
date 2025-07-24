@@ -1187,6 +1187,38 @@ export class EventCacheManager extends EventEmitter {
   }
   
   /**
+   * Manually trigger compression (useful for testing)
+   * @param skipCooldown - Whether to skip the 30-second cooldown check
+   */
+  async runCompression(skipCooldown = false): Promise<void> {
+    if (!this.defaultConfig.compressionConfig?.enabled) {
+      return;
+    }
+    
+    // Temporarily bypass cooldown if requested
+    const originalStats = new Map(this.compressionStats);
+    if (skipCooldown) {
+      this.compressionStats.clear();
+    }
+    
+    this.performCompression();
+    
+    // Restore stats if we skipped cooldown
+    if (skipCooldown) {
+      for (const [groupId, stats] of originalStats) {
+        const currentStats = this.compressionStats.get(groupId);
+        if (currentStats) {
+          // Keep the new lastRun time but restore other stats
+          this.compressionStats.set(groupId, {
+            ...stats,
+            lastRun: currentStats.lastRun
+          });
+        }
+      }
+    }
+  }
+  
+  /**
    * Stop cleanup timer and clean up resources
    */
   destroy(): void {

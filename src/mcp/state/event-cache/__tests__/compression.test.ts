@@ -56,36 +56,38 @@ describe('EventCacheManager Compression', () => {
     it('should compress events in medium window based on significance', async () => {
       const groupId = 'test-group';
       
-      // Add events with small changes (< 10%)
+      // Add initial event and small changes
       mockAdapter.emitChanges(groupId, [
         { Name: 'test.control', Value: 100, String: '100' }
       ]);
       
-      // Wait to enter medium window
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Add small changes
+      // Add small changes (< 10%)
       for (let i = 1; i <= 5; i++) {
+        await new Promise(resolve => setTimeout(resolve, 50));
         mockAdapter.emitChanges(groupId, [
           { Name: 'test.control', Value: 100 + i, String: (100 + i).toString() }
         ]);
-        await new Promise(resolve => setTimeout(resolve, 150));
       }
       
       // Add significant change (> 10%)
+      await new Promise(resolve => setTimeout(resolve, 50));
       mockAdapter.emitChanges(groupId, [
         { Name: 'test.control', Value: 120, String: '120' }
       ]);
       
-      // Trigger compression
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Wait for all events to age into medium window
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      // Manually trigger compression
+      await manager.runCompression(true);
       
       const results = await manager.query({ 
         groupId,
         startTime: Date.now() - 10000 
       });
       
-      // Should have initial + significant change + maybe 1-2 small changes
+      // Should have compressed out the small changes
+      // Keeping: initial (100), significant change (120), and maybe 1-2 intermediate values
       expect(results.length).toBeLessThan(7);
       expect(results.some(e => e.value === 100)).toBe(true);
       expect(results.some(e => e.value === 120)).toBe(true);
@@ -209,15 +211,24 @@ describe('EventCacheManager Compression', () => {
         memoryPressureEmitted = true;
       });
       
-      // Add many events to trigger memory pressure
-      for (let i = 0; i < 5000; i++) {
+      // Add many events with large strings to trigger memory pressure
+      for (let i = 0; i < 2000; i++) {
         mockAdapter.emitChanges('group1', [
-          { Name: `control${i % 10}`, Value: i, String: i.toString() }
+          { 
+            Name: `control${i % 10}`, 
+            Value: i, 
+            String: 'X'.repeat(1000) + i.toString() // Large string to consume memory
+          }
         ]);
+        
+        // Small delay to allow processing
+        if (i % 100 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1));
+        }
       }
       
-      // Wait for memory check
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Wait for memory check and compression
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       expect(memoryPressureEmitted).toBe(true);
       
@@ -227,7 +238,7 @@ describe('EventCacheManager Compression', () => {
         startTime: Date.now() - 60000 
       });
       
-      expect(results.length).toBeLessThan(5000);
+      expect(results.length).toBeLessThan(2000);
       
       smallManager.destroy();
     });
