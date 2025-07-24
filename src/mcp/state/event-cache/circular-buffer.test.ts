@@ -79,7 +79,7 @@ describe('CircularBuffer', () => {
       const queryTime = process.hrtime.bigint() - startQuery;
       
       const startGetAll = process.hrtime.bigint();
-      const allEvents = buffer.getAll();
+      buffer.getAll(); // Just measure timing, don't store result
       // Removed unnecessary filter that always returns true
       const getAllTime = process.hrtime.bigint() - startGetAll;
       

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { EventCacheManager, type EventCacheConfig } from '../manager.js';
+import { EventCacheManager } from '../manager.js';
 import { MockQRWCAdapter } from '../test-helpers.js';
 
 // Mock the logger
@@ -317,10 +317,10 @@ describe('BUG-083: Refactored Methods', () => {
   describe('Disk Spillover (refactored spillToDisk)', () => {
     it('should spill events to disk when configured', async () => {
       const groupId = 'test-group';
-      let spilloverEmitted = false;
 
+      // Just verify the event handler can be attached
       manager.on('diskSpillover', () => {
-        spilloverEmitted = true;
+        // Event handler for disk spillover
       });
 
       // Add many events to trigger spillover

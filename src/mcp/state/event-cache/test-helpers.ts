@@ -3,7 +3,6 @@
  */
 
 import { EventEmitter } from 'events';
-import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 import type { ChangeGroupEvent } from './event-types.js';
 
 /**
@@ -14,7 +13,7 @@ export class MockQRWCAdapter extends EventEmitter {
     return true;
   }
   
-  async executeCommand(method: string, params?: unknown): Promise<unknown> {
+  async executeCommand(_method: string, _params?: unknown): Promise<unknown> {
     // Mock implementation
     return { success: true };
   }

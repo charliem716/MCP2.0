@@ -3,7 +3,6 @@
  */
 
 import { EventEmitter } from 'events';
-import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 
 /**
  * Minimal test adapter that extends EventEmitter and satisfies type requirements

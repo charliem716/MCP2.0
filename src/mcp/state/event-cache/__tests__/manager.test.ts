@@ -3,9 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { EventEmitter } from 'events';
 import { EventCacheManager } from '../manager.js';
-import type { QRWCClientAdapter } from '../../../qrwc/adapter.js';
 import { MockQRWCAdapter } from '../test-helpers.js';
 
 // Mock the logger

@@ -75,7 +75,6 @@ export interface CacheStatistics {
  */
 interface BufferInfo {
   groupId: string;
-  size: number;
   memory: number;
   priority: 'low' | 'normal' | 'high';
 }
@@ -497,7 +496,6 @@ export class EventCacheManager extends EventEmitter {
    */
   private updateEventRate(groupId: string, eventCount: number): void {
     const rates = this.eventRates.get(groupId) ?? [];
-    const now = Date.now();
     
     // Add current rate (events per second)
     rates.push(eventCount);
@@ -1600,7 +1598,6 @@ export class EventCacheManager extends EventEmitter {
     return Array.from(this.buffers.entries())
       .map(([id, buffer]) => ({
         groupId: id,
-        size: buffer.getSize(),
         memory: buffer.getSize() * this.calculateAverageEventSize(id),
         priority: this.groupPriorities.get(id) ?? 'normal'
       }))
