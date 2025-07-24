@@ -12,6 +12,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:coverage:measure": "jest --coverage --coverageThreshold='{}' --passWithNoTests || true",
+    "test:coverage:event-cache": "jest --coverage --coverageThreshold='{}' --testPathPattern=event-cache --passWithNoTests || true",
     "lint": "eslint . --ext .ts,.js,.mjs",
     "lint:fix": "eslint . --ext .ts,.js,.mjs --fix",
     "format": "prettier --write .",
