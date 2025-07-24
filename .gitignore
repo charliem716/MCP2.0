@@ -153,3 +153,6 @@ temp/
 src/**/*.js
 !src/**/*.mjs
 !src/**/*.cjs 
+# Test artifacts
+event-cache-spillover/
+test-cache-state.*.json

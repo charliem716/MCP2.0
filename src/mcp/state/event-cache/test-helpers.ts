@@ -16,9 +16,9 @@ export class MockQRWCAdapter extends EventEmitter {
     return true;
   }
   
-  executeCommand(_method: string, _params?: unknown): unknown {
+  sendCommand(_command: string, _params?: Record<string, unknown>): Promise<unknown> {
     // Mock implementation
-    return { success: true };
+    return Promise.resolve({ success: true });
   }
   
   async connect(): Promise<void> {
@@ -29,14 +29,16 @@ export class MockQRWCAdapter extends EventEmitter {
     // Mock implementation
   }
   
-  // Override the on method with proper typing
-  override on(event: string | symbol, listener: (...args: any[]) => void): this {
-    return super.on(event, listener);
+  // Override the on method with proper typing to match QRWCClientAdapter
+  override on(event: string, listener: (...args: any[]) => void): this {
+    super.on(event, listener);
+    return this;
   }
   
-  // Override the removeListener method with proper typing
-  override removeListener(event: string | symbol, listener: (...args: any[]) => void): this {
-    return super.removeListener(event, listener);
+  // Override the removeListener method with proper typing to match QRWCClientAdapter
+  override removeListener(event: string, listener: (...args: any[]) => void): this {
+    super.removeListener(event, listener);
+    return this;
   }
   
   // Helper method to emit change events properly

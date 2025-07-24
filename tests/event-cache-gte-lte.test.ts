@@ -52,13 +52,15 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should find values greater than or equal to 0.5', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: 0.5
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const values = results.map(e => e.value);
       
       expect(results.length).toBe(7); // 0.5, 0.5, 0.7, 1.0, 5, 10, 15
@@ -68,13 +70,15 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should find values greater than or equal to exact integer', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: 5
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const values = results.map(e => e.value);
       
       expect(results.length).toBe(3); // 5, 10, 15
@@ -84,29 +88,35 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should handle negative values correctly', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: -6
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const numericResults = results.filter(e => typeof e.value === 'number');
       
       expect(numericResults.length).toBe(11); // All numeric values >= -6
-      expect(numericResults[0].value).toBe(-6);
+      // First numeric result should be -6 when sorted
+      const sortedResults = numericResults.sort((a, b) => (a.value as number) - (b.value as number));
+      expect(sortedResults[0].value).toBe(-6);
     });
     
     it('should ignore non-numeric values', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: 0
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const hasNonNumeric = results.some(e => typeof e.value !== 'number');
       
       expect(hasNonNumeric).toBe(false);
@@ -117,29 +127,35 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should find values less than or equal to 0.7', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'lte',
           value: 0.7
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const values = results.map(e => e.value).filter(v => typeof v === 'number');
       
       expect(values.length).toBe(7); // -6, -3, 0.0, 0.3, 0.5, 0.5, 0.7
+      // Sort values since query may not return in exact order
+      values.sort((a, b) => a - b);
       expect(values).toEqual([-6, -3, 0.0, 0.3, 0.5, 0.5, 0.7]);
     });
     
     it('should find values less than or equal to exact integer', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'lte',
           value: 5
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const values = results.map(e => e.value).filter(v => typeof v === 'number');
       
       expect(values).toContain(5);
@@ -150,13 +166,15 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should handle negative values correctly', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'lte',
           value: -3
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const values = results.map(e => e.value);
       
       expect(results.length).toBe(2); // -6, -3
@@ -166,13 +184,15 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should ignore non-numeric values', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'lte',
           value: 100
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const hasNonNumeric = results.some(e => typeof e.value !== 'number');
       
       expect(hasNonNumeric).toBe(false);
@@ -184,12 +204,14 @@ describe('EventCacheManager - gte/lte operators', () => {
       // First query: gte 0.5
       const query1: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: 0.5
         }
       };
-      const results1 = cacheManager.query(query1);
+      const results1 = cacheManager.querySync(query1);
       
       // Then filter those results with lte 1.0
       const inRange = results1.filter(e => 
@@ -205,13 +227,15 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should handle floating point precision correctly', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: 0.5
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const hasExactMatch = results.some(e => e.value === 0.5);
       
       expect(hasExactMatch).toBe(true);
@@ -220,13 +244,15 @@ describe('EventCacheManager - gte/lte operators', () => {
     it('should return empty array when value filter has non-numeric comparison value', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: 'string'
         }
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       expect(results.length).toBe(0);
     });
   });

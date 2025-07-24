@@ -37,10 +37,12 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should skip events with offset', () => {
       const query: EventQuery = {
         groupId: 'test-group',
-        offset: 10
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
+        offset: 10,
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results[0].value).toBe(10);
       expect(results[0].controlName).toBe('Control10');
@@ -49,11 +51,13 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should return correct page with offset and limit', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         offset: 20,
-        limit: 10
+        limit: 10,
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(10);
       expect(results[0].value).toBe(20);
@@ -63,10 +67,12 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should handle offset beyond result count', () => {
       const query: EventQuery = {
         groupId: 'test-group',
-        offset: 200  // Beyond 100 events
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
+        offset: 200,  // Beyond 100 events
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(0);
     });
@@ -74,17 +80,25 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should handle offset of 0 same as no offset', () => {
       const queryWithOffset: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         offset: 0,
-        limit: 5
+        limit: 5,
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000
       };
       
       const queryNoOffset: EventQuery = {
         groupId: 'test-group',
-        limit: 5
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
+        limit: 5,
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000
       };
       
-      const resultsWithOffset = cacheManager.query(queryWithOffset);
-      const resultsNoOffset = cacheManager.query(queryNoOffset);
+      const resultsWithOffset = cacheManager.querySync(queryWithOffset);
+      const resultsNoOffset = cacheManager.querySync(queryNoOffset);
       
       expect(resultsWithOffset).toEqual(resultsNoOffset);
     });
@@ -94,6 +108,8 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should apply offset after filtering by value', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         valueFilter: {
           operator: 'gte',
           value: 50
@@ -102,7 +118,7 @@ describe('EventCacheManager - Pagination with offset', () => {
         limit: 10
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       // Events 50-99 match filter (50 events)
       // Skip first 10 (50-59), return 60-69
@@ -116,12 +132,13 @@ describe('EventCacheManager - Pagination with offset', () => {
       
       const query: EventQuery = {
         groupId: 'test-group',
-        startTime: midTime,
+        startTime: midTime, // Start from middle of data
+        endTime: Date.now() + 10000,
         offset: 5,
         limit: 10
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       // Should get events from ~50 onwards, skip 5, take 10
       expect(results.length).toBe(10);
@@ -146,12 +163,14 @@ describe('EventCacheManager - Pagination with offset', () => {
       
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         controlNames: ['SpecialControl'],
         offset: 3,
         limit: 5
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(5);
       expect(results[0].value).toBe(103);
@@ -168,10 +187,12 @@ describe('EventCacheManager - Pagination with offset', () => {
       for (let page = 0; page < 5; page++) {
         const query: EventQuery = {
           groupId: 'test-group',
+          startTime: Date.now() - 120000, // Include all events
+          endTime: Date.now() + 10000,
           offset: page * pageSize,
           limit: pageSize
         };
-        pages.push(cacheManager.query(query));
+        pages.push(cacheManager.querySync(query));
       }
       
       // Verify no overlap between pages
@@ -192,10 +213,12 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should handle limit without offset', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         limit: 10
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(10);
       expect(results[0].value).toBe(0);
@@ -204,10 +227,12 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should handle offset without limit', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         offset: 90
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(10); // 90-99
       expect(results[0].value).toBe(90);
@@ -216,11 +241,13 @@ describe('EventCacheManager - Pagination with offset', () => {
     it('should handle offset + limit exceeding total', () => {
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         offset: 95,
         limit: 20
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(5); // Only 95-99 available
       expect(results[0].value).toBe(95);
@@ -236,20 +263,24 @@ describe('EventCacheManager - Pagination with offset', () => {
       // Initial load
       let query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         offset: 0,
         limit: pageSize
       };
-      let batch = cacheManager.query(query);
+      let batch = cacheManager.querySync(query);
       allResults = [...batch];
       
       // Load more
       while (batch.length === pageSize) {
         query = {
           groupId: 'test-group',
+          startTime: Date.now() - 120000, // Include all events
+          endTime: Date.now() + 10000,
           offset: allResults.length,
           limit: pageSize
         };
-        batch = cacheManager.query(query);
+        batch = cacheManager.querySync(query);
         allResults.push(...batch);
       }
       
@@ -264,11 +295,13 @@ describe('EventCacheManager - Pagination with offset', () => {
       
       const query: EventQuery = {
         groupId: 'test-group',
+        startTime: Date.now() - 120000, // Include all events
+        endTime: Date.now() + 10000,
         offset: targetPage * pageSize,
         limit: pageSize
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(10);
       expect(results[0].value).toBe(70);

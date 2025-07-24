@@ -50,7 +50,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         endTime: Date.now() + 10000
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const transitionEvent = results.find(e => e.value === true);
       
       expect(transitionEvent?.eventType).toBe('state_transition');
@@ -77,7 +77,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         endTime: Date.now() + 10000
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const transitionEvent = results.find(e => e.value === 'Manual');
       
       expect(transitionEvent?.eventType).toBe('state_transition');
@@ -108,7 +108,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         endTime: Date.now() + 10000
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const crossingEvent = results.find(e => e.value === -5);
       
       expect(crossingEvent?.eventType).toBe('threshold_crossed');
@@ -137,7 +137,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         endTime: Date.now() + 10000
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const crossingEvent = results.find(e => e.controlName === 'Gain' && e.value === 0.6);
       
       expect(crossingEvent?.eventType).toBe('threshold_crossed');
@@ -168,7 +168,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         endTime: Date.now() + 10000
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const significantEvent = results.find(e => e.value === 110);
       
       expect(significantEvent?.eventType).toBe('significant_change');
@@ -196,7 +196,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         endTime: Date.now() + 10000
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       const smallChangeEvent = results.find(e => e.value === 0.51);
       
       expect(smallChangeEvent?.eventType).toBe('change');
@@ -237,7 +237,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         eventTypes: ['threshold_crossed']
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(1);
       expect(results[0].eventType).toBe('threshold_crossed');
@@ -252,7 +252,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         eventTypes: ['threshold_crossed', 'state_transition']
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(2);
       const types = results.map(e => e.eventType);
@@ -267,7 +267,7 @@ describe('EventCacheManager - Event Type Detection', () => {
         endTime: Date.now() + 10000
       };
       
-      const results = cacheManager.query(query);
+      const results = cacheManager.querySync(query);
       
       expect(results.length).toBe(6); // 3 initial + 3 changed
     });

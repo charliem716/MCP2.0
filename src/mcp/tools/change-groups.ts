@@ -3,6 +3,7 @@ import { BaseQSysTool, BaseToolParamsSchema } from "./base.js";
 import type { QRWCClientInterface } from "../qrwc/adapter.js";
 import type { ToolCallResult } from "../handlers/index.js";
 import type { EventCacheManager, EventQuery } from "../state/event-cache/manager.js";
+import type { ControlValue } from "../state/event-cache/event-types.js";
 
 /**
  * Change Group Tools for Q-SYS
@@ -417,14 +418,22 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
 
     // Transform params to match EventQuery interface
     const queryParams: EventQuery = {
-      groupId: params.groupId,
-      startTime: params.startTime,
-      endTime: params.endTime,
-      controlNames: params.controlNames,
-      valueFilter: params.valueFilter,
-      limit: params.limit,
-      offset: params.offset,
-      aggregation: params.aggregation
+      ...(params.groupId && { groupId: params.groupId }),
+      ...(params.startTime !== undefined && { startTime: params.startTime }),
+      ...(params.endTime !== undefined && { endTime: params.endTime }),
+      ...(params.controlNames && { controlNames: params.controlNames }),
+      ...(params.valueFilter && {
+        valueFilter: {
+          operator: params.valueFilter.operator,
+          value: params.valueFilter.value as ControlValue | undefined
+        }
+      }),
+      ...(params.limit !== undefined && { limit: params.limit }),
+      ...(params.offset !== undefined && { offset: params.offset }),
+      // Map 'summary' to 'raw' since EventQuery doesn't support 'summary'
+      ...(params.aggregation && {
+        aggregation: params.aggregation === 'summary' ? 'raw' : params.aggregation
+      })
     };
     
     const events = await this.eventCache.query(queryParams);

@@ -20,6 +20,8 @@ import {
   type EventType, 
   type SerializedCachedEvent
 } from './event-types.js';
+import { CompressionEngine } from './compression.js';
+import { DiskSpilloverManager } from './disk-spillover.js';
 
 /**
  * Cached event with full metadata
@@ -141,7 +143,8 @@ export class EventCacheManager extends EventEmitter {
   private globalMemoryLimitBytes: number;
   private lastMemoryPressure = 0;
   private groupPriorities: Map<string, 'high' | 'normal' | 'low'>;
-  private compressionStats: Map<string, { original: number; compressed: number; lastRun: number }>;
+  private compressionEngine: CompressionEngine;
+  private diskSpillover: DiskSpilloverManager;
   private diskSpilloverActive = false;
   
   constructor(
@@ -156,7 +159,8 @@ export class EventCacheManager extends EventEmitter {
     this.lastEventTimes = new Map();
     this.eventRates = new Map();
     this.groupPriorities = new Map();
-    this.compressionStats = new Map();
+    this.compressionEngine = new CompressionEngine();
+    this.diskSpillover = new DiskSpilloverManager(this.defaultConfig);
     this.globalMemoryLimitBytes = (this.defaultConfig.globalMemoryLimitMB ?? 500) * 1024 * 1024;
     
     // Apply default compression config
@@ -197,6 +201,13 @@ export class EventCacheManager extends EventEmitter {
     // Start compression if enabled
     if (this.defaultConfig.compressionConfig.enabled) {
       this.startCompressionTimer();
+    }
+    
+    // Initialize disk spillover if enabled
+    if (this.defaultConfig.diskSpilloverConfig?.enabled) {
+      this.diskSpillover.initialize().catch(error => {
+        logger.error('Failed to initialize disk spillover', { error });
+      });
     }
   }
   
@@ -985,20 +996,19 @@ export class EventCacheManager extends EventEmitter {
     let totalCompressed = 0;
     
     for (const [groupId, buffer] of this.buffers) {
-      const stats = this.compressionStats.get(groupId) ?? { original: 0, compressed: 0, lastRun: 0 };
-      
       // Skip if recently compressed
-      if (stats.lastRun && (now - stats.lastRun) < 30000) continue;
+      if (!this.compressionEngine.shouldCompress(groupId, now)) continue;
       
       const beforeSize = buffer.getSize();
       const compressed = this.compressBufferEvents(groupId, buffer, config);
       
       if (compressed > 0) {
         totalCompressed += compressed;
+        const stats = this.compressionEngine.getStats(groupId) ?? { original: 0, compressed: 0, lastRun: 0 };
         stats.original += beforeSize;
         stats.compressed += compressed;
         stats.lastRun = now;
-        this.compressionStats.set(groupId, stats);
+        this.compressionEngine.setStats(groupId, stats);
         
         logger.debug('Compressed events', { 
           groupId, 
@@ -1025,151 +1035,15 @@ export class EventCacheManager extends EventEmitter {
     const events = buffer.getAll();
     if (events.length === 0) return 0;
     
-    const controlEvents = this.groupEventsByControl(events);
-    const eventsToKeep = this.selectEventsToKeep(controlEvents, config);
-    const compressedCount = events.length - eventsToKeep.length;
+    const result = this.compressionEngine.compressEvents(events, config);
     
-    if (compressedCount > 0) {
-      this.replaceBufferContents(buffer, eventsToKeep);
+    if (result.compressed > 0) {
+      this.replaceBufferContents(buffer, result.kept);
     }
     
-    return compressedCount;
+    return result.compressed;
   }
   
-  /**
-   * Group events by control name
-   */
-  private groupEventsByControl(events: CachedEvent[]): Map<string, CachedEvent[]> {
-    const controlEvents = new Map<string, CachedEvent[]>();
-    for (const event of events) {
-      const list = controlEvents.get(event.controlName) ?? [];
-      list.push(event);
-      controlEvents.set(event.controlName, list);
-    }
-    return controlEvents;
-  }
-  
-  /**
-   * Select events to keep based on compression rules
-   */
-  private selectEventsToKeep(
-    controlEvents: Map<string, CachedEvent[]>,
-    config: NonNullable<EventCacheConfig['compressionConfig']>
-  ): CachedEvent[] {
-    const eventsToKeep: CachedEvent[] = [];
-    const now = Date.now();
-    
-    for (const [_controlName, eventList] of controlEvents) {
-      const sortedEvents = this.sortEventsByTimestamp(eventList);
-      const keptEvents = this.applyCompressionRules(sortedEvents, config, now);
-      eventsToKeep.push(...keptEvents);
-    }
-    
-    return eventsToKeep;
-  }
-  
-  /**
-   * Apply compression rules to a sorted list of events
-   */
-  private applyCompressionRules(
-    events: CachedEvent[],
-    config: NonNullable<EventCacheConfig['compressionConfig']>,
-    now: number
-  ): CachedEvent[] {
-    const kept: CachedEvent[] = [];
-    let lastKeptEvent: CachedEvent | null = null;
-    
-    for (const event of events) {
-      const age = now - event.timestampMs;
-      const shouldKeep = this.shouldKeepEvent(event, lastKeptEvent, age, config);
-      
-      if (shouldKeep) {
-        kept.push(event);
-        lastKeptEvent = event;
-      }
-    }
-    
-    return kept;
-  }
-  
-  /**
-   * Determine if an event should be kept based on age and significance
-   */
-  private shouldKeepEvent(
-    event: CachedEvent,
-    lastKeptEvent: CachedEvent | null,
-    age: number,
-    config: NonNullable<EventCacheConfig['compressionConfig']>
-  ): boolean {
-    if (age < (config.recentWindowMs ?? 60000)) {
-      return true; // Keep all recent events
-    }
-    
-    if (age < (config.mediumWindowMs ?? 600000)) {
-      return this.shouldKeepMediumAgeEvent(event, lastKeptEvent, config);
-    }
-    
-    if (age < (config.ancientWindowMs ?? 3600000)) {
-      return this.shouldKeepAncientEvent(event, lastKeptEvent);
-    }
-    
-    return false; // Drop events older than ancient window
-  }
-  
-  /**
-   * Check if medium-age event should be kept
-   */
-  private shouldKeepMediumAgeEvent(
-    event: CachedEvent,
-    lastKeptEvent: CachedEvent | null,
-    config: NonNullable<EventCacheConfig['compressionConfig']>
-  ): boolean {
-    if (!lastKeptEvent) return true; // Always keep first event
-    
-    const timeSinceLastKept = event.timestampMs - lastKeptEvent.timestampMs;
-    if (timeSinceLastKept < (config.minTimeBetweenEventsMs ?? 100)) {
-      return false;
-    }
-    
-    if (event.eventType === 'state_transition' || event.eventType === 'threshold_crossed') {
-      return true;
-    }
-    
-    return this.isSignificantChangeForCompression(event.value, lastKeptEvent.value, config.significantChangePercent ?? 5);
-  }
-  
-  /**
-   * Check if ancient event should be kept
-   */
-  private shouldKeepAncientEvent(
-    event: CachedEvent,
-    lastKeptEvent: CachedEvent | null
-  ): boolean {
-    if (event.eventType === 'state_transition' || event.eventType === 'threshold_crossed') {
-      return true;
-    }
-    
-    return lastKeptEvent ? event.value !== lastKeptEvent.value : false;
-  }
-  
-  /**
-   * Check if a value change is significant for compression
-   */
-  private isSignificantChangeForCompression(
-    currentValue: ControlValue,
-    previousValue: ControlValue,
-    threshold: number
-  ): boolean {
-    if (typeof currentValue === 'number' && typeof previousValue === 'number') {
-      const change = Math.abs(currentValue - previousValue);
-      const percentChange = previousValue !== 0 
-        ? (change / Math.abs(previousValue)) * 100
-        : change > 0 ? 100 : 0;
-      return percentChange >= threshold;
-    }
-    
-    return currentValue !== previousValue;
-  }
   
   /**
    * Replace buffer contents with compressed events
@@ -1196,26 +1070,11 @@ export class EventCacheManager extends EventEmitter {
     }
     
     // Temporarily bypass cooldown if requested
-    const originalStats = new Map(this.compressionStats);
     if (skipCooldown) {
-      this.compressionStats.clear();
+      this.compressionEngine.clearStats();
     }
     
     this.performCompression();
-    
-    // Restore stats if we skipped cooldown
-    if (skipCooldown) {
-      for (const [groupId, stats] of originalStats) {
-        const currentStats = this.compressionStats.get(groupId);
-        if (currentStats) {
-          // Keep the new lastRun time but restore other stats
-          this.compressionStats.set(groupId, {
-            ...stats,
-            lastRun: currentStats.lastRun
-          });
-        }
-      }
-    }
   }
   
   /**
@@ -1351,95 +1210,23 @@ export class EventCacheManager extends EventEmitter {
    * Spill events to disk when memory threshold is exceeded
    */
   private async spillToDisk(groupId: string, events: CachedEvent[]): Promise<boolean> {
-    if (!this.canSpillToDisk(events)) {
+    if (!this.defaultConfig.diskSpilloverConfig?.enabled || events.length === 0) {
       return false;
     }
     
-    const spilloverFile = this.prepareSpilloverFile(groupId, events);
-    const success = await this.writeSpilloverFile(spilloverFile);
+    const success = await this.diskSpillover.spillToDisk(groupId, events);
     
     if (success) {
-      this.notifyDiskSpillover(spilloverFile);
+      this.emit('diskSpillover', {
+        groupId,
+        eventCount: events.length,
+        sizeBytes: events.length * 100 // Rough estimate
+      });
     }
     
     return success;
   }
   
-  /**
-   * Check if disk spillover is possible
-   */
-  private canSpillToDisk(events: CachedEvent[]): boolean {
-    return this.defaultConfig.diskSpilloverConfig?.enabled === true && events.length > 0;
-  }
-  
-  /**
-   * Prepare spillover file data
-   */
-  private prepareSpilloverFile(
-    groupId: string,
-    events: CachedEvent[]
-  ): SpilloverFileData {
-    const timestamp = Date.now();
-    const filename = `${groupId}-${timestamp}-${events.length}.json`;
-    const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
-    if (!spilloverConfig?.directory) {
-      throw new Error('Disk spillover config or directory not initialized');
-    }
-    const filepath = path.join(spilloverConfig.directory, filename);
-    
-    const serializable = events.map(e => ({
-      ...e,
-      timestamp: e.timestamp.toString()
-    }));
-    
-    const data = {
-      groupId,
-      timestamp,
-      eventCount: events.length,
-      startTime: events[0]?.timestampMs ?? 0,
-      endTime: events[events.length - 1]?.timestampMs ?? 0,
-      events: serializable
-    };
-    
-    return { groupId, filename, filepath, data, eventCount: events.length };
-  }
-  
-  /**
-   * Write spillover file to disk
-   */
-  private async writeSpilloverFile(spilloverFile: SpilloverFileData): Promise<boolean> {
-    try {
-      const jsonData = JSON.stringify(spilloverFile.data);
-      await fs.writeFile(spilloverFile.filepath, jsonData, 'utf8');
-      
-      logger.info('Spilled events to disk', {
-        groupId: spilloverFile.groupId,
-        filename: spilloverFile.filename,
-        eventCount: spilloverFile.eventCount,
-        sizeBytes: jsonData.length
-      });
-      
-      return true;
-    } catch (error) {
-      logger.error('Failed to spill events to disk', { 
-        error, 
-        groupId: spilloverFile.groupId, 
-        filename: spilloverFile.filename 
-      });
-      return false;
-    }
-  }
-  
-  /**
-   * Notify about disk spillover
-   */
-  private notifyDiskSpillover(spilloverFile: SpilloverFileData): void {
-    this.emit('diskSpillover', { 
-      groupId: spilloverFile.groupId, 
-      filename: spilloverFile.filename, 
-      eventCount: spilloverFile.eventCount 
-    });
-  }
   
   /**
    * Load spilled events from disk for a time range
@@ -1449,169 +1236,13 @@ export class EventCacheManager extends EventEmitter {
     startTime: number, 
     endTime: number
   ): Promise<CachedEvent[]> {
-    const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
-    if (!spilloverConfig?.enabled || !spilloverConfig.directory) {
+    if (!this.defaultConfig.diskSpilloverConfig?.enabled) {
       return [];
     }
     
-    const dir = spilloverConfig.directory;
-    const files = await this.getSpilloverFiles(dir, groupId);
-    const events = await this.loadEventsFromFiles(files, dir, startTime, endTime);
-    
-    this.logDiskLoadComplete(groupId, files.length, events.length);
-    return this.sortEventsByTimestamp(events);
+    return this.diskSpillover.loadFromDisk(groupId, startTime, endTime);
   }
   
-  /**
-   * Get spillover files for a group
-   */
-  private async getSpilloverFiles(dir: string, groupId: string): Promise<string[]> {
-    try {
-      const files = await fs.readdir(dir);
-      return files.filter(f => f.startsWith(`${groupId}-`) && f.endsWith('.json'));
-    } catch (error) {
-      logger.error('Failed to read spillover directory', { error, dir });
-      return [];
-    }
-  }
-  
-  /**
-   * Load events from spillover files
-   */
-  private async loadEventsFromFiles(
-    files: string[],
-    dir: string,
-    startTime: number,
-    endTime: number
-  ): Promise<CachedEvent[]> {
-    const events: CachedEvent[] = [];
-    
-    for (const file of files) {
-      const fileEvents = await this.loadEventsFromFile(file, dir, startTime, endTime);
-      events.push(...fileEvents);
-    }
-    
-    return events;
-  }
-  
-  /**
-   * Load events from a single spillover file
-   */
-  private async loadEventsFromFile(
-    file: string,
-    dir: string,
-    startTime: number,
-    endTime: number
-  ): Promise<CachedEvent[]> {
-    try {
-      const filepath = path.join(dir, file);
-      const data = await fs.readFile(filepath, 'utf8');
-      const parsed = this.parseSpilloverFile(data, file);
-      
-      if (!parsed || !this.isFileInTimeRange(parsed, startTime, endTime)) {
-        return [];
-      }
-      
-      return this.deserializeFileEvents(parsed.events, startTime, endTime);
-    } catch (error) {
-      logger.error('Failed to load spilled file', { error, file });
-      return [];
-    }
-  }
-  
-  /**
-   * Parse spillover file data
-   */
-  private parseSpilloverFile(data: string, file: string): SpilledEventFile | null {
-    try {
-      const parsed: unknown = JSON.parse(data);
-      if (!isSpilledEventFile(parsed)) {
-        logger.warn('Invalid spilled event file format', { file });
-        return null;
-      }
-      return parsed;
-    } catch (error) {
-      logger.error('Failed to parse spillover file', { error, file });
-      return null;
-    }
-  }
-  
-  /**
-   * Check if file contains events in time range
-   */
-  private isFileInTimeRange(
-    file: SpilledEventFile,
-    startTime: number,
-    endTime: number
-  ): boolean {
-    return !(file.endTime < startTime || file.startTime > endTime);
-  }
-  
-  /**
-   * Deserialize events from file
-   */
-  private deserializeFileEvents(
-    events: unknown[],
-    startTime: number,
-    endTime: number
-  ): CachedEvent[] {
-    return events
-      .filter((e): e is SerializedCachedEvent => isSerializedCachedEvent(e))
-      .map(e => this.deserializeEvent(e))
-      .filter(e => e.timestampMs >= startTime && e.timestampMs <= endTime);
-  }
-  
-  /**
-   * Deserialize a single event
-   */
-  private deserializeEvent(serialized: SerializedCachedEvent): CachedEvent {
-    const event: CachedEvent = {
-      groupId: serialized.groupId,
-      controlName: serialized.controlName,
-      timestamp: BigInt(serialized.timestamp),
-      timestampMs: serialized.timestampMs,
-      value: serialized.value,
-      string: serialized.string,
-      sequenceNumber: serialized.sequenceNumber
-    };
-    
-    if (serialized.eventType && isEventType(serialized.eventType)) {
-      event.eventType = serialized.eventType;
-    }
-    
-    if (serialized.previousValue !== undefined) {
-      event.previousValue = serialized.previousValue;
-    }
-    
-    if (serialized.previousString !== undefined) {
-      event.previousString = serialized.previousString;
-    }
-    
-    if (serialized.delta !== undefined) {
-      event.delta = serialized.delta;
-    }
-    
-    if (serialized.duration !== undefined) {
-      event.duration = serialized.duration;
-    }
-    
-    if (serialized.threshold !== undefined) {
-      event.threshold = serialized.threshold;
-    }
-    
-    return event;
-  }
-  
-  /**
-   * Log disk load completion
-   */
-  private logDiskLoadComplete(groupId: string, fileCount: number, eventCount: number): void {
-    logger.debug('Loaded events from disk', {
-      groupId,
-      fileCount,
-      eventCount
-    });
-  }
   
   /**
    * Clean up old spillover files

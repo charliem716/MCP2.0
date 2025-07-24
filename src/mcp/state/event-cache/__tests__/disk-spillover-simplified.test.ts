@@ -36,7 +36,7 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
     
     manager = new EventCacheManager(config);
     mockAdapter = new MockQRWCAdapter();
-    manager.attachToAdapter(mockAdapter);
+    manager.attachToAdapter(mockAdapter as any);
     
     // Verify configuration is set
     expect((manager as any).defaultConfig.diskSpilloverConfig?.enabled).toBe(true);
@@ -54,7 +54,7 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
     
     manager = new EventCacheManager(config);
     mockAdapter = new MockQRWCAdapter();
-    manager.attachToAdapter(mockAdapter);
+    manager.attachToAdapter(mockAdapter as any);
     
     const groupId = 'test-group';
     
@@ -91,7 +91,7 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
     
     manager = new EventCacheManager(config);
     mockAdapter = new MockQRWCAdapter();
-    manager.attachToAdapter(mockAdapter);
+    manager.attachToAdapter(mockAdapter as any);
     
     // Add some events
     const groupId = 'test-group';
@@ -107,9 +107,10 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
     const results = await manager.query({ groupId });
     expect(results.length).toBe(10);
     
-    // Directory is created lazily, not on init
+    // Directory is created on init when disk spillover is enabled
     const stats = await fs.stat(testDir).catch(() => null);
-    expect(stats).toBeNull(); // No spillover triggered yet
+    expect(stats).not.toBeNull(); // Directory should exist
+    expect(stats?.isDirectory()).toBe(true);
   });
 
   it('should handle invalid spillover directory gracefully', async () => {
@@ -130,7 +131,7 @@ describe('EventCacheManager Disk Spillover (Simplified)', () => {
     }).not.toThrow();
     
     mockAdapter = new MockQRWCAdapter();
-    manager.attachToAdapter(mockAdapter);
+    manager.attachToAdapter(mockAdapter as any);
     
     // Should still work without spillover
     mockAdapter.emitChanges('test', [

@@ -61,18 +61,22 @@ export class SimpleSynchronizer {
     const updates = new Map<string, ControlState>();
     
     try {
-      // Get components from Q-SYS
-      const components = await this.qrwcAdapter.getComponents();
+      // Get components from Q-SYS using sendCommand
+      const componentsResponse = await this.qrwcAdapter.sendCommand('Component.GetComponents');
+      const components = (componentsResponse as any)?.Components || [];
       
       // Get all controls from components
       for (const component of components) {
-        const controls = await this.qrwcAdapter.getComponentControls(component.name);
+        const controlsResponse = await this.qrwcAdapter.sendCommand('Component.GetControls', {
+          Name: component.Name || component.name
+        });
+        const controls = (controlsResponse as any)?.Controls || [];
         
         for (const control of controls) {
-          const controlName = `${component.name}.${control.name}`;
+          const controlName = `${component.Name || component.name}.${control.Name || control.name}`;
           updates.set(controlName, {
             name: controlName,
-            value: control.value,
+            value: control.Value !== undefined ? control.Value : control.value,
             timestamp: new Date(),
             source: 'qsys'
           });
@@ -103,8 +107,8 @@ export class SimpleSynchronizer {
       const result = await this.synchronize();
       
       if (result.updates.size > 0) {
-        const updates = Array.from(result.updates.values());
-        await this.repository.batchSet(updates);
+        // Convert to Map<string, ControlState> for setStates
+        await this.repository.setStates(result.updates);
       }
       
     } catch (error) {
