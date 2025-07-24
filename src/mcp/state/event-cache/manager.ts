@@ -11,7 +11,7 @@ import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { isSpilledEventFile, type ChangeGroupEvent, type ControlChange } from './types.js';
+import { isSpilledEventFile, type ChangeGroupEvent, type ControlChange, type SpilledEventFile } from './types.js';
 import { 
   isEventType, 
   isSerializedCachedEvent, 
@@ -161,8 +161,7 @@ export class EventCacheManager extends EventEmitter {
     this.globalMemoryLimitBytes = (this.defaultConfig.globalMemoryLimitMB ?? 500) * 1024 * 1024;
     
     // Apply default compression config
-    if (!this.defaultConfig.compressionConfig) {
-      this.defaultConfig.compressionConfig = {
+    this.defaultConfig.compressionConfig ??= {
         enabled: false,
         checkIntervalMs: 60000, // 1 minute
         recentWindowMs: 60000,  // 1 minute
@@ -171,17 +170,14 @@ export class EventCacheManager extends EventEmitter {
         significantChangePercent: 5,
         minTimeBetweenEventsMs: 100
       };
-    }
     
     // Apply default disk spillover config
-    if (!this.defaultConfig.diskSpilloverConfig) {
-      this.defaultConfig.diskSpilloverConfig = {
+    this.defaultConfig.diskSpilloverConfig ??= {
         enabled: false,
         directory: './event-cache-spillover',
         thresholdMB: 400,  // Start spillover at 400MB
         maxFileSizeMB: 50
       };
-    }
     
     logger.info('EventCacheManager initialized', {
       maxEvents: this.defaultConfig.maxEvents,
@@ -257,7 +253,12 @@ export class EventCacheManager extends EventEmitter {
     timestamp: bigint,
     timestampMs: number
   ): CachedEvent[] {
-    const buffer = this.buffers.get(groupId)!;
+    const buffer = this.buffers.get(groupId);
+    if (!buffer) {
+      logger.error('Buffer not found for groupId', { groupId });
+      return [];
+    }
+    
     const groupLastValues = this.lastValues.get(groupId) ?? new Map<string, ControlValue>();
     const groupLastTimes = this.lastEventTimes.get(groupId) ?? new Map<string, number>();
     const processedEvents: CachedEvent[] = [];
@@ -322,12 +323,14 @@ export class EventCacheManager extends EventEmitter {
   private finalizeChangeProcessing(groupId: string, changeCount: number): void {
     this.updateEventRate(groupId, changeCount);
     
-    const buffer = this.buffers.get(groupId)!;
-    this.emit('eventsStored', { 
-      groupId, 
-      count: changeCount,
-      totalEvents: buffer.getSize()
-    });
+    const buffer = this.buffers.get(groupId);
+    if (buffer) {
+      this.emit('eventsStored', { 
+        groupId, 
+        count: changeCount,
+        totalEvents: buffer.getSize()
+      });
+    }
     
     this.scheduleMemoryCheck();
   }
@@ -536,12 +539,12 @@ export class EventCacheManager extends EventEmitter {
       groupId: params.groupId,
       startTime: params.startTime ?? Date.now() - 60000,
       endTime: params.endTime ?? Date.now(),
-      controlNames: params.controlNames,
+      controlNames: params.controlNames ?? [],
       valueFilter: params.valueFilter,
       limit: params.limit ?? 1000,
       offset: params.offset ?? 0,
       aggregation: params.aggregation ?? 'raw',
-      eventTypes: params.eventTypes
+      eventTypes: params.eventTypes ?? []
     };
   }
   
@@ -588,7 +591,8 @@ export class EventCacheManager extends EventEmitter {
    */
   private getBuffersToQuery(groupId?: string): Array<CircularBuffer<CachedEvent>> {
     if (groupId) {
-      return this.buffers.has(groupId) ? [this.buffers.get(groupId)!] : [];
+      const buffer = this.buffers.get(groupId);
+      return buffer ? [buffer] : [];
     }
     return Array.from(this.buffers.values());
   }
@@ -619,16 +623,16 @@ export class EventCacheManager extends EventEmitter {
   private applyEventFilters(events: CachedEvent[], params: Required<EventQuery>): CachedEvent[] {
     let filtered = events;
     
-    if (params.controlNames && params.controlNames.length > 0) {
-      filtered = filtered.filter(e => params.controlNames!.includes(e.controlName));
+    if (params.controlNames.length > 0) {
+      filtered = filtered.filter(e => params.controlNames.includes(e.controlName));
     }
     
     if (params.valueFilter) {
       filtered = this.applyValueFilter(filtered, params.valueFilter);
     }
     
-    if (params.eventTypes && params.eventTypes.length > 0) {
-      filtered = filtered.filter(e => e.eventType && params.eventTypes!.includes(e.eventType));
+    if (params.eventTypes.length > 0) {
+      filtered = filtered.filter(e => e.eventType && params.eventTypes.includes(e.eventType));
     }
     
     return filtered;
@@ -698,7 +702,7 @@ export class EventCacheManager extends EventEmitter {
   private evaluateValueFilter(
     event: CachedEvent,
     operator: NonNullable<EventQuery['valueFilter']>['operator'],
-    value: any
+    value: ControlValue
   ): boolean {
     switch (operator) {
       case 'eq':
@@ -722,7 +726,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Evaluate equality between values
    */
-  private evaluateEquality(eventValue: any, filterValue: any): boolean {
+  private evaluateEquality(eventValue: ControlValue, filterValue: ControlValue): boolean {
     return eventValue === filterValue;
   }
   
@@ -730,8 +734,8 @@ export class EventCacheManager extends EventEmitter {
    * Evaluate numeric comparisons
    */
   private evaluateNumericComparison(
-    eventValue: any,
-    filterValue: any,
+    eventValue: ControlValue,
+    filterValue: ControlValue,
     operator: 'gt' | 'gte' | 'lt' | 'lte'
   ): boolean {
     if (typeof eventValue !== 'number' || typeof filterValue !== 'number') {
@@ -749,7 +753,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Evaluate if value changed to a specific value
    */
-  private evaluateChangedTo(event: CachedEvent, value: any): boolean {
+  private evaluateChangedTo(event: CachedEvent, value: ControlValue): boolean {
     return event.value === value && 
            event.previousValue !== undefined &&
            event.previousValue !== value;
@@ -758,7 +762,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Evaluate if value changed from a specific value
    */
-  private evaluateChangedFrom(event: CachedEvent, value: any): boolean {
+  private evaluateChangedFrom(event: CachedEvent, value: ControlValue): boolean {
     return event.previousValue !== undefined &&
            event.previousValue === value && 
            event.value !== value;
@@ -873,9 +877,7 @@ export class EventCacheManager extends EventEmitter {
     }, intervalMs);
     
     // Ensure timer doesn't prevent process exit
-    if (this.cleanupInterval.unref) {
-      this.cleanupInterval.unref();
-    }
+    this.cleanupInterval.unref();
     
     logger.debug('Started cleanup timer', { intervalMs });
   }
@@ -912,9 +914,7 @@ export class EventCacheManager extends EventEmitter {
       this.performCompression();
     }, intervalMs);
     
-    if (this.compressionInterval.unref) {
-      this.compressionInterval.unref();
-    }
+    this.compressionInterval.unref();
     
     logger.debug('Started compression timer', { intervalMs });
   }
@@ -923,7 +923,11 @@ export class EventCacheManager extends EventEmitter {
    * Perform event compression for all buffers
    */
   private performCompression(): void {
-    const config = this.defaultConfig.compressionConfig!;
+    const config = this.defaultConfig.compressionConfig;
+    if (!config) {
+      logger.warn('Compression config not set');
+      return;
+    }
     const now = Date.now();
     let totalCompressed = 0;
     
@@ -947,7 +951,7 @@ export class EventCacheManager extends EventEmitter {
           groupId, 
           original: beforeSize,
           compressed,
-          ratio: ((compressed / beforeSize) * 100).toFixed(1) + '%'
+          ratio: `${((compressed / beforeSize) * 100).toFixed(1)}%`
         });
       }
     }
@@ -1054,15 +1058,15 @@ export class EventCacheManager extends EventEmitter {
     age: number,
     config: NonNullable<EventCacheConfig['compressionConfig']>
   ): boolean {
-    if (age < config.recentWindowMs!) {
+    if (age < config.recentWindowMs) {
       return true; // Keep all recent events
     }
     
-    if (age < config.mediumWindowMs!) {
+    if (age < config.mediumWindowMs) {
       return this.shouldKeepMediumAgeEvent(event, lastKeptEvent, config);
     }
     
-    if (age < config.ancientWindowMs!) {
+    if (age < config.ancientWindowMs) {
       return this.shouldKeepAncientEvent(event, lastKeptEvent);
     }
     
@@ -1080,7 +1084,7 @@ export class EventCacheManager extends EventEmitter {
     if (!lastKeptEvent) return true; // Always keep first event
     
     const timeSinceLastKept = event.timestampMs - lastKeptEvent.timestampMs;
-    if (timeSinceLastKept < config.minTimeBetweenEventsMs!) {
+    if (timeSinceLastKept < config.minTimeBetweenEventsMs) {
       return false;
     }
     
@@ -1088,7 +1092,7 @@ export class EventCacheManager extends EventEmitter {
       return true;
     }
     
-    return this.isSignificantChangeForCompression(event.value, lastKeptEvent.value, config.significantChangePercent!);
+    return this.isSignificantChangeForCompression(event.value, lastKeptEvent.value, config.significantChangePercent);
   }
   
   /**
@@ -1176,12 +1180,10 @@ export class EventCacheManager extends EventEmitter {
   private startMemoryMonitoring(): void {
     if (this.defaultConfig.memoryCheckIntervalMs) {
       this.memoryCheckInterval = setInterval(() => {
-        this.checkMemoryPressure();
+        void this.checkMemoryPressure();
       }, this.defaultConfig.memoryCheckIntervalMs ?? 10000);
       
-      if (this.memoryCheckInterval.unref) {
-        this.memoryCheckInterval.unref();
-      }
+      this.memoryCheckInterval.unref();
     }
   }
   
@@ -1256,16 +1258,17 @@ export class EventCacheManager extends EventEmitter {
    * Initialize disk spillover directory
    */
   private async initializeDiskSpillover(): Promise<void> {
-    if (!this.defaultConfig.diskSpilloverConfig?.enabled) return;
+    const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
+    if (!spilloverConfig?.enabled) return;
     
-    const dir = this.defaultConfig.diskSpilloverConfig.directory!;
+    const dir = spilloverConfig.directory;
     try {
       await fs.mkdir(dir, { recursive: true });
       logger.info('Disk spillover directory initialized', { directory: dir });
     } catch (error) {
       logger.error('Failed to create spillover directory', { error, directory: dir });
       // Disable spillover if we can't create directory
-      this.defaultConfig.diskSpilloverConfig.enabled = false;
+      spilloverConfig.enabled = false;
     }
   }
   
@@ -1303,7 +1306,11 @@ export class EventCacheManager extends EventEmitter {
   ): SpilloverFileData {
     const timestamp = Date.now();
     const filename = `${groupId}-${timestamp}-${events.length}.json`;
-    const filepath = path.join(this.defaultConfig.diskSpilloverConfig!.directory!, filename);
+    const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
+    if (!spilloverConfig) {
+      throw new Error('Disk spillover config not initialized');
+    }
+    const filepath = path.join(spilloverConfig.directory, filename);
     
     const serializable = events.map(e => ({
       ...e,
@@ -1367,11 +1374,12 @@ export class EventCacheManager extends EventEmitter {
     startTime: number, 
     endTime: number
   ): Promise<CachedEvent[]> {
-    if (!this.defaultConfig.diskSpilloverConfig?.enabled) {
+    const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
+    if (!spilloverConfig?.enabled) {
       return [];
     }
     
-    const dir = this.defaultConfig.diskSpilloverConfig.directory!;
+    const dir = spilloverConfig.directory;
     const files = await this.getSpilloverFiles(dir, groupId);
     const events = await this.loadEventsFromFiles(files, dir, startTime, endTime);
     
@@ -1508,9 +1516,10 @@ export class EventCacheManager extends EventEmitter {
    * Clean up old spillover files
    */
   private async cleanupSpilloverFiles(): Promise<void> {
-    if (!this.defaultConfig.diskSpilloverConfig?.enabled) return;
+    const spilloverConfig = this.defaultConfig.diskSpilloverConfig;
+    if (!spilloverConfig?.enabled) return;
     
-    const dir = this.defaultConfig.diskSpilloverConfig.directory!;
+    const dir = spilloverConfig.directory;
     const maxAge = this.defaultConfig.maxAgeMs;
     const now = Date.now();
     

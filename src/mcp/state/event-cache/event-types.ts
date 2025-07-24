@@ -54,6 +54,51 @@ export interface SerializedCachedEvent {
 }
 
 /**
+ * Check if object has valid required fields for SerializedCachedEvent
+ */
+function hasValidRequiredFields(candidate: Record<string, unknown>): boolean {
+  return (
+    typeof candidate['groupId'] === 'string' &&
+    typeof candidate['controlName'] === 'string' &&
+    typeof candidate['timestamp'] === 'string' &&
+    typeof candidate['timestampMs'] === 'number' &&
+    isControlValue(candidate['value']) &&
+    typeof candidate['string'] === 'string' &&
+    typeof candidate['sequenceNumber'] === 'number'
+  );
+}
+
+/**
+ * Check if object has valid optional fields for SerializedCachedEvent
+ */
+function hasValidOptionalFields(candidate: Record<string, unknown>): boolean {
+  // Check previousValue
+  if (candidate['previousValue'] !== undefined && !isControlValue(candidate['previousValue'])) {
+    return false;
+  }
+  
+  // Check previousString
+  if (candidate['previousString'] !== undefined && typeof candidate['previousString'] !== 'string') {
+    return false;
+  }
+  
+  // Check numeric fields
+  const numericFields = ['delta', 'duration', 'threshold'];
+  for (const field of numericFields) {
+    if (candidate[field] !== undefined && typeof candidate[field] !== 'number') {
+      return false;
+    }
+  }
+  
+  // Check eventType
+  if (candidate['eventType'] !== undefined && !isEventType(candidate['eventType'])) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
  * Type guard for SerializedCachedEvent
  */
 export function isSerializedCachedEvent(obj: unknown): obj is SerializedCachedEvent {
@@ -61,28 +106,7 @@ export function isSerializedCachedEvent(obj: unknown): obj is SerializedCachedEv
   
   const candidate = obj as Record<string, unknown>;
   
-  // Required fields
-  if (
-    typeof candidate['groupId'] !== 'string' ||
-    typeof candidate['controlName'] !== 'string' ||
-    typeof candidate['timestamp'] !== 'string' ||
-    typeof candidate['timestampMs'] !== 'number' ||
-    !isControlValue(candidate['value']) ||
-    typeof candidate['string'] !== 'string' ||
-    typeof candidate['sequenceNumber'] !== 'number'
-  ) {
-    return false;
-  }
-  
-  // Optional fields
-  if (candidate['previousValue'] !== undefined && !isControlValue(candidate['previousValue'])) return false;
-  if (candidate['previousString'] !== undefined && typeof candidate['previousString'] !== 'string') return false;
-  if (candidate['delta'] !== undefined && typeof candidate['delta'] !== 'number') return false;
-  if (candidate['duration'] !== undefined && typeof candidate['duration'] !== 'number') return false;
-  if (candidate['eventType'] !== undefined && !isEventType(candidate['eventType'])) return false;
-  if (candidate['threshold'] !== undefined && typeof candidate['threshold'] !== 'number') return false;
-  
-  return true;
+  return hasValidRequiredFields(candidate) && hasValidOptionalFields(candidate);
 }
 
 /**
@@ -174,7 +198,7 @@ export function parseSerializedEvents(data: string): SerializedCachedEvent[] {
       if (isSerializedCachedEvent(item)) {
         events.push(item);
       } else {
-        console.warn('Skipping invalid serialized event:', item);
+        // Skip invalid serialized event
       }
     }
     

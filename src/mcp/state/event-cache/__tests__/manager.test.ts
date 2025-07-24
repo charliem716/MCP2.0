@@ -283,12 +283,13 @@ describe('EventCacheManager', () => {
       const stats = eventCache.getStatistics('stats-group');
       
       expect(stats).toBeDefined();
-      expect(stats!.eventCount).toBe(5);
-      expect(stats!.controlsTracked).toBe(3);
-      expect(stats!.oldestEvent).toBeDefined();
-      expect(stats!.newestEvent).toBeDefined();
-      expect(stats!.memoryUsage).toBeGreaterThan(0);
-      expect(stats!.eventsPerSecond).toBeGreaterThanOrEqual(0);
+      if (!stats) throw new Error('Stats should be defined');
+      expect(stats.eventCount).toBe(5);
+      expect(stats.controlsTracked).toBe(3);
+      expect(stats.oldestEvent).toBeDefined();
+      expect(stats.newestEvent).toBeDefined();
+      expect(stats.memoryUsage).toBeGreaterThan(0);
+      expect(stats.eventsPerSecond).toBeGreaterThanOrEqual(0);
     });
 
     it('should return null for non-existent group', async () => {

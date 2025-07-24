@@ -33,9 +33,7 @@ export class CircularBuffer<T> {
   }
   
   add(data: T, timestamp?: bigint): void {
-    if (!timestamp) {
-      timestamp = process.hrtime.bigint();
-    }
+    timestamp ??= process.hrtime.bigint();
     const event: BufferEvent<T> = {
       timestamp,
       data,

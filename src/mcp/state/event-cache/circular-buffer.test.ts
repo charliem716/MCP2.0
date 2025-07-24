@@ -80,11 +80,7 @@ describe('CircularBuffer', () => {
       
       const startGetAll = process.hrtime.bigint();
       const allEvents = buffer.getAll();
-      const filtered = allEvents.filter(e => {
-        // We need to access the timestamp from the buffer's internal structure
-        // This is what EventCacheManager is doing as a workaround
-        return true; // Can't filter without timestamps in getAll
-      });
+      // Removed unnecessary filter that always returns true
       const getAllTime = process.hrtime.bigint() - startGetAll;
       
       console.log(`queryTimeRange time: ${queryTime / 1000000n}ms`);

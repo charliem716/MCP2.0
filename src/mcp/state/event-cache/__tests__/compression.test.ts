@@ -60,7 +60,7 @@ describe('EventCacheManager Compression', () => {
         mockAdapter.emitChanges(groupId, [
           { Name: 'test.control', Value: i, String: i.toString() }
         ]);
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 10)); // Shorter delay
       }
       
       // Query immediately (all in recent window)
@@ -227,7 +227,7 @@ describe('EventCacheManager Compression', () => {
       // Add many events to trigger memory pressure
       for (let i = 0; i < 5000; i++) {
         mockAdapter.emitChanges('group1', [
-          { Name: 'control' + (i % 10), Value: i, String: i.toString() }
+          { Name: `control${i % 10}`, Value: i, String: i.toString() }
         ]);
       }
       

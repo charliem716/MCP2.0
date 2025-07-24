@@ -10,7 +10,7 @@ import * as path from 'path';
 
 // Mock adapter
 class MockAdapter extends EventEmitter implements Partial<QRWCClientAdapter> {
-  emitChanges(groupId: string, changes: any[]): void {
+  emitChanges(groupId: string, changes: Array<{ Name: string; Value: unknown; String: string }>): void {
     const now = Date.now();
     const timestamp = process.hrtime.bigint();
     
@@ -27,7 +27,7 @@ class MockAdapter extends EventEmitter implements Partial<QRWCClientAdapter> {
 describe('EventCacheManager Disk Spillover', () => {
   let manager: EventCacheManager;
   let mockAdapter: MockAdapter;
-  const testDir = './test-spillover-' + Date.now();
+  const testDir = `./test-spillover-${Date.now()}`;
   
   beforeEach(async () => {
     // Clean up test directory
@@ -71,7 +71,7 @@ describe('EventCacheManager Disk Spillover', () => {
       // Trigger spillover by adding many events
       for (let i = 0; i < 1000; i++) {
         mockAdapter.emitChanges('test-group', [
-          { Name: 'control' + i, Value: i, String: i.toString() }
+          { Name: `control${i}`, Value: i, String: i.toString() }
         ]);
       }
       
@@ -100,7 +100,7 @@ describe('EventCacheManager Disk Spillover', () => {
       for (let i = 0; i < 20000; i++) {
         mockAdapter.emitChanges(groupId, [
           { 
-            Name: 'control' + (i % 100), 
+            Name: `control${i % 100}`, 
             Value: Math.random() * 1000, 
             String: 'A'.repeat(100) // Large string to consume memory
           }
