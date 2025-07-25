@@ -79,7 +79,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         content: [
           {
             type: 'text',
-            text: this.formatStatusResponse(status, params),
+            text: JSON.stringify(status),
           },
         ],
         isError: false,

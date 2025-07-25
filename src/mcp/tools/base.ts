@@ -175,9 +175,12 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    * Provides consistent error structure across all tools
    */
   protected formatErrorResponse(error: unknown): string {
-    // For validation errors, return a human-readable message
+    // For validation errors, return a human-readable message with field details
     if (error instanceof ValidationError) {
-      return `Invalid parameters: ${error.message}`;
+      const fieldErrors = error.fields
+        .map(f => `${f.field}: ${f.message}`)
+        .join('; ');
+      return `Invalid parameters: ${fieldErrors}`;
     }
     
     const errorObj = {

@@ -386,6 +386,13 @@ describe('QueryCoreStatusTool - BUG-055 regression', () => {
       isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new QueryCoreStatusTool(mockQrwcClient);
+    // @ts-expect-error - accessing private property for testing
+    tool.logger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    };
   });
 
   it('should correctly assign empty arrays to string[] properties', async () => {
