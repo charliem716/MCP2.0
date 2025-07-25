@@ -156,3 +156,4 @@ src/**/*.js
 # Test artifacts
 event-cache-spillover/
 test-cache-state.*.json
+coverage/
