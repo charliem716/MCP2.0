@@ -7,6 +7,7 @@ import type {
   QSysComponentInfo,
   QSysComponentGetResponse,
 } from '../types/qsys-api-responses.js';
+import { QSysError, QSysErrorCode, MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
  * Parameters for the list_components tool
@@ -52,7 +53,8 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
       );
 
       if (!response || typeof response !== 'object') {
-        throw new Error('Invalid response from Q-SYS Core');
+        throw new QSysError('Invalid response from Q-SYS Core', QSysErrorCode.COMMAND_FAILED,
+          { response });
       }
 
       const components = this.parseComponentsResponse(response);
@@ -192,13 +194,15 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
         typeof response !== 'object' ||
         !('result' in response)
       ) {
-        throw new Error('Invalid response from Component.Get');
+        throw new MCPError('Invalid response from Component.Get', MCPErrorCode.TOOL_EXECUTION_ERROR,
+          { response });
       }
 
       const typedResponse = response as { result: QSysComponentGetResponse };
       const result = typedResponse.result;
       if (!result?.Controls || !Array.isArray(result.Controls)) {
-        throw new Error('Invalid response format: missing Controls array');
+        throw new MCPError('Invalid response format: missing Controls array', 
+          MCPErrorCode.TOOL_EXECUTION_ERROR, { result });
       }
 
       const controls = result.Controls;
@@ -233,8 +237,10 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
         controls: params.controls,
         context,
       });
-      throw new Error(
-        `Failed to get component controls: ${error instanceof Error ? error.message : String(error)}`
+      throw new MCPError(
+        `Failed to get component controls: ${error instanceof Error ? error.message : String(error)}`,
+        MCPErrorCode.TOOL_EXECUTION_ERROR,
+        { originalError: error, component: params.component }
       );
     }
   }

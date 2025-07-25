@@ -3,6 +3,7 @@ import { BaseQSysTool } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { ToolExecutionContext } from './base.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import { MCPError, MCPErrorCode, ValidationError } from '../../shared/types/errors.js';
 
 /**
  * Parameters for the qsys_get_all_controls tool
@@ -84,8 +85,10 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 
       // Validate filtered mode requires filters
       if (mode === 'filtered' && !params.filter && !params.componentFilter) {
-        throw new Error(
-          "Filter required when using 'filtered' mode. Use mode='full' for all controls."
+        throw new ValidationError(
+          "Filter required when using 'filtered' mode. Use mode='full' for all controls.",
+          [{ field: 'filter', message: 'Required when mode is filtered', code: 'REQUIRED_FIELD' }],
+          { mode }
         );
       }
 
@@ -98,14 +101,22 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
         typeof response !== 'object' ||
         !('result' in response)
       ) {
-        throw new Error('Invalid response from Component.GetAllControls');
+        throw new MCPError(
+          'Invalid response from Component.GetAllControls',
+          MCPErrorCode.TOOL_EXECUTION_ERROR,
+          { response }
+        );
       }
 
       const result = response.result as { Controls?: unknown[] };
       const allControls = result.Controls || [];
 
       if (!Array.isArray(allControls)) {
-        throw new Error('Invalid response format: expected array of controls');
+        throw new MCPError(
+          'Invalid response format: expected array of controls',
+          MCPErrorCode.TOOL_EXECUTION_ERROR,
+          { allControls }
+        );
       }
 
       // Return summary mode
@@ -157,8 +168,10 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
         params,
         context,
       });
-      throw new Error(
-        `Failed to get all controls: ${error instanceof Error ? error.message : String(error)}`
+      throw new MCPError(
+        `Failed to get all controls: ${error instanceof Error ? error.message : String(error)}`,
+        MCPErrorCode.TOOL_EXECUTION_ERROR,
+        { originalError: error, params }
       );
     }
   }

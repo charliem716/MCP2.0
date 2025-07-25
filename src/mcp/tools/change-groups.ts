@@ -7,6 +7,7 @@ import type {
   EventQuery,
 } from '../state/event-cache/manager.js';
 import type { ControlValue } from '../state/event-cache/event-types.js';
+import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
  * Change Group Tools for Q-SYS
@@ -406,7 +407,8 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     const adapter = this.qrwcClient as any;
 
     if (typeof adapter.listChangeGroups !== 'function') {
-      throw new Error('Change group listing not supported by this adapter');
+      throw new MCPError('Change group listing not supported by this adapter',
+        MCPErrorCode.METHOD_NOT_FOUND, { adapter: 'change-groups' });
     }
 
     const groups = adapter.listChangeGroups();

@@ -13,6 +13,8 @@ import {
   validateControlValue,
   isRetryableError as isRetryableErrorValidator,
 } from './validators.js';
+import { QSysError, QSysErrorCode, NetworkError } from '../../shared/types/errors.js';
+import { withErrorRecovery } from '../../shared/utils/error-recovery.js';
 // Import removed - extractControlValue is now in command-handlers.js
 import {
   handleGetComponents,
@@ -214,7 +216,7 @@ export class QRWCClientAdapter
   ): Promise<unknown> {
     const { maxRetries = 3, retryDelay = 1000, retryBackoff = 2 } = options;
 
-    let lastError: Error = new Error('Unknown error');
+    let lastError: Error = new QSysError('Unknown error', QSysErrorCode.COMMAND_FAILED);
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -224,7 +226,7 @@ export class QRWCClientAdapter
           command !== 'Status.Get' &&
           command !== 'StatusGet'
         ) {
-          throw new Error('QRWC client not connected');
+          throw new QSysError('QRWC client not connected', QSysErrorCode.CONNECTION_FAILED);
         }
 
         logger.debug('Sending QRWC command via adapter', {
@@ -254,8 +256,9 @@ export class QRWCClientAdapter
       }
     }
 
-    throw new Error(
-      `Command failed after ${maxRetries + 1} attempts: ${lastError.message}`
+    throw new NetworkError(
+      `Command failed after ${maxRetries + 1} attempts: ${lastError.message}`,
+      { originalError: lastError, command, params }
     );
   }
 
@@ -334,8 +337,10 @@ export class QRWCClientAdapter
     _params?: Record<string, unknown>
   ): unknown {
     // For unknown commands, throw an error
-    throw new Error(
-      `Unknown QRWC command: ${command}. Please implement this command in the adapter or official client.`
+    throw new QSysError(
+      `Unknown QRWC command: ${command}. Please implement this command in the adapter or official client.`,
+      QSysErrorCode.COMMAND_FAILED,
+      { command }
     );
   }
 
@@ -345,19 +350,23 @@ export class QRWCClientAdapter
   private async getControlValue(
     controlName: string
   ): Promise<{ Value: unknown; String?: string } | null> {
-    try {
-      const result = (await this.sendCommand('Control.Get', {
-        Controls: [controlName],
-      })) as ControlGetResult;
-      const controls = result.result;
-      if (Array.isArray(controls) && controls.length > 0 && controls[0]) {
-        return controls[0];
+    return withErrorRecovery(
+      async () => {
+        const result = (await this.sendCommand('Control.Get', {
+          Controls: [controlName],
+        })) as ControlGetResult;
+        const controls = result.result;
+        if (Array.isArray(controls) && controls.length > 0 && controls[0]) {
+          return controls[0];
+        }
+        return null;
+      },
+      {
+        context: `Get control value for ${controlName}`,
+        fallback: null,
+        contextData: { controlName },
       }
-      return null;
-    } catch (error) {
-      logger.error(`Failed to get control value for ${controlName}`, { error });
-      return null;
-    }
+    );
   }
 
   /**
@@ -383,7 +392,7 @@ export class QRWCClientAdapter
   ): Promise<T> {
     const { maxRetries = 3, retryDelay = 1000, retryBackoff = 2 } = options;
 
-    let lastError: Error = new Error('Unknown error');
+    let lastError: Error = new QSysError('Unknown error', QSysErrorCode.COMMAND_FAILED);
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {

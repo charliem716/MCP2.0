@@ -4,6 +4,7 @@ import type { ToolCallResult } from '../handlers/index.js';
 import type { ToolExecutionContext } from './base.js';
 import { QSysAPIReference } from './api-reference.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
  * Parameters for the query_qsys_api tool
@@ -103,8 +104,10 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
         isError: false,
       };
     } catch (error) {
-      throw new Error(
-        `Failed to query API reference: ${error instanceof Error ? error.message : String(error)}`
+      throw new MCPError(
+        `Failed to query API reference: ${error instanceof Error ? error.message : String(error)}`,
+        MCPErrorCode.TOOL_EXECUTION_ERROR,
+        { originalError: error, params }
       );
     }
   }

@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { IStateRepository } from './repository.js';
+import { StateError, StateErrorCode } from './errors.js';
 
 /**
  * Cache invalidation strategies
@@ -182,7 +183,8 @@ export class CacheInvalidationManager extends EventEmitter {
   ): Promise<InvalidationResult> {
     const rule = this.rules.get(ruleId);
     if (!rule) {
-      throw new Error(`Invalidation rule not found: ${ruleId}`);
+      throw new StateError(`Invalidation rule not found: ${ruleId}`, 
+        StateErrorCode.STATE_NOT_FOUND, { ruleId });
     }
 
     if (!rule.enabled) {
@@ -387,8 +389,10 @@ export class CacheInvalidationManager extends EventEmitter {
 
         case InvalidationStrategy.PatternBased:
           if (!rule.pattern) {
-            throw new Error(
-              `Pattern required for pattern-based rule: ${rule.id}`
+            throw new StateError(
+              `Pattern required for pattern-based rule: ${rule.id}`,
+              StateErrorCode.INVALIDATION_ERROR,
+              { ruleId: rule.id, strategy: rule.strategy }
             );
           }
           controlsToInvalidate = await this.getControlsByPattern(rule.pattern);
@@ -406,8 +410,10 @@ export class CacheInvalidationManager extends EventEmitter {
           break;
 
         default:
-          throw new Error(
-            `Unsupported invalidation strategy: ${rule.strategy}`
+          throw new StateError(
+            `Unsupported invalidation strategy: ${rule.strategy}`,
+            StateErrorCode.INVALIDATION_ERROR,
+            { strategy: rule.strategy, ruleId: rule.id }
           );
       }
 

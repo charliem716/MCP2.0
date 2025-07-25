@@ -8,6 +8,7 @@ import type {
 import { ChangeGroupEvent } from './types.js';
 import { Semaphore } from './concurrency-utils.js';
 import type { EventEmitter } from 'events';
+import { ValidationError } from '../../../shared/types/errors.js';
 
 /**
  * Change Group Executor
@@ -24,22 +25,38 @@ export class ChangeGroupExecutor {
    * Validate change group before execution
    */
   async validateChangeGroup(changeGroup: ChangeGroup): Promise<void> {
+    const errors = [];
+    
     if (!changeGroup.id) {
-      throw new Error('Change group ID is required');
+      errors.push({
+        field: 'id',
+        message: 'Change group ID is required',
+        code: 'REQUIRED_FIELD',
+      });
     }
 
     if (!changeGroup.controls || changeGroup.controls.length === 0) {
-      throw new Error('Change group must contain at least one control');
+      errors.push({
+        field: 'controls',
+        message: 'Change group must contain at least one control',
+        code: 'REQUIRED_FIELD',
+      });
+    }
+    
+    if (errors.length > 0) {
+      throw new ValidationError('Invalid change group', errors);
     }
 
     // Validate each control
     for (const control of changeGroup.controls) {
       if (!control.name) {
-        throw new Error(`Control name is required`);
+        throw new ValidationError('Control name is required',
+          [{ field: 'name', message: 'Control name is required', code: 'REQUIRED_FIELD' }]);
       }
 
       if (control.value === undefined || control.value === null) {
-        throw new Error(`Control ${control.name} value is required`);
+        throw new ValidationError(`Control ${control.name} value is required`,
+          [{ field: control.name, message: 'Value is required', code: 'REQUIRED_FIELD' }]);
       }
     }
 
@@ -85,7 +102,8 @@ export class ChangeGroupExecutor {
           results.push(result);
 
           if (!result.success && !options.continueOnError) {
-            throw new Error(`Control ${control.name} failed: ${result.error}`);
+            throw new ValidationError(`Control ${control.name} failed: ${result.error}`,
+              [{ field: control.name, message: result.error || 'Validation failed', code: 'VALIDATION_ERROR' }]);
           }
         } finally {
           semaphore.release();

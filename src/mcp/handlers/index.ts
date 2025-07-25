@@ -2,6 +2,7 @@ import type { MCPTool } from '../../shared/types/mcp.js';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
 import { config as envConfig } from '../../shared/utils/env.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 // Import all Q-SYS tools
 import {
@@ -222,7 +223,11 @@ export class MCPToolRegistry {
    */
   async listTools(): Promise<MCPTool[]> {
     if (!this.initialized) {
-      throw new Error('Tool registry not initialized');
+      throw new MCPError(
+        'Tool registry not initialized',
+        MCPErrorCode.PROTOCOL_ERROR,
+        { method: 'listTools' }
+      );
     }
 
     const tools = Array.from(this.tools.values()).map(tool => ({
@@ -243,14 +248,20 @@ export class MCPToolRegistry {
     args?: Record<string, unknown>
   ): Promise<ToolCallResult | ToolExecutionResult> {
     if (!this.initialized) {
-      throw new Error('Tool registry not initialized');
+      throw new MCPError(
+        'Tool registry not initialized',
+        MCPErrorCode.PROTOCOL_ERROR,
+        { method: 'callTool', toolName: name }
+      );
     }
 
     const tool = this.tools.get(name);
     if (!tool) {
       const availableTools = Array.from(this.tools.keys()).join(', ');
-      throw new Error(
-        `Tool '${name}' not found. Available tools: ${availableTools}`
+      throw new MCPError(
+        `Tool '${name}' not found. Available tools: ${availableTools}`,
+        MCPErrorCode.TOOL_NOT_FOUND,
+        { requestedTool: name, availableTools: Array.from(this.tools.keys()) }
       );
     }
 

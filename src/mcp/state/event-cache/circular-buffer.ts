@@ -5,6 +5,8 @@
  * with nanosecond precision timestamps and efficient time-range queries.
  */
 
+import { CacheError, CacheErrorCode } from '../errors.js';
+
 export interface BufferEvent<T> {
   timestamp: bigint;
   data: T;
@@ -26,7 +28,8 @@ export class CircularBuffer<T> {
     private readonly maxAgeMs?: number
   ) {
     if (capacity <= 0) {
-      throw new Error('Capacity must be positive');
+      throw new CacheError('Capacity must be positive', CacheErrorCode.CAPACITY_ERROR,
+        { capacity });
     }
     this.buffer = new Array<BufferEvent<T>>(capacity);
     this.timeIndex = new SortedArray();

@@ -7,6 +7,7 @@ import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { OfficialQRWCClient } from '../../qrwc/officialClient.js';
 import { extractControlValue } from './converters.js';
 import { validateControlValue } from './validators.js';
+import { QSysError, QSysErrorCode, ValidationError } from '../../shared/types/errors.js';
 
 export type CommandHandler = (
   params?: Record<string, unknown>,
@@ -36,7 +37,7 @@ export function handleGetComponents(
 ): { result: ComponentInfo[] } {
   const qrwc = client.getQrwc();
   if (!qrwc) {
-    throw new Error('QRWC instance not available');
+    throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
   const componentNames = Object.keys(qrwc.components);
@@ -65,12 +66,14 @@ export function handleGetControls(
 ): { result: { Name: string; Controls: ControlInfo[] } } {
   const componentName = params?.['Name'] ?? params?.['name'];
   if (!componentName || typeof componentName !== 'string') {
-    throw new Error('Component name is required');
+    throw new ValidationError('Component name is required', 
+      [{ field: 'Name', message: 'Component name is required', code: 'REQUIRED_FIELD' }]);
   }
 
   const qrwc = client.getQrwc();
   if (!qrwc?.components[componentName]) {
-    throw new Error(`Component not found: ${componentName}`);
+    throw new QSysError(`Component not found: ${componentName}`, QSysErrorCode.INVALID_COMPONENT,
+      { componentName });
   }
 
   const component = qrwc.components[componentName] as {
@@ -117,12 +120,13 @@ export function handleControlGet(
 ): { result: ControlInfo[] } {
   const controls = params?.['Controls'] as unknown[];
   if (!Array.isArray(controls)) {
-    throw new Error('Controls array is required');
+    throw new ValidationError('Controls array is required',
+      [{ field: 'Controls', message: 'Must be an array', code: 'INVALID_TYPE' }]);
   }
 
   const qrwc = client.getQrwc();
   if (!qrwc) {
-    throw new Error('QRWC instance not available');
+    throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
   const results = controls.map(controlObj => {
@@ -135,24 +139,28 @@ export function handleControlGet(
       const obj = controlObj as Record<string, unknown>;
       fullName = String(obj['Name'] ?? obj['name'] ?? '');
     } else {
-      throw new Error('Invalid control format');
+      throw new ValidationError('Invalid control format',
+        [{ field: 'control', message: 'Control must be a string or object', code: 'INVALID_FORMAT' }]);
     }
 
     const [componentName, controlName] = fullName.split('.');
 
     if (!componentName || !controlName) {
-      throw new Error(`Invalid control name format: ${fullName}`);
+      throw new ValidationError(`Invalid control name format: ${fullName}`,
+        [{ field: 'controlName', message: 'Must be in format Component.Control', code: 'INVALID_FORMAT' }]);
     }
 
     const component = qrwc.components[componentName];
     if (!component) {
-      throw new Error(`Component not found: ${componentName}`);
+      throw new QSysError(`Component not found: ${componentName}`, QSysErrorCode.INVALID_COMPONENT,
+        { componentName });
     }
 
     const control = (component as { controls?: Record<string, unknown> })
       .controls?.[controlName];
     if (!control) {
-      throw new Error(`Control not found: ${fullName}`);
+      throw new QSysError(`Control not found: ${fullName}`, QSysErrorCode.INVALID_CONTROL,
+        { controlName: fullName });
     }
 
     const controlState = control as Record<string, unknown>;
@@ -178,17 +186,19 @@ export function handleControlSet(
 ): { result: string } {
   const controls = params?.['Controls'] as unknown[];
   if (!Array.isArray(controls)) {
-    throw new Error('Controls array is required');
+    throw new ValidationError('Controls array is required',
+      [{ field: 'Controls', message: 'Must be an array', code: 'INVALID_TYPE' }]);
   }
 
   const qrwc = client.getQrwc();
   if (!qrwc) {
-    throw new Error('QRWC instance not available');
+    throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
   for (const controlObj of controls) {
     if (typeof controlObj !== 'object' || !controlObj) {
-      throw new Error('Invalid control object');
+      throw new ValidationError('Invalid control object',
+        [{ field: 'control', message: 'Each control must be an object', code: 'INVALID_TYPE' }]);
     }
 
     const obj = controlObj as Record<string, unknown>;
@@ -196,12 +206,14 @@ export function handleControlSet(
     const [componentName, controlName] = fullName.split('.');
 
     if (!componentName || !controlName) {
-      throw new Error(`Invalid control name format: ${fullName}`);
+      throw new ValidationError(`Invalid control name format: ${fullName}`,
+        [{ field: 'controlName', message: 'Must be in format Component.Control', code: 'INVALID_FORMAT' }]);
     }
 
     const component = qrwc.components[componentName];
     if (!component) {
-      throw new Error(`Component not found: ${componentName}`);
+      throw new QSysError(`Component not found: ${componentName}`, QSysErrorCode.INVALID_COMPONENT,
+        { componentName });
     }
 
     const newValue = obj['Value'] ?? 0;
@@ -210,7 +222,8 @@ export function handleControlSet(
     });
 
     if (!validation.valid) {
-      throw new Error(`Invalid value for ${fullName}: ${validation.error}`);
+      throw new ValidationError(`Invalid value for ${fullName}: ${validation.error}`,
+        [{ field: fullName, message: validation.error || 'Invalid value', code: 'INVALID_VALUE' }]);
     }
 
     // Update through official client
@@ -303,7 +316,7 @@ export function handleGetAllControls(
 ): { result: ControlInfo[] } {
   const qrwc = client.getQrwc();
   if (!qrwc) {
-    throw new Error('QRWC instance not available');
+    throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
   const allControls: ControlInfo[] = [];
@@ -339,12 +352,14 @@ export function handleGetAllControlValues(
 ): { result: Record<string, { Value: unknown; String: string }> } {
   const componentName = params?.['Name'] ?? params?.['name'];
   if (!componentName || typeof componentName !== 'string') {
-    throw new Error('Component name is required');
+    throw new ValidationError('Component name is required', 
+      [{ field: 'Name', message: 'Component name is required', code: 'REQUIRED_FIELD' }]);
   }
 
   const qrwc = client.getQrwc();
   if (!qrwc?.components[componentName]) {
-    throw new Error(`Component not found: ${componentName}`);
+    throw new QSysError(`Component not found: ${componentName}`, QSysErrorCode.INVALID_COMPONENT,
+      { componentName });
   }
 
   const component = qrwc.components[componentName] as {
@@ -380,13 +395,14 @@ export function handleDirectControl(
 ): unknown {
   const qrwc = client.getQrwc();
   if (!qrwc) {
-    throw new Error('QRWC instance not available');
+    throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
   // Extract component and control names from the command
   const parts = command.split('.');
   if (parts.length < 3) {
-    throw new Error(`Invalid direct control command format: ${command}`);
+    throw new ValidationError(`Invalid direct control command format: ${command}`,
+      [{ field: 'command', message: 'Must be in format Component.Control.operation', code: 'INVALID_FORMAT' }]);
   }
 
   const componentName = parts[0];
@@ -394,18 +410,21 @@ export function handleDirectControl(
   const operation = parts[parts.length - 1];
 
   if (!componentName) {
-    throw new Error(`Invalid direct control command format: ${command}`);
+    throw new ValidationError(`Invalid direct control command format: ${command}`,
+      [{ field: 'command', message: 'Component name is required', code: 'INVALID_FORMAT' }]);
   }
 
   const component = qrwc.components[componentName];
   if (!component) {
-    throw new Error(`Component not found: ${componentName}`);
+    throw new QSysError(`Component not found: ${componentName}`, QSysErrorCode.INVALID_COMPONENT,
+      { componentName });
   }
 
   const controls = (component as { controls?: Record<string, unknown> })
     .controls;
   if (!controls || !controlName || !(controlName in controls)) {
-    throw new Error(`Control not found: ${componentName}.${controlName}`);
+    throw new QSysError(`Control not found: ${componentName}.${controlName}`, 
+      QSysErrorCode.INVALID_CONTROL, { componentName, controlName });
   }
 
   const control = controls[controlName] as Record<string, unknown>;
@@ -417,6 +436,7 @@ export function handleDirectControl(
     control['Value'] = params['value'];
     return { result: 'Control updated successfully' };
   } else {
-    throw new Error(`Unknown operation: ${operation}`);
+    throw new ValidationError(`Unknown operation: ${operation}`,
+      [{ field: 'operation', message: 'Must be get or set', code: 'INVALID_VALUE' }]);
   }
 }

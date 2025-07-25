@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
+import { ConfigurationError } from '../types/errors.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('Env');
@@ -165,7 +166,8 @@ function parseEnvironment(): Environment {
     if (process.env['NODE_ENV'] !== 'test') {
       process.exit(1);
     } else {
-      throw new Error('Invalid environment configuration');
+      throw new ConfigurationError('Invalid environment configuration',
+        { missingVariables: result.error.errors.map((e: any) => e.path.join('.')) });
     }
   }
 

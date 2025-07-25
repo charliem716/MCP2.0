@@ -8,6 +8,7 @@ import type {
 import { PersistenceFormat, CompressionType } from './types.js';
 import { BackupManager } from './backup.js';
 import { FileOperations } from './file-operations.js';
+import { PersistenceError, PersistenceErrorCode } from './errors.js';
 
 /**
  * Simple and Efficient State Persistence Manager (simplified)
@@ -115,7 +116,11 @@ export class StatePersistenceManager {
           await this.fileOps.writeJSON(state);
           break;
         default:
-          throw new Error(`Unsupported format: ${this.config.format}`);
+          throw new PersistenceError(
+            `Unsupported format: ${this.config.format}`,
+            PersistenceErrorCode.UNSUPPORTED_FORMAT,
+            { format: this.config.format }
+          );
       }
 
       // Update stats
@@ -161,7 +166,11 @@ export class StatePersistenceManager {
           state = await this.fileOps.readJSON();
           break;
         default:
-          throw new Error(`Unsupported format: ${this.config.format}`);
+          throw new PersistenceError(
+            `Unsupported format: ${this.config.format}`,
+            PersistenceErrorCode.UNSUPPORTED_FORMAT,
+            { format: this.config.format }
+          );
       }
 
       // Validate state
@@ -257,28 +266,48 @@ export class StatePersistenceManager {
    */
   private validatePersistedState(state: unknown): void {
     if (!state || typeof state !== 'object') {
-      throw new Error('Invalid state: not an object');
+      throw new PersistenceError(
+        'Invalid state: not an object',
+        PersistenceErrorCode.INVALID_STATE,
+        { state }
+      );
     }
 
     const stateObj = state as Record<string, unknown>;
 
     if (!stateObj['version'] || typeof stateObj['version'] !== 'string') {
-      throw new Error('Invalid state: missing or invalid version');
+      throw new PersistenceError(
+        'Invalid state: missing or invalid version',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { version: stateObj['version'] }
+      );
     }
 
     if (!stateObj['timestamp']) {
-      throw new Error('Invalid state: missing timestamp');
+      throw new PersistenceError(
+        'Invalid state: missing timestamp',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { state: 'timestamp missing' }
+      );
     }
 
     if (
       typeof stateObj['controlCount'] !== 'number' ||
       stateObj['controlCount'] < 0
     ) {
-      throw new Error('Invalid state: invalid control count');
+      throw new PersistenceError(
+        'Invalid state: invalid control count',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { controlCount: stateObj['controlCount'] }
+      );
     }
 
     if (!stateObj['controls'] || typeof stateObj['controls'] !== 'object') {
-      throw new Error('Invalid state: missing or invalid controls');
+      throw new PersistenceError(
+        'Invalid state: missing or invalid controls',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { controls: stateObj['controls'] }
+      );
     }
 
     // Validate control count matches
@@ -286,8 +315,10 @@ export class StatePersistenceManager {
       stateObj['controls'] as Record<string, unknown>
     ).length;
     if (actualCount !== stateObj['controlCount']) {
-      throw new Error(
-        `Invalid state: control count mismatch (expected ${stateObj['controlCount']}, got ${actualCount})`
+      throw new PersistenceError(
+        `Invalid state: control count mismatch (expected ${stateObj['controlCount']}, got ${actualCount})`,
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { expected: stateObj['controlCount'], actual: actualCount }
       );
     }
   }

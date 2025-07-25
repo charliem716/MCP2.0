@@ -3,6 +3,8 @@
  * This file provides strict typing to eliminate unsafe type usage
  */
 
+import { CacheError, CacheErrorCode } from '../errors.js';
+
 /**
  * Valid control value types in Q-SYS
  */
@@ -218,7 +220,8 @@ export function parseSerializedEvents(data: string): SerializedCachedEvent[] {
   try {
     const parsed: unknown = JSON.parse(data);
     if (!Array.isArray(parsed)) {
-      throw new Error('Expected array of events');
+      throw new CacheError('Expected array of events', CacheErrorCode.INVALID_DATA,
+        { type: typeof parsed });
     }
 
     const events: SerializedCachedEvent[] = [];
@@ -232,8 +235,10 @@ export function parseSerializedEvents(data: string): SerializedCachedEvent[] {
 
     return events;
   } catch (error) {
-    throw new Error(
-      `Failed to parse serialized events: ${error instanceof Error ? error.message : 'Unknown error'}`
+    throw new CacheError(
+      `Failed to parse serialized events: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      CacheErrorCode.SERIALIZATION_ERROR,
+      { originalError: error }
     );
   }
 }

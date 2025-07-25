@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type { ToolCallResult } from '../handlers/index.js';
+import { QSysError, QSysErrorCode, ValidationError } from '../../shared/types/errors.js';
 
 /**
  * Base schema for all Q-SYS tool parameters
@@ -85,7 +86,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
 
       // Check QRWC connection
       if (!this.qrwcClient.isConnected()) {
-        throw new Error('Q-SYS Core not connected');
+        throw new QSysError('Q-SYS Core not connected', QSysErrorCode.CONNECTION_FAILED);
       }
 
       // Execute the tool-specific logic
@@ -139,7 +140,14 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
         const formattedErrors = error.errors
           .map(err => `${err.path.join('.')}: ${err.message}`)
           .join('; ');
-        throw new Error(`Parameter validation failed: ${formattedErrors}`);
+        throw new ValidationError(
+          'Parameter validation failed',
+          error.errors.map((err: any) => ({
+            field: err.path.join('.'),
+            message: err.message,
+            code: 'VALIDATION_ERROR',
+          }))
+        );
       }
       throw error;
     }

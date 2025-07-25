@@ -4,6 +4,7 @@ import type { ToolCallResult } from '../handlers/index.js';
 import type { ToolExecutionContext } from './base.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type { QSysStatusGetResponse } from '../types/qsys-api-responses.js';
+import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
  * Parameters for the query_core_status tool
@@ -65,7 +66,11 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       const response = await this.qrwcClient.sendCommand('Status.Get');
 
       if (!response || typeof response !== 'object') {
-        throw new Error('Invalid response from Q-SYS Core');
+        throw new MCPError(
+          'Invalid response from Q-SYS Core',
+          MCPErrorCode.PROTOCOL_ERROR,
+          { response }
+        );
       }
 
       const status = this.parseStatusResponse(response, params);
@@ -124,8 +129,10 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
     // Check if this is fallback data from adapter
     if (result.Platform?.includes('StatusGet not supported')) {
-      throw new Error(
-        'StatusGet returned fallback data - will scan for status components'
+      throw new MCPError(
+        'StatusGet returned fallback data - will scan for status components',
+        MCPErrorCode.METHOD_NOT_FOUND,
+        { platform: result.Platform }
       );
     }
 
