@@ -175,21 +175,25 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    * Provides consistent error structure across all tools
    */
   protected formatErrorResponse(error: unknown): string {
-    // For validation errors, return a human-readable message with field details
-    if (error instanceof ValidationError) {
-      const fieldErrors = error.fields
-        .map(f => `${f.field}: ${f.message}`)
-        .join('; ');
-      return `Invalid parameters: ${fieldErrors}`;
-    }
-    
-    const errorObj = {
+    // Always return JSON for consistency with MCP protocol
+    const errorObj: any = {
       error: true,
       toolName: this.name,
       message: error instanceof Error ? error.message : String(error),
       code: (error as { code?: string })?.code || 'UNKNOWN_ERROR',
       timestamp: new Date().toISOString(),
     };
+    
+    // For validation errors, include field details in the error object
+    if (error instanceof ValidationError) {
+      errorObj.code = 'VALIDATION_ERROR';
+      errorObj.message = 'Parameter validation failed';
+      errorObj.fields = error.fields;
+      errorObj.fieldErrors = error.fields
+        .map(f => `${f.field}: ${f.message}`)
+        .join('; ');
+    }
+    
     return JSON.stringify(errorObj);
   }
 

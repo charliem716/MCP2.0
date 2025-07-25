@@ -544,7 +544,7 @@ describe('Change Group Tools', () => {
       const addTool = new AddControlsToChangeGroupTool(mockQrwcClient);
       await addTool.execute({ groupId: 'test-bug034', controlNames: ['control1'] });
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'ChangeGroup.AddComponentControl',
+        'ChangeGroup.AddControl',
         expect.any(Object)
       );
 
