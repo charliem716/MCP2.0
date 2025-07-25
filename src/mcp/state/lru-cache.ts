@@ -58,13 +58,16 @@ export class LRUCache<K, V> extends EventEmitter {
 
     // Check if we need to evict
     if (this.cache.size > this.maxEntries) {
-      // Get first (oldest) key
+      // Get first (oldest) key and value
       const firstKey = this.cache.keys().next().value as K;
+      const evictedValue = this.cache.get(firstKey);
       this.cache.delete(firstKey);
       this.evictionCount++;
 
       // Emit eviction event for compatibility
-      this.emit('eviction', firstKey, value);
+      if (evictedValue) {
+        this.emit('eviction', firstKey, evictedValue);
+      }
     }
 
     return true;
