@@ -10,7 +10,7 @@ describe('QueryCoreStatusTool', () => {
       isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new QueryCoreStatusTool(mockQrwcClient);
-    // @ts-ignore - accessing private property for testing
+    // @ts-expect-error - accessing private property for testing
     tool.logger = {
       info: jest.fn(),
       error: jest.fn(),
@@ -442,5 +442,118 @@ describe('QueryCoreStatusTool - BUG-055 regression', () => {
     // Arrays should still be empty as we're not mapping from response
     expect(status.designInfo.activeServices).toEqual([]);
     expect(status.networkInfo.dnsServers).toEqual([]);
+  });
+
+  // Tests from BUG-057: Status tool fallback detection
+  describe('Status tool fallback detection (BUG-057)', () => {
+    it('should detect adapter fallback data and trigger component scanning', async () => {
+      // Mock adapter returning fallback data (not throwing error)
+      mockQrwcClient.sendCommand
+        .mockResolvedValueOnce({
+          // This is what adapter returns when StatusGet fails
+          Platform: 'Q-SYS Core (API: StatusGet not supported)',
+          State: 'Active',
+          DesignName: 'Design with 43 components',
+          DesignCode: '43_components',
+          IsRedundant: false,
+          IsEmulator: false,
+          Status: {
+            Code: 0,
+            String: 'OK',
+          },
+          Version: 'QRWC Connection Active',
+          IsConnected: true,
+          ComponentCount: 43,
+          ControlCount: 156,
+        })
+        .mockResolvedValueOnce({
+          // Component.GetComponents response
+          result: [
+            { Name: 'Status_Device', Type: 'Status Combiner' },
+            { Name: 'Gain_1', Type: 'Gain' },
+          ],
+        })
+        .mockResolvedValueOnce({
+          // Component.GetControls for Status_Device
+          result: {
+            Name: 'Status_Device',
+            Controls: [
+              {
+                Name: 'Health',
+                Value: 'Good',
+                String: 'Good',
+                Type: 'String',
+                Direction: 'Read',
+              },
+            ],
+          },
+        });
+
+      const result = await tool.execute({});
+
+      expect(result.isError).toBe(false);
+
+      // Parse the response
+      const statusData = JSON.parse(result.content[0].text);
+
+      // Should have used component scanning
+      expect(statusData._metadata).toBeDefined();
+      expect(statusData._metadata.source).toBe('status_components');
+      expect(statusData._metadata.method).toBe('component_scan');
+
+      // Should have found the status component
+      expect(statusData.GeneralStatus).toBeDefined();
+      expect(statusData.GeneralStatus['Status_Device']).toBeDefined();
+      expect(statusData.GeneralStatus['Status_Device']['Health'].value).toBe(
+        'Good'
+      );
+
+      // Verify it detected fallback and scanned components
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Status.Get');
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'Component.GetComponents'
+      );
+
+      // Check logger was called about fallback detection
+      expect(tool.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('StatusGet command failed'),
+        expect.any(Object)
+      );
+    });
+
+    it('should use real StatusGet data when available', async () => {
+      // Mock real StatusGet response (no fallback indicator)
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
+        Platform: 'Core 110f',
+        State: 'Active',
+        DesignName: 'Conference Room',
+        DesignCode: 'abc123',
+        IsRedundant: false,
+        IsEmulator: false,
+        Status: {
+          Code: 0,
+          String: 'OK',
+        },
+        Version: '9.8.1',
+        IsConnected: true,
+      });
+
+      const result = await tool.execute({});
+
+      expect(result.isError).toBe(false);
+
+      const statusData = JSON.parse(result.content[0].text);
+
+      // Should NOT have component scan metadata
+      expect(statusData._metadata).toBeUndefined();
+
+      // Should have real platform data
+      expect(statusData.Platform).toBe('Core 110f');
+      expect(statusData.DesignName).toBe('Conference Room');
+
+      // Should only call StatusGet, not component scanning
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(1);
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Status.Get');
+    });
   });
 });

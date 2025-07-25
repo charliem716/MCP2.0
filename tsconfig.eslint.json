@@ -3,10 +3,14 @@
   "compilerOptions": {
     "noEmit": true,
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+    "rootDir": "."
   },
   "include": [
-    "src/**/*",
+    "src/**/*.ts",
+    "src/**/*.js",
+    "src/**/*.mjs",
+    "src/**/*.json",
     "tests/**/*",
     "scripts/**/*",
     "*.ts",
@@ -23,8 +27,6 @@
     "dist",
     "coverage",
     "debug-*.ts",
-    "verify-*.cjs",
-    "**/*.test.ts",
-    "**/*.spec.ts"
+    "verify-*.cjs"
   ]
 }

@@ -8,9 +8,6 @@ const config: Config = {
     '**/__tests__/**/*.+(ts|tsx|js)',
     '**/*.(test|spec).+(ts|tsx|js)',
   ],
-  transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
-  },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -47,14 +44,14 @@ const config: Config = {
   maxWorkers: '50%',
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
   watchPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
         module: 'commonjs',
         esModuleInterop: true,
         allowSyntheticDefaultImports: true
       },
-    },
+    }],
   },
   modulePathIgnorePatterns: ['<rootDir>/dist/'],
 };

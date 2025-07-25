@@ -23,17 +23,22 @@ describe('BUG-043: Error Handling Consistency', () => {
     });
 
     it('should throw NetworkError after max retries', async () => {
+      // Create a mock that will cause the adapter to retry and eventually throw NetworkError
       const mockClient = {
         isConnected: jest.fn().mockReturnValue(true),
-        _qrwc: {
-          sendCommand: jest.fn().mockRejectedValue(new Error('Network error')),
-        },
+        getQrwc: jest.fn()
+          // Make it throw a retryable error with proper code property
+          .mockImplementation(() => {
+            const error = new Error('Connection reset') as any;
+            error.code = 'ECONNRESET';
+            throw error;
+          }),
       };
       
       const adapter = new QRWCClientAdapter(mockClient as any);
       
       await expect(
-        adapter.sendCommand('Test.Command', {}, { maxRetries: 1, retryDelay: 10 })
+        adapter.sendCommand('Control.Get', { Controls: ['test'] }, { maxRetries: 1, retryDelay: 10 })
       ).rejects.toThrow(NetworkError);
     });
 
@@ -51,24 +56,30 @@ describe('BUG-043: Error Handling Consistency', () => {
   });
 
   describe('DiscoveryTool Error Handling', () => {
-    it('should throw ValidationError for invalid filter mode', async () => {
-      const mockClient = { sendCommand: jest.fn() };
-      const tool = new DiscoveryTool(mockClient as any);
-      
-      await expect(
-        tool.execute({ mode: 'filtered' }, {} as any)
-      ).rejects.toThrow(ValidationError);
-    });
-
-    it('should throw MCPError for invalid responses', async () => {
-      const mockClient = {
-        sendCommand: jest.fn().mockResolvedValue({ invalid: 'response' }),
+    it('should return error for invalid filter mode', async () => {
+      const mockClient = { 
+        sendCommand: jest.fn(),
+        isConnected: jest.fn().mockReturnValue(true),
       };
       const tool = new DiscoveryTool(mockClient as any);
       
-      await expect(
-        tool.execute({ mode: 'summary' }, {} as any)
-      ).rejects.toThrow(MCPError);
+      const result = await tool.execute({ mode: 'filtered' }, {} as any);
+      
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Filter required when using');
+    });
+
+    it('should return error for invalid responses', async () => {
+      const mockClient = {
+        sendCommand: jest.fn().mockResolvedValue({ invalid: 'response' }),
+        isConnected: jest.fn().mockReturnValue(true),
+      };
+      const tool = new DiscoveryTool(mockClient as any);
+      
+      const result = await tool.execute({ mode: 'summary' }, {} as any);
+      
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Invalid response');
     });
   });
 

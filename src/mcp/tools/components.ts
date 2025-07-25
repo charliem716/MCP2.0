@@ -100,13 +100,13 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
       return {
         Name: comp.Name,
         Type: comp.Type,
-        Properties: comp.Properties.reduce(
+        Properties: comp.Properties ? comp.Properties.reduce(
           (acc, prop) => {
             acc[prop.Name] = prop.Value;
             return acc;
           },
           {} as Record<string, unknown>
-        ),
+        ) : {},
       };
     });
   }
@@ -131,8 +131,26 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
     components: QSysComponent[],
     params: ListComponentsParams
   ): string {
-    // Return JSON string for MCP protocol compliance
-    return JSON.stringify(components);
+    if (components.length === 0) {
+      return 'No components found';
+    }
+
+    let result = `Found ${components.length} components\n\n`;
+    
+    for (const comp of components) {
+      result += `${comp.Name} (${comp.Type})`;
+      
+      if (params.includeProperties && comp.Properties) {
+        result += '\n  Properties:\n';
+        for (const [key, value] of Object.entries(comp.Properties)) {
+          result += `    ${key}: ${value}\n`;
+        }
+      }
+      
+      result += '\n';
+    }
+    
+    return result.trim();
   }
 }
 

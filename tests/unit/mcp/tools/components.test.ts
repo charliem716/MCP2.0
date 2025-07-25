@@ -10,7 +10,7 @@ describe('ListComponentsTool', () => {
       isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new ListComponentsTool(mockQrwcClient);
-    // @ts-ignore - accessing private property for testing
+    // @ts-expect-error - accessing private property for testing
     tool.logger = {
       info: jest.fn(),
       error: jest.fn(),

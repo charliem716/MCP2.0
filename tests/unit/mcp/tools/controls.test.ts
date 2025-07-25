@@ -25,7 +25,7 @@ describe('ListControlsTool', () => {
       isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new ListControlsTool(mockQrwcClient);
-    // @ts-ignore - accessing private property for testing
+    // @ts-expect-error - accessing private property for testing
     tool.logger = {
       info: jest.fn(),
       error: jest.fn(),
@@ -329,7 +329,7 @@ describe('GetControlValuesTool', () => {
       isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new GetControlValuesTool(mockQrwcClient);
-    // @ts-ignore - accessing private property for testing
+    // @ts-expect-error - accessing private property for testing
     tool.logger = {
       info: jest.fn(),
       error: jest.fn(),
@@ -434,7 +434,7 @@ describe('SetControlValuesTool', () => {
       isConnected: jest.fn().mockReturnValue(true),
     };
     tool = new SetControlValuesTool(mockQrwcClient);
-    // @ts-ignore - accessing private property for testing
+    // @ts-expect-error - accessing private property for testing
     tool.logger = {
       info: jest.fn(),
       error: jest.fn(),

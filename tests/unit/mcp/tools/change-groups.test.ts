@@ -372,4 +372,216 @@ describe('Change Group Tools', () => {
       });
     });
   });
+
+  // Tests from BUG-069: Change Group tools error documentation
+  describe('Error documentation (BUG-069)', () => {
+    it('all tools should document error conditions', () => {
+      const tools = [
+        new CreateChangeGroupTool(mockQrwcClient),
+        new AddControlsToChangeGroupTool(mockQrwcClient),
+        new PollChangeGroupTool(mockQrwcClient),
+        new DestroyChangeGroupTool(mockQrwcClient),
+        new RemoveControlsFromChangeGroupTool(mockQrwcClient),
+        new ClearChangeGroupTool(mockQrwcClient),
+        new SetChangeGroupAutoPollTool(mockQrwcClient),
+        new ListChangeGroupsTool(mockQrwcClient),
+      ];
+
+      tools.forEach(tool => {
+        // Each tool should mention "Errors:" in its description
+        expect(tool.description).toContain('Errors:');
+
+        // Common errors that should be documented
+        if (tool.name !== 'list_change_groups') {
+          expect(tool.description).toContain('groupId is empty');
+        }
+        expect(tool.description).toContain('Q-SYS Core is not connected');
+      });
+    });
+
+    it('CreateChangeGroupTool should document all error conditions', () => {
+      const tool = new CreateChangeGroupTool(mockQrwcClient);
+
+      expect(tool.description).toContain('Errors:');
+      expect(tool.description).toContain('groupId is empty');
+      expect(tool.description).toContain('Q-SYS Core is not connected');
+      expect(tool.description).toContain('communication fails');
+      expect(tool.description).toContain('warning if group already exists');
+    });
+
+    it('AddControlsToChangeGroupTool should document control-specific errors', () => {
+      const tool = new AddControlsToChangeGroupTool(mockQrwcClient);
+
+      expect(tool.description).toContain('Errors:');
+      expect(tool.description).toContain('controlNames array is empty');
+      expect(tool.description).toContain("change group doesn't exist");
+    });
+
+    it('SetChangeGroupAutoPollTool should document interval validation errors', () => {
+      const tool = new SetChangeGroupAutoPollTool(mockQrwcClient);
+
+      expect(tool.description).toContain('Errors:');
+      expect(tool.description).toContain(
+        'intervalSeconds is outside 0.1-300 range'
+      );
+      expect(tool.description).toContain("change group doesn't exist");
+    });
+
+    it('ListChangeGroupsTool should document adapter support errors', () => {
+      const tool = new ListChangeGroupsTool(mockQrwcClient);
+
+      expect(tool.description).toContain('Errors:');
+      expect(tool.description).toContain(
+        "adapter doesn't support group listing"
+      );
+    });
+
+    it('documented errors should match actual behavior - empty groupId', async () => {
+      const tool = new CreateChangeGroupTool(mockQrwcClient);
+      const result = await tool.execute({ groupId: '' });
+
+      expect(result.isError).toBe(true);
+      
+      // Parse the JSON error response
+      const errorResponse = JSON.parse(result.content[0].text);
+      expect(errorResponse.error).toBe(true);
+      expect(errorResponse.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse.toolName).toBe('create_change_group');
+      expect(errorResponse.message).toBe('Parameter validation failed');
+    });
+
+    it('documented errors should match actual behavior - disconnected', async () => {
+      mockQrwcClient.isConnected.mockReturnValue(false);
+      const tool = new PollChangeGroupTool(mockQrwcClient);
+      const result = await tool.execute({ groupId: 'test' });
+
+      expect(result.isError).toBe(true);
+      
+      // Parse the JSON error response
+      const errorResponse = JSON.parse(result.content[0].text);
+      expect(errorResponse.error).toBe(true);
+      expect(errorResponse.message).toBe('Q-SYS Core not connected');
+    });
+
+    it('documented errors should match actual behavior - invalid interval', async () => {
+      const tool = new SetChangeGroupAutoPollTool(mockQrwcClient);
+
+      // Test below minimum
+      const result1 = await tool.execute({
+        groupId: 'test',
+        enabled: true,
+        intervalSeconds: 0.05,
+      });
+      expect(result1.isError).toBe(true);
+      
+      // Parse the JSON error response
+      const errorResponse1 = JSON.parse(result1.content[0].text);
+      expect(errorResponse1.error).toBe(true);
+      expect(errorResponse1.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse1.message).toBe('Parameter validation failed');
+
+      // Test above maximum
+      const result2 = await tool.execute({
+        groupId: 'test',
+        enabled: true,
+        intervalSeconds: 301,
+      });
+      expect(result2.isError).toBe(true);
+      
+      // Parse the JSON error response
+      const errorResponse2 = JSON.parse(result2.content[0].text);
+      expect(errorResponse2.error).toBe(true);
+      expect(errorResponse2.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse2.message).toBe('Parameter validation failed');
+    });
+
+    it('documented errors should match actual behavior - empty control names', async () => {
+      const tool = new AddControlsToChangeGroupTool(mockQrwcClient);
+      const result = await tool.execute({
+        groupId: 'test',
+        controlNames: [],
+      });
+
+      expect(result.isError).toBe(true);
+      
+      // Parse the JSON error response
+      const errorResponse = JSON.parse(result.content[0].text);
+      expect(errorResponse.error).toBe(true);
+      expect(errorResponse.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse.toolName).toBe('add_controls_to_change_group');
+      expect(errorResponse.message).toBe('Parameter validation failed');
+    });
+  });
+
+  // Tests from BUG-034: Change Group Methods Implementation
+  describe('Change Group Methods Implementation (BUG-034)', () => {
+    it('should verify all 8 Change Group JSON-RPC methods are handled', async () => {
+      // This test verifies that the adapter properly handles all change group methods
+      const methods = [
+        'ChangeGroup.AddControl',
+        'ChangeGroup.AddComponentControl',
+        'ChangeGroup.Remove',
+        'ChangeGroup.Destroy',
+        'ChangeGroup.Invalidate',
+        'ChangeGroup.Clear',
+        'ChangeGroup.Poll',
+        'ChangeGroup.AutoPoll'
+      ];
+
+      // Mock each method to return success
+      methods.forEach(method => {
+        mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: true });
+      });
+
+      // Test each method through the tools
+      const createTool = new CreateChangeGroupTool(mockQrwcClient);
+      await createTool.execute({ groupId: 'test-bug034' });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.AddControl',
+        expect.any(Object)
+      );
+
+      const addTool = new AddControlsToChangeGroupTool(mockQrwcClient);
+      await addTool.execute({ groupId: 'test-bug034', controlNames: ['control1'] });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.AddComponentControl',
+        expect.any(Object)
+      );
+
+      const removeTool = new RemoveControlsFromChangeGroupTool(mockQrwcClient);
+      await removeTool.execute({ groupId: 'test-bug034', controlNames: ['control1'] });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Remove',
+        expect.any(Object)
+      );
+
+      const clearTool = new ClearChangeGroupTool(mockQrwcClient);
+      await clearTool.execute({ groupId: 'test-bug034' });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Clear',
+        expect.any(Object)
+      );
+
+      const pollTool = new PollChangeGroupTool(mockQrwcClient);
+      await pollTool.execute({ groupId: 'test-bug034' });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Poll',
+        expect.any(Object)
+      );
+
+      const autoPollTool = new SetChangeGroupAutoPollTool(mockQrwcClient);
+      await autoPollTool.execute({ groupId: 'test-bug034', enabled: true, intervalSeconds: 1 });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.AutoPoll',
+        expect.any(Object)
+      );
+
+      const destroyTool = new DestroyChangeGroupTool(mockQrwcClient);
+      await destroyTool.execute({ groupId: 'test-bug034' });
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+        'ChangeGroup.Destroy',
+        expect.any(Object)
+      );
+    });
+  });
 });

@@ -327,7 +327,7 @@ export class QRWCClientAdapter
       case 'ChangeGroup.AddControl':
         return () => this.handleChangeGroupAddControl(params);
       case 'ChangeGroup.Poll':
-        return () => this.handleChangeGroupPoll(params);
+        return async () => this.handleChangeGroupPoll(params);
       case 'ChangeGroup.AutoPoll':
         return () => this.handleChangeGroupAutoPoll(params);
       case 'ChangeGroup.Destroy':
@@ -475,9 +475,18 @@ export class QRWCClientAdapter
     const groupId = params['Id'] as string;
     const controls = params['Controls'] as string[] || [];
     
+    // Check if creating a new group with empty controls (from CreateChangeGroupTool)
+    const isCreatingNewGroup = controls.length === 0;
+    
     // Get or create change group
     let group = this.changeGroups.get(groupId);
-    if (!group) {
+    let existingGroup = false;
+    let existingControlCount = 0;
+    
+    if (group) {
+      existingGroup = true;
+      existingControlCount = group.controls.length;
+    } else {
       group = { id: groupId, controls: [] };
       this.changeGroups.set(groupId, group);
     }
@@ -501,7 +510,14 @@ export class QRWCClientAdapter
       }
     }
     
-    return { result: { addedCount } };
+    const result: any = { result: { addedCount } };
+    
+    // If creating a new group and it already existed, add warning
+    if (isCreatingNewGroup && existingGroup) {
+      result.warning = `Change group '${groupId}' already exists with ${existingControlCount} controls`;
+    }
+    
+    return result;
   }
   
   /**

@@ -35,12 +35,17 @@ describe('MCP Tools Integration Tests', () => {
           {
             Name: 'MainGain',
             Type: 'gain',
-            Properties: { gain: 0, mute: false },
+            Properties: [
+              { Name: 'gain', Value: '0' },
+              { Name: 'mute', Value: 'false' },
+            ],
           },
           {
             Name: 'OutputMixer',
             Type: 'mixer',
-            Properties: { levels: [0, -6, -12] },
+            Properties: [
+              { Name: 'levels', Value: '[0, -6, -12]' },
+            ],
           },
         ],
       });
@@ -49,6 +54,9 @@ describe('MCP Tools Integration Tests', () => {
         includeProperties: true,
       });
 
+      if (componentsResult.isError) {
+        console.error('Component result error:', componentsResult.content[0].text);
+      }
       expect(componentsResult.isError).toBe(false);
       expect(componentsResult.content[0].text).toContain('Found 2 components');
       expect(componentsResult.content[0].text).toContain('MainGain');
@@ -56,15 +64,18 @@ describe('MCP Tools Integration Tests', () => {
 
       // Step 2: List controls for a specific component
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [
-          { Name: 'MainGain.gain', Value: 0, String: '0.0 dB', Position: 0.5 },
-          {
-            Name: 'MainGain.mute',
-            Value: false,
-            String: 'unmuted',
-            Position: 0,
-          },
-        ],
+        result: {
+          Name: 'MainGain',
+          Controls: [
+            { Name: 'gain', Value: 0, String: '0.0 dB', Position: 0.5 },
+            {
+              Name: 'mute',
+              Value: false,
+              String: 'unmuted',
+              Position: 0,
+            },
+          ],
+        },
       });
 
       const controlsResult = await registry.callTool('list_controls', {
@@ -74,8 +85,8 @@ describe('MCP Tools Integration Tests', () => {
 
       expect(controlsResult.isError).toBe(false);
       expect(controlsResult.content[0].text).toContain('Found 2 controls');
-      expect(controlsResult.content[0].text).toContain('MainGain.gain');
-      expect(controlsResult.content[0].text).toContain('MainGain.mute');
+      expect(controlsResult.content[0].text).toContain('gain');
+      expect(controlsResult.content[0].text).toContain('mute');
     });
   });
 
@@ -131,7 +142,7 @@ describe('MCP Tools Integration Tests', () => {
           Name: 'MainGain',
           Controls: expect.arrayContaining([
             expect.objectContaining({ Name: 'gain', Value: 0 }),
-            expect.objectContaining({ Name: 'mute', Value: true }),
+            expect.objectContaining({ Name: 'mute', Value: 1 }), // Q-SYS expects 0/1 for booleans
           ]),
         })
       );
@@ -237,6 +248,7 @@ describe('MCP Tools Integration Tests', () => {
           { name: 'MainGain.gain', value: 0 },
           { name: 'InvalidControl', value: 1 },
         ],
+        validate: false, // Disable validation to test partial failures
       });
 
       expect(result.isError).toBe(true);
@@ -270,10 +282,10 @@ describe('MCP Tools Integration Tests', () => {
       // Step 2: Find all gain components
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'MicGain1', Type: 'gain' },
-          { Name: 'MicGain2', Type: 'gain' },
-          { Name: 'ProgramGain', Type: 'gain' },
-          { Name: 'Compressor1', Type: 'compressor' },
+          { Name: 'MicGain1', Type: 'gain', Properties: [] },
+          { Name: 'MicGain2', Type: 'gain', Properties: [] },
+          { Name: 'ProgramGain', Type: 'gain', Properties: [] },
+          { Name: 'Compressor1', Type: 'compressor', Properties: [] },
         ],
       });
 

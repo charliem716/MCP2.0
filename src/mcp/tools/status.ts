@@ -170,16 +170,16 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         activeServices: [] as string[],
       },
       networkInfo: {
-        ipAddress: String('Unknown'),
-        macAddress: String('Unknown'),
-        gateway: String('Unknown'),
+        ipAddress: String(result.Network?.LAN_A?.IP || result.ipAddress || 'Unknown'),
+        macAddress: String(result.macAddress || 'Unknown'),
+        gateway: String(result.Network?.LAN_A?.Gateway || result.gateway || 'Unknown'),
         dnsServers: [] as string[],
         ntpServer: String('Unknown'),
         networkMode: String('Unknown'),
       },
       performanceMetrics: {
-        cpuUsage: Number(result.cpuUsage || result.CPUUsage || 0),
-        memoryUsage: Number(result.memoryUsage || result.MemoryUsage || 0),
+        cpuUsage: Number(result.Performance?.CPU || result.cpuUsage || result.CPUUsage || 0),
+        memoryUsage: Number(result.Performance?.Memory || result.memoryUsage || result.MemoryUsage || 0),
         memoryUsedMB: Number(0),
         memoryTotalMB: Number(0),
         audioLatency: Number(0),
@@ -207,8 +207,58 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     status: QSysCoreStatus,
     params: QueryCoreStatusParams
   ): string {
-    // Return JSON string for MCP protocol compliance
-    return JSON.stringify(status);
+    let result = `Q-SYS Core Status\n\n`;
+    
+    // Core info
+    if (status.coreInfo) {
+      result += `Design: ${status.coreInfo.designName || 'Unknown'}\n`;
+      result += `Platform: ${status.coreInfo.platform || 'Unknown'}\n`;
+      if (status.coreInfo.model) {
+        result += `Model: ${status.coreInfo.model}\n`;
+      }
+    }
+    
+    // Basic info from direct fields
+    if (status.DesignName) {
+      result += `Design Name: ${status.DesignName}\n`;
+    }
+    if (status.Platform) {
+      result += `Platform: ${status.Platform}\n`;
+    }
+    
+    // Connection status
+    if (status.connectionStatus) {
+      result += `\nConnection: ${status.connectionStatus.connected ? 'Connected' : 'Disconnected'}\n`;
+    }
+    
+    // System health
+    if (status.systemHealth) {
+      result += `\nSystem Status: ${status.systemHealth.status || 'Unknown'}\n`;
+    }
+    if (status.Status) {
+      result += `Status: ${status.Status.Name || status.Status.String || 'OK'} (Code: ${status.Status.Code})\n`;
+    }
+    
+    // Network info if requested
+    if (params.includeNetworkInfo && status.networkInfo) {
+      result += '\nNetwork Information:\n';
+      if (status.networkInfo.ipAddress && status.networkInfo.ipAddress !== 'Unknown') {
+        result += `  IP Address: ${status.networkInfo.ipAddress}\n`;
+      }
+    }
+    
+    // Performance metrics if requested
+    if (params.includePerformance && status.performanceMetrics) {
+      result += '\nPerformance:\n';
+      if (status.performanceMetrics.cpuUsage > 0) {
+        result += `  CPU Usage: ${status.performanceMetrics.cpuUsage}%\n`;
+      }
+      if (status.performanceMetrics.memoryUsage > 0) {
+        result += `  Memory Usage: ${status.performanceMetrics.memoryUsage}%\n`;
+      }
+    }
+    
+    return result.trim();
   }
 
   /**

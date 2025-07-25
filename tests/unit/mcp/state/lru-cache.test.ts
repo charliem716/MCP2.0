@@ -149,7 +149,7 @@ describe('LRUCache (Fixed)', () => {
       cache.set('key3', 'value3');
       cache.set('key4', 'value4'); // Should evict key1
 
-      expect(evictListener).toHaveBeenCalledWith('key1', 'value4'); // Note: emits with the new value
+      expect(evictListener).toHaveBeenCalledWith('key1', 'value1'); // Emits with the evicted value
     });
 
     it('should track eviction count', () => {

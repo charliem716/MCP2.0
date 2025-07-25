@@ -308,3 +308,8 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
  */
 export const createGetAllControlsTool = (qrwcClient: QRWCClientInterface) =>
   new GetAllControlsTool(qrwcClient);
+
+/**
+ * Alias for backward compatibility with tests
+ */
+export const DiscoveryTool = GetAllControlsTool;

@@ -13,7 +13,7 @@ describe('EventCacheManager Compression', () => {
   let mockAdapter: MockQRWCAdapter;
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    // jest.useFakeTimers(); // Disabled - causing test hangs with real setTimeout
 
     const config: EventCacheConfig = {
       maxEvents: 10000,

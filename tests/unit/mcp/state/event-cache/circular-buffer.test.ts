@@ -214,4 +214,147 @@ describe('CircularBuffer', () => {
       expect(buffer.getSize()).toBe(2);
     });
   });
+
+  describe('Bug Regression Tests', () => {
+    // These tests reproduce specific bugs found in production
+    
+    it('demonstrates the stale index problem', () => {
+      const capacity = 3;
+      const buffer = new CircularBuffer<string>(capacity);
+
+      // Add events 1-3 (fills buffer)
+      buffer.add('A', BigInt(1000)); // index 0
+      buffer.add('B', BigInt(2000)); // index 1
+      buffer.add('C', BigInt(3000)); // index 2
+
+      // Add event 4 (overwrites A at index 0)
+      buffer.add('D', BigInt(4000)); // overwrites index 0
+
+      // The time index still has:
+      // timestamp 1000 -> index 0 (but index 0 now contains D!)
+      // timestamp 2000 -> index 1 (contains B)
+      // timestamp 3000 -> index 2 (contains C)
+      // timestamp 4000 -> index 0 (contains D)
+
+      // Query for timestamp 1000 should return nothing (A was overwritten)
+      const staleQuery = buffer.queryTimeRange(BigInt(1000), BigInt(1000));
+
+      // But the bug is that it might return D instead!
+      expect(staleQuery).toEqual([]); // Should be empty
+    });
+
+    it('shows the real bug - queryTimeRange returns wrong data after multiple overwrites', () => {
+      const capacity = 5;
+      const buffer = new CircularBuffer<string>(capacity);
+
+      // Fill buffer completely multiple times to create complex wraparound
+      for (let cycle = 0; cycle < 3; cycle++) {
+        for (let i = 0; i < capacity; i++) {
+          const timestamp = BigInt((cycle * capacity + i) * 1000);
+          buffer.add(`cycle${cycle}-event${i}`, timestamp);
+        }
+      }
+
+      // Buffer should now contain only cycle2 events (timestamps 10000-14000)
+      // But the index might have stale entries pointing to wrong positions
+
+      // Query for cycle1 events (should be empty as they were overwritten)
+      const cycle1Results = buffer.queryTimeRange(BigInt(5000), BigInt(9000));
+
+      // Query for cycle2 events (should return the current buffer contents)
+      const cycle2Results = buffer.queryTimeRange(BigInt(10000), BigInt(14000));
+
+      // The bug might cause cycle1 query to return wrong data
+      expect(cycle1Results).toEqual([]);
+      expect(cycle2Results.length).toBe(5);
+      expect(cycle2Results).toEqual([
+        'cycle2-event0',
+        'cycle2-event1',
+        'cycle2-event2',
+        'cycle2-event3',
+        'cycle2-event4',
+      ]);
+    });
+
+    it('demonstrates the actual performance bug - queryTimeRange is O(n) not O(log n)', () => {
+      // The bug report mentions that queryTimeRange has O(n) performance instead of O(log n)
+      // This happens because findInRange returns ALL indices in the range,
+      // not just valid ones, causing unnecessary iteration
+
+      const capacity = 10000;
+      const buffer = new CircularBuffer<{ id: string; value: number }>(
+        capacity
+      );
+
+      // Fill buffer completely
+      for (let i = 0; i < capacity; i++) {
+        buffer.add({ id: `event${i}`, value: i }, BigInt(i * 1000));
+      }
+
+      // Now overwrite half the buffer with new events
+      for (let i = 0; i < capacity / 2; i++) {
+        buffer.add(
+          { id: `new-event${i}`, value: i },
+          BigInt((capacity + i) * 1000)
+        );
+      }
+
+      // At this point, the SortedArray might have stale indices
+      // Query for a small range of recent events
+      const startTime = BigInt((capacity + 100) * 1000);
+      const endTime = BigInt((capacity + 200) * 1000);
+
+      const start = process.hrtime.bigint();
+      const results = buffer.queryTimeRange(startTime, endTime);
+      const elapsed = process.hrtime.bigint() - start;
+
+      // The performance should be fast for a small result set
+      expect(results.length).toBe(101); // events 100-200
+
+      // Check if we're getting correct results
+      expect(results[0]).toEqual({ id: 'new-event100', value: 100 });
+      expect(results[100]).toEqual({ id: 'new-event200', value: 200 });
+    });
+
+    it('FAILING TEST - demonstrates stale index bug after buffer wraparound', () => {
+      const buffer = new CircularBuffer<string>(3);
+
+      // Add 3 events to fill the buffer
+      buffer.add('A', BigInt(1000)); // pos 0
+      buffer.add('B', BigInt(2000)); // pos 1
+      buffer.add('C', BigInt(3000)); // pos 2
+
+      // Add a 4th event that overwrites position 0
+      buffer.add('D', BigInt(4000)); // overwrites pos 0
+
+      // At this point:
+      // - Buffer positions: [D, B, C]
+      // - Time index should have: 2000->1, 3000->2, 4000->0
+      // - But the old 1000->0 entry was removed
+
+      // Add a 5th event with an OLD timestamp
+      buffer.add('E', BigInt(500)); // This goes to pos 1, overwriting B
+
+      // Now buffer is: [D, E, C]
+      // Time index has: 500->1, 3000->2, 4000->0
+
+      // Query for recent events (should only get D since C is at 3000)
+      const recent = buffer.queryTimeRange(BigInt(3500), BigInt(4500));
+
+      // Query for C and D (2500-4500)
+      const cAndD = buffer.queryTimeRange(BigInt(2500), BigInt(4500));
+
+      // Query for old events (should only get E)
+      const old = buffer.queryTimeRange(BigInt(0), BigInt(1000));
+
+      // The actual bug: When B (timestamp 2000) was overwritten by E,
+      // the index for 2000 should have been removed, but let's check
+      const shouldBeEmpty = buffer.queryTimeRange(BigInt(2000), BigInt(2000));
+
+      expect(recent).toEqual(['D']);
+      expect(cAndD.sort()).toEqual(['C', 'D'].sort());
+      expect(old).toEqual(['E']);
+      expect(shouldBeEmpty).toEqual([]); // B was overwritten
+    });
+  });
 });

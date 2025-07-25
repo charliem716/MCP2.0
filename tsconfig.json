@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "allowJs": true,
+    "allowJs": false,
     "module": "ESNext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
@@ -35,7 +35,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node", "jest"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts", "src/**/*.json"],
   "exclude": [
     "node_modules",
     "dist",
@@ -46,7 +46,10 @@
     "verify-*.cjs",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "**/*.d.ts"
+    "**/*.d.ts",
+    "**/*.js",
+    "**/*.cjs",
+    "**/*.mjs"
   ],
   "ts-node": {
     "esm": true,

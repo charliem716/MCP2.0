@@ -263,8 +263,28 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     controls: QSysControl[],
     params: ListControlsParams
   ): string {
-    // Return JSON string for MCP protocol compliance
-    return JSON.stringify(controls);
+    if (controls.length === 0) {
+      return 'No controls found';
+    }
+
+    let result = `Found ${controls.length} controls\n\n`;
+    
+    for (const control of controls) {
+      result += `${control.name} (${control.type})`;
+      result += ` - Component: ${control.component}`;
+      result += ` - Value: ${control.value}`;
+      
+      if (params.includeMetadata && control.metadata) {
+        result += '\n  Metadata:\n';
+        for (const [key, value] of Object.entries(control.metadata)) {
+          result += `    ${key}: ${value}\n`;
+        }
+      }
+      
+      result += '\n';
+    }
+    
+    return result.trim();
   }
 }
 
@@ -390,8 +410,25 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
   }
 
   private formatControlValuesResponse(values: ControlValue[]): string {
-    // Return JSON string for MCP protocol compliance
-    return JSON.stringify(values);
+    if (values.length === 0) {
+      return 'No control values found';
+    }
+
+    let result = 'Control Values:\n\n';
+    
+    for (const control of values) {
+      if (control.error) {
+        result += `${control.name}: Error - ${control.error}\n`;
+      } else {
+        result += `${control.name}: ${control.value}`;
+        if (control.string) {
+          result += ` (${control.string})`;
+        }
+        result += '\n';
+      }
+    }
+    
+    return result.trim();
   }
 }
 
@@ -472,7 +509,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(errorResults),
+                text: `Validation failed:\n${errorResults.map(r => `  ${r.name}: ${r.error}`).join('\n')}`,
               },
             ],
             isError: true,
@@ -880,21 +917,25 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       result: PromiseSettledResult<unknown>;
     }>
   ): string {
-    // Return JSON string for MCP protocol compliance
-    const formattedResults = results.map(({ control, result }) => ({
-      name: control.name,
-      value: control.value,
-      success: result.status === 'fulfilled',
-      error:
-        result.status === 'rejected'
-          ? result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason)
-          : undefined,
-      rampTime: control.ramp,
-    }));
-
-    return JSON.stringify(formattedResults);
+    const successful = results.filter(r => r.result.status === 'fulfilled').length;
+    const failed = results.filter(r => r.result.status === 'rejected').length;
+    const total = results.length;
+    
+    let response = `Set ${successful}/${total} controls successfully`;
+    
+    if (failed > 0) {
+      response += '\n\nFailed controls:\n';
+      for (const { control, result } of results) {
+        if (result.status === 'rejected') {
+          const error = result.reason instanceof Error 
+            ? result.reason.message 
+            : String(result.reason);
+          response += `  ${control.name}: ${error}\n`;
+        }
+      }
+    }
+    
+    return response.trim();
   }
 }
 

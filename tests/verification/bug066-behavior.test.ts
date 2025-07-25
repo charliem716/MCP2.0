@@ -11,15 +11,24 @@ describe('BUG-066 Expected Behavior Verification', () => {
   let addControlsTool: AddControlsToChangeGroupTool;
 
   beforeEach(() => {
-    adapter = new QRWCClientAdapter();
+    // Create a mock official client
+    const mockOfficialClient = {
+      isConnected: () => true,
+      getQrwc: () => ({
+        components: {
+          Gain1: {
+            controls: {
+              gain: { Value: 0 },
+              mute: { Value: false }
+            }
+          }
+        }
+      }),
+    };
+    
+    adapter = new QRWCClientAdapter(mockOfficialClient as any);
     createTool = new CreateChangeGroupTool(adapter);
     addControlsTool = new AddControlsToChangeGroupTool(adapter);
-
-    // Mock the connection
-    (adapter as any).officialClient = {
-      isConnected: () => true,
-      components: () => ({ Components: [] }),
-    };
   });
 
   it('should NOT silently overwrite existing groups (Expected Behavior from bug report)', async () => {
@@ -30,11 +39,6 @@ describe('BUG-066 Expected Behavior Verification', () => {
     expect(JSON.parse(result1.content[0].text).success).toBe(true);
 
     // Step 2: Add controls
-    (adapter as any).controlIndex = new Map([
-      ['Gain1.gain', { Name: 'Gain1.gain' }],
-      ['Gain1.mute', { Name: 'Gain1.mute' }],
-    ]);
-
     await addControlsTool.execute({
       groupId,
       controlNames: ['Gain1.gain', 'Gain1.mute'],
@@ -72,11 +76,6 @@ describe('BUG-066 Expected Behavior Verification', () => {
     expect(JSON.parse(step1.content[0].text).success).toBe(true);
 
     // 2. Add controls: add_controls_to_change_group({groupId: 'mygroup', controlNames: ['Gain1.gain', 'Gain1.mute']})
-    (adapter as any).controlIndex = new Map([
-      ['Gain1.gain', { Name: 'Gain1.gain' }],
-      ['Gain1.mute', { Name: 'Gain1.mute' }],
-    ]);
-
     const step2 = await addControlsTool.execute({
       groupId: 'mygroup',
       controlNames: ['Gain1.gain', 'Gain1.mute'],
