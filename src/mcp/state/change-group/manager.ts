@@ -121,6 +121,11 @@ export class ChangeGroupManager extends EventEmitter {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
+      // Try to get results from error if available
+      if ((error as any).__results) {
+        results = (error as any).__results;
+      }
+
       // Rollback on error if configured
       if (execOptions.rollbackOnFailure) {
         const successfulChanges = results.filter(r => r.success);
@@ -133,46 +138,66 @@ export class ChangeGroupManager extends EventEmitter {
         }
       }
 
-      throw error;
-    } finally {
-      // Remove from active
-      this.activeChangeGroups.delete(changeGroup.id);
-
-      // Create execution result
-      const executionResult: ChangeGroupExecutionResult = {
+      // Store failed execution in history before throwing
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+      
+      // If no results were collected, consider all controls as failed
+      const effectiveFailureCount = failureCount > 0 || successCount > 0 
+        ? failureCount 
+        : changeGroup.controls.length;
+      
+      const failedExecutionResult: ChangeGroupExecutionResult = {
         changeGroupId: changeGroup.id,
         totalControls: changeGroup.controls.length,
-        successCount: results.filter(r => r.success).length,
-        failureCount: results.filter(r => !r.success).length,
+        successCount,
+        failureCount: effectiveFailureCount,
         executionTimeMs: Date.now() - startTime,
         results,
         rollbackPerformed,
       };
+      this.executionHistory.set(changeGroup.id, failedExecutionResult);
 
-      // Store in history
-      this.executionHistory.set(changeGroup.id, executionResult);
-
-      // Limit history size
-      if (this.executionHistory.size > 1000) {
-        const oldestKey = this.executionHistory.keys().next().value;
-        if (oldestKey) {
-          this.executionHistory.delete(oldestKey);
-        }
-      }
-
-      // Emit completion event
-      this.emit(ChangeGroupEvent.Completed, executionResult);
-
-      logger.info('Change group execution completed', {
-        changeGroupId: changeGroup.id,
-        successCount: executionResult.successCount,
-        failureCount: executionResult.failureCount,
-        executionTimeMs: executionResult.executionTimeMs,
-        rollbackPerformed,
-      });
-
-      return executionResult;
+      throw error;
+    } finally {
+      // Remove from active
+      this.activeChangeGroups.delete(changeGroup.id);
     }
+
+    // Create execution result (only reached on success)
+    const executionResult: ChangeGroupExecutionResult = {
+      changeGroupId: changeGroup.id,
+      totalControls: changeGroup.controls.length,
+      successCount: results.filter(r => r.success).length,
+      failureCount: results.filter(r => !r.success).length,
+      executionTimeMs: Date.now() - startTime,
+      results,
+      rollbackPerformed,
+    };
+
+    // Store in history
+    this.executionHistory.set(changeGroup.id, executionResult);
+
+    // Limit history size
+    if (this.executionHistory.size > 1000) {
+      const oldestKey = this.executionHistory.keys().next().value;
+      if (oldestKey) {
+        this.executionHistory.delete(oldestKey);
+      }
+    }
+
+    // Emit completion event
+    this.emit(ChangeGroupEvent.Completed, executionResult);
+
+    logger.info('Change group execution completed', {
+      changeGroupId: changeGroup.id,
+      successCount: executionResult.successCount,
+      failureCount: executionResult.failureCount,
+      executionTimeMs: executionResult.executionTimeMs,
+      rollbackPerformed,
+    });
+
+    return executionResult;
   }
 
   /**

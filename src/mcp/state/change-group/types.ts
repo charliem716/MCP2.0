@@ -47,5 +47,5 @@ export enum ChangeGroupEvent {
   Completed = 'completed',
   RollbackStarted = 'rollbackStarted',
   RollbackCompleted = 'rollbackCompleted',
-  Error = 'error',
+  Error = 'changeGroupError',
 }

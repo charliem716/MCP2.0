@@ -75,10 +75,15 @@ export class ChangeGroupExecutor {
   ): Promise<ControlChangeResult[]> {
     const semaphore = new Semaphore(options.maxConcurrentChanges);
     const results: ControlChangeResult[] = [];
-    const promises: Array<Promise<void>> = [];
+    const promises: Array<Promise<ControlChangeResult>> = [];
 
+    // Early return if no controls
+    if (!changeGroup.controls || changeGroup.controls.length === 0) {
+      return results;
+    }
+    
     for (const control of changeGroup.controls) {
-      const promise = (async () => {
+      const promise = (async (): Promise<ControlChangeResult> => {
         await semaphore.acquire();
 
         try {
@@ -99,12 +104,12 @@ export class ChangeGroupExecutor {
             changeGroup.id
           );
 
-          results.push(result);
-
           if (!result.success && !options.continueOnError) {
             throw new ValidationError(`Control ${control.name} failed: ${result.error}`,
               [{ field: control.name, message: result.error || 'Validation failed', code: 'VALIDATION_ERROR' }]);
           }
+
+          return result;
         } finally {
           semaphore.release();
         }
@@ -113,11 +118,58 @@ export class ChangeGroupExecutor {
       promises.push(promise);
     }
 
-    // Wait for all executions or stop on first error
+    // Wait for all executions
     if (options.continueOnError) {
-      await Promise.allSettled(promises);
+      const settled = await Promise.allSettled(promises);
+      for (let i = 0; i < settled.length; i++) {
+        const result = settled[i];
+        const control = changeGroup.controls[i];
+        
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else {
+          // For rejected promises, create a failed result
+          const error = result.reason;
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          
+          // Extract the actual error message if it's a ValidationError
+          let actualError = errorMessage;
+          if (error instanceof ValidationError && error.message.includes('failed:')) {
+            const match = error.message.match(/Control \S+ failed: (.+)/);
+            if (match) {
+              actualError = match[1];
+            }
+          }
+          
+          results.push({
+            controlName: control.name,
+            targetValue: control.value,
+            success: false,
+            error: actualError,
+            executionTimeMs: 0, // We don't have the exact time for failed operations
+          });
+        }
+      }
     } else {
-      await Promise.all(promises);
+      // For fail-fast mode, we need to collect results as they complete
+      // even if one fails
+      const settled = await Promise.allSettled(promises);
+      let firstError: any = null;
+      
+      for (const result of settled) {
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else if (!firstError) {
+          firstError = result.reason;
+        }
+      }
+      
+      // Throw the first error after collecting all results
+      if (firstError) {
+        // Attach results to the error so they can be retrieved
+        (firstError as any).__results = results;
+        throw firstError;
+      }
     }
 
     return results;
