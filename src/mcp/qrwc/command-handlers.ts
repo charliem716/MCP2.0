@@ -183,7 +183,7 @@ export function handleControlGet(
 export function handleControlSet(
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
-): { result: string } {
+): { result: Array<{ Name: string; Result: string; Error?: string }> } {
   const controls = params?.['Controls'] as unknown[];
   if (!Array.isArray(controls)) {
     throw new ValidationError('Controls array is required',
@@ -195,50 +195,107 @@ export function handleControlSet(
     throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
+  const results: Array<{ Name: string; Result: string; Error?: string }> = [];
+
   for (const controlObj of controls) {
-    if (typeof controlObj !== 'object' || !controlObj) {
-      throw new ValidationError('Invalid control object',
-        [{ field: 'control', message: 'Each control must be an object', code: 'INVALID_TYPE' }]);
-    }
-
-    const obj = controlObj as Record<string, unknown>;
-    const fullName = String(obj['Name'] ?? obj['name'] ?? '');
-    const [componentName, controlName] = fullName.split('.');
-
-    if (!componentName || !controlName) {
-      throw new ValidationError(`Invalid control name format: ${fullName}`,
-        [{ field: 'controlName', message: 'Must be in format Component.Control', code: 'INVALID_FORMAT' }]);
-    }
-
-    const component = qrwc.components[componentName];
-    if (!component) {
-      throw new QSysError(`Component not found: ${componentName}`, QSysErrorCode.INVALID_COMPONENT,
-        { componentName });
-    }
-
-    const newValue = obj['Value'] ?? 0;
-    const validation = validateControlValue(fullName, newValue, {
-      Type: 'Number',
-    });
-
-    if (!validation.valid) {
-      throw new ValidationError(`Invalid value for ${fullName}: ${validation.error}`,
-        [{ field: fullName, message: validation.error || 'Invalid value', code: 'INVALID_VALUE' }]);
-    }
-
-    // Update through official client
-    if ('controls' in component && component.controls) {
-      const controls = component.controls as Record<
-        string,
-        { Value?: unknown }
-      >;
-      if (controls[controlName]) {
-        controls[controlName].Value = newValue;
+    // Initialize name variable to avoid ReferenceError in catch block (BUG-060 fix)
+    let name = '';
+    
+    try {
+      if (typeof controlObj !== 'object' || !controlObj) {
+        // For invalid control objects, add error result
+        results.push({
+          Name: '',
+          Result: 'Error',
+          Error: 'Invalid control object'
+        });
+        
+        // Log error with empty name
+        logger.error('Failed to set control value', {
+          control: '',
+          error: new Error('Invalid control object')
+        });
+        continue;
       }
+
+      const obj = controlObj as Record<string, unknown>;
+      name = String(obj['Name'] ?? obj['name'] ?? '');
+      const [componentName, controlName] = name.split('.');
+
+      if (!componentName || !controlName) {
+        results.push({
+          Name: name,
+          Result: 'Error',
+          Error: `Invalid control name format: ${name}`
+        });
+        continue;
+      }
+
+      const component = qrwc.components[componentName];
+      if (!component) {
+        results.push({
+          Name: name,
+          Result: 'Error',
+          Error: `Component not found: ${componentName}`
+        });
+        continue;
+      }
+
+      const newValue = obj['Value'] ?? 0;
+      
+      // Get control info for validation
+      const controlInfo = component.controls?.[controlName];
+      const validation = validateControlValue(name, newValue, controlInfo);
+
+      if (!validation.valid) {
+        results.push({
+          Name: name,
+          Result: 'Error',
+          Error: validation.error || 'Invalid value'
+        });
+        
+        // Log error with control name
+        logger.error('Failed to set control value', {
+          control: name,
+          error: new Error(validation.error || 'Invalid value')
+        });
+        continue;
+      }
+
+      // Update through official client
+      client.setControlValue(componentName, controlName, newValue);
+      
+      // Update local state
+      if ('controls' in component && component.controls) {
+        const controls = component.controls as Record<
+          string,
+          { Value?: unknown }
+        >;
+        if (controls[controlName]) {
+          controls[controlName].Value = newValue;
+        }
+      }
+      
+      results.push({
+        Name: name,
+        Result: 'Success'
+      });
+    } catch (error) {
+      // This catch block now has access to the name variable (BUG-060 fix)
+      logger.error('Failed to set control value', {
+        control: name, // No longer undefined
+        error
+      });
+      
+      results.push({
+        Name: name,
+        Result: 'Error',
+        Error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
-  return { result: 'Controls updated successfully' };
+  return { result: results };
 }
 
 /**
