@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import { config as envConfig } from '../../../shared/utils/env.js';
 import type { ChangeGroup } from '../repository.js';
 import type { QRWCClientInterface } from '../../qrwc/adapter.js';
 import type {
@@ -36,7 +37,7 @@ export class ChangeGroupManager extends EventEmitter {
     rollbackOnFailure: true,
     continueOnError: false,
     maxConcurrentChanges: 10,
-    timeoutMs: 30000,
+    timeoutMs: envConfig.timeouts.changeGroupMs,
     validateBeforeExecution: true,
   };
 

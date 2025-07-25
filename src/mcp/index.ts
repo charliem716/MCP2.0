@@ -1,6 +1,7 @@
 import { MCPServer } from './server.js';
 import type { MCPServerConfig } from '../shared/types/mcp.js';
 import { createLogger } from '../shared/utils/logger.js';
+import { config as envConfig } from '../shared/utils/env.js';
 
 const logger = createLogger('MCP-Index');
 
@@ -24,8 +25,8 @@ async function main() {
       ...(process.env['QSYS_SECURE'] && {
         secure: process.env['QSYS_SECURE'] === 'true',
       }),
-      reconnectInterval: 5000,
-      heartbeatInterval: 30000,
+      reconnectInterval: envConfig.qsys.reconnectInterval,
+      heartbeatInterval: envConfig.qsys.heartbeatInterval,
     },
   };
 

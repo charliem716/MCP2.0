@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/unbound-method */
+ 
 import { createLogger } from '../../../../src/shared/utils/logger.js';
 
 // Mock winston

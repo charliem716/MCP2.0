@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
+import { config as envConfig } from '../../shared/utils/env.js';
 import type { CacheStatistics } from './repository.js';
 
 /**
@@ -18,7 +19,7 @@ export class LRUCache<K, V> extends EventEmitter {
   private evictionCount = 0;
   private readonly createdAt = Date.now();
 
-  constructor(private readonly maxEntries = 1000) {
+  constructor(private readonly maxEntries = envConfig.cache.maxEntries) {
     super();
 
     logger.debug('LRU Cache initialized', { maxEntries });

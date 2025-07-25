@@ -7,6 +7,7 @@ import { EventEmitter } from 'events';
 import WebSocket from 'ws';
 import { Qrwc } from '@q-sys/qrwc';
 import { createLogger, type Logger } from '../shared/utils/logger.js';
+import { config as envConfig } from '../shared/utils/env.js';
 import { ConnectionState } from '../shared/types/common.js';
 import { QSysError, QSysErrorCode } from '../shared/types/errors.js';
 
@@ -57,7 +58,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       pollingInterval: options.pollingInterval ?? 350,
       reconnectInterval: options.reconnectInterval ?? 5000,
       maxReconnectAttempts: options.maxReconnectAttempts ?? 5,
-      connectionTimeout: options.connectionTimeout ?? 10000,
+      connectionTimeout: options.connectionTimeout ?? envConfig.performance.qsysConnectionTimeout,
       enableAutoReconnect: options.enableAutoReconnect ?? true,
     };
 

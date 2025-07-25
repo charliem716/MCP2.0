@@ -954,7 +954,7 @@ export class EventCacheManager extends EventEmitter {
       const allStats = this.getAllStatistics();
       let totalEvents = 0;
       let totalMemoryUsage = 0;
-      const groups: Array<any> = [];
+      const groups: any[] = [];
 
       for (const [gId, stats] of allStats.entries()) {
         totalEvents += stats.eventCount;

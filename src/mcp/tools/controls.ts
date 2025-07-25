@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
+import { config as envConfig } from '../../shared/utils/env.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { ToolExecutionContext } from './base.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
@@ -403,7 +404,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     string,
     { valid: boolean; timestamp: number }
   >();
-  private readonly CACHE_TTL = 30000; // 30 seconds
+  private readonly CACHE_TTL = envConfig.timeouts.validationCacheTtlMs;
 
   constructor(qrwcClient: QRWCClientInterface) {
     super(

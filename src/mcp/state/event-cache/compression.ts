@@ -6,6 +6,7 @@
 
 import type { CachedEvent, EventCacheConfig } from './manager.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import { config as envConfig } from '../../../shared/utils/env.js';
 
 export interface CompressionStats {
   original: number;
@@ -50,7 +51,7 @@ export class CompressionEngine {
    */
   shouldCompress(groupId: string, now: number): boolean {
     const stats = this.compressionStats.get(groupId);
-    return !stats || now - stats.lastRun > 30000; // 30 second cooldown
+    return !stats || now - stats.lastRun > envConfig.timeouts.compressionCooldownMs;
   }
 
   /**

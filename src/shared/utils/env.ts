@@ -120,6 +120,21 @@ const envSchema = z.object({
   // Development/Debug Options
   DEBUG_TESTS: z.coerce.boolean().default(false),
   VERBOSE_LOGGING: z.coerce.boolean().default(false),
+
+  // Cache Configuration
+  CACHE_MAX_ENTRIES: z.coerce.number().min(10).default(1000),
+  CACHE_TTL_MS: z.coerce.number().min(1000).default(1800000), // 30 minutes
+  CACHE_MAX_MEMORY_MB: z.coerce.number().min(1).default(50),
+
+  // Performance Configuration
+  TOOL_EXECUTION_WARNING_MS: z.coerce.number().min(100).default(1000),
+  QSYS_CONNECTION_TIMEOUT: z.coerce.number().min(1000).default(10000),
+  
+  // Additional Timeout Configuration
+  CHANGE_GROUP_TIMEOUT_MS: z.coerce.number().min(1000).default(30000),
+  COMPRESSION_COOLDOWN_MS: z.coerce.number().min(1000).default(30000),
+  CACHE_CLEANUP_INTERVAL_MS: z.coerce.number().min(60000).default(300000), // 5 minutes
+  VALIDATION_CACHE_TTL_MS: z.coerce.number().min(1000).default(30000),
 });
 
 /**
@@ -246,6 +261,24 @@ export const config = {
     logs: path.join(appRoot, 'logs'),
     public: path.join(appRoot, 'src/web'),
     uploads: path.join(appRoot, 'uploads'),
+  },
+
+  cache: {
+    maxEntries: env.CACHE_MAX_ENTRIES,
+    ttlMs: env.CACHE_TTL_MS,
+    maxMemoryMB: env.CACHE_MAX_MEMORY_MB,
+  },
+
+  performance: {
+    toolExecutionWarningMs: env.TOOL_EXECUTION_WARNING_MS,
+    qsysConnectionTimeout: env.QSYS_CONNECTION_TIMEOUT,
+  },
+
+  timeouts: {
+    changeGroupMs: env.CHANGE_GROUP_TIMEOUT_MS,
+    compressionCooldownMs: env.COMPRESSION_COOLDOWN_MS,
+    cacheCleanupIntervalMs: env.CACHE_CLEANUP_INTERVAL_MS,
+    validationCacheTtlMs: env.VALIDATION_CACHE_TTL_MS,
   },
 } as const;
 

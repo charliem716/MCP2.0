@@ -1,5 +1,6 @@
 import type { MCPTool } from '../../shared/types/mcp.js';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
+import { config as envConfig } from '../../shared/utils/env.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 
 // Import all Q-SYS tools
@@ -154,7 +155,7 @@ export class MCPToolRegistry {
         const result: ToolExecutionResult = await qsysTool.execute(args);
 
         // Log execution metrics
-        if (result.executionTimeMs > 1000) {
+        if (result.executionTimeMs > envConfig.performance.toolExecutionWarningMs) {
           logger.warn(`Slow tool execution: ${qsysTool.name}`, {
             executionTimeMs: result.executionTimeMs,
             context: result.context,

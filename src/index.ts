@@ -37,7 +37,7 @@ function initializeMCPServer(): MCPServer {
       host: config.qsys.host,
       port: config.qsys.port,
       reconnectInterval: config.qsys.reconnectInterval,
-      heartbeatInterval: 30000,
+      heartbeatInterval: config.qsys.heartbeatInterval,
     },
   };
   debugLog('MCP config created', mcpConfig);

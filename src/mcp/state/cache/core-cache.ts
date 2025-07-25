@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import { config as envConfig } from '../../../shared/utils/env.js';
 import { LRUCache, EvictionPolicy } from '../lru-cache.js';
 import type {
   IStateRepository,
@@ -33,9 +34,9 @@ export class CoreCache extends EventEmitter {
 
     // Initialize with default config - will be overridden in initialize()
     this.config = {
-      maxEntries: 1000,
-      ttlMs: 30 * 60 * 1000, // 30 minutes
-      cleanupIntervalMs: 5 * 60 * 1000, // 5 minutes
+      maxEntries: envConfig.cache.maxEntries,
+      ttlMs: envConfig.cache.ttlMs,
+      cleanupIntervalMs: envConfig.timeouts.cacheCleanupIntervalMs,
       enableMetrics: true,
       persistenceEnabled: false,
     };
