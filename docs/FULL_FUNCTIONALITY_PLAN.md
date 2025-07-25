@@ -474,6 +474,75 @@ describe('Event Cache Load Testing', () => {
 });
 ```
 
+#### 2.4 Integration Tests for Critical Workflows (BUG-044)
+
+**Priority: High | Timeline: 4-6 hours**
+
+Add comprehensive integration tests for critical user workflows:
+
+```typescript
+// tests/integration/mcp-workflows.test.ts
+describe('MCP Server Integration Workflows', () => {
+  let mcpServer: MCPServer;
+  let qsysCore: QSYSCoreMock;
+
+  beforeAll(async () => {
+    // Initialize mock Q-SYS Core and MCP server
+    qsysCore = await QSYSCoreMock.start();
+    mcpServer = await MCPServer.start({
+      qsysUrl: qsysCore.url,
+    });
+  });
+
+  describe('Component Discovery Workflow', () => {
+    it('should discover and control components via MCP', async () => {
+      // Full end-to-end discovery test
+      const discovery = await mcpServer.callTool('qsys_discover', {});
+      expect(discovery.components).toHaveLength(42);
+      
+      // Control change workflow
+      await mcpServer.callTool('qsys_control', {
+        componentId: 'mixer.1',
+        controlId: 'gain',
+        value: -10,
+      });
+      
+      // Verify state synchronization
+      const status = await mcpServer.callTool('qsys_status', {
+        componentId: 'mixer.1',
+      });
+      expect(status.controls.gain.value).toBe(-10);
+    });
+  });
+
+  describe('Error Recovery', () => {
+    it('should recover from connection loss', async () => {
+      await qsysCore.disconnect();
+      
+      // Verify error handling
+      await expect(
+        mcpServer.callTool('qsys_status', {})
+      ).rejects.toThrow('Not connected');
+      
+      // Verify automatic recovery
+      await qsysCore.reconnect();
+      await eventually(async () => {
+        const result = await mcpServer.callTool('qsys_status', {});
+        expect(result).toBeDefined();
+      });
+    });
+  });
+});
+```
+
+This phase will:
+- Add MCP server lifecycle tests
+- Test complete component discovery workflows
+- Verify control changes and state synchronization
+- Test error recovery and reconnection scenarios
+- Ensure multi-client consistency
+- Implement a mock Q-SYS Core for reliable testing
+
 ### Phase 3: Production Hardening (1 day)
 
 #### 3.1 Error Recovery

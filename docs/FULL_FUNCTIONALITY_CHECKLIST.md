@@ -96,6 +96,37 @@ This checklist replaces steps 2.3 through 4.3 in the original implementation pla
   - [ ] Concurrent queries during writes
   - [ ] Verify data integrity
 
+### Step 2.4: Integration Tests for Critical Workflows (BUG-044)
+
+- [ ] Create comprehensive MCP integration tests
+  - [ ] MCP server lifecycle tests
+    - [ ] Server initialization and shutdown
+    - [ ] Tool registration verification
+    - [ ] Configuration validation
+  - [ ] Component discovery workflow tests
+    - [ ] Full discovery via MCP tools
+    - [ ] Component filtering and search
+    - [ ] Response format validation
+  - [ ] Control change workflow tests
+    - [ ] Single control changes
+    - [ ] Batch control changes
+    - [ ] State synchronization verification
+  - [ ] Error recovery scenarios
+    - [ ] Connection loss and reconnection
+    - [ ] Invalid commands handling
+    - [ ] Timeout recovery
+  - [ ] Multi-client consistency tests
+    - [ ] Concurrent state changes
+    - [ ] State propagation verification
+    - [ ] Race condition prevention
+- [ ] Implement Q-SYS Core mock
+  - [ ] Simulate real Q-SYS responses
+  - [ ] Support connection lifecycle
+  - [ ] Enable failure injection
+- [ ] Add integration tests to CI/CD pipeline
+- [ ] Achieve >70% integration test coverage
+- [ ] Document test scenarios and usage
+
 ## Phase 3: Production Hardening (Day 4)
 
 ### Step 3.1: Error Recovery
