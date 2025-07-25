@@ -63,9 +63,9 @@ git diff --stat $(git merge-base main HEAD)
 
 ### Identified Issues
 
-1. **No Query Timeout Protection**: The tool doesn't implement explicit timeout handling for long-running queries
-2. **Build Failures**: Multiple static analysis failures blocking verification
-3. **Test Coverage**: Significant test failures and low coverage (50.62%)
+1. **No Query Timeout Protection**: The tool doesn't implement explicit timeout handling for long-running queries (BUG-105)
+2. **Build Failures**: Multiple static analysis failures blocking verification (BUG-106)
+3. **Test Coverage**: Significant test failures and low coverage (50.62%) (BUG-107)
 4. **Large Diff**: Extensive changes across 375 files make it difficult to isolate STEP-3.1 changes
 
 ### Summary
