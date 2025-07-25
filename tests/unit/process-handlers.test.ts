@@ -125,6 +125,8 @@ describe('Process Event Handlers', () => {
       });
 
       const testPromise = Promise.reject(new Error('Test rejection'));
+      // Catch the rejection to prevent it from being unhandled in the test
+      testPromise.catch(() => {});
       processEmitter.emit(
         'unhandledRejection',
         new Error('Test rejection'),
@@ -142,10 +144,13 @@ describe('Process Event Handlers', () => {
         // Handler should not throw or cause process exit
       });
 
+      const testPromise = Promise.reject();
+      // Catch the rejection to prevent it from being unhandled in the test
+      testPromise.catch(() => {});
       processEmitter.emit(
         'unhandledRejection',
         new Error('Test'),
-        Promise.reject()
+        testPromise
       );
 
       expect(mockExit).not.toHaveBeenCalled();

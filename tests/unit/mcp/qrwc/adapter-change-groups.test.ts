@@ -386,6 +386,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
       // Change value and wait for next poll
       mockQrwc.components['Gain1'].controls['gain'].state.Value = -15;
+      mockQrwc.components['Gain1'].controls['gain'].state.String = '-15dB';
       eventHandler.mockClear();
 
       await jest.advanceTimersByTimeAsync(1000);

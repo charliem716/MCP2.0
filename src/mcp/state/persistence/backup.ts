@@ -69,7 +69,10 @@ export class BackupManager {
       // Filter backup files
       const ext = extname(this.filePath);
       const baseFile = this.getBasename(this.filePath);
-      const backupPattern = new RegExp(`^${baseFile}\\.\\d{8}-\\d{6}${ext}$`);
+      // Escape special regex characters in the base filename and extension
+      const escapedBase = baseFile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedExt = ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const backupPattern = new RegExp(`^${escapedBase}\\.\\d{8}-\\d{6}${escapedExt}$`);
 
       const backupFiles = files
         .filter(file => backupPattern.test(file))
