@@ -43,19 +43,12 @@ describe('MCP Server Signal Handler Cleanup (BUG-028)', () => {
         if (!server.transport) {
           server.transport = { close: async () => {} } as any;
         }
-        if (!server.officialQrwcClient) {
-          server.officialQrwcClient = { disconnect: () => {} } as any;
-        }
+        // Don't mock officialQrwcClient - use the real one
         if (!server.toolRegistry) {
           server.toolRegistry = { cleanup: async () => {} } as any;
         }
         server.isConnected = true;
         await server.shutdown();
-        
-        // Also call disconnect on the official client to trigger its cleanup
-        if (server.officialQrwcClient && server.officialQrwcClient.disconnect) {
-          server.officialQrwcClient.disconnect();
-        }
       } catch (error) {
         // Ignore errors during cleanup
       }
@@ -124,24 +117,23 @@ describe('MCP Server Signal Handler Cleanup (BUG-028)', () => {
     // Mock required properties for shutdown
     server.isConnected = true;
     server.transport = { close: async () => {} } as any;
-    server.officialQrwcClient = { disconnect: () => {} } as any; // disconnect is sync, not async
+    // Don't mock officialQrwcClient - use the real one that was created
     server.toolRegistry = { cleanup: async () => {} } as any;
 
     // Shutdown server
     await server.shutdown();
 
-    // After shutdown, only OfficialQRWCClient handlers should remain (it doesn't clean up its own handlers)
+    // After shutdown, all handlers should be removed (OfficialQRWCClient now cleans up properly)
     // MCPServer's graceful shutdown and error handlers should be removed
-    expect(process.listenerCount('SIGINT')).toBe(beforeCounts.SIGINT + 1); // Only QRWC handler remains
-    expect(process.listenerCount('SIGTERM')).toBe(beforeCounts.SIGTERM + 1); // Only QRWC handler remains
+    expect(process.listenerCount('SIGINT')).toBe(beforeCounts.SIGINT); // All handlers removed
+    expect(process.listenerCount('SIGTERM')).toBe(beforeCounts.SIGTERM); // All handlers removed
     expect(process.listenerCount('SIGUSR2')).toBe(beforeCounts.SIGUSR2); // Graceful handler removed
     expect(process.listenerCount('uncaughtException')).toBe(beforeCounts.uncaughtException); // Error handler removed
     expect(process.listenerCount('unhandledRejection')).toBe(beforeCounts.unhandledRejection); // Error handler removed
   });
 
-  it('should properly clean up MCPServer handlers but OfficialQRWCClient handlers accumulate', async () => {
-    // This test verifies that MCPServer's own handlers are cleaned up properly
-    // even though OfficialQRWCClient doesn't clean up its handlers (a bug in that component)
+  it('should properly clean up all handlers including OfficialQRWCClient', async () => {
+    // This test verifies that both MCPServer and OfficialQRWCClient handlers are cleaned up properly
     
     const setupMethod = Object.getPrototypeOf(new MCPServer(config)).constructor.prototype.setupGracefulShutdown;
     let sigusr2Count = process.listenerCount('SIGUSR2');
@@ -162,7 +154,7 @@ describe('MCP Server Signal Handler Cleanup (BUG-028)', () => {
       // Mock for shutdown
       server.isConnected = true;
       server.transport = { close: async () => {} } as any;
-      server.officialQrwcClient = { disconnect: () => {} } as any;
+      // Don't mock officialQrwcClient - use the real one
       server.toolRegistry = { cleanup: async () => {} } as any;
 
       await server.shutdown();
@@ -182,7 +174,6 @@ describe('MCP Server Signal Handler Cleanup (BUG-028)', () => {
     expect(process.listenerCount('uncaughtException')).toBe(uncaughtCount);
     expect(process.listenerCount('unhandledRejection')).toBe(unhandledCount);
     
-    // Note: SIGINT and SIGTERM will accumulate due to OfficialQRWCClient not cleaning up
-    // This is a known issue in OfficialQRWCClient that should be fixed separately
+    // Note: SIGINT and SIGTERM handlers are now properly cleaned up by OfficialQRWCClient
   });
 });

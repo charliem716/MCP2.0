@@ -354,7 +354,7 @@ export class MCPServer {
       }
 
       // Disconnect QRWC client
-      await this.officialQrwcClient.disconnect();
+      this.officialQrwcClient.disconnect();
 
       // Cleanup tool registry
       await this.toolRegistry.cleanup();

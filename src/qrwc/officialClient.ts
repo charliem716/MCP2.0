@@ -48,6 +48,8 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   private reconnectTimer?: NodeJS.Timeout;
   private shutdownInProgress = false;
   private disconnectTime: Date | null = null;
+  private shutdownHandler?: () => void;
+  private signalHandlersInstalled = false;
 
   constructor(options: OfficialQRWCClientOptions) {
     super();
@@ -154,6 +156,9 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Disconnect from Q-SYS Core
    */
   disconnect(): void {
+    // Always clean up signal handlers, even if already disconnected
+    this.removeGracefulShutdownHandlers();
+    
     // Prevent multiple disconnect calls
     if (
       this.shutdownInProgress ||
@@ -520,12 +525,40 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Set up graceful shutdown handlers
    */
   private setupGracefulShutdown(): void {
-    const shutdown = (): void => {
+    // Avoid duplicate handler installation
+    if (this.signalHandlersInstalled) {
+      return;
+    }
+
+    // Create and store the shutdown handler with bound context
+    this.shutdownHandler = () => {
+      this.logger.debug('Graceful shutdown signal received');
       this.disconnect();
     };
 
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-    process.on('beforeExit', shutdown);
+    // Add handlers
+    process.on('SIGTERM', this.shutdownHandler);
+    process.on('SIGINT', this.shutdownHandler);
+    process.on('beforeExit', this.shutdownHandler);
+    
+    this.signalHandlersInstalled = true;
+    this.logger.debug('Signal handlers installed');
+  }
+  
+  /**
+   * Remove graceful shutdown handlers
+   */
+  private removeGracefulShutdownHandlers(): void {
+    if (!this.signalHandlersInstalled || !this.shutdownHandler) {
+      return;
+    }
+
+    process.removeListener('SIGTERM', this.shutdownHandler);
+    process.removeListener('SIGINT', this.shutdownHandler);
+    process.removeListener('beforeExit', this.shutdownHandler);
+    
+    this.signalHandlersInstalled = false;
+    this.shutdownHandler = undefined;
+    this.logger.debug('Signal handlers removed');
   }
 }
