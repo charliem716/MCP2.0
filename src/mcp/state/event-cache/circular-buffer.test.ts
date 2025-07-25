@@ -1,5 +1,7 @@
-import logger from '../shared/logger';
+import { createLogger } from '../../../shared/utils/logger.js';
 import { CircularBuffer } from './circular-buffer';
+
+const logger = createLogger('CircularBufferTest');
 
 describe('CircularBuffer', () => {
   describe('queryTimeRange bug reproduction', () => {

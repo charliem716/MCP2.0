@@ -49,11 +49,13 @@ const config: Config = {
   watchPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
   globals: {
     'ts-jest': {
-      useESM: true,
-      tsconfig: 'tsconfig.test.json',
+      tsconfig: {
+        module: 'commonjs',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      },
     },
   },
-  extensionsToTreatAsEsm: ['.ts'],
   modulePathIgnorePatterns: ['<rootDir>/dist/'],
 };
 

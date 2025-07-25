@@ -29,13 +29,13 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "removeComments": false,
     "isolatedModules": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node", "jest"]
   },
-  "include": ["src/**/*", "tests/**/*", "scripts/**/*", "*.ts", "*.mjs", "*.js"],
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "dist",
@@ -45,7 +45,8 @@
     "debug-*.ts",
     "verify-*.cjs",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "**/*.d.ts"
   ],
   "ts-node": {
     "esm": true,

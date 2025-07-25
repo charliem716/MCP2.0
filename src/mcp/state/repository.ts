@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { EventEmitter } from 'events';
-import type { globalLogger as logger } from '../../shared/utils/logger.js';
 
 /**
  * Q-SYS Control State Schema

@@ -12,6 +12,7 @@ jest.mock('winston', () => ({
     simple: jest.fn(() => ({ type: 'simple' })),
     prettyPrint: jest.fn(() => ({ type: 'prettyPrint' })),
     printf: jest.fn(() => ({ type: 'printf' })),
+    metadata: jest.fn(() => ({ type: 'metadata' })),
   },
   transports: {
     Console: jest.fn().mockImplementation(() => ({

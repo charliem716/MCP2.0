@@ -405,7 +405,7 @@ describe('CacheInvalidationManager', () => {
     });
   });
 
-  describe('getAllRules', () => {
+  describe('getRules', () => {
     it('should return all rules', () => {
       const rules: InvalidationRule[] = [
         {
@@ -429,7 +429,7 @@ describe('CacheInvalidationManager', () => {
 
       rules.forEach(rule => manager.addRule(rule));
 
-      const allRules = manager.getAllRules();
+      const allRules = manager.getRules();
       expect(allRules).toHaveLength(2);
       expect(allRules).toEqual(expect.arrayContaining(rules));
     });
@@ -456,7 +456,7 @@ describe('CacheInvalidationManager', () => {
       manager.addRule(lowPriority);
       manager.addRule(highPriority);
 
-      const rules = manager.getAllRules();
+      const rules = manager.getRules();
       expect(rules[0].priority).toBe(10);
       expect(rules[1].priority).toBe(1);
     });
@@ -520,7 +520,7 @@ describe('CacheInvalidationManager', () => {
       manager.addRule(rule);
       manager.shutdown();
 
-      expect(manager.getAllRules()).toHaveLength(0);
+      expect(manager.getRules()).toHaveLength(0);
     });
   });
 

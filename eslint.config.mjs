@@ -5,20 +5,20 @@ import tseslint from 'typescript-eslint';
 
 const globals = {
   // Node.js globals
-  console: 'readonly',
-  process: 'readonly',
-  Buffer: 'readonly',
-  __dirname: 'readonly',
-  __filename: 'readonly',
-  module: 'readonly',
-  require: 'readonly',
-  global: 'readonly',
-  setImmediate: 'readonly',
-  clearImmediate: 'readonly',
-  setTimeout: 'readonly',
-  clearTimeout: 'readonly',
-  setInterval: 'readonly',
-  clearInterval: 'readonly',
+  console: true,
+  process: true,
+  Buffer: true,
+  __dirname: true,
+  __filename: true,
+  module: true,
+  require: true,
+  global: true,
+  setImmediate: true,
+  clearImmediate: true,
+  setTimeout: true,
+  clearTimeout: true,
+  setInterval: true,
+  clearInterval: true,
 };
 
 export default tseslint.config(

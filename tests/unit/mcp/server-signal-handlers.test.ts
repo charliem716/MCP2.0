@@ -36,6 +36,21 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     );
     mockProcess.listenerCount =
       EventEmitter.prototype.listenerCount.bind(mockProcess);
+    
+    // Add mock stdin/stdout/stderr
+    mockProcess.stdin = { 
+      on: jest.fn(),
+      read: jest.fn(),
+      write: jest.fn()
+    } as any;
+    mockProcess.stdout = {
+      on: jest.fn(),
+      write: jest.fn()
+    } as any;
+    mockProcess.stderr = {
+      on: jest.fn(),
+      write: jest.fn()
+    } as any;
 
     // Replace global process
     global.process = mockProcess;

@@ -426,4 +426,105 @@ describe('EventCacheManager - Memory Management', () => {
       expect(stats.groupStats[0].memory).toBeGreaterThanOrEqual(200 * 1.2); // With overhead
     });
   });
+
+  describe('Type Safety (from BUG-081)', () => {
+    it('should handle invalid change event gracefully', async () => {
+      manager.attachToAdapter(mockAdapter as unknown as Pick<QRWCClientAdapter, 'on' | 'removeListener'>);
+
+      // Emit an invalid event structure (missing required fields)
+      mockAdapter.emit('changeGroup:changes', {
+        groupId: 'test',
+        // Invalid: changes is not an array
+        changes: 'not-an-array' as unknown as any[],
+      });
+
+      // Add small delay to ensure event processing completes
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Should not crash - query returns empty because invalid events are rejected
+      const results = manager.queryTimeRange(Date.now() - 1000, Date.now());
+      expect(results).toHaveLength(0);
+    });
+
+    it('should handle valid change events with proper types', async () => {
+      manager.attachToAdapter(mockAdapter as unknown as Pick<QRWCClientAdapter, 'on' | 'removeListener'>);
+
+      const now = Date.now();
+
+      // First event - establish baseline
+      mockAdapter.emit('changeGroup:changes', {
+        groupId: 'test-group',
+        changes: [
+          {
+            Name: 'Gain.level',
+            Value: 10,
+            String: '10',
+          },
+        ],
+        timestamp: BigInt(now - 100) * 1000000n,
+        timestampMs: now - 100,
+        sequenceNumber: 1,
+      });
+
+      // Second event - creates delta
+      mockAdapter.emit('changeGroup:changes', {
+        groupId: 'test-group',
+        changes: [
+          {
+            Name: 'Gain.level',
+            Value: 15,
+            String: '15',
+          },
+        ],
+        timestamp: BigInt(now) * 1000000n,
+        timestampMs: now,
+        sequenceNumber: 2,
+      });
+
+      // Query events
+      const events = manager.querySync({ startTime: now - 200, endTime: now + 100 });
+      expect(events).toHaveLength(2);
+
+      // Second event should have delta
+      const secondEvent = events[1];
+      expect(secondEvent).toBeDefined();
+      expect(secondEvent!.delta).toBe(5);
+      expect(secondEvent!.previousValue).toBe(10);
+      expect(secondEvent!.previousString).toBe('10');
+    });
+
+    it('should handle mixed value types without type errors', async () => {
+      manager.attachToAdapter(mockAdapter as unknown as Pick<QRWCClientAdapter, 'on' | 'removeListener'>);
+
+      const now = Date.now();
+
+      // Test various value types
+      const testCases = [
+        { Name: 'BoolControl', Value: true, String: 'true' },
+        { Name: 'NumberControl', Value: 42.5, String: '42.5' },
+        { Name: 'StringControl', Value: 'active', String: 'active' },
+        { Name: 'NullControl', Value: null, String: 'null' },
+        { Name: 'UndefinedControl', Value: undefined, String: 'undefined' },
+      ];
+
+      mockAdapter.emit('changeGroup:changes', {
+        groupId: 'mixed-types',
+        changes: testCases,
+        timestamp: BigInt(now) * 1000000n,
+        timestampMs: now,
+        sequenceNumber: 1,
+      });
+
+      const events = manager.querySync({ startTime: now - 100, endTime: now + 100 });
+      expect(events).toHaveLength(5);
+
+      // Verify each type was stored correctly
+      testCases.forEach((testCase, index) => {
+        const event = events[index];
+        expect(event?.Name).toBe(testCase.Name);
+        expect(event?.Value).toBe(testCase.Value);
+        expect(event?.String).toBe(testCase.String);
+      });
+    });
+  });
 });

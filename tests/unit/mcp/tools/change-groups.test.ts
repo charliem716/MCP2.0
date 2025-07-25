@@ -69,9 +69,10 @@ describe('Change Group Tools', () => {
     it('should validate parameters', async () => {
       const result = await tool.execute({ groupId: '' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain(
-        'String must contain at least 1 character'
-      );
+      const errorObj = JSON.parse(result.content[0].text);
+      expect(errorObj.error).toBe(true);
+      expect(errorObj.message).toContain('validation failed');
+      expect(errorObj.code).toBe('VALIDATION_ERROR');
     });
   });
 

@@ -91,9 +91,13 @@ describe('BUG-069 Fix: Change Group tools error documentation', () => {
       const result = await tool.execute({ groupId: '' });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain(
-        'String must contain at least 1 character'
-      );
+      
+      // Parse the JSON error response
+      const errorResponse = JSON.parse(result.content[0].text);
+      expect(errorResponse.error).toBe(true);
+      expect(errorResponse.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse.toolName).toBe('create_change_group');
+      expect(errorResponse.message).toBe('Parameter validation failed');
     });
 
     it('documented errors should match actual behavior - disconnected', async () => {
@@ -102,7 +106,11 @@ describe('BUG-069 Fix: Change Group tools error documentation', () => {
       const result = await tool.execute({ groupId: 'test' });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Q-SYS Core not connected');
+      
+      // Parse the JSON error response
+      const errorResponse = JSON.parse(result.content[0].text);
+      expect(errorResponse.error).toBe(true);
+      expect(errorResponse.message).toBe('Q-SYS Core not connected');
     });
 
     it('documented errors should match actual behavior - invalid interval', async () => {
@@ -115,7 +123,12 @@ describe('BUG-069 Fix: Change Group tools error documentation', () => {
         intervalSeconds: 0.05,
       });
       expect(result1.isError).toBe(true);
-      expect(result1.content[0].text).toContain('greater than or equal to 0.1');
+      
+      // Parse the JSON error response
+      const errorResponse1 = JSON.parse(result1.content[0].text);
+      expect(errorResponse1.error).toBe(true);
+      expect(errorResponse1.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse1.message).toBe('Parameter validation failed');
 
       // Test above maximum
       const result2 = await tool.execute({
@@ -124,7 +137,12 @@ describe('BUG-069 Fix: Change Group tools error documentation', () => {
         intervalSeconds: 301,
       });
       expect(result2.isError).toBe(true);
-      expect(result2.content[0].text).toContain('less than or equal to 300');
+      
+      // Parse the JSON error response
+      const errorResponse2 = JSON.parse(result2.content[0].text);
+      expect(errorResponse2.error).toBe(true);
+      expect(errorResponse2.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse2.message).toBe('Parameter validation failed');
     });
 
     it('documented errors should match actual behavior - empty control names', async () => {
@@ -135,9 +153,13 @@ describe('BUG-069 Fix: Change Group tools error documentation', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain(
-        'Array must contain at least 1 element'
-      );
+      
+      // Parse the JSON error response
+      const errorResponse = JSON.parse(result.content[0].text);
+      expect(errorResponse.error).toBe(true);
+      expect(errorResponse.code).toBe('VALIDATION_ERROR');
+      expect(errorResponse.toolName).toBe('add_controls_to_change_group');
+      expect(errorResponse.message).toBe('Parameter validation failed');
     });
   });
 });

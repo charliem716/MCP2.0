@@ -6,6 +6,9 @@
 import winston from 'winston';
 import path from 'path';
 
+// Ensure winston format is available
+const { format } = winston;
+
 export interface Logger {
   info(message: string, meta?: unknown): void;
   error(message: string, meta?: unknown): void;
@@ -43,19 +46,19 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     (isDevelopment ? 'debug' : isProduction ? 'info' : 'error');
 
   // Base format for all environments
-  const baseFormat = winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.metadata({
+  const baseFormat = format.combine(
+    format.timestamp(),
+    format.errors({ stack: true }),
+    format.metadata({
       fillExcept: ['message', 'level', 'timestamp', 'service'],
     })
   );
 
   // Development format with colors and pretty printing
-  const devFormat = winston.format.combine(
+  const devFormat = format.combine(
     baseFormat,
-    winston.format.colorize(),
-    winston.format.printf(info => {
+    format.colorize(),
+    format.printf(info => {
       const { timestamp, level, message, service, metadata } = info as {
         timestamp: string;
         level: string;
@@ -74,11 +77,11 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   );
 
   // Production format as structured JSON
-  const prodFormat = winston.format.combine(baseFormat, winston.format.json());
+  const prodFormat = format.combine(baseFormat, format.json());
 
   // Test format - minimal output
-  const testFormat = winston.format.combine(
-    winston.format.printf(info => {
+  const testFormat = format.combine(
+    format.printf(info => {
       const { level, message, service } = info as {
         level: string;
         message: string;
@@ -88,7 +91,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     })
   );
 
-  const format = isTest ? testFormat : isDevelopment ? devFormat : prodFormat;
+  const selectedFormat = isTest ? testFormat : isDevelopment ? devFormat : prodFormat;
 
   // Configure transports based on environment
   const transports: winston.transport[] = [];
@@ -121,7 +124,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
 
   return {
     level,
-    format,
+    format: selectedFormat,
     transports,
     defaultMeta: { service: serviceName },
   };

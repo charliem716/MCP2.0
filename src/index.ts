@@ -54,7 +54,7 @@ async function main(): Promise<void> {
     logger.info('🚀 Starting MCP Voice/Text-Controlled Q-SYS Demo...');
 
     // Validate configuration
-    validateConfig();
+    await validateConfig();
     logger.info('✅ Configuration validated');
     debugLog('Configuration validated');
 

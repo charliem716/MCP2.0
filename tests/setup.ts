@@ -43,7 +43,13 @@ process.env['NODE_ENV'] = 'test';
 process.env['LOG_LEVEL'] = 'error';
 process.env['QSYS_HOST'] = 'localhost';
 process.env['QSYS_PORT'] = '8443';
-process.env['OPENAI_API_KEY'] = 'test-key';
+process.env['OPENAI_API_KEY'] = 'sk-test-key-for-testing-only';
+process.env['PORT'] = '3000';
+process.env['JWT_SECRET'] = 'test-jwt-secret-for-testing-purposes-only';
+process.env['SESSION_SECRET'] = 'test-session-secret-for-testing-purposes-only';
+process.env['CORS_ORIGIN'] = 'http://localhost:3000';
+process.env['RATE_LIMIT_WINDOW_MS'] = '900000';
+process.env['RATE_LIMIT_MAX_REQUESTS'] = '100';
 
 // Type declarations for global test utilities
 declare global {

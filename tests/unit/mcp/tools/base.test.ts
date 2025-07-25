@@ -202,15 +202,15 @@ describe('BaseQSysTool Response Formatting', () => {
 
     it('should handle non-Error objects in formatErrorMessage', () => {
       // Test with string error
-      const result1 = (testTool as any).formatErrorMessage('String error');
+      const result1 = (tool as any).formatErrorMessage('String error');
       expect(result1).toBe('test_tool failed: String error');
 
       // Test with number error
-      const result2 = (testTool as any).formatErrorMessage(404);
+      const result2 = (tool as any).formatErrorMessage(404);
       expect(result2).toBe('test_tool failed: 404');
 
       // Test with object error
-      const result3 = (testTool as any).formatErrorMessage({
+      const result3 = (tool as any).formatErrorMessage({
         code: 'ERROR_CODE',
       });
       expect(result3).toBe('test_tool failed: [object Object]');
@@ -218,19 +218,19 @@ describe('BaseQSysTool Response Formatting', () => {
 
     it('should handle null/undefined in extractRequestId', () => {
       // Test with null
-      const result1 = (testTool as any).extractRequestId(null);
+      const result1 = (tool as any).extractRequestId(null);
       expect(result1).toBeUndefined();
 
       // Test with non-object
-      const result2 = (testTool as any).extractRequestId('string');
+      const result2 = (tool as any).extractRequestId('string');
       expect(result2).toBeUndefined();
 
       // Test with object without requestId
-      const result3 = (testTool as any).extractRequestId({ other: 'value' });
+      const result3 = (tool as any).extractRequestId({ other: 'value' });
       expect(result3).toBeUndefined();
 
       // Test with non-string requestId
-      const result4 = (testTool as any).extractRequestId({ requestId: 123 });
+      const result4 = (tool as any).extractRequestId({ requestId: 123 });
       expect(result4).toBeUndefined();
     });
   });
@@ -238,7 +238,7 @@ describe('BaseQSysTool Response Formatting', () => {
   // BUG-055 regression tests - Zod type conversion
   describe('BUG-055: Zod type conversion fixes', () => {
     it('should handle ZodObject schema without type conversion errors', () => {
-      const properties = (testTool as any).getSchemaProperties();
+      const properties = (tool as any).getSchemaProperties();
 
       expect(properties).toBeDefined();
       expect(properties).toHaveProperty('value');

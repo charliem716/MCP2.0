@@ -9,9 +9,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
 import { ConfigurationError } from '../types/errors.js';
-import { createLogger } from './logger.js';
-
-const logger = createLogger('Env');
+// Import logger only for validateConfig function
+// Avoid circular dependency during environment parsing
+import type { Logger } from './logger.js';
 
 // Load environment variables from .env file
 dotenv.config({
@@ -55,12 +55,14 @@ function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
     const configContent = readFileSync(configPath, 'utf-8');
     const config = JSON.parse(configContent) as QSysConfigJSON;
     if (process.env['MCP_MODE'] !== 'true') {
-      logger.info('Loaded Q-SYS Core configuration from qsys-core.config.json');
+      // Use console during initialization
+      console.info('Loaded Q-SYS Core configuration from qsys-core.config.json');
     }
     return config.qsysCore;
   } catch (error) {
     if (process.env['MCP_MODE'] !== 'true') {
-      logger.warn('Failed to load qsys-core.config.json:', error);
+      // Use console during initialization
+      console.warn('Failed to load qsys-core.config.json:', error);
     }
     return null;
   }
@@ -150,16 +152,26 @@ function parseEnvironment(): Environment {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    logger.error('Invalid environment configuration:');
-    logger.error(JSON.stringify(result.error.format(), null, 2));
+    // Use console.error during environment parsing to avoid circular dependency
+    if (process.env['NODE_ENV'] === 'test') {
+      // In test mode, show minimal error info
+      const errors = result.error.errors.map((e: any) => ({
+        path: e.path.join('.'),
+        message: e.message
+      }));
+      console.error('Environment validation failed:', errors);
+    } else {
+      console.error('Invalid environment configuration:');
+      console.error(JSON.stringify(result.error.format(), null, 2));
+    }
 
     // In development, show helpful error messages
     if (process.env['NODE_ENV'] === 'development') {
-      logger.error('Common fixes:');
-      logger.error('• Copy .env.example to .env and fill in required values');
-      logger.error('• Ensure OPENAI_API_KEY is set and starts with "sk-"');
-      logger.error('• Check that port numbers are valid (1-65535)');
-      logger.error('• Verify IP addresses are in correct format');
+      console.error('Common fixes:');
+      console.error('• Copy .env.example to .env and fill in required values');
+      console.error('• Ensure OPENAI_API_KEY is set and starts with "sk-"');
+      console.error('• Check that port numbers are valid (1-65535)');
+      console.error('• Verify IP addresses are in correct format');
     }
 
     // Exit with error code for scripts/CI
@@ -190,15 +202,9 @@ export const isTest = env.NODE_ENV === 'test';
  * Get the application root directory
  */
 function getAppRoot(): string {
-  if (typeof __dirname !== 'undefined') {
-    // CommonJS
-    return path.resolve(__dirname, '../../../');
-  } else {
-    // ES Modules
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    return path.resolve(__dirname, '../../../');
-  }
+  // Use process.cwd() for consistent behavior in both CommonJS and ES modules
+  // This assumes the app is run from the project root
+  return process.cwd();
 }
 
 export const appRoot = getAppRoot();
@@ -287,11 +293,15 @@ export const config = {
 /**
  * Validate configuration at startup
  */
-export function validateConfig(): void {
+export async function validateConfig(): Promise<void> {
   // Skip console output in MCP mode to avoid polluting stdout
   if (process.env['MCP_MODE'] === 'true') {
     return;
   }
+
+  // Lazy load logger to avoid circular dependency
+  const { createLogger } = await import('./logger.js');
+  const logger = createLogger('Env');
 
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Port: ${env.PORT}`);
