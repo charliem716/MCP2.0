@@ -55,8 +55,10 @@ describe('logger', () => {
 
   describe('createLogger', () => {
     it('should create a logger instance', () => {
+      const winston = require('winston');
       const _logger = createLogger('test-service');
 
+      expect(winston.createLogger).toHaveBeenCalled();
       expect(_logger).toBeDefined();
       expect(_logger.error).toBeDefined();
       expect(_logger.warn).toBeDefined();

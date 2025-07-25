@@ -156,21 +156,21 @@ describe('Floating Promise Prevention', () => {
       };
       process.on('unhandledRejection', handler);
 
-      // Create a floating promise (bad pattern)
-      const floatingPromise = Promise.reject(new Error('Floating rejection'));
+      try {
+        // Create a floating promise (bad pattern)
+        // Use void to indicate we're intentionally not handling this
+        void Promise.reject(new Error('Floating rejection'));
 
-      // Wait a tick
-      await new Promise(resolve => setImmediate(resolve));
+        // Wait for the rejection to be detected
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Check if it was caught
-      expect(unhandledRejection).toBeTruthy();
-      expect(unhandledRejection.message).toBe('Floating rejection');
-
-      // Cleanup
-      process.removeListener('unhandledRejection', handler);
-
-      // Handle the rejection to prevent test failure
-      floatingPromise.catch(() => {});
+        // Check if it was caught
+        expect(unhandledRejection).toBeTruthy();
+        expect(unhandledRejection.message).toBe('Floating rejection');
+      } finally {
+        // Cleanup
+        process.removeListener('unhandledRejection', handler);
+      }
     });
 
     it('should not create floating promises with proper handling', async () => {
