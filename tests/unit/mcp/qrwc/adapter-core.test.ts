@@ -52,7 +52,13 @@ describe('QRWCClientAdapter - Core Functionality', () => {
         });
 
         // Verify the result
-        expect(result).toEqual({ result: 'Controls updated successfully' });
+        expect(result).toHaveProperty('result');
+        const results = (result as any).result;
+        expect(Array.isArray(results)).toBe(true);
+        expect(results[0]).toMatchObject({
+          Name: 'MainMixer.gain',
+          Result: 'Success'
+        });
       });
 
       it('should handle control-only names (no component)', async () => {
@@ -124,7 +130,13 @@ describe('QRWCClientAdapter - Core Functionality', () => {
         });
 
         // Should succeed since we're setting MyComponent.channel
-        expect(result).toEqual({ result: 'Controls updated successfully' });
+        expect(result).toHaveProperty('result');
+        const results = (result as any).result;
+        expect(Array.isArray(results)).toBe(true);
+        expect(results[0]).toMatchObject({
+          Name: 'MyComponent.channel',
+          Result: 'Success'
+        });
         const qrwc = mockClient.getQrwc();
         expect(qrwc.components.MyComponent.controls.channel.Value).toBe(-3);
       });

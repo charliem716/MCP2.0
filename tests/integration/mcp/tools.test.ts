@@ -58,9 +58,10 @@ describe('MCP Tools Integration Tests', () => {
         console.error('Component result error:', componentsResult.content[0].text);
       }
       expect(componentsResult.isError).toBe(false);
-      expect(componentsResult.content[0].text).toContain('Found 2 components');
-      expect(componentsResult.content[0].text).toContain('MainGain');
-      expect(componentsResult.content[0].text).toContain('OutputMixer');
+      const components = JSON.parse(componentsResult.content[0].text!);
+      expect(components).toHaveLength(2);
+      expect(components[0].Name).toBe('MainGain');
+      expect(components[1].Name).toBe('OutputMixer');
 
       // Step 2: List controls for a specific component
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
@@ -84,9 +85,10 @@ describe('MCP Tools Integration Tests', () => {
       });
 
       expect(controlsResult.isError).toBe(false);
-      expect(controlsResult.content[0].text).toContain('Found 2 controls');
-      expect(controlsResult.content[0].text).toContain('gain');
-      expect(controlsResult.content[0].text).toContain('mute');
+      const controls = JSON.parse(controlsResult.content[0].text!);
+      expect(controls).toHaveLength(2);
+      expect(controls[0].name).toBe('gain');
+      expect(controls[1].name).toBe('mute');
     });
   });
 
@@ -115,8 +117,9 @@ describe('MCP Tools Integration Tests', () => {
       });
 
       expect(getResult.isError).toBe(false);
-      expect(getResult.content[0].text).toContain('MainGain.gain');
-      expect(getResult.content[0].text).toContain('MainGain.gain: -10');
+      const values = JSON.parse(getResult.content[0].text!);
+      expect(values[0].name).toBe('MainGain.gain');
+      expect(values[0].value).toBe(-10);
 
       // Step 2: Set new control values
       mockQrwcClient.sendCommand
@@ -131,9 +134,9 @@ describe('MCP Tools Integration Tests', () => {
       });
 
       expect(setResult.isError).toBe(false);
-      expect(setResult.content[0].text).toContain(
-        'Set 2/2 controls successfully'
-      );
+      const setResults = JSON.parse(setResult.content[0].text!);
+      expect(setResults).toHaveLength(2);
+      expect(setResults.filter((r: any) => r.success).length).toBe(2);
 
       // Verify correct QRWC commands were sent
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
@@ -160,9 +163,11 @@ describe('MCP Tools Integration Tests', () => {
       });
 
       expect(verifyResult.isError).toBe(false);
-      expect(verifyResult.content[0].text).toContain('Control Values');
-      expect(verifyResult.content[0].text).toContain('MainGain.gain');
-      expect(verifyResult.content[0].text).toContain('MainGain.mute');
+      const verifiedValues = JSON.parse(verifyResult.content[0].text!);
+      expect(verifiedValues[0].name).toBe('MainGain.gain');
+      expect(verifiedValues[0].value).toBe(0);
+      expect(verifiedValues[1].name).toBe('MainGain.mute');
+      expect(verifiedValues[1].value).toBe(true);
     });
 
     it('should handle control ramping', async () => {
@@ -257,7 +262,10 @@ describe('MCP Tools Integration Tests', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Set 1/2 controls successfully');
+      const partialResults = JSON.parse(result.content[0].text!);
+      expect(partialResults).toHaveLength(2);
+      expect(partialResults.filter((r: any) => r.success).length).toBe(1);
+      expect(partialResults.filter((r: any) => !r.success).length).toBe(1);
     });
 
     it('should validate parameters before execution', async () => {
@@ -298,7 +306,8 @@ describe('MCP Tools Integration Tests', () => {
       const componentsResult = await registry.callTool('list_components', {
         filter: 'Gain',
       });
-      expect(componentsResult.content[0].text).toContain('3 components'); // Filtered
+      const filteredComponents = JSON.parse(componentsResult.content[0].text!);
+      expect(filteredComponents).toHaveLength(3); // Filtered
 
       // Step 3: Mute all microphones
       mockQrwcClient.sendCommand
@@ -311,9 +320,9 @@ describe('MCP Tools Integration Tests', () => {
           { name: 'MicGain2.mute', value: true },
         ],
       });
-      expect(muteResult.content[0].text).toContain(
-        'Set 2/2 controls successfully'
-      );
+      const muteResults = JSON.parse(muteResult.content[0].text!);
+      expect(muteResults).toHaveLength(2);
+      expect(muteResults.filter((r: any) => r.success).length).toBe(2);
 
       // Step 4: Set program level with ramp
       mockQrwcClient.sendCommand.mockResolvedValueOnce({ id: 'program-1' });
@@ -321,9 +330,9 @@ describe('MCP Tools Integration Tests', () => {
       const levelResult = await registry.callTool('set_control_values', {
         controls: [{ name: 'ProgramGain.gain', value: -6, ramp: 1.0 }],
       });
-      expect(levelResult.content[0].text).toContain(
-        'Set 1/1 controls successfully'
-      );
+      const levelResults = JSON.parse(levelResult.content[0].text!);
+      expect(levelResults).toHaveLength(1);
+      expect(levelResults[0].success).toBe(true);
     });
   });
 

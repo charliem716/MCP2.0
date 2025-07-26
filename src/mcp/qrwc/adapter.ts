@@ -13,7 +13,7 @@ import {
   validateControlValue,
   isRetryableError as isRetryableErrorValidator,
 } from './validators.js';
-import { QSysError, QSysErrorCode, NetworkError } from '../../shared/types/errors.js';
+import { QSysError, QSysErrorCode, NetworkError, ValidationError } from '../../shared/types/errors.js';
 import { withErrorRecovery } from '../../shared/utils/error-recovery.js';
 // Import removed - extractControlValue is now in command-handlers.js
 import {
@@ -344,21 +344,27 @@ export class QRWCClientAdapter
     const result = await handleControlSet(params, this.officialClient);
     const resultArray = (result as { result: Array<{ Name: string; Result: string; Error?: string }> }).result;
     
-    // Check for any errors in the results
-    const errors = resultArray.filter(r => r.Result === 'Error');
-    
-    // If there are any errors with invalid control name format, throw
-    const invalidFormatError = errors.find(e => e.Error?.includes('Invalid control name format'));
-    if (invalidFormatError) {
-      throw new Error(invalidFormatError.Error);
+    // Check for any errors that should be thrown as exceptions
+    const errorResult = resultArray.find(r => r.Result === 'Error');
+    if (errorResult && errorResult.Error) {
+      // Throw for specific error types that tests expect as exceptions
+      if (errorResult.Error.includes('Invalid control name format')) {
+        throw new ValidationError(
+          errorResult.Error,
+          [{ field: 'Name', message: errorResult.Error, code: 'INVALID_FORMAT' }],
+          { controlName: errorResult.Name }
+        );
+      }
+      if (errorResult.Error.includes('Component not found')) {
+        throw new QSysError(
+          errorResult.Error,
+          QSysErrorCode.INVALID_COMPONENT,
+          { componentName: errorResult.Name }
+        );
+      }
     }
     
-    // If all succeeded, return simple success message
-    if (errors.length === 0) {
-      return { result: 'Controls updated successfully' };
-    }
-    
-    // Otherwise return the detailed array
+    // Always return the detailed array format for consistency
     return result;
   }
 

@@ -52,7 +52,13 @@ describe('QRWCClientAdapter - Reliability (Minimal)', () => {
         ]
       });
 
-      expect(result).toEqual({ result: 'Controls updated successfully' });
+      expect(result).toHaveProperty('result');
+      const results = (result as any).result;
+      expect(Array.isArray(results)).toBe(true);
+      expect(results[0]).toMatchObject({
+        Name: 'TestComponent.TestControl',
+        Result: 'Success'
+      });
     });
 
     it('should validate Control.Set parameters', async () => {
