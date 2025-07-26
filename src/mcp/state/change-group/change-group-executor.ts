@@ -106,7 +106,7 @@ export class ChangeGroupExecutor {
 
           if (!result.success && !options.continueOnError) {
             throw new ValidationError(`Control ${control.name} failed: ${result.error}`,
-              [{ field: control.name, message: result.error || 'Validation failed', code: 'VALIDATION_ERROR' }]);
+              [{ field: control.name, message: result.error ?? 'Validation failed', code: 'VALIDATION_ERROR' }]);
           }
 
           return result;

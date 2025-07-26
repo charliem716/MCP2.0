@@ -637,7 +637,7 @@ export class QRWCClientAdapter
     }
     
     const groupId = params['Id'] as string;
-    const rate = params['Rate'] as number || 1; // Default 1 second
+    const rate = params['Rate'] as number ?? 1; // Default 1 second
     
     const group = this.changeGroups.get(groupId);
     if (!group) {

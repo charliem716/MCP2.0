@@ -48,8 +48,8 @@ export class MCPServer {
 
   constructor(private config: MCPServerConfig) {
     debugLog('MCPServer constructor called', config);
-    this.serverName = config.name || 'qsys-mcp-server';
-    this.serverVersion = config.version || '1.0.0';
+    this.serverName = config.name ?? 'qsys-mcp-server';
+    this.serverVersion = config.version ?? '1.0.0';
 
     // Initialize the MCP server with capabilities
     debugLog('Creating MCP Server instance');
@@ -72,9 +72,9 @@ export class MCPServer {
     // Initialize components
     this.officialQrwcClient = new OfficialQRWCClient({
       host: config.qrwc.host,
-      port: config.qrwc.port || 443,
+      port: config.qrwc.port ?? 443,
       pollingInterval: 350,
-      reconnectInterval: config.qrwc.reconnectInterval || 5000,
+      reconnectInterval: config.qrwc.reconnectInterval ?? 5000,
       maxReconnectAttempts: 5,
       connectionTimeout: 10000,
       enableAutoReconnect: true,
@@ -83,8 +83,8 @@ export class MCPServer {
 
     // Initialize Event Cache Manager
     this.eventCacheManager = new EventCacheManager({
-      maxEvents: config.eventCache?.maxEvents || 100000,
-      maxAgeMs: config.eventCache?.maxAgeMs || 3600000, // 1 hour default
+      maxEvents: config.eventCache?.maxEvents ?? 100000,
+      maxAgeMs: config.eventCache?.maxAgeMs ?? 3600000, // 1 hour default
     });
 
     // Attach event cache to adapter to start capturing events

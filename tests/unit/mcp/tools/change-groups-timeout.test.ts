@@ -76,7 +76,7 @@ describe('BUG-105: read_change_group_events timeout protection', () => {
       timeout: 5000, // 5 second timeout
     });
 
-    expect(result.isError || false).toBe(false);
+    expect(result.isError ?? false).toBe(false);
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe('text');
     const response = JSON.parse(result.content[0].text!);
@@ -116,7 +116,7 @@ describe('BUG-105: read_change_group_events timeout protection', () => {
     });
 
     // Should complete successfully before default timeout
-    expect(result.isError || false).toBe(false);
+    expect(result.isError ?? false).toBe(false);
     expect(result.content).toBeDefined();
     const response = JSON.parse(result.content[0].text!);
     expect(response.success).toBe(true);
@@ -141,7 +141,7 @@ describe('BUG-105: read_change_group_events timeout protection', () => {
       timeout: 30000, // 30 second timeout
     });
 
-    expect(result.isError || false).toBe(false);
+    expect(result.isError ?? false).toBe(false);
     expect(result.content).toBeDefined();
     const response = JSON.parse(result.content[0].text!);
     expect(response.success).toBe(true);

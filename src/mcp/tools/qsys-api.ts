@@ -114,10 +114,10 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
 
   private queryMethods(params: QueryQSysAPIParams) {
     const methods = this.apiReference.queryMethods({
-      component_type: params.component_type || '',
-      method_category: params.method_category || '',
-      search: params.search || '',
-      method_name: params.method_name || '',
+      component_type: params.component_type ?? '',
+      method_category: params.method_category ?? '',
+      search: params.search ?? '',
+      method_name: params.method_name ?? '',
     });
 
     return {

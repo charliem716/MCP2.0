@@ -262,13 +262,13 @@ export async function handleControlSet(
         results.push({
           Name: name,
           Result: 'Error',
-          Error: validation.error || 'Invalid value'
+          Error: validation.error ?? 'Invalid value'
         });
         
         // Log error with control name
         logger.error('Failed to set control value', {
           control: name,
-          error: new Error(validation.error || 'Invalid value')
+          error: new Error(validation.error ?? 'Invalid value')
         });
         continue;
       }

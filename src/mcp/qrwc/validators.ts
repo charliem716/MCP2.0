@@ -41,7 +41,7 @@ export function validateControlValue(
   }
 
   const info = controlInfo as ControlInfo;
-  const type = info.type || info.Type;
+  const type = info.type ?? info.Type;
 
   switch (type) {
     case 'Boolean':
@@ -96,7 +96,7 @@ export function validateControlValue(
           error: `String control expects text, got ${typeof value}`,
         };
       }
-      const maxLength = info.maxLength || 255;
+      const maxLength = info.maxLength ?? 255;
       if (stringValue.length > maxLength) {
         return {
           valid: false,

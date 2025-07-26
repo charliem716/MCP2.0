@@ -16,7 +16,7 @@ describe('BUG-066: create_change_group silently overwrites existing groups', () 
       sendCommand: jest.fn().mockImplementation((command, params) => {
         if (command === 'ChangeGroup.AddControl') {
           const id = params.Id;
-          const controls = params.Controls || [];
+          const controls = params.Controls ?? [];
 
           // Simulate the adapter behavior
           let group = changeGroups.get(id);

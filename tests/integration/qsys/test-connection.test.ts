@@ -142,7 +142,7 @@ describe('Q-SYS Core Connection', () => {
       // Listen for disconnect event
       const handleDisconnect = (reason: string) => {
         clearTimeout(timeout);
-        resolve(reason || 'Connection closed');
+        resolve(reason ?? 'Connection closed');
       };
 
       // Check if QRWC has an 'on' method for events

@@ -81,7 +81,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      const mode = params.mode || 'summary';
+      const mode = params.mode ?? 'summary';
 
       // Validate filtered mode requires filters
       if (mode === 'filtered' && !params.filter && !params.componentFilter) {
@@ -109,7 +109,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
       }
 
       const result = response.result as { Controls?: unknown[] };
-      const allControls = result.Controls || [];
+      const allControls = result.Controls ?? [];
 
       if (!Array.isArray(allControls)) {
         throw new MCPError(
@@ -131,7 +131,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
       const limit =
         params.pagination?.limit ||
         (mode === 'filtered' ? 100 : allControls.length);
-      const offset = params.pagination?.offset || 0;
+      const offset = params.pagination?.offset ?? 0;
       const paginatedControls = filteredControls.slice(offset, offset + limit);
 
       // Format response
@@ -190,7 +190,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 
     controls.forEach((ctrl: unknown) => {
       const control = ctrl as any;
-      const componentName = control.Component || 'Unknown';
+      const componentName = control.Component ?? 'Unknown';
 
       // Group by component
       if (!byComponent[componentName]) {
@@ -247,11 +247,11 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     let filtered = controls;
 
     // Legacy component filter support
-    const componentFilter = params.filter?.component || params.componentFilter;
+    const componentFilter = params.filter?.component ?? params.componentFilter;
     if (componentFilter) {
       const regex = new RegExp(componentFilter, 'i');
       filtered = filtered.filter((ctrl: any) =>
-        regex.test(ctrl.Component || '')
+        regex.test(ctrl.Component ?? '')
       );
     }
 
@@ -265,7 +265,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     // Name pattern filter
     if (params.filter?.namePattern) {
       const regex = new RegExp(params.filter.namePattern, 'i');
-      filtered = filtered.filter((ctrl: any) => regex.test(ctrl.Name || ''));
+      filtered = filtered.filter((ctrl: any) => regex.test(ctrl.Name ?? ''));
     }
 
     // Non-default value filter
@@ -277,7 +277,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
   }
 
   private inferControlType(control: any): string {
-    const name = (control.Name || '').toLowerCase();
+    const name = (control.Name ?? '').toLowerCase();
     const type = control.Type;
 
     if (name.includes('gain') || name.includes('level')) return 'gain';

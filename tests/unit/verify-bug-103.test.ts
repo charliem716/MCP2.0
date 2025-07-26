@@ -17,7 +17,7 @@ describe('BUG-103: ESLint Verification', () => {
       hasErrors = false;
     } catch (error: any) {
       hasErrors = true;
-      output = error.stdout || error.message;
+      output = error.stdout ?? error.message;
       
       // Parse error details
       const errorMatch = output.match(

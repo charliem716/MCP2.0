@@ -134,7 +134,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
   protected async validateParams(rawParams: unknown): Promise<TParams> {
     try {
       // Use Zod's parse for strict validation
-      return this.paramsSchema.parse(rawParams || {});
+      return this.paramsSchema.parse(rawParams ?? {});
     } catch (error) {
       if (error instanceof z.ZodError) {
         const formattedErrors = error.errors
@@ -180,7 +180,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       error: true,
       toolName: this.name,
       message: error instanceof Error ? error.message : String(error),
-      code: (error as { code?: string })?.code || 'UNKNOWN_ERROR',
+      code: (error as { code?: string })?.code ?? 'UNKNOWN_ERROR',
       timestamp: new Date().toISOString(),
     };
     

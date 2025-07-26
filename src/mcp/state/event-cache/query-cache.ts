@@ -22,23 +22,23 @@ export class QueryCache {
   private misses = 0;
 
   constructor(options: { maxSize?: number; ttlMs?: number } = {}) {
-    this.maxSize = options.maxSize || 100;
-    this.ttlMs = options.ttlMs || 60000; // 60 seconds default
+    this.maxSize = options.maxSize ?? 100;
+    this.ttlMs = options.ttlMs ?? 60000; // 60 seconds default
     this.cache = new Map();
     this.keyQueue = [];
   }
 
   private getCacheKey(query: EventQuery): string {
     const normalized = {
-      groupId: query.groupId || '',
-      startTime: query.startTime || 0,
-      endTime: query.endTime || 0,
+      groupId: query.groupId ?? '',
+      startTime: query.startTime ?? 0,
+      endTime: query.endTime ?? 0,
       controlNames: query.controlNames?.sort() || [],
-      valueFilter: query.valueFilter || null,
-      limit: query.limit || 1000,
-      offset: query.offset || 0,
+      valueFilter: query.valueFilter ?? null,
+      limit: query.limit ?? 1000,
+      offset: query.offset ?? 0,
       eventTypes: query.eventTypes?.sort() || [],
-      aggregation: query.aggregation || null,
+      aggregation: query.aggregation ?? null,
     };
 
     const json = JSON.stringify(normalized);

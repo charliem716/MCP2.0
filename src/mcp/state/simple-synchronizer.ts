@@ -65,20 +65,20 @@ export class SimpleSynchronizer {
       const componentsResponse = await this.qrwcAdapter.sendCommand(
         'Component.GetComponents'
       );
-      const components = (componentsResponse as any)?.Components || [];
+      const components = (componentsResponse as any)?.Components ?? [];
 
       // Get all controls from components
       for (const component of components) {
         const controlsResponse = await this.qrwcAdapter.sendCommand(
           'Component.GetControls',
           {
-            Name: component.Name || component.name,
+            Name: component.Name ?? component.name,
           }
         );
-        const controls = (controlsResponse as any)?.Controls || [];
+        const controls = (controlsResponse as any)?.Controls ?? [];
 
         for (const control of controls) {
-          const controlName = `${component.Name || component.name}.${control.Name || control.name}`;
+          const controlName = `${component.Name ?? component.name}.${control.Name ?? control.name}`;
           updates.set(controlName, {
             name: controlName,
             value: control.Value !== undefined ? control.Value : control.value,

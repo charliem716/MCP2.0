@@ -123,7 +123,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
     // Extract status information from response
     const resp = response as { result?: QSysStatusGetResponse };
-    const baseResult = resp.result || (response as QSysStatusGetResponse);
+    const baseResult = resp.result ?? (response as QSysStatusGetResponse);
     // Cast to any to access additional fields that might be in the response
     const result = baseResult as any;
 
@@ -139,16 +139,16 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     // Build comprehensive status object
     return {
       coreInfo: {
-        name: String(result.Platform || 'Unknown Core'),
-        version: String(result.Version || 'Unknown'),
-        model: String(result.Platform || 'Unknown'),
-        platform: String(result.Platform || 'Unknown'),
-        serialNumber: String(result.SerialNumber || 'Unknown'),
+        name: String(result.Platform ?? 'Unknown Core'),
+        version: String(result.Version ?? 'Unknown'),
+        model: String(result.Platform ?? 'Unknown'),
+        platform: String(result.Platform ?? 'Unknown'),
+        serialNumber: String(result.SerialNumber ?? 'Unknown'),
         firmwareVersion: String(
-          result.FirmwareVersion || result.Version || 'Unknown'
+          result.FirmwareVersion ?? result.Version ?? 'Unknown'
         ),
         buildTime: String('Unknown'),
-        designName: String(result.DesignName || 'No Design Loaded'),
+        designName: String(result.DesignName ?? 'No Design Loaded'),
       },
       connectionStatus: {
         connected: Boolean(result.IsConnected ?? true),
@@ -156,43 +156,43 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         lastSeen: new Date().toISOString(),
       },
       systemHealth: {
-        status: String(result.Status?.String || 'unknown'),
-        temperature: Number(result.temperature || result.Temperature || 0),
-        fanSpeed: Number(result.fanSpeed || result.FanSpeed || 0),
+        status: String(result.Status?.String ?? 'unknown'),
+        temperature: Number(result.temperature ?? result.Temperature ?? 0),
+        fanSpeed: Number(result.fanSpeed ?? result.FanSpeed ?? 0),
         powerSupplyStatus: String('unknown'),
       },
       designInfo: {
         designCompiled: Boolean(result.State === 'Active'),
         compileTime: String('Unknown'),
-        processingLoad: Number(result.designInfo?.processingLoad || 0),
-        componentCount: Number(result.designInfo?.componentsCount || 0),
+        processingLoad: Number(result.designInfo?.processingLoad ?? 0),
+        componentCount: Number(result.designInfo?.componentsCount ?? 0),
         snapshotCount: Number(0),
         activeServices: [] as string[],
       },
       networkInfo: {
-        ipAddress: String(result.Network?.LAN_A?.IP || result.ipAddress || 'Unknown'),
-        macAddress: String(result.macAddress || 'Unknown'),
-        gateway: String(result.Network?.LAN_A?.Gateway || result.gateway || 'Unknown'),
+        ipAddress: String(result.Network?.LAN_A?.IP ?? result.ipAddress ?? 'Unknown'),
+        macAddress: String(result.macAddress ?? 'Unknown'),
+        gateway: String(result.Network?.LAN_A?.Gateway ?? result.gateway ?? 'Unknown'),
         dnsServers: [] as string[],
         ntpServer: String('Unknown'),
         networkMode: String('Unknown'),
       },
       performanceMetrics: {
-        cpuUsage: Number(result.Performance?.CPU || result.cpuUsage || result.CPUUsage || 0),
-        memoryUsage: Number(result.Performance?.Memory || result.memoryUsage || result.MemoryUsage || 0),
+        cpuUsage: Number(result.Performance?.CPU ?? result.cpuUsage ?? result.CPUUsage ?? 0),
+        memoryUsage: Number(result.Performance?.Memory ?? result.memoryUsage ?? result.MemoryUsage ?? 0),
         memoryUsedMB: Number(0),
         memoryTotalMB: Number(0),
         audioLatency: Number(0),
         networkLatency: Number(0),
-        fanSpeed: Number(result.fanSpeed || result.FanSpeed || 0),
+        fanSpeed: Number(result.fanSpeed ?? result.FanSpeed ?? 0),
       },
       // Additional fields from Q-SYS response
-      Platform: String(result.Platform || 'Unknown'),
-      Version: String(result.Version || 'Unknown'),
-      DesignName: String(result.DesignName || 'Unknown'),
-      DesignCode: String(result.DesignCode || ''),
+      Platform: String(result.Platform ?? 'Unknown'),
+      Version: String(result.Version ?? 'Unknown'),
+      DesignName: String(result.DesignName ?? 'Unknown'),
+      DesignCode: String(result.DesignCode ?? ''),
       Status: {
-        Name: String(result.Status?.String || 'Unknown'),
+        Name: String(result.Status?.String ?? 'Unknown'),
         Code: Number(result.Status?.Code ?? -1),
         PercentCPU: Number(0),
       },
@@ -211,8 +211,8 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     
     // Core info
     if (status.coreInfo) {
-      result += `Design: ${status.coreInfo.designName || 'Unknown'}\n`;
-      result += `Platform: ${status.coreInfo.platform || 'Unknown'}\n`;
+      result += `Design: ${status.coreInfo.designName ?? 'Unknown'}\n`;
+      result += `Platform: ${status.coreInfo.platform ?? 'Unknown'}\n`;
       if (status.coreInfo.model) {
         result += `Model: ${status.coreInfo.model}\n`;
       }
@@ -233,10 +233,10 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     
     // System health
     if (status.systemHealth) {
-      result += `\nSystem Status: ${status.systemHealth.status || 'Unknown'}\n`;
+      result += `\nSystem Status: ${status.systemHealth.status ?? 'Unknown'}\n`;
     }
     if (status.Status) {
-      result += `Status: ${status.Status.Name || 'OK'} (Code: ${status.Status.Code})\n`;
+      result += `Status: ${status.Status.Name ?? 'OK'} (Code: ${status.Status.Code})\n`;
     }
     
     // Network info if requested
@@ -271,7 +271,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     const componentsResponse = await this.qrwcClient.sendCommand(
       'Component.GetComponents'
     );
-    const components = (componentsResponse as any)?.result || [];
+    const components = (componentsResponse as any)?.result ?? [];
 
     // Detect status components using scoring system
     const statusComponents = this.detectStatusComponents(components);
@@ -296,7 +296,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
           }
         );
 
-        const controls = (controlsResponse as any)?.result?.Controls || [];
+        const controls = (controlsResponse as any)?.result?.Controls ?? [];
 
         // Process controls into meaningful status data
         const componentStatus: Record<string, any> = {};
@@ -355,7 +355,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
    */
   private getStatusScore(component: any): number {
     let score = 0;
-    const name = (component.Name || '').toLowerCase();
+    const name = (component.Name ?? '').toLowerCase();
 
     // Name pattern matching (3 points)
     const statusPatterns = ['status', 'monitor', 'health', 'diagnostic'];
@@ -387,7 +387,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     if (Array.isArray(component.Properties)) {
       const hasStatusProperties = component.Properties.some((prop: any) =>
         ['status', 'health', 'state', 'online'].some(keyword =>
-          String(prop.Name || '')
+          String(prop.Name ?? '')
             .toLowerCase()
             .includes(keyword)
         )

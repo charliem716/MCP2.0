@@ -84,7 +84,7 @@ export class CoreCache extends EventEmitter {
       logger.debug('Cache miss', { controlName });
     }
 
-    return state || null;
+    return state ?? null;
   }
 
   /**

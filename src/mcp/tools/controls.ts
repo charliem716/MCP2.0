@@ -138,7 +138,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       } else if (resp.result.Controls && Array.isArray(resp.result.Controls)) {
         // Component.GetControls format
         controls = resp.result.Controls;
-        componentName = resp.result.Name || 'unknown';
+        componentName = resp.result.Name ?? 'unknown';
       }
     }
 
@@ -171,7 +171,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
           ctrl.Component ||
           componentName ||
           this.extractComponentFromName(ctrl.Name),
-        type: controlType || ctrl.Type || 'unknown',
+        type: controlType ?? ctrl.Type ?? 'unknown',
         value,
         metadata: this.extractMetadata(ctrl),
       };
@@ -202,7 +202,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
   }
 
   private inferControlType(control: QSysControlInfo): string {
-    const name = control.Name || '';
+    const name = control.Name ?? '';
     const lowerName = name.toLowerCase();
 
     // Infer type from control name patterns

@@ -119,7 +119,7 @@ describe('BUG-106: TypeScript Compilation Fixes', () => {
       };
 
       // Verify the correct property access
-      const statusName = status.Status.Name || 'OK';
+      const statusName = status.Status.Name ?? 'OK';
       const statusCode = status.Status.Code;
       
       expect(statusName).toBe('OK');

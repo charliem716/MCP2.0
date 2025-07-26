@@ -66,12 +66,12 @@ export function extractControlValue(state: unknown): {
         value = stateObj.String;
         type = 'String';
       } else if (stateObj.Type === 'Float' || stateObj.Type === 'Number') {
-        value = parseFloat(stateObj.String || '0');
+        value = parseFloat(stateObj.String ?? '0');
         type = 'Number';
       } else {
         // Default to String value
         value = stateObj.String;
-        type = stateObj.Type || 'String';
+        type = stateObj.Type ?? 'String';
       }
     }
   } else if (
@@ -133,7 +133,7 @@ export function qsysToMcpControl(
           : 0
         : 0;
 
-  const strValue = String(value || '');
+  const strValue = String(value ?? '');
 
   return {
     Name: controlName,

@@ -335,7 +335,7 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
       // Enable auto polling
       await this.qrwcClient.sendCommand('ChangeGroup.AutoPoll', {
         Id: params.groupId,
-        Rate: params.intervalSeconds || 1.0,
+        Rate: params.intervalSeconds ?? 1.0,
       });
 
       return {
@@ -346,8 +346,8 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
               success: true,
               groupId: params.groupId,
               autoPollEnabled: true,
-              intervalSeconds: params.intervalSeconds || 1.0,
-              message: `Auto-poll enabled for change group '${params.groupId}' at ${params.intervalSeconds || 1.0}s intervals`,
+              intervalSeconds: params.intervalSeconds ?? 1.0,
+              message: `Auto-poll enabled for change group '${params.groupId}' at ${params.intervalSeconds ?? 1.0}s intervals`,
             }),
           },
         ],
@@ -626,8 +626,8 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
             events: serializedEvents,
             count: events.length,
             timeRange: {
-              start: params.startTime || Date.now() - 60000,
-              end: params.endTime || Date.now(),
+              start: params.startTime ?? Date.now() - 60000,
+              end: params.endTime ?? Date.now(),
             },
             summary,
             message:
