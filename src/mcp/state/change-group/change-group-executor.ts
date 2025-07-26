@@ -165,7 +165,7 @@ export class ChangeGroupExecutor {
       // Throw the first error after collecting all results
       if (firstError) {
         // Attach results to the error so they can be retrieved
-        (firstError as any).__results = results;
+        (firstError as Error & { __results?: ControlChangeResult[] }).__results = results;
         throw firstError;
       }
     }
