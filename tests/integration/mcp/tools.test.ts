@@ -220,10 +220,15 @@ describe('MCP Tools Integration Tests', () => {
 
       expect(result.isError).toBe(false);
       const statusText = result.content[0].text!;
-      expect(statusText).toContain('Main Theater');
-      expect(statusText).toContain('Core 110f');
-      expect(statusText).toContain('IP Address:');
-      expect(statusText).toContain('CPU Usage:');
+      
+      // Parse the JSON response
+      const status = JSON.parse(statusText);
+      
+      // Check for expected values in the JSON structure
+      expect(status.DesignName).toBe('Main Theater');
+      expect(status.Platform).toBe('Core 110f');
+      expect(status.networkInfo.ipAddress).toBe('192.168.1.100');
+      expect(status.performanceMetrics.cpuUsage).toBe(45.2);
     });
   });
 
@@ -277,7 +282,8 @@ describe('MCP Tools Integration Tests', () => {
       });
 
       const statusResult = await registry.callTool('query_core_status', {});
-      expect(statusResult.content[0].text).toContain('Conference Room A');
+      const statusData = JSON.parse(statusResult.content[0].text!);
+      expect(statusData.DesignName).toBe('Conference Room A');
 
       // Step 2: Find all gain components
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
