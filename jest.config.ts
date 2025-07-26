@@ -8,9 +8,6 @@ const config: Config = {
     '**/__tests__/**/*.+(ts|tsx|js)',
     '**/*.(test|spec).+(ts|tsx|js)',
   ],
-  transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
-  },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -45,26 +42,18 @@ const config: Config = {
   restoreMocks: true,
   resetMocks: true,
   maxWorkers: '50%',
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/dist/',
-    '/coverage/',
-  ],
-  watchPathIgnorePatterns: [
-    '/node_modules/',
-    '/dist/',
-    '/coverage/',
-  ],
-  globals: {
-    'ts-jest': {
-      useESM: true,
-      tsconfig: 'tsconfig.test.json',
-    },
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
+  watchPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: {
+        module: 'commonjs',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      },
+    }],
   },
-  extensionsToTreatAsEsm: ['.ts'],
-  modulePathIgnorePatterns: [
-    '<rootDir>/dist/',
-  ],
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
 };
 
-export default config; 
+export default config;

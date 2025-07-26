@@ -1,23 +1,21 @@
-import { globalLogger as logger } from "../../../shared/utils/logger.js";
-import type { ControlState } from "../repository.js";
-import type { 
+import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import type { ControlState } from '../repository.js';
+import type {
   PersistenceConfig,
   PersistenceStats,
-  PersistedState 
-} from "./types.js";
-import { 
-  PersistenceFormat, 
-  CompressionType 
-} from "./types.js";
-import { BackupManager } from "./backup.js";
-import { FileOperations } from "./file-operations.js";
+  PersistedState,
+} from './types.js';
+import { PersistenceFormat, CompressionType } from './types.js';
+import { BackupManager } from './backup.js';
+import { FileOperations } from './file-operations.js';
+import { PersistenceError, PersistenceErrorCode } from './errors.js';
 
 /**
  * Simple and Efficient State Persistence Manager (simplified)
- * 
+ *
  * Provides reliable state persistence with:
  * - JSON file storage with atomic writes
- * - Automatic backup management  
+ * - Automatic backup management
  * - Error recovery and validation
  * - Performance monitoring and statistics
  */
@@ -39,7 +37,7 @@ export class StatePersistenceManager {
       saveIntervalMs: 60000, // 1 minute
       atomicWrites: true,
       pretty: true,
-      ...config
+      ...config,
     };
 
     this.stats = {
@@ -47,10 +45,13 @@ export class StatePersistenceManager {
       totalLoads: 0,
       fileSizeBytes: 0,
       saveErrors: 0,
-      loadErrors: 0
+      loadErrors: 0,
     };
 
-    this.backupManager = new BackupManager(this.config.filePath, this.config.backupCount);
+    this.backupManager = new BackupManager(
+      this.config.filePath,
+      this.config.backupCount
+    );
     this.fileOps = new FileOperations(this.config);
 
     logger.debug('StatePersistenceManager created', { config: this.config });
@@ -61,8 +62,10 @@ export class StatePersistenceManager {
    */
   start(): void {
     if (this.config.autoSave && !this.autoSaveTimer) {
-      logger.info('Starting auto-save', { intervalMs: this.config.saveIntervalMs });
-      
+      logger.info('Starting auto-save', {
+        intervalMs: this.config.saveIntervalMs,
+      });
+
       this.autoSaveTimer = setInterval(() => {
         logger.debug('Auto-save triggered');
         // Note: Actual save would be triggered by the cache manager
@@ -89,7 +92,7 @@ export class StatePersistenceManager {
     metadata?: Record<string, any>
   ): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
       logger.debug('Saving state', { controlCount: controls.size });
 
@@ -104,7 +107,7 @@ export class StatePersistenceManager {
         timestamp: new Date(),
         controlCount: controls.size,
         controls: Object.fromEntries(controls),
-        ...(metadata ? { metadata } : {})
+        ...(metadata ? { metadata } : {}),
       };
 
       // Save based on format
@@ -113,21 +116,26 @@ export class StatePersistenceManager {
           await this.fileOps.writeJSON(state);
           break;
         default:
-          throw new Error(`Unsupported format: ${this.config.format}`);
+          throw new PersistenceError(
+            `Unsupported format: ${this.config.format}`,
+            PersistenceErrorCode.UNSUPPORTED_FORMAT,
+            { format: this.config.format }
+          );
       }
 
       // Update stats
       this.stats.totalSaves++;
       this.stats.lastSaveTime = new Date();
-      this.stats.fileSizeBytes = await this.fileOps.getFileSize(this.config.filePath);
+      this.stats.fileSizeBytes = await this.fileOps.getFileSize(
+        this.config.filePath
+      );
 
       const duration = Date.now() - startTime;
       logger.info('State saved successfully', {
         controlCount: controls.size,
         duration,
-        fileSizeBytes: this.stats.fileSizeBytes
+        fileSizeBytes: this.stats.fileSizeBytes,
       });
-
     } catch (error) {
       this.stats.saveErrors++;
       logger.error('Failed to save state', { error });
@@ -140,7 +148,7 @@ export class StatePersistenceManager {
    */
   async loadState(): Promise<Map<string, ControlState> | null> {
     const startTime = Date.now();
-    
+
     try {
       logger.debug('Loading state');
 
@@ -158,7 +166,11 @@ export class StatePersistenceManager {
           state = await this.fileOps.readJSON();
           break;
         default:
-          throw new Error(`Unsupported format: ${this.config.format}`);
+          throw new PersistenceError(
+            `Unsupported format: ${this.config.format}`,
+            PersistenceErrorCode.UNSUPPORTED_FORMAT,
+            { format: this.config.format }
+          );
       }
 
       // Validate state
@@ -173,22 +185,23 @@ export class StatePersistenceManager {
       // Update stats
       this.stats.totalLoads++;
       this.stats.lastLoadTime = new Date();
-      this.stats.fileSizeBytes = await this.fileOps.getFileSize(this.config.filePath);
+      this.stats.fileSizeBytes = await this.fileOps.getFileSize(
+        this.config.filePath
+      );
 
       const duration = Date.now() - startTime;
       logger.info('State loaded successfully', {
         controlCount: controls.size,
         duration,
         stateVersion: state.version,
-        stateTimestamp: state.timestamp
+        stateTimestamp: state.timestamp,
       });
 
       return controls;
-
     } catch (error) {
       this.stats.loadErrors++;
       logger.error('Failed to load state', { error });
-      
+
       // Try to recover from backup
       if (this.config.backupCount > 0) {
         return await this.backupManager.recoverFromBackup(
@@ -196,7 +209,7 @@ export class StatePersistenceManager {
           state => this.validatePersistedState(state)
         );
       }
-      
+
       return null;
     }
   }
@@ -253,31 +266,60 @@ export class StatePersistenceManager {
    */
   private validatePersistedState(state: unknown): void {
     if (!state || typeof state !== 'object') {
-      throw new Error('Invalid state: not an object');
+      throw new PersistenceError(
+        'Invalid state: not an object',
+        PersistenceErrorCode.INVALID_STATE,
+        { state }
+      );
     }
-    
+
     const stateObj = state as Record<string, unknown>;
 
     if (!stateObj['version'] || typeof stateObj['version'] !== 'string') {
-      throw new Error('Invalid state: missing or invalid version');
+      throw new PersistenceError(
+        'Invalid state: missing or invalid version',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { version: stateObj['version'] }
+      );
     }
 
     if (!stateObj['timestamp']) {
-      throw new Error('Invalid state: missing timestamp');
+      throw new PersistenceError(
+        'Invalid state: missing timestamp',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { state: 'timestamp missing' }
+      );
     }
 
-    if (typeof stateObj['controlCount'] !== 'number' || stateObj['controlCount'] < 0) {
-      throw new Error('Invalid state: invalid control count');
+    if (
+      typeof stateObj['controlCount'] !== 'number' ||
+      stateObj['controlCount'] < 0
+    ) {
+      throw new PersistenceError(
+        'Invalid state: invalid control count',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { controlCount: stateObj['controlCount'] }
+      );
     }
 
     if (!stateObj['controls'] || typeof stateObj['controls'] !== 'object') {
-      throw new Error('Invalid state: missing or invalid controls');
+      throw new PersistenceError(
+        'Invalid state: missing or invalid controls',
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { controls: stateObj['controls'] }
+      );
     }
 
     // Validate control count matches
-    const actualCount = Object.keys(stateObj['controls'] as Record<string, unknown>).length;
+    const actualCount = Object.keys(
+      stateObj['controls'] as Record<string, unknown>
+    ).length;
     if (actualCount !== stateObj['controlCount']) {
-      throw new Error(`Invalid state: control count mismatch (expected ${stateObj['controlCount']}, got ${actualCount})`);
+      throw new PersistenceError(
+        `Invalid state: control count mismatch (expected ${stateObj['controlCount']}, got ${actualCount})`,
+        PersistenceErrorCode.VALIDATION_ERROR,
+        { expected: stateObj['controlCount'], actual: actualCount }
+      );
     }
   }
 }

@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Q-SYS Core Configuration",
   "description": "Configuration file for connecting to your Q-SYS Core",
-  
+
   "qsysCore": {
     "_comment": "Replace these values with your actual Q-SYS Core details",
     "host": "192.168.50.150",
     "port": 443,
-    "username": "", 
+    "username": "",
     "password": "",
     "connectionSettings": {
       "timeout": 10000,
@@ -21,21 +21,21 @@
 
   "examples": {
     "_comment": "Example configurations for different scenarios",
-    
+
     "localEmulator": {
       "host": "127.0.0.1",
       "port": 1710,
       "username": "",
       "password": ""
     },
-    
+
     "productionCore": {
-      "host": "10.0.1.50", 
+      "host": "10.0.1.50",
       "port": 443,
       "username": "your-username",
       "password": "your-password"
     },
-    
+
     "testCore": {
       "host": "192.168.100.10",
       "port": 1710,
@@ -55,4 +55,4 @@
       "portBlocked": "Ensure firewall allows access to the specified port"
     }
   }
-} 
+}

@@ -12,8 +12,8 @@ jest.mock('../../../../src/shared/utils/logger.js', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),
-    debug: jest.fn()
-  }
+    debug: jest.fn(),
+  },
 }));
 
 describe('BUG-060: Control.Set undefined variable fix', () => {
@@ -25,9 +25,9 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
       isConnected: jest.fn().mockReturnValue(true),
       setControlValue: jest.fn(),
       getQrwc: jest.fn().mockReturnValue({
-        components: {}
+        components: {},
       }),
-      sendRawCommand: jest.fn()
+      sendRawCommand: jest.fn(),
     } as any;
 
     adapter = new QRWCClientAdapter(mockOfficialClient);
@@ -40,24 +40,24 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
   it('should handle error in Control.Set without ReferenceError when control object is invalid', async () => {
     // This test verifies that when an error occurs before the name variable is assigned,
     // we don't get a ReferenceError in the catch block
-    
+
     const invalidControl = null; // This will cause an error in the try block
-    
+
     const result = await adapter.sendCommand('Control.Set', {
-      Controls: [invalidControl]
+      Controls: [invalidControl],
     });
 
     // The important part is that we don't get a ReferenceError
     // Instead, we should get a proper error response
     expect(result).toHaveProperty('result');
     expect(Array.isArray((result as any).result)).toBe(true);
-    
+
     // Check that logger.error was called with empty name (not undefined)
     expect(globalLogger.error).toHaveBeenCalledWith(
       'Failed to set control value',
       expect.objectContaining({
         control: '', // Should be empty string, not undefined
-        error: expect.any(Error)
+        error: expect.any(Error),
       })
     );
   });
@@ -65,7 +65,7 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
   it('should handle error in Control.Set with proper name when validation fails', async () => {
     const testControl = {
       Name: 'TestControl.Volume',
-      Value: 'invalid-value'
+      Value: 'invalid-value',
     };
 
     // Mock validation to fail
@@ -73,14 +73,14 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
       components: {
         TestControl: {
           controls: {
-            Volume: { type: 'Float', min: 0, max: 100 }
-          }
-        }
-      }
+            Volume: { type: 'Float', min: 0, max: 100 },
+          },
+        },
+      },
     } as any);
 
     const result = await adapter.sendCommand('Control.Set', {
-      Controls: [testControl]
+      Controls: [testControl],
     });
 
     // Check that the error includes the control name
@@ -88,7 +88,7 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
     expect(resultArray[0]).toMatchObject({
       Name: 'TestControl.Volume',
       Result: 'Error',
-      Error: expect.stringContaining('Numeric control expects')
+      Error: expect.stringContaining('Numeric control expects'),
     });
 
     // Check that logger.error was called with the correct name
@@ -96,7 +96,7 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
       'Failed to set control value',
       expect.objectContaining({
         control: 'TestControl.Volume',
-        error: expect.any(Error)
+        error: expect.any(Error),
       })
     );
   });
@@ -104,7 +104,7 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
   it('should successfully set control when valid', async () => {
     const testControl = {
       Name: 'TestControl.Volume',
-      Value: 50
+      Value: 50,
     };
 
     mockOfficialClient.setControlValue.mockResolvedValue(undefined);
@@ -112,20 +112,20 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
       components: {
         TestControl: {
           controls: {
-            Volume: { type: 'Float', min: 0, max: 100 }
-          }
-        }
-      }
+            Volume: { type: 'Float', min: 0, max: 100 },
+          },
+        },
+      },
     } as any);
 
     const result = await adapter.sendCommand('Control.Set', {
-      Controls: [testControl]
+      Controls: [testControl],
     });
 
     const resultArray = (result as any).result;
     expect(resultArray[0]).toMatchObject({
       Name: 'TestControl.Volume',
-      Result: 'Success'
+      Result: 'Success',
     });
 
     expect(mockOfficialClient.setControlValue).toHaveBeenCalledWith(

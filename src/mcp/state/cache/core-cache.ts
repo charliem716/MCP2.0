@@ -1,19 +1,24 @@
-import { EventEmitter } from "events";
-import { globalLogger as logger } from "../../../shared/utils/logger.js";
-import { LRUCache, EvictionPolicy } from "../lru-cache.js";
-import type { 
-  IStateRepository, 
-  ControlState, 
+import { EventEmitter } from 'events';
+import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import { config as envConfig } from '../../../shared/utils/env.js';
+import { LRUCache, EvictionPolicy } from '../lru-cache.js';
+import type {
+  IStateRepository,
+  ControlState,
   ChangeGroup,
   CacheConfig,
   CacheStatistics,
-  StateRepositoryEventData
-} from "../repository.js";
-import { StateRepositoryEvent, StateRepositoryError, StateUtils } from "../repository.js";
+  StateRepositoryEventData,
+} from '../repository.js';
+import {
+  StateRepositoryEvent,
+  StateRepositoryError,
+  StateUtils,
+} from '../repository.js';
 
 /**
  * Core Control State Cache
- * 
+ *
  * Provides basic cache operations and management for Q-SYS control states.
  * This is the core module that other cache modules extend.
  */
@@ -26,19 +31,17 @@ export class CoreCache extends EventEmitter {
 
   constructor() {
     super();
-    
+
     // Initialize with default config - will be overridden in initialize()
     this.config = {
-      maxEntries: 1000,
-      ttlMs: 30 * 60 * 1000, // 30 minutes
-      cleanupIntervalMs: 5 * 60 * 1000, // 5 minutes
+      maxEntries: envConfig.cache.maxEntries,
+      ttlMs: envConfig.cache.ttlMs,
+      cleanupIntervalMs: envConfig.timeouts.cacheCleanupIntervalMs,
       enableMetrics: true,
-      persistenceEnabled: false
+      persistenceEnabled: false,
     };
-    
-    this.cache = new LRUCache<string, ControlState>(
-      this.config.maxEntries
-    );
+
+    this.cache = new LRUCache<string, ControlState>(this.config.maxEntries);
 
     this.setupCacheEventHandlers();
     logger.debug('CoreCache created');
@@ -54,18 +57,16 @@ export class CoreCache extends EventEmitter {
     }
 
     this.config = { ...this.config, ...config };
-    
+
     // Recreate cache with new configuration
     await this.shutdownCache();
-    this.cache = new LRUCache<string, ControlState>(
-      this.config.maxEntries
-    );
-    
+    this.cache = new LRUCache<string, ControlState>(this.config.maxEntries);
+
     this.setupCacheEventHandlers();
 
     this.initialized = true;
     logger.info('CoreCache initialized', {
-      config: this.config
+      config: this.config,
     });
   }
 
@@ -74,15 +75,15 @@ export class CoreCache extends EventEmitter {
    */
   async getState(controlName: string): Promise<ControlState | null> {
     this.ensureInitialized();
-    
+
     const state = this.cache.get(controlName);
-    
+
     if (state) {
       logger.debug('Cache hit', { controlName });
     } else {
       logger.debug('Cache miss', { controlName });
     }
-    
+
     return state || null;
   }
 
@@ -91,10 +92,10 @@ export class CoreCache extends EventEmitter {
    */
   async getStates(controlNames: string[]): Promise<Map<string, ControlState>> {
     this.ensureInitialized();
-    
+
     const results = new Map<string, ControlState>();
     let hits = 0;
-    
+
     for (const name of controlNames) {
       const state = this.cache.get(name);
       if (state) {
@@ -102,13 +103,13 @@ export class CoreCache extends EventEmitter {
         hits++;
       }
     }
-    
+
     logger.debug('Batch get completed', {
       requested: controlNames.length,
       hits,
-      misses: controlNames.length - hits
+      misses: controlNames.length - hits,
     });
-    
+
     return results;
   }
 
@@ -117,17 +118,17 @@ export class CoreCache extends EventEmitter {
    */
   async setState(controlName: string, state: ControlState): Promise<void> {
     this.ensureInitialized();
-    
+
     const oldState = this.cache.get(controlName);
     this.cache.set(controlName, state);
-    
+
     logger.debug('State updated', { controlName });
-    
+
     // Emit update event
     this.emit(StateRepositoryEvent.StateChanged, {
       controlName,
       oldState,
-      newState: state
+      newState: state,
     } as StateRepositoryEventData[StateRepositoryEvent.StateChanged]);
   }
 
@@ -136,19 +137,19 @@ export class CoreCache extends EventEmitter {
    */
   async setStates(states: Map<string, ControlState>): Promise<void> {
     this.ensureInitialized();
-    
+
     for (const [name, state] of states) {
       const oldState = this.cache.get(name);
       this.cache.set(name, state);
-      
+
       // Emit individual state change events
       this.emit(StateRepositoryEvent.StateChanged, {
         controlName: name,
         oldState,
-        newState: state
+        newState: state,
       } as StateRepositoryEventData[StateRepositoryEvent.StateChanged]);
     }
-    
+
     logger.debug('Batch update completed', { count: states.size });
   }
 
@@ -157,13 +158,13 @@ export class CoreCache extends EventEmitter {
    */
   async removeState(controlName: string): Promise<boolean> {
     this.ensureInitialized();
-    
+
     const removed = this.cache.delete(controlName);
-    
+
     if (removed) {
       logger.debug('State removed', { controlName });
     }
-    
+
     return removed;
   }
 
@@ -172,20 +173,20 @@ export class CoreCache extends EventEmitter {
    */
   async removeStates(controlNames: string[]): Promise<number> {
     this.ensureInitialized();
-    
+
     let removed = 0;
-    
+
     for (const name of controlNames) {
       if (this.cache.delete(name)) {
         removed++;
       }
     }
-    
+
     logger.debug('Batch remove completed', {
       requested: controlNames.length,
-      removed
+      removed,
     });
-    
+
     return removed;
   }
 
@@ -194,10 +195,10 @@ export class CoreCache extends EventEmitter {
    */
   async clear(): Promise<void> {
     this.ensureInitialized();
-    
+
     const size = this.cache.size;
     this.cache.clear();
-    
+
     logger.info('Cache cleared', { removedEntries: size });
   }
 
@@ -271,10 +272,10 @@ export class CoreCache extends EventEmitter {
       this.emit(StateRepositoryEvent.CacheEvicted, {
         controlName: key,
         state: value,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     });
-    
+
     this.cache.on('expiration', (key: string, value: ControlState) => {
       logger.debug('Control expired in cache', { controlName: key });
       // Handle expiration if needed

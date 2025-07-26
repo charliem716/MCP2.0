@@ -1,10 +1,12 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this
+repository.
 
 ## Common Development Commands
 
 ### Build and Run
+
 ```bash
 # Development mode with auto-reload
 npm run dev
@@ -20,6 +22,7 @@ npm run clean
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 npm test
@@ -38,6 +41,7 @@ node tests/integration/qsys/test-component-control.mjs
 ```
 
 ### Code Quality
+
 ```bash
 # Run ESLint
 npm run lint
@@ -57,7 +61,8 @@ npm run format:check
 
 ## High-Level Architecture
 
-This is an MCP (Model Context Protocol) server that provides AI-powered voice and text control for Q-SYS audio/video systems. The architecture consists of several interconnected layers:
+This is an MCP (Model Context Protocol) server that provides AI-powered voice and text control for
+Q-SYS audio/video systems. The architecture consists of several interconnected layers:
 
 ### Core Components
 
@@ -101,6 +106,7 @@ This is an MCP (Model Context Protocol) server that provides AI-powered voice an
 ### Configuration
 
 The system uses multiple configuration sources:
+
 - `qsys-core.config.json`: Q-SYS Core connection settings (IP, port, credentials)
 - `.env`: Environment variables (OpenAI API key, log levels)
 - Both files can be set up using `./setup-env.sh`
@@ -114,11 +120,14 @@ The system uses multiple configuration sources:
 
 ### Important Notes
 
-1. **Complete phases fully**: Follow the rule in `CURSOR.md` - complete each phase to 100% before moving to the next
-2. **Q-SYS requires WSS**: Always use secure WebSocket connections with `rejectUnauthorized: false` for self-signed certificates
+1. **Complete phases fully**: Follow the rule in `CURSOR.md` - complete each phase to 100% before
+   moving to the next
+2. **Q-SYS requires WSS**: Always use secure WebSocket connections with `rejectUnauthorized: false`
+   for self-signed certificates
 3. **Test connections first**: Use `npm run test:connection` before running the main application
 4. **Structured logging**: Use Winston logger with appropriate metadata for debugging
-5. **Type safety**: Maintain strict TypeScript standards - no `any` types or type assertions without validation
+5. **Type safety**: Maintain strict TypeScript standards - no `any` types or type assertions without
+   validation
 
 ### MCP Servers Available
 

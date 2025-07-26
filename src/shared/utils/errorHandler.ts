@@ -30,7 +30,7 @@ export class GlobalErrorHandler {
       enableRecovery: false,
       maxRetryAttempts: 3,
       retryDelay: 1000,
-      ...config
+      ...config,
     };
   }
 
@@ -42,7 +42,7 @@ export class GlobalErrorHandler {
       this.logger.error(error.message, {
         error: error.stack,
         context,
-        name: error.name
+        name: error.name,
       });
     }
   }
@@ -68,9 +68,11 @@ export class ErrorUtils {
   static isRetryable(error: Error): boolean {
     // Network and timeout errors are typically retryable
     const message = error.message.toLowerCase();
-    return message.includes('network') || 
-           message.includes('timeout') ||
-           message.includes('econnrefused');
+    return (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('econnrefused')
+    );
   }
 
   /**
@@ -89,22 +91,22 @@ export class ErrorUtils {
     baseDelay = 1000
   ): Promise<T> {
     let lastError: Error | undefined;
-    
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        
+
         if (attempt === maxAttempts || !this.isRetryable(lastError)) {
           throw lastError;
         }
-        
+
         const delay = baseDelay * Math.pow(2, attempt - 1);
         await this.sleep(delay);
       }
     }
-    
+
     throw lastError!;
   }
 }

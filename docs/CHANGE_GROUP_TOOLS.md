@@ -2,7 +2,10 @@
 
 ## Overview
 
-Change Groups provide an efficient way to monitor multiple Q-SYS control values for changes. Instead of polling individual controls, you can group related controls together and check for changes across the entire group in a single operation. This is particularly useful for monitoring user interfaces, tracking system state changes, or building reactive applications.
+Change Groups provide an efficient way to monitor multiple Q-SYS control values for changes. Instead
+of polling individual controls, you can group related controls together and check for changes across
+the entire group in a single operation. This is particularly useful for monitoring user interfaces,
+tracking system state changes, or building reactive applications.
 
 ## Available Tools
 
@@ -11,9 +14,11 @@ Change Groups provide an efficient way to monitor multiple Q-SYS control values 
 Creates a new change group for monitoring control value changes.
 
 **Parameters:**
+
 - `groupId` (string, required): Unique identifier for the change group. Must be non-empty.
 
 **Returns:**
+
 ```json
 {
   "success": true,
@@ -23,6 +28,7 @@ Creates a new change group for monitoring control value changes.
 ```
 
 **Example Usage:**
+
 ```json
 {
   "groupId": "mixer-controls"
@@ -30,6 +36,7 @@ Creates a new change group for monitoring control value changes.
 ```
 
 **Use Cases:**
+
 - Initialize a monitoring session for a specific UI page
 - Create separate groups for different subsystems (audio, video, control)
 - Set up monitoring for user-adjustable controls
@@ -38,13 +45,17 @@ Creates a new change group for monitoring control value changes.
 
 ### 2. add_controls_to_change_group
 
-Adds Named Controls to an existing change group for monitoring. Controls must exist in the Q-SYS design.
+Adds Named Controls to an existing change group for monitoring. Controls must exist in the Q-SYS
+design.
 
 **Parameters:**
+
 - `groupId` (string, required): The change group identifier
-- `controlNames` (array of strings, required): Array of control names to add (e.g., 'Gain1.gain', 'Mixer.level')
+- `controlNames` (array of strings, required): Array of control names to add (e.g., 'Gain1.gain',
+  'Mixer.level')
 
 **Returns:**
+
 ```json
 {
   "success": true,
@@ -55,6 +66,7 @@ Adds Named Controls to an existing change group for monitoring. Controls must ex
 ```
 
 **Example Usage:**
+
 ```json
 {
   "groupId": "mixer-controls",
@@ -68,6 +80,7 @@ Adds Named Controls to an existing change group for monitoring. Controls must ex
 ```
 
 **Notes:**
+
 - Invalid control names are logged but don't cause the operation to fail
 - Controls can be added incrementally to an existing group
 - Duplicate controls are automatically filtered out
@@ -76,12 +89,15 @@ Adds Named Controls to an existing change group for monitoring. Controls must ex
 
 ### 3. poll_change_group
 
-Polls a change group for control value changes since the last poll. Only returns controls whose values have changed.
+Polls a change group for control value changes since the last poll. Only returns controls whose
+values have changed.
 
 **Parameters:**
+
 - `groupId` (string, required): The change group identifier to poll
 
 **Returns:**
+
 ```json
 {
   "groupId": "mixer-controls",
@@ -103,6 +119,7 @@ Polls a change group for control value changes since the last poll. Only returns
 ```
 
 **Example Usage:**
+
 ```json
 {
   "groupId": "mixer-controls"
@@ -110,6 +127,7 @@ Polls a change group for control value changes since the last poll. Only returns
 ```
 
 **Behavior:**
+
 - First poll returns all controls as "changed"
 - Subsequent polls only return controls with value changes
 - Empty changes array indicates no changes since last poll
@@ -118,14 +136,17 @@ Polls a change group for control value changes since the last poll. Only returns
 
 ### 4. set_change_group_auto_poll
 
-Configures automatic polling for a change group. When enabled, the group will be polled automatically at the specified interval.
+Configures automatic polling for a change group. When enabled, the group will be polled
+automatically at the specified interval.
 
 **Parameters:**
+
 - `groupId` (string, required): The change group identifier
 - `enabled` (boolean, required): Enable or disable automatic polling
 - `intervalSeconds` (number, optional): Polling interval in seconds (0.1 to 300, default: 1.0)
 
 **Returns:**
+
 ```json
 {
   "success": true,
@@ -137,6 +158,7 @@ Configures automatic polling for a change group. When enabled, the group will be
 ```
 
 **Example Usage:**
+
 ```json
 {
   "groupId": "mixer-controls",
@@ -146,6 +168,7 @@ Configures automatic polling for a change group. When enabled, the group will be
 ```
 
 **Important Notes:**
+
 - Minimum interval: 0.1 seconds (100ms)
 - Maximum interval: 300 seconds (5 minutes)
 - Auto-poll stops automatically after 10 consecutive failures
@@ -160,6 +183,7 @@ Lists all active change groups and their current status.
 **Parameters:** None
 
 **Returns:**
+
 ```json
 {
   "groups": [
@@ -180,6 +204,7 @@ Lists all active change groups and their current status.
 ```
 
 **Example Usage:**
+
 ```json
 {}
 ```
@@ -191,10 +216,12 @@ Lists all active change groups and their current status.
 Removes specific controls from a change group without destroying the group.
 
 **Parameters:**
+
 - `groupId` (string, required): The change group identifier
 - `controlNames` (array of strings, required): Array of control names to remove
 
 **Returns:**
+
 ```json
 {
   "success": true,
@@ -205,13 +232,11 @@ Removes specific controls from a change group without destroying the group.
 ```
 
 **Example Usage:**
+
 ```json
 {
   "groupId": "mixer-controls",
-  "controlNames": [
-    "MainMixer.input_1_gain",
-    "MainMixer.input_2_gain"
-  ]
+  "controlNames": ["MainMixer.input_1_gain", "MainMixer.input_2_gain"]
 }
 ```
 
@@ -219,12 +244,15 @@ Removes specific controls from a change group without destroying the group.
 
 ### 7. clear_change_group
 
-Removes all controls from a change group while keeping the group active. Useful for reconfiguring monitoring.
+Removes all controls from a change group while keeping the group active. Useful for reconfiguring
+monitoring.
 
 **Parameters:**
+
 - `groupId` (string, required): The change group identifier to clear
 
 **Returns:**
+
 ```json
 {
   "success": true,
@@ -234,6 +262,7 @@ Removes all controls from a change group while keeping the group active. Useful 
 ```
 
 **Example Usage:**
+
 ```json
 {
   "groupId": "mixer-controls"
@@ -247,9 +276,11 @@ Removes all controls from a change group while keeping the group active. Useful 
 Destroys a change group and cleans up all associated resources including auto-poll timers.
 
 **Parameters:**
+
 - `groupId` (string, required): The change group identifier to destroy
 
 **Returns:**
+
 ```json
 {
   "success": true,
@@ -259,6 +290,7 @@ Destroys a change group and cleans up all associated resources including auto-po
 ```
 
 **Example Usage:**
+
 ```json
 {
   "groupId": "mixer-controls"
@@ -266,6 +298,7 @@ Destroys a change group and cleans up all associated resources including auto-po
 ```
 
 **Notes:**
+
 - Automatically stops any active auto-poll timers
 - Clears all stored control values and history
 - Group ID can be reused after destruction
@@ -275,21 +308,25 @@ Destroys a change group and cleans up all associated resources including auto-po
 ## Best Practices
 
 ### 1. Group Organization
+
 - Create logical groups based on UI pages or functional areas
 - Keep groups focused (10-50 controls per group)
 - Use descriptive group IDs that indicate purpose
 
 ### 2. Polling Strategy
+
 - Use auto-poll for UI updates (0.5-2 second intervals)
 - Use manual poll for event-driven updates
 - Consider network and CPU load when setting intervals
 
 ### 3. Lifecycle Management
+
 - Always destroy groups when no longer needed
 - Clear groups instead of destroying if reconfiguring
 - Monitor the total number of active groups
 
 ### 4. Error Handling
+
 - Check for empty changes arrays (no updates)
 - Handle group not found errors gracefully
 - Implement retry logic for transient failures
@@ -297,62 +334,65 @@ Destroys a change group and cleans up all associated resources including auto-po
 ## Common Patterns
 
 ### UI Page Monitoring
+
 ```javascript
 // When entering a page
-create_change_group({ groupId: "mixer-page" })
-add_controls_to_change_group({ 
-  groupId: "mixer-page",
-  controlNames: getAllMixerControls()
-})
-set_change_group_auto_poll({ 
-  groupId: "mixer-page", 
+create_change_group({ groupId: 'mixer-page' });
+add_controls_to_change_group({
+  groupId: 'mixer-page',
+  controlNames: getAllMixerControls(),
+});
+set_change_group_auto_poll({
+  groupId: 'mixer-page',
   enabled: true,
-  intervalSeconds: 0.5 
-})
+  intervalSeconds: 0.5,
+});
 
 // When leaving the page
-destroy_change_group({ groupId: "mixer-page" })
+destroy_change_group({ groupId: 'mixer-page' });
 ```
 
 ### Event-Driven Updates
+
 ```javascript
 // Set up monitoring
-create_change_group({ groupId: "critical-controls" })
-add_controls_to_change_group({ 
-  groupId: "critical-controls",
-  controlNames: ["System.alarm", "System.status"]
-})
+create_change_group({ groupId: 'critical-controls' });
+add_controls_to_change_group({
+  groupId: 'critical-controls',
+  controlNames: ['System.alarm', 'System.status'],
+});
 
 // Check periodically
-const result = poll_change_group({ groupId: "critical-controls" })
+const result = poll_change_group({ groupId: 'critical-controls' });
 if (result.hasChanges) {
-  handleSystemChanges(result.changes)
+  handleSystemChanges(result.changes);
 }
 ```
 
 ### Dynamic Monitoring
+
 ```javascript
 // Start with core controls
-create_change_group({ groupId: "dynamic-group" })
-add_controls_to_change_group({ 
-  groupId: "dynamic-group",
-  controlNames: coreControls
-})
+create_change_group({ groupId: 'dynamic-group' });
+add_controls_to_change_group({
+  groupId: 'dynamic-group',
+  controlNames: coreControls,
+});
 
 // Add controls as needed
 if (userOpensMixer) {
-  add_controls_to_change_group({ 
-    groupId: "dynamic-group",
-    controlNames: mixerControls
-  })
+  add_controls_to_change_group({
+    groupId: 'dynamic-group',
+    controlNames: mixerControls,
+  });
 }
 
 // Remove when not needed
 if (userClosesMixer) {
-  remove_controls_from_change_group({ 
-    groupId: "dynamic-group",
-    controlNames: mixerControls
-  })
+  remove_controls_from_change_group({
+    groupId: 'dynamic-group',
+    controlNames: mixerControls,
+  });
 }
 ```
 

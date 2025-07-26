@@ -5,7 +5,7 @@
 /**
  * Generic success/error result type
  */
-export type Result<T, E = Error> = 
+export type Result<T, E = Error> =
   | { success: true; data: T }
   | { success: false; error: E };
 
@@ -54,7 +54,14 @@ export type UUID = string;
 /**
  * Log levels
  */
-export type LogLevel = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
+export type LogLevel =
+  | 'error'
+  | 'warn'
+  | 'info'
+  | 'http'
+  | 'verbose'
+  | 'debug'
+  | 'silly';
 
 /**
  * Environment types
@@ -109,11 +116,14 @@ export interface HealthCheck {
   timestamp: Timestamp;
   uptime: number;
   version: string;
-  checks: Record<string, {
-    status: HealthStatus;
-    message?: string;
-    latency?: number;
-  }>;
+  checks: Record<
+    string,
+    {
+      status: HealthStatus;
+      message?: string;
+      latency?: number;
+    }
+  >;
 }
 
 /**
@@ -289,4 +299,4 @@ export interface TimeoutConfig {
   request: number;
   response: number;
   connection: number;
-} 
+}

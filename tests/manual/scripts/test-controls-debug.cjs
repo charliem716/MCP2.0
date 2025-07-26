@@ -3,14 +3,14 @@ const { spawn } = require('child_process');
 console.log('🧪 Debug test for list_controls\n');
 
 const server = spawn('npm', ['run', 'dev'], {
-  stdio: ['pipe', 'pipe', 'pipe']
+  stdio: ['pipe', 'pipe', 'pipe'],
 });
 
 let output = '';
 let ready = false;
 
 // Capture stderr for debugging
-server.stderr.on('data', (data) => {
+server.stderr.on('data', data => {
   const str = data.toString();
   if (str.includes('AI agents can now control')) {
     ready = true;
@@ -22,7 +22,7 @@ server.stderr.on('data', (data) => {
   }
 });
 
-server.stdout.on('data', (data) => {
+server.stdout.on('data', data => {
   output += data.toString();
   const lines = data.toString().split('\n');
   lines.forEach(line => {
@@ -52,16 +52,16 @@ server.stdout.on('data', (data) => {
 
 function sendRequest() {
   const request = {
-    jsonrpc: "2.0",
-    method: "tools/call",
-    params: { 
-      name: "list_controls", 
-      arguments: {}
+    jsonrpc: '2.0',
+    method: 'tools/call',
+    params: {
+      name: 'list_controls',
+      arguments: {},
     },
-    id: 1
+    id: 1,
   };
   console.log('📤 Sending:', JSON.stringify(request));
-  server.stdin.write(JSON.stringify(request) + '\n');
+  server.stdin.write(`${JSON.stringify(request)}\n`);
 }
 
 setTimeout(() => {

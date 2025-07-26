@@ -1,11 +1,11 @@
 /**
  * Q-SYS Control Value Validators
- * 
+ *
  * Provides validation logic for Q-SYS control values based on their types.
  * Extracted from adapter.ts to improve maintainability.
  */
 
-import { globalLogger as logger } from "../../shared/utils/logger.js";
+import { globalLogger as logger } from '../../shared/utils/logger.js';
 
 /**
  * Control validation result
@@ -42,7 +42,7 @@ export function validateControlValue(
 
   const info = controlInfo as ControlInfo;
   const type = info.type || info.Type;
-  
+
   switch (type) {
     case 'Boolean':
       // Q-SYS expects 0/1 for boolean controls
@@ -57,54 +57,54 @@ export function validateControlValue(
       if (value === 'true' || value === 'false') {
         return { valid: true, value: value === 'true' ? 1 : 0 };
       }
-      return { 
-        valid: false, 
-        error: 'Boolean control expects true/false or 0/1' 
+      return {
+        valid: false,
+        error: 'Boolean control expects true/false or 0/1',
       };
-      
+
     case 'Number':
     case 'Float':
     case 'Integer':
       const num = Number(value);
       if (isNaN(num)) {
-        return { 
-          valid: false, 
-          error: `Numeric control expects a number, got ${typeof value}` 
+        return {
+          valid: false,
+          error: `Numeric control expects a number, got ${typeof value}`,
         };
       }
       // Check range if available
       if (info.min !== undefined && num < info.min) {
-        return { 
-          valid: false, 
-          error: `Value ${num} below minimum ${info.min}` 
+        return {
+          valid: false,
+          error: `Value ${num} below minimum ${info.min}`,
         };
       }
       if (info.max !== undefined && num > info.max) {
-        return { 
-          valid: false, 
-          error: `Value ${num} above maximum ${info.max}` 
+        return {
+          valid: false,
+          error: `Value ${num} above maximum ${info.max}`,
         };
       }
       return { valid: true, value: num };
-      
+
     case 'String':
       // Convert to string if not already
       const stringValue = String(value);
       if (typeof value === 'object' && value !== null) {
-        return { 
-          valid: false, 
-          error: `String control expects text, got ${typeof value}` 
+        return {
+          valid: false,
+          error: `String control expects text, got ${typeof value}`,
         };
       }
       const maxLength = info.maxLength || 255;
       if (stringValue.length > maxLength) {
-        return { 
-          valid: false, 
-          error: `String too long (${stringValue.length} > ${maxLength})` 
+        return {
+          valid: false,
+          error: `String too long (${stringValue.length} > ${maxLength})`,
         };
       }
       return { valid: true, value: stringValue };
-      
+
     default:
       // Unknown type - pass through
       return { valid: true, value };
@@ -125,33 +125,43 @@ export function validateComponentName(name: string): boolean {
 /**
  * Validate control ID format (component.control)
  */
-export function validateControlId(controlId: string): { valid: boolean; componentName?: string; controlName?: string } {
+export function validateControlId(controlId: string): {
+  valid: boolean;
+  componentName?: string;
+  controlName?: string;
+} {
   if (!controlId || typeof controlId !== 'string') {
     return { valid: false };
   }
-  
+
   const parts = controlId.split('.');
   if (parts.length !== 2) {
     return { valid: false };
   }
-  
+
   const [componentName, controlName] = parts;
   if (!componentName || !validateComponentName(componentName) || !controlName) {
     return { valid: false };
   }
-  
+
   return {
     valid: true,
     componentName,
-    controlName
+    controlName,
   };
 }
 
 /**
  * Type guard for Q-SYS error objects
  */
-export function isQSYSError(error: unknown): error is { code?: string; message?: string } {
-  return typeof error === 'object' && error !== null && ('code' in error || 'message' in error);
+export function isQSYSError(
+  error: unknown
+): error is { code?: string; message?: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    ('code' in error || 'message' in error)
+  );
 }
 
 /**
@@ -159,23 +169,34 @@ export function isQSYSError(error: unknown): error is { code?: string; message?:
  */
 export function isRetryableError(error: unknown): boolean {
   if (!error) return false;
-  
+
   // Type guard for error objects
   if (!isQSYSError(error)) return false;
-  
+
   const err = error;
-  
+
   // Network errors, timeouts, and specific Q-SYS errors
-  const retryableCodes = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH'];
+  const retryableCodes = [
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ENOTFOUND',
+    'EHOSTUNREACH',
+  ];
   if (err.code && retryableCodes.includes(err.code)) {
     return true;
   }
-  
+
   // Q-SYS specific transient errors
   if (err.message) {
-    const retryableMessages = ['temporarily unavailable', 'timeout', 'connection reset'];
-    return retryableMessages.some(msg => err.message!.toLowerCase().includes(msg));
+    const retryableMessages = [
+      'temporarily unavailable',
+      'timeout',
+      'connection reset',
+    ];
+    return retryableMessages.some(msg =>
+      err.message!.toLowerCase().includes(msg)
+    );
   }
-  
+
   return false;
 }

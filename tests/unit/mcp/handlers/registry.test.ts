@@ -8,7 +8,7 @@ jest.mock('../../../../src/shared/utils/logger.js', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-  }
+  },
 }));
 
 describe('MCPToolRegistry', () => {
@@ -17,10 +17,10 @@ describe('MCPToolRegistry', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockQrwcClient = {
       isConnected: jest.fn().mockReturnValue(true),
-      sendCommand: jest.fn()
+      sendCommand: jest.fn(),
     };
 
     registry = new MCPToolRegistry(mockQrwcClient);
@@ -30,7 +30,7 @@ describe('MCPToolRegistry', () => {
     it('should initialize successfully with all Q-SYS tools', async () => {
       await registry.initialize();
 
-      expect(registry.getToolCount()).toBe(9); // 8 Q-SYS tools + 1 echo tool
+      expect(registry.getToolCount()).toBe(17); // 8 Q-SYS tools + 1 echo tool
       expect(globalLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Tool registry initialized'),
         expect.any(Object)
@@ -41,7 +41,9 @@ describe('MCPToolRegistry', () => {
       await registry.initialize();
       await registry.initialize();
 
-      expect(globalLogger.warn).toHaveBeenCalledWith('MCPToolRegistry already initialized');
+      expect(globalLogger.warn).toHaveBeenCalledWith(
+        'MCPToolRegistry already initialized'
+      );
     });
 
     it('should register all expected Q-SYS tools', async () => {
@@ -57,11 +59,13 @@ describe('MCPToolRegistry', () => {
 
     it('should handle initialization errors', async () => {
       const error = new Error('Init failed');
-      jest.spyOn(registry as any, 'registerQSysTools').mockImplementationOnce(() => {
-        throw error;
-      });
+      jest
+        .spyOn(registry as any, 'registerQSysTools')
+        .mockImplementationOnce(() => {
+          throw error;
+        });
 
-      await expect(registry.initialize()).rejects.toThrow('Init failed');
+      expect(() => registry.initialize()).toThrow('Init failed');
       expect(globalLogger.error).toHaveBeenCalledWith(
         'Failed to initialize tool registry',
         { error }
@@ -74,43 +78,47 @@ describe('MCPToolRegistry', () => {
       await registry.initialize();
       const tools = await registry.listTools();
 
-      expect(tools).toHaveLength(9);
-      expect(tools).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          name: 'list_components',
-          description: expect.any(String),
-          inputSchema: expect.any(Object)
-        }),
-        expect.objectContaining({
-          name: 'list_controls',
-          description: expect.any(String),
-          inputSchema: expect.any(Object)
-        }),
-        expect.objectContaining({
-          name: 'get_control_values',
-          description: expect.any(String),
-          inputSchema: expect.any(Object)
-        }),
-        expect.objectContaining({
-          name: 'set_control_values',
-          description: expect.any(String),
-          inputSchema: expect.any(Object)
-        }),
-        expect.objectContaining({
-          name: 'query_core_status',
-          description: expect.any(String),
-          inputSchema: expect.any(Object)
-        }),
-        expect.objectContaining({
-          name: 'echo',
-          description: expect.any(String),
-          inputSchema: expect.any(Object)
-        })
-      ]));
+      expect(tools).toHaveLength(17);
+      expect(tools).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'list_components',
+            description: expect.any(String),
+            inputSchema: expect.any(Object),
+          }),
+          expect.objectContaining({
+            name: 'list_controls',
+            description: expect.any(String),
+            inputSchema: expect.any(Object),
+          }),
+          expect.objectContaining({
+            name: 'get_control_values',
+            description: expect.any(String),
+            inputSchema: expect.any(Object),
+          }),
+          expect.objectContaining({
+            name: 'set_control_values',
+            description: expect.any(String),
+            inputSchema: expect.any(Object),
+          }),
+          expect.objectContaining({
+            name: 'query_core_status',
+            description: expect.any(String),
+            inputSchema: expect.any(Object),
+          }),
+          expect.objectContaining({
+            name: 'echo',
+            description: expect.any(String),
+            inputSchema: expect.any(Object),
+          }),
+        ])
+      );
     });
 
     it('should throw error if not initialized', async () => {
-      await expect(registry.listTools()).rejects.toThrow('Tool registry not initialized');
+      await expect(registry.listTools()).rejects.toThrow(
+        'Tool registry not initialized'
+      );
     });
   });
 
@@ -120,22 +128,26 @@ describe('MCPToolRegistry', () => {
     });
 
     it('should execute echo tool successfully', async () => {
-      const result = await registry.callTool('echo', { message: 'Hello World' });
+      const result = await registry.callTool('echo', {
+        message: 'Hello World',
+      });
 
       expect(result).toEqual({
-        content: [{
-          type: 'text',
-          text: 'Echo: Hello World'
-        }]
+        content: [
+          {
+            type: 'text',
+            text: 'Echo: Hello World',
+          },
+        ],
       });
     });
 
     it('should execute list_components tool successfully', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'Gain1', Type: 'gain' },
-          { Name: 'Mixer1', Type: 'mixer' }
-        ]
+          { Name: 'Gain1', Type: 'gain', Properties: [] },
+          { Name: 'Mixer1', Type: 'mixer', Properties: [] },
+        ],
       });
 
       const result = await registry.callTool('list_components', {});
@@ -150,7 +162,9 @@ describe('MCPToolRegistry', () => {
     });
 
     it('should handle tool execution errors gracefully', async () => {
-      mockQrwcClient.sendCommand.mockRejectedValueOnce(new Error('Network error'));
+      mockQrwcClient.sendCommand.mockRejectedValueOnce(
+        new Error('Network error')
+      );
 
       const result = await registry.callTool('list_components', {});
 
@@ -159,20 +173,25 @@ describe('MCPToolRegistry', () => {
     });
 
     it('should throw error for unknown tool', async () => {
-      await expect(registry.callTool('unknown_tool', {}))
-        .rejects.toThrow("Tool 'unknown_tool' not found");
+      await expect(registry.callTool('unknown_tool', {})).rejects.toThrow(
+        "Tool 'unknown_tool' not found"
+      );
     });
 
     it('should throw error if not initialized', async () => {
       const newRegistry = new MCPToolRegistry(mockQrwcClient);
-      await expect(newRegistry.callTool('echo', {}))
-        .rejects.toThrow('Tool registry not initialized');
+      await expect(newRegistry.callTool('echo', {})).rejects.toThrow(
+        'Tool registry not initialized'
+      );
     });
 
     it('should log slow tool execution', async () => {
       // Mock a slow response
-      mockQrwcClient.sendCommand.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve({ result: [] }), 1100))
+      mockQrwcClient.sendCommand.mockImplementation(
+        () =>
+          new Promise(resolve =>
+            setTimeout(() => resolve({ result: [] }), 1100)
+          )
       );
 
       await registry.callTool('list_components', {});
@@ -180,7 +199,7 @@ describe('MCPToolRegistry', () => {
       expect(globalLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Slow tool execution'),
         expect.objectContaining({
-          executionTimeMs: expect.any(Number)
+          executionTimeMs: expect.any(Number),
         })
       );
     });
@@ -198,7 +217,7 @@ describe('MCPToolRegistry', () => {
     });
 
     it('should return correct tool count', () => {
-      expect(registry.getToolCount()).toBe(9);
+      expect(registry.getToolCount()).toBe(17);
     });
 
     it('should check if tool exists', () => {
@@ -208,7 +227,7 @@ describe('MCPToolRegistry', () => {
 
     it('should return tool names', () => {
       const names = registry.getToolNames();
-      expect(names).toHaveLength(9);
+      expect(names).toHaveLength(17);
       expect(names).toContain('list_components');
       expect(names).toContain('echo');
     });
@@ -217,7 +236,7 @@ describe('MCPToolRegistry', () => {
   describe('cleanup', () => {
     it('should cleanup resources properly', async () => {
       await registry.initialize();
-      expect(registry.getToolCount()).toBe(9);
+      expect(registry.getToolCount()).toBe(17);
 
       await registry.cleanup();
 
@@ -231,19 +250,21 @@ describe('MCPToolRegistry', () => {
       await registry.initialize();
       await registry.cleanup();
 
-      await expect(registry.listTools()).rejects.toThrow('Tool registry not initialized');
+      await expect(registry.listTools()).rejects.toThrow(
+        'Tool registry not initialized'
+      );
     });
   });
 
   describe('edge cases', () => {
     it('should handle tool returning non-standard result', async () => {
       await registry.initialize();
-      
+
       // Mock a Q-SYS tool returning undefined content
       mockQrwcClient.sendCommand.mockResolvedValueOnce(undefined);
 
       const result = await registry.callTool('list_components', {});
-      
+
       expect(result.content).toBeDefined();
       expect(result.content[0].text).toContain('Invalid response');
     });
@@ -254,7 +275,7 @@ describe('MCPToolRegistry', () => {
       const promises = [
         registry.callTool('echo', { message: 'Test1' }),
         registry.callTool('echo', { message: 'Test2' }),
-        registry.callTool('echo', { message: 'Test3' })
+        registry.callTool('echo', { message: 'Test3' }),
       ];
 
       const results = await Promise.all(promises);
@@ -274,28 +295,28 @@ describe('MCPToolRegistry', () => {
     it('should preserve execution metadata from Q-SYS tools', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: [
-          { Name: 'Gain1', Type: 'gain' },
-          { Name: 'Mixer1', Type: 'mixer' }
-        ]
+          { Name: 'Gain1', Type: 'gain', Properties: [] },
+          { Name: 'Mixer1', Type: 'mixer', Properties: [] },
+        ],
       });
 
       const result = await registry.callTool('list_components', {
-        requestId: '550e8400-e29b-41d4-a716-446655440000'
+        requestId: '550e8400-e29b-41d4-a716-446655440000',
       });
 
       // Verify the result has extended metadata
       expect(result).toHaveProperty('executionTimeMs');
       expect(result).toHaveProperty('context');
-      
+
       // Type assertion to access extended properties
       const extendedResult = result as any;
       expect(typeof extendedResult.executionTimeMs).toBe('number');
       expect(extendedResult.executionTimeMs).toBeGreaterThanOrEqual(0);
-      
+
       expect(extendedResult.context).toMatchObject({
         requestId: '550e8400-e29b-41d4-a716-446655440000',
         toolName: 'list_components',
-        startTime: expect.any(Number)
+        startTime: expect.any(Number),
       });
 
       // Verify standard properties are also present
@@ -306,7 +327,7 @@ describe('MCPToolRegistry', () => {
 
     it('should log metadata for Q-SYS tools', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: { Status: { Code: 0 } }
+        result: { Status: { Code: 0 } },
       });
 
       await registry.callTool('query_core_status', {});
@@ -318,28 +339,30 @@ describe('MCPToolRegistry', () => {
           executionTimeMs: expect.any(Number),
           context: expect.objectContaining({
             toolName: 'query_core_status',
-            startTime: expect.any(Number)
+            startTime: expect.any(Number),
           }),
-          success: true
+          success: true,
         })
       );
     });
 
     it('should preserve metadata even on tool errors', async () => {
-      mockQrwcClient.sendCommand.mockRejectedValueOnce(new Error('Connection failed'));
+      mockQrwcClient.sendCommand.mockRejectedValueOnce(
+        new Error('Connection failed')
+      );
 
       const result = await registry.callTool('list_components', {
-        requestId: 'test-request-123'
+        requestId: 'test-request-123',
       });
 
       // Type assertion to access extended properties
       const extendedResult = result as any;
-      
+
       expect(result.isError).toBe(true);
       expect(extendedResult.executionTimeMs).toBeDefined();
       expect(extendedResult.context).toMatchObject({
         requestId: 'test-request-123',
-        toolName: 'list_components'
+        toolName: 'list_components',
       });
     });
 
@@ -348,12 +371,14 @@ describe('MCPToolRegistry', () => {
 
       // Echo tool doesn't have extended metadata
       expect(result).toEqual({
-        content: [{
-          type: 'text',
-          text: 'Echo: test'
-        }]
+        content: [
+          {
+            type: 'text',
+            text: 'Echo: test',
+          },
+        ],
       });
-      
+
       // Should not have extended properties
       expect(result).not.toHaveProperty('executionTimeMs');
       expect(result).not.toHaveProperty('context');
@@ -366,16 +391,18 @@ describe('MCPToolRegistry', () => {
       it('should warn when trying to register a tool with duplicate name', async () => {
         // Create a custom registry with access to private methods
         const testRegistry = new MCPToolRegistry(mockQrwcClient);
-        
+
         // Initialize and manually add a duplicate tool
         await testRegistry.initialize();
-        
+
         // Try to register echo tool again (it's already registered)
         const duplicateTool = {
           name: 'echo',
           description: 'Duplicate echo tool',
           inputSchema: { type: 'object', properties: {} },
-          execute: async () => ({ content: [{ type: 'text' as const, text: 'duplicate' }] })
+          execute: async () => ({
+            content: [{ type: 'text' as const, text: 'duplicate' }],
+          }),
         };
 
         // Access private method through any type
@@ -390,11 +417,11 @@ describe('MCPToolRegistry', () => {
     describe('tool execution edge cases', () => {
       it('should handle non-Error exceptions in tool execution', async () => {
         await registry.initialize();
-        
+
         // Mock a tool that throws a non-Error object
         const customRegistry = new MCPToolRegistry(mockQrwcClient);
         await customRegistry.initialize();
-        
+
         // Override echo tool to throw non-Error
         (customRegistry as any).tools.set('echo', {
           name: 'echo',
@@ -402,13 +429,15 @@ describe('MCPToolRegistry', () => {
           inputSchema: { type: 'object' },
           execute: async () => {
             throw 'String error'; // Throwing a string instead of Error
-          }
+          },
         });
 
         const result = await customRegistry.callTool('echo', {});
-        
+
         expect(result.isError).toBe(true);
-        expect(result.content[0].text).toContain('Tool execution failed: String error');
+        expect(result.content[0].text).toContain(
+          'Tool execution failed: String error'
+        );
         expect(globalLogger.error).toHaveBeenCalledWith(
           'Tool execution failed: echo',
           expect.objectContaining({ error: 'String error' })

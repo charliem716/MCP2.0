@@ -19,18 +19,18 @@ console.log('==================================================');
 // Test 1: Verify graceful shutdown with timeout
 async function testGracefulShutdownTimeout() {
   console.log('\n✅ Test 1: Graceful shutdown with timeout protection');
-  
+
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
       env: { ...process.env, NODE_ENV: 'test' },
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let cleanupStarted = false;
     let forceExitDetected = false;
     let shutdownCompleted = false;
 
-    proc.stdout.on('data', (data) => {
+    proc.stdout.on('data', data => {
       const output = data.toString();
       console.log('[STDOUT]', output.trim());
       if (output.includes('Cleaning up resources')) {
@@ -41,7 +41,7 @@ async function testGracefulShutdownTimeout() {
       }
     });
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       const output = data.toString();
       console.log('[STDERR]', output.trim());
       if (output.includes('Forced exit after timeout')) {
@@ -60,7 +60,7 @@ async function testGracefulShutdownTimeout() {
       proc.kill('SIGTERM');
     }, 2000);
 
-    proc.on('exit', (code) => {
+    proc.on('exit', code => {
       if (!cleanupStarted) {
         console.log('❌ Cleanup did not start!');
         reject(new Error('Cleanup not initiated'));
@@ -81,19 +81,19 @@ async function testGracefulShutdownTimeout() {
 // Test 2: Verify all signals are handled
 async function testAllSignals() {
   console.log('\n✅ Test 2: All signals handled properly');
-  
+
   const signals = ['SIGTERM', 'SIGINT', 'SIGHUP'];
-  
+
   for (const signal of signals) {
-    await new Promise((resolve) => {
+    await new Promise(resolve => {
       const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
         env: { ...process.env, NODE_ENV: 'test' },
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
 
       let signalHandled = false;
 
-      proc.stderr.on('data', (data) => {
+      proc.stderr.on('data', data => {
         const output = data.toString();
         if (output.includes(`${signal} received`)) {
           signalHandled = true;
@@ -119,10 +119,10 @@ async function testAllSignals() {
 // Test 3: Verify no resource leaks
 async function testNoResourceLeaks() {
   console.log('\n✅ Test 3: No resource leaks after exit');
-  
+
   // Get initial port state
-  const isPortInUse = async (port) => {
-    return new Promise((resolve) => {
+  const isPortInUse = async port => {
+    return new Promise(resolve => {
       const server = net.createServer();
       server.once('error', () => resolve(true));
       server.once('listening', () => {
@@ -135,7 +135,7 @@ async function testNoResourceLeaks() {
 
   const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
     env: { ...process.env, NODE_ENV: 'test', PORT: '9999' },
-    stdio: ['pipe', 'pipe', 'pipe']
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
 
   // Wait for startup
@@ -145,7 +145,7 @@ async function testNoResourceLeaks() {
   proc.kill('SIGTERM');
 
   // Wait for exit
-  await new Promise((resolve) => {
+  await new Promise(resolve => {
     proc.on('exit', resolve);
   });
 
@@ -153,7 +153,7 @@ async function testNoResourceLeaks() {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   const portStillInUse = await isPortInUse(9999);
-  
+
   if (portStillInUse) {
     console.log('❌ Port still in use after exit - possible resource leak!');
   } else {
@@ -164,16 +164,16 @@ async function testNoResourceLeaks() {
 // Test 4: Verify state persistence attempt
 async function testStatePersistence() {
   console.log('\n✅ Test 4: State persistence during shutdown');
-  
-  return new Promise((resolve) => {
+
+  return new Promise(resolve => {
     const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
       env: { ...process.env, NODE_ENV: 'test', LOG_LEVEL: 'debug' },
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let statePersistenceChecked = false;
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       const output = data.toString();
       if (output.includes('State persistence check completed')) {
         statePersistenceChecked = true;
@@ -188,7 +188,9 @@ async function testStatePersistence() {
       if (statePersistenceChecked) {
         console.log('✅ State persistence check executed');
       } else {
-        console.log('⚠️  State persistence not explicitly logged (may still work)');
+        console.log(
+          '⚠️  State persistence not explicitly logged (may still work)'
+        );
       }
       resolve();
     });
@@ -202,7 +204,7 @@ async function runTests() {
     await testAllSignals();
     await testNoResourceLeaks();
     await testStatePersistence();
-    
+
     console.log('\n==================================================');
     console.log('✅ All tests passed! BUG-063 is fixed.');
     console.log('==================================================');

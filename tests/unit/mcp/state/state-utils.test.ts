@@ -1,11 +1,14 @@
 import { describe, it, expect } from '@jest/globals';
-import { StateUtils, ControlState } from '../../../../src/mcp/state/repository.js';
+import {
+  StateUtils,
+  ControlState,
+} from '../../../../src/mcp/state/repository.js';
 
 describe('StateUtils', () => {
   describe('createState', () => {
     it('should create a control state with default values', () => {
       const state = StateUtils.createState('test-control', 42);
-      
+
       expect(state.name).toBe('test-control');
       expect(state.value).toBe(42);
       expect(state.source).toBe('cache');
@@ -15,7 +18,7 @@ describe('StateUtils', () => {
 
     it('should create a control state with custom source', () => {
       const state = StateUtils.createState('test-control', 'value', 'qsys');
-      
+
       expect(state.source).toBe('qsys');
     });
 
@@ -26,11 +29,11 @@ describe('StateUtils', () => {
         min: -100,
         max: 10,
         step: 0.5,
-        units: 'dB'
+        units: 'dB',
       };
-      
+
       const state = StateUtils.createState('test-control', 0, 'user', metadata);
-      
+
       expect(state.metadata).toEqual(metadata);
     });
 
@@ -50,7 +53,7 @@ describe('StateUtils', () => {
     it('should return false for fresh state', () => {
       const state = StateUtils.createState('test', 'value');
       const ttlMs = 1000;
-      
+
       expect(StateUtils.isExpired(state, ttlMs)).toBe(false);
     });
 
@@ -59,7 +62,7 @@ describe('StateUtils', () => {
       // Manually set timestamp to past
       state.timestamp = new Date(Date.now() - 2000);
       const ttlMs = 1000;
-      
+
       expect(StateUtils.isExpired(state, ttlMs)).toBe(true);
     });
 
@@ -67,7 +70,7 @@ describe('StateUtils', () => {
       const state = StateUtils.createState('test', 'value');
       state.timestamp = new Date(Date.now() - 1000);
       const ttlMs = 1000;
-      
+
       // Edge case: exactly at TTL boundary (now - stateTime = ttlMs)
       // The implementation uses > not >=, so this is NOT expired
       expect(StateUtils.isExpired(state, ttlMs)).toBe(false);
@@ -78,7 +81,7 @@ describe('StateUtils', () => {
     it('should calculate memory for simple string state', () => {
       const state = StateUtils.createState('test', 'value');
       const memory = StateUtils.calculateMemoryUsage(state);
-      
+
       // Base (100) + name (8) + value (10) = 118
       expect(memory).toBeGreaterThan(100);
       expect(memory).toBeLessThan(200);
@@ -87,7 +90,7 @@ describe('StateUtils', () => {
     it('should calculate memory for number state', () => {
       const state = StateUtils.createState('test', 42);
       const memory = StateUtils.calculateMemoryUsage(state);
-      
+
       // Base (100) + name (8) + value (8) = 116
       expect(memory).toBeGreaterThan(100);
       expect(memory).toBeLessThan(150);
@@ -98,12 +101,12 @@ describe('StateUtils', () => {
       const stateWithMeta = StateUtils.createState('test', 'value', 'cache', {
         type: 'gain',
         min: -100,
-        max: 10
+        max: 10,
       });
-      
+
       const memoryWithout = StateUtils.calculateMemoryUsage(stateWithoutMeta);
       const memoryWith = StateUtils.calculateMemoryUsage(stateWithMeta);
-      
+
       expect(memoryWith).toBeGreaterThan(memoryWithout);
     });
 
@@ -111,7 +114,7 @@ describe('StateUtils', () => {
       const longString = 'a'.repeat(1000);
       const state = StateUtils.createState('test', longString);
       const memory = StateUtils.calculateMemoryUsage(state);
-      
+
       // Should account for string length
       expect(memory).toBeGreaterThan(2000); // At least 2 bytes per char
     });
@@ -121,28 +124,28 @@ describe('StateUtils', () => {
     it('should return true for identical states', () => {
       const state1 = StateUtils.createState('control', 'value', 'qsys');
       const state2 = StateUtils.createState('control', 'value', 'qsys');
-      
+
       expect(StateUtils.areStatesEqual(state1, state2)).toBe(true);
     });
 
     it('should return false for different names', () => {
       const state1 = StateUtils.createState('control1', 'value', 'qsys');
       const state2 = StateUtils.createState('control2', 'value', 'qsys');
-      
+
       expect(StateUtils.areStatesEqual(state1, state2)).toBe(false);
     });
 
     it('should return false for different values', () => {
       const state1 = StateUtils.createState('control', 'value1', 'qsys');
       const state2 = StateUtils.createState('control', 'value2', 'qsys');
-      
+
       expect(StateUtils.areStatesEqual(state1, state2)).toBe(false);
     });
 
     it('should return false for different sources', () => {
       const state1 = StateUtils.createState('control', 'value', 'qsys');
       const state2 = StateUtils.createState('control', 'value', 'cache');
-      
+
       expect(StateUtils.areStatesEqual(state1, state2)).toBe(false);
     });
 
@@ -151,14 +154,18 @@ describe('StateUtils', () => {
       // Wait a bit to ensure different timestamp
       const state2 = StateUtils.createState('control', 'value', 'qsys');
       state2.timestamp = new Date(state1.timestamp.getTime() + 1000);
-      
+
       expect(StateUtils.areStatesEqual(state1, state2)).toBe(true);
     });
 
     it('should ignore metadata differences', () => {
-      const state1 = StateUtils.createState('control', 'value', 'qsys', { type: 'gain' });
-      const state2 = StateUtils.createState('control', 'value', 'qsys', { type: 'mute' });
-      
+      const state1 = StateUtils.createState('control', 'value', 'qsys', {
+        type: 'gain',
+      });
+      const state2 = StateUtils.createState('control', 'value', 'qsys', {
+        type: 'mute',
+      });
+
       expect(StateUtils.areStatesEqual(state1, state2)).toBe(true);
     });
   });
@@ -206,12 +213,12 @@ describe('StateUtils', () => {
       const base = { type: 'gain', min: -100, max: 10 };
       const updates = { type: 'mute', step: 1 };
       const result = StateUtils.mergeMetadata(base, updates);
-      
+
       expect(result).toEqual({
         type: 'mute', // Updated
-        min: -100,    // From base
-        max: 10,      // From base
-        step: 1       // New from updates
+        min: -100, // From base
+        max: 10, // From base
+        step: 1, // New from updates
       });
     });
 
@@ -219,12 +226,12 @@ describe('StateUtils', () => {
       const base = { type: 'gain', min: -100, max: 10, units: 'dB' };
       const updates = { max: 20 };
       const result = StateUtils.mergeMetadata(base, updates);
-      
+
       expect(result).toEqual({
         type: 'gain',
         min: -100,
-        max: 20,      // Updated
-        units: 'dB'
+        max: 20, // Updated
+        units: 'dB',
       });
     });
   });
@@ -270,11 +277,11 @@ describe('StateUtils', () => {
 
     it('should handle edge cases', () => {
       const metadata = { min: 0, max: 100 };
-      
+
       // Boundary values
       expect(StateUtils.validateValue(0, metadata).valid).toBe(true);
       expect(StateUtils.validateValue(100, metadata).valid).toBe(true);
-      
+
       // Just outside boundaries
       expect(StateUtils.validateValue(-0.001, metadata).valid).toBe(false);
       expect(StateUtils.validateValue(100.001, metadata).valid).toBe(false);

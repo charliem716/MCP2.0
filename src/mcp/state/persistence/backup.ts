@@ -1,12 +1,12 @@
-import { promises as fs } from "fs";
-import { join, extname } from "path";
-import { globalLogger as logger } from "../../../shared/utils/logger.js";
-import type { PersistedState } from "./types.js";
-import type { ControlState } from "../repository.js";
+import { promises as fs } from 'fs';
+import { join, extname } from 'path';
+import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import type { PersistedState } from './types.js';
+import type { ControlState } from '../repository.js';
 
 /**
  * Backup Manager for State Persistence
- * 
+ *
  * Handles backup creation, cleanup, and recovery operations
  */
 export class BackupManager {
@@ -44,10 +44,10 @@ export class BackupManager {
   async cleanupOldBackups(): Promise<void> {
     try {
       const backups = await this.getBackupsSortedByTime();
-      
+
       // Keep only the configured number of backups
       const backupsToDelete = backups.slice(this.backupCount);
-      
+
       for (const backup of backupsToDelete) {
         await fs.unlink(backup);
         logger.debug('Old backup deleted', { backup });
@@ -65,27 +65,28 @@ export class BackupManager {
     try {
       const dir = this.getDirectory(this.filePath);
       const files = await fs.readdir(dir);
-      
+
       // Filter backup files
       const ext = extname(this.filePath);
       const baseFile = this.getBasename(this.filePath);
-      const backupPattern = new RegExp(`^${baseFile}\\.\\d{8}-\\d{6}${ext}$`);
-      
+      // Escape special regex characters in the base filename and extension
+      const escapedBase = baseFile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedExt = ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const backupPattern = new RegExp(`^${escapedBase}\\.\\d{8}-\\d{6}${escapedExt}$`);
+
       const backupFiles = files
         .filter(file => backupPattern.test(file))
         .map(file => join(dir, file));
-      
+
       // Sort by modification time (newest first)
       const filesWithStats = await Promise.all(
         backupFiles.map(async file => ({
           file,
-          mtime: (await fs.stat(file)).mtime.getTime()
+          mtime: (await fs.stat(file)).mtime.getTime(),
         }))
       );
-      
-      return filesWithStats
-        .sort((a, b) => b.mtime - a.mtime)
-        .map(f => f.file);
+
+      return filesWithStats.sort((a, b) => b.mtime - a.mtime).map(f => f.file);
     } catch (error) {
       logger.error('Failed to get backup files', { error });
       return [];
@@ -102,7 +103,7 @@ export class BackupManager {
         logger.debug('No backups found');
         return null;
       }
-      
+
       logger.debug('Most recent backup found', { backup: backups[0] });
       return backups[0] || null;
     } catch (error) {
@@ -117,12 +118,12 @@ export class BackupManager {
   async clearBackups(): Promise<void> {
     try {
       const backups = await this.getBackupsSortedByTime();
-      
+
       for (const backup of backups) {
         await fs.unlink(backup);
         logger.debug('Backup cleared', { backup });
       }
-      
+
       logger.info('All backups cleared', { count: backups.length });
     } catch (error) {
       logger.error('Failed to clear backups', { error });
@@ -145,21 +146,21 @@ export class BackupManager {
 
     try {
       logger.info('Attempting recovery from backup', { backupPath });
-      
+
       const state = await readJSON(backupPath);
       validateState(state);
-      
+
       // Convert to Map
       const stateMap = new Map<string, ControlState>();
       for (const [key, value] of Object.entries(state.controls)) {
         stateMap.set(key, value);
       }
-      
+
       logger.info('State recovered from backup', {
         backupPath,
-        controlCount: stateMap.size
+        controlCount: stateMap.size,
       });
-      
+
       return stateMap;
     } catch (error) {
       logger.error('Failed to recover from backup', { error, backupPath });
@@ -174,11 +175,12 @@ export class BackupManager {
     const dir = this.getDirectory(filePath);
     const ext = extname(filePath);
     const base = this.getBasename(filePath);
-    const timestamp = new Date().toISOString()
+    const timestamp = new Date()
+      .toISOString()
       .replace(/[:.]/g, '-')
       .replace('T', '-')
       .slice(0, 15); // YYYYMMDD-HHMMSS
-    
+
     return join(dir, `${base}.${timestamp}${ext}`);
   }
 
@@ -195,7 +197,10 @@ export class BackupManager {
   }
 
   private getDirectory(filePath: string): string {
-    const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+    const lastSlash = Math.max(
+      filePath.lastIndexOf('/'),
+      filePath.lastIndexOf('\\')
+    );
     return lastSlash > 0 ? filePath.slice(0, lastSlash) : '.';
   }
 

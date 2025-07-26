@@ -6,6 +6,9 @@
 import winston from 'winston';
 import path from 'path';
 
+// Ensure winston format is available
+const { format } = winston;
+
 export interface Logger {
   info(message: string, meta?: unknown): void;
   error(message: string, meta?: unknown): void;
@@ -13,7 +16,14 @@ export interface Logger {
   debug(message: string, meta?: unknown): void;
 }
 
-export type LogLevel = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
+export type LogLevel =
+  | 'error'
+  | 'warn'
+  | 'info'
+  | 'http'
+  | 'verbose'
+  | 'debug'
+  | 'silly';
 
 export interface LoggerConfig {
   level: LogLevel;
@@ -31,23 +41,24 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const isTest = process.env['NODE_ENV'] === 'test';
   const isMCPMode = process.env['MCP_MODE'] === 'true';
 
-  const level = (process.env['LOG_LEVEL'] as LogLevel | undefined) ?? 
+  const level =
+    (process.env['LOG_LEVEL'] as LogLevel | undefined) ??
     (isDevelopment ? 'debug' : isProduction ? 'info' : 'error');
 
   // Base format for all environments
-  const baseFormat = winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.metadata({
-      fillExcept: ['message', 'level', 'timestamp', 'service']
+  const baseFormat = format.combine(
+    format.timestamp(),
+    format.errors({ stack: true }),
+    format.metadata({
+      fillExcept: ['message', 'level', 'timestamp', 'service'],
     })
   );
 
   // Development format with colors and pretty printing
-  const devFormat = winston.format.combine(
+  const devFormat = format.combine(
     baseFormat,
-    winston.format.colorize(),
-    winston.format.printf((info) => {
+    format.colorize(),
+    format.printf(info => {
       const { timestamp, level, message, service, metadata } = info as {
         timestamp: string;
         level: string;
@@ -55,22 +66,22 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
         service: string;
         metadata?: unknown;
       };
-      const meta = metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0 
-        ? ` ${JSON.stringify(metadata)}` 
-        : '';
+      const meta =
+        metadata &&
+        typeof metadata === 'object' &&
+        Object.keys(metadata).length > 0
+          ? ` ${JSON.stringify(metadata)}`
+          : '';
       return `${timestamp} [${service}] ${level}: ${message}${meta}`;
     })
   );
 
   // Production format as structured JSON
-  const prodFormat = winston.format.combine(
-    baseFormat,
-    winston.format.json()
-  );
+  const prodFormat = format.combine(baseFormat, format.json());
 
   // Test format - minimal output
-  const testFormat = winston.format.combine(
-    winston.format.printf((info) => {
+  const testFormat = format.combine(
+    format.printf(info => {
       const { level, message, service } = info as {
         level: string;
         message: string;
@@ -80,7 +91,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     })
   );
 
-  const format = isTest ? testFormat : isDevelopment ? devFormat : prodFormat;
+  const selectedFormat = isTest ? testFormat : isDevelopment ? devFormat : prodFormat;
 
   // Configure transports based on environment
   const transports: winston.transport[] = [];
@@ -94,7 +105,8 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     transports.push(
       new winston.transports.Console({
         level: 'error',
-        silent: process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS']
+        silent:
+          process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS'],
       })
     );
   } else if (isDevelopment) {
@@ -102,7 +114,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     transports.push(
       new winston.transports.Console({
         level: 'debug',
-        format: devFormat
+        format: devFormat,
       })
     );
   } else {
@@ -112,9 +124,9 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
 
   return {
     level,
-    format,
+    format: selectedFormat,
     transports,
-    defaultMeta: { service: serviceName }
+    defaultMeta: { service: serviceName },
   };
 }
 
@@ -123,14 +135,14 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
  */
 export function createLogger(serviceName: string): Logger {
   const config = createLoggerConfig(serviceName);
-  
+
   const logger = winston.createLogger({
     level: config.level,
     format: config.format,
     defaultMeta: config.defaultMeta,
     transports: config.transports,
     exitOnError: false,
-    silent: process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS']
+    silent: process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS'],
   });
 
   // Handle unhandled promise rejections in production
@@ -150,4 +162,4 @@ export function createLogger(serviceName: string): Logger {
 /**
  * Global logger instance for the application
  */
-export const globalLogger = createLogger('MCP-QSys-Demo'); 
+export const globalLogger = createLogger('MCP-QSys-Demo');

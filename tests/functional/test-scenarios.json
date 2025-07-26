@@ -12,7 +12,7 @@
         "Agent reports core status as active/standby with version info"
       ]
     },
-    
+
     "component_discovery": {
       "name": "Component Discovery Suite",
       "description": "Test component and control discovery capabilities",
@@ -29,7 +29,7 @@
         "Agent finds mixer/router and lists its control inventory"
       ]
     },
-    
+
     "control_operations": {
       "name": "Control Operations Suite",
       "description": "Test reading and writing control values",
@@ -50,7 +50,7 @@
         "Agent restores the original value"
       ]
     },
-    
+
     "bulk_operations": {
       "name": "Bulk Operations Suite",
       "description": "Test pagination and bulk queries",
@@ -67,7 +67,7 @@
         "Agent filters mute controls by current state"
       ]
     },
-    
+
     "error_handling": {
       "name": "Error Handling Suite",
       "description": "Verify proper error handling",
@@ -84,7 +84,7 @@
         "Agent handles regex syntax error gracefully"
       ]
     },
-    
+
     "performance": {
       "name": "Performance Test Suite",
       "description": "Test system performance and responsiveness",
@@ -99,7 +99,7 @@
         "Agent batches multiple changes or explains if not possible"
       ]
     },
-    
+
     "advanced_workflows": {
       "name": "Advanced Workflow Suite",
       "description": "Complex multi-step operations",
@@ -116,7 +116,7 @@
         "Agent provides comprehensive system report"
       ]
     },
-    
+
     "stress_test": {
       "name": "Stress Test Suite",
       "description": "Push the limits of the system",
@@ -133,7 +133,7 @@
         "Agent queries peripheral status successfully"
       ]
     },
-    
+
     "cleanup": {
       "name": "Cleanup and Restoration",
       "description": "Restore system to safe state",
@@ -151,7 +151,7 @@
       ]
     }
   },
-  
+
   "quick_smoke_test": {
     "name": "5-Minute Smoke Test",
     "description": "Quick validation that core features work",
@@ -164,7 +164,7 @@
       "Restore the gain to -10 dB"
     ]
   },
-  
+
   "regression_test": {
     "name": "Regression Test Suite",
     "description": "Ensure nothing is broken after changes",

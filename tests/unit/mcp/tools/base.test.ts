@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach } from '@jest/globals';
 import { z } from 'zod';
 import { BaseQSysTool } from '../../../../src/mcp/tools/base.js';
 import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
-import type { ToolCallResult, ToolExecutionContext } from '../../../../src/mcp/tools/base.js';
+import type {
+  ToolCallResult,
+  ToolExecutionContext,
+} from '../../../../src/mcp/tools/base.js';
 
 // Mock implementation of BaseQSysTool for testing
 class TestTool extends BaseQSysTool<{ value: string }> {
@@ -21,11 +24,13 @@ class TestTool extends BaseQSysTool<{ value: string }> {
   ): Promise<ToolCallResult> {
     // Test implementation that uses formatResponse
     return {
-      content: [{
-        type: 'text',
-        text: this.formatResponse({ result: params.value, processed: true })
-      }],
-      isError: false
+      content: [
+        {
+          type: 'text',
+          text: this.formatResponse({ result: params.value, processed: true }),
+        },
+      ],
+      isError: false,
     };
   }
 
@@ -45,10 +50,10 @@ const mockQrwcClient: QRWCClientInterface = {
   sendCommand: async () => ({ result: {} }),
   queryCore: async () => ({
     coreInfo: { name: 'test', version: '1.0', model: 'test', platform: 'test' },
-    coreStatus: { Code: 0, IsConnected: true }
+    coreStatus: { Code: 0, IsConnected: true },
   }),
   snapshotSave: async () => {},
-  snapshotRecall: async () => {}
+  snapshotRecall: async () => {},
 };
 
 describe('BaseQSysTool Response Formatting', () => {
@@ -84,9 +89,9 @@ describe('BaseQSysTool Response Formatting', () => {
       const data = {
         components: [
           { name: 'comp1', controls: ['a', 'b'] },
-          { name: 'comp2', controls: ['c', 'd'] }
+          { name: 'comp2', controls: ['c', 'd'] },
         ],
-        metadata: { version: 1, timestamp: new Date().toISOString() }
+        metadata: { version: 1, timestamp: new Date().toISOString() },
       };
       const result = tool.testFormatResponse(data);
       const parsed = JSON.parse(result);
@@ -99,12 +104,12 @@ describe('BaseQSysTool Response Formatting', () => {
       const error = new Error('Test error message');
       const result = tool.testFormatErrorResponse(error);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed).toMatchObject({
         error: true,
         toolName: 'test_tool',
         message: 'Test error message',
-        code: 'UNKNOWN_ERROR'
+        code: 'UNKNOWN_ERROR',
       });
       expect(parsed.timestamp).toBeDefined();
     });
@@ -112,22 +117,22 @@ describe('BaseQSysTool Response Formatting', () => {
     it('should handle errors with custom codes', () => {
       const error = new Error('Connection failed') as any;
       error.code = 'ECONNREFUSED';
-      
+
       const result = tool.testFormatErrorResponse(error);
       const parsed = JSON.parse(result);
-      
+
       expect(parsed.code).toBe('ECONNREFUSED');
     });
 
     it('should handle non-Error objects', () => {
       const result = tool.testFormatErrorResponse('String error');
       const parsed = JSON.parse(result);
-      
+
       expect(parsed).toMatchObject({
         error: true,
         toolName: 'test_tool',
         message: 'String error',
-        code: 'UNKNOWN_ERROR'
+        code: 'UNKNOWN_ERROR',
       });
     });
 
@@ -146,20 +151,20 @@ describe('BaseQSysTool Response Formatting', () => {
     it('should use formatErrorResponse for errors', async () => {
       const errorClient: QRWCClientInterface = {
         ...mockQrwcClient,
-        isConnected: () => false
+        isConnected: () => false,
       };
-      
+
       const errorTool = new TestTool(errorClient);
       const result = await errorTool.execute({ value: 'test' });
-      
+
       expect(result.isError).toBe(true);
       expect(result.content[0].type).toBe('text');
-      
+
       const errorData = JSON.parse(result.content[0].text);
       expect(errorData).toMatchObject({
         error: true,
         toolName: 'test_tool',
-        message: 'Q-SYS Core not connected'
+        message: 'Q-SYS Core not connected',
       });
     });
   });
@@ -167,14 +172,14 @@ describe('BaseQSysTool Response Formatting', () => {
   describe('successful execution', () => {
     it('should use formatResponse for successful results', async () => {
       const result = await tool.execute({ value: 'test-value' });
-      
+
       expect(result.isError).toBe(false);
       expect(result.content[0].type).toBe('text');
-      
+
       const data = JSON.parse(result.content[0].text);
       expect(data).toEqual({
         result: 'test-value',
-        processed: true
+        processed: true,
       });
     });
   });
@@ -187,7 +192,7 @@ describe('BaseQSysTool Response Formatting', () => {
       (brokenTool as any).paramsSchema = {
         parse: () => {
           throw new Error('Non-Zod validation error');
-        }
+        },
       };
 
       const result = await brokenTool.execute({ value: 'test' });
@@ -197,33 +202,35 @@ describe('BaseQSysTool Response Formatting', () => {
 
     it('should handle non-Error objects in formatErrorMessage', () => {
       // Test with string error
-      const result1 = (testTool as any).formatErrorMessage('String error');
+      const result1 = (tool as any).formatErrorMessage('String error');
       expect(result1).toBe('test_tool failed: String error');
 
       // Test with number error
-      const result2 = (testTool as any).formatErrorMessage(404);
+      const result2 = (tool as any).formatErrorMessage(404);
       expect(result2).toBe('test_tool failed: 404');
 
       // Test with object error
-      const result3 = (testTool as any).formatErrorMessage({ code: 'ERROR_CODE' });
+      const result3 = (tool as any).formatErrorMessage({
+        code: 'ERROR_CODE',
+      });
       expect(result3).toBe('test_tool failed: [object Object]');
     });
 
     it('should handle null/undefined in extractRequestId', () => {
       // Test with null
-      const result1 = (testTool as any).extractRequestId(null);
+      const result1 = (tool as any).extractRequestId(null);
       expect(result1).toBeUndefined();
 
       // Test with non-object
-      const result2 = (testTool as any).extractRequestId('string');
+      const result2 = (tool as any).extractRequestId('string');
       expect(result2).toBeUndefined();
 
       // Test with object without requestId
-      const result3 = (testTool as any).extractRequestId({ other: 'value' });
+      const result3 = (tool as any).extractRequestId({ other: 'value' });
       expect(result3).toBeUndefined();
 
       // Test with non-string requestId
-      const result4 = (testTool as any).extractRequestId({ requestId: 123 });
+      const result4 = (tool as any).extractRequestId({ requestId: 123 });
       expect(result4).toBeUndefined();
     });
   });
@@ -231,12 +238,12 @@ describe('BaseQSysTool Response Formatting', () => {
   // BUG-055 regression tests - Zod type conversion
   describe('BUG-055: Zod type conversion fixes', () => {
     it('should handle ZodObject schema without type conversion errors', () => {
-      const properties = (testTool as any).getSchemaProperties();
-      
+      const properties = (tool as any).getSchemaProperties();
+
       expect(properties).toBeDefined();
       expect(properties).toHaveProperty('value');
       expect(properties.value).toMatchObject({
-        type: 'string'
+        type: 'string',
       });
     });
 
@@ -244,25 +251,20 @@ describe('BaseQSysTool Response Formatting', () => {
       // Create a tool with a different schema type
       class NonObjectTool extends BaseQSysTool<string> {
         constructor(client: any) {
-          super(
-            client,
-            'non_object_tool',
-            'Non-object tool',
-            z.string()
-          );
+          super(client, 'non_object_tool', 'Non-object tool', z.string());
         }
 
         protected async executeInternal(params: string) {
           return {
             content: [{ type: 'text' as const, text: params }],
-            isError: false
+            isError: false,
           };
         }
       }
 
       const tool = new NonObjectTool(mockQrwcClient);
       const properties = (tool as any).getSchemaProperties();
-      
+
       expect(properties).toEqual({});
     });
   });

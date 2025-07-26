@@ -18,22 +18,22 @@ console.log('==================================================');
 // Test 1: Verify process starts without unhandled rejections
 async function testProcessStart() {
   console.log('\n✅ Test 1: Process starts cleanly');
-  
+
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
       env: { ...process.env, NODE_ENV: 'test' },
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let output = '';
     let errorOutput = '';
     let unhandledRejectionFound = false;
 
-    proc.stdout.on('data', (data) => {
+    proc.stdout.on('data', data => {
       output += data.toString();
     });
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       errorOutput += data.toString();
       if (data.toString().includes('UnhandledPromiseRejectionWarning')) {
         unhandledRejectionFound = true;
@@ -45,7 +45,7 @@ async function testProcessStart() {
       proc.kill('SIGTERM');
     }, 3000);
 
-    proc.on('exit', (code) => {
+    proc.on('exit', code => {
       if (unhandledRejectionFound) {
         console.log('❌ Found unhandled promise rejection!');
         console.log('Error output:', errorOutput);
@@ -61,22 +61,25 @@ async function testProcessStart() {
 // Test 2: Verify SIGTERM handler doesn't create unhandled rejections
 async function testSigterm() {
   console.log('\n✅ Test 2: SIGTERM handler catches promise rejections');
-  
+
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
       env: { ...process.env, NODE_ENV: 'test' },
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let unhandledRejectionFound = false;
     let gracefulShutdownLogged = false;
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       const output = data.toString();
       if (output.includes('UnhandledPromiseRejectionWarning')) {
         unhandledRejectionFound = true;
       }
-      if (output.includes('SIGTERM received') || output.includes('Cleaning up')) {
+      if (
+        output.includes('SIGTERM received') ||
+        output.includes('Cleaning up')
+      ) {
         gracefulShutdownLogged = true;
       }
     });
@@ -86,7 +89,7 @@ async function testSigterm() {
       proc.kill('SIGTERM');
     }, 2000);
 
-    proc.on('exit', (code) => {
+    proc.on('exit', code => {
       if (unhandledRejectionFound) {
         console.log('❌ Unhandled rejection in SIGTERM handler!');
         reject(new Error('SIGTERM handler has unhandled rejection'));
@@ -104,16 +107,16 @@ async function testSigterm() {
 // Test 3: Verify SIGINT handler doesn't create unhandled rejections
 async function testSigint() {
   console.log('\n✅ Test 3: SIGINT handler catches promise rejections');
-  
+
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [join(rootDir, 'dist/src/index.js')], {
       env: { ...process.env, NODE_ENV: 'test' },
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let unhandledRejectionFound = false;
 
-    proc.stderr.on('data', (data) => {
+    proc.stderr.on('data', data => {
       if (data.toString().includes('UnhandledPromiseRejectionWarning')) {
         unhandledRejectionFound = true;
       }
@@ -124,7 +127,7 @@ async function testSigint() {
       proc.kill('SIGINT');
     }, 2000);
 
-    proc.on('exit', (code) => {
+    proc.on('exit', code => {
       if (unhandledRejectionFound) {
         console.log('❌ Unhandled rejection in SIGINT handler!');
         reject(new Error('SIGINT handler has unhandled rejection'));
@@ -142,7 +145,7 @@ async function runTests() {
     await testProcessStart();
     await testSigterm();
     await testSigint();
-    
+
     console.log('\n==================================================');
     console.log('✅ All tests passed! BUG-061 is fixed.');
     console.log('==================================================');

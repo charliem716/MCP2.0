@@ -15,7 +15,7 @@ async function testRawCommand() {
   const config = {
     host: process.env.QSYS_HOST || '192.168.1.100',
     port: parseInt(process.env.QSYS_PORT || '443'),
-    enableAutoReconnect: false
+    enableAutoReconnect: false,
   };
 
   console.log(`Connecting to Q-SYS Core at ${config.host}:${config.port}...`);
@@ -36,15 +36,17 @@ async function testRawCommand() {
     // Test 1: Status.Get
     console.log('Test 1: Sending Status.Get command...');
     const statusResult = await rawCommandTool.execute({
-      method: 'Status.Get'
+      method: 'Status.Get',
     });
-    
+
     if (!statusResult.isError) {
       const response = JSON.parse(statusResult.content[0].text);
       console.log('✅ Status response received:');
       console.log(`  - Platform: ${response.response.Platform || 'Unknown'}`);
       console.log(`  - Version: ${response.response.Version || 'Unknown'}`);
-      console.log(`  - Design: ${response.response.DesignName || 'No design'}\n`);
+      console.log(
+        `  - Design: ${response.response.DesignName || 'No design'}\n`
+      );
     } else {
       console.error('❌ Status.Get failed:', statusResult.content[0].text);
     }
@@ -53,19 +55,23 @@ async function testRawCommand() {
     console.log('Test 2: Testing blocked command (Core.Reboot)...');
     try {
       await rawCommandTool.execute({
-        method: 'Core.Reboot'
+        method: 'Core.Reboot',
       });
       console.error('❌ Blocked command was not rejected!');
     } catch (error) {
-      console.log('✅ Blocked command rejected correctly:', error.message, '\n');
+      console.log(
+        '✅ Blocked command rejected correctly:',
+        error.message,
+        '\n'
+      );
     }
 
     // Test 3: Invalid command
     console.log('Test 3: Testing invalid command...');
     const invalidResult = await rawCommandTool.execute({
-      method: 'Invalid.Command'
+      method: 'Invalid.Command',
     });
-    
+
     if (invalidResult.isError) {
       const response = JSON.parse(invalidResult.content[0].text);
       console.log('✅ Invalid command handled correctly:');
@@ -73,7 +79,6 @@ async function testRawCommand() {
     }
 
     console.log('=== All tests completed successfully ===');
-
   } catch (error) {
     console.error('Test failed:', error);
   } finally {

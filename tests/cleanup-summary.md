@@ -9,7 +9,7 @@
    - `tests/manual/` - For manual testing scripts
 
 2. **Moved 18 test files from root to appropriate directories:**
-   
+
    **To `tests/integration/qsys/` (git-tracked):**
    - test-connection.mjs
    - test-component-control.mjs
@@ -23,6 +23,7 @@
    - Updated all markdown documentation to use new paths
 
 ### Result:
+
 - ✅ Root directory is now clean of test files
 - ✅ Test files are properly organized
 - ✅ Git-tracked tests preserved in integration directory
@@ -30,4 +31,5 @@
 - ✅ All documentation updated
 
 ### Next Steps:
+
 Consider converting valuable manual test scripts into proper Jest/Vitest integration tests.

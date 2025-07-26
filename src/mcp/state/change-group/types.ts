@@ -1,4 +1,4 @@
-import type { ControlState } from "../repository.js";
+import type { ControlState } from '../repository.js';
 
 /**
  * Change group execution result
@@ -47,5 +47,5 @@ export enum ChangeGroupEvent {
   Completed = 'completed',
   RollbackStarted = 'rollbackStarted',
   RollbackCompleted = 'rollbackCompleted',
-  Error = 'error'
+  Error = 'changeGroupError',
 }

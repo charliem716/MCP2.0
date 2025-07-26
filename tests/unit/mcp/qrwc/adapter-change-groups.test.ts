@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  jest,
+  afterEach,
+} from '@jest/globals';
 import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter.js';
 import type { OfficialQRWCClient } from '../../../../src/qrwc/officialClient.js';
 
@@ -9,22 +16,22 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock QRWC structure
     mockQrwc = {
       components: {
-        'Gain1': {
+        Gain1: {
           controls: {
-            'gain': { state: { Value: -10, String: '-10dB' } },
-            'mute': { state: { Value: false, String: 'false' } }
-          }
+            gain: { state: { Value: -10, String: '-10dB' } },
+            mute: { state: { Value: false, String: 'false' } },
+          },
         },
-        'Mixer1': {
+        Mixer1: {
           controls: {
-            'level': { state: { Value: 0, String: '0dB' } }
-          }
-        }
-      }
+            level: { state: { Value: 0, String: '0dB' } },
+          },
+        },
+      },
     };
 
     // Create mock official client
@@ -32,7 +39,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
       isConnected: jest.fn().mockReturnValue(true),
       getQrwc: jest.fn().mockReturnValue(mockQrwc),
       executeCommand: jest.fn(),
-      getComponent: jest.fn()
+      getComponent: jest.fn(),
     } as any;
 
     adapter = new QRWCClientAdapter(mockOfficialClient);
@@ -47,7 +54,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
     it('should create a new change group and add controls', async () => {
       const result = await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.gain', 'Gain1.mute']
+        Controls: ['Gain1.gain', 'Gain1.mute'],
       });
 
       expect(result).toEqual({ result: { addedCount: 2 } });
@@ -57,28 +64,30 @@ describe('QRWCClientAdapter - Change Groups', () => {
       // Create group
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
 
       // Add more controls
       const result = await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.mute']
+        Controls: ['Gain1.mute'],
       });
 
       expect(result).toEqual({ result: { addedCount: 1 } });
     });
 
     it('should require group ID', async () => {
-      await expect(adapter.sendCommand('ChangeGroup.AddControl', {
-        Controls: ['Gain1.gain']
-      })).rejects.toThrow('Change group ID required');
+      await expect(
+        adapter.sendCommand('ChangeGroup.AddControl', {
+          Controls: ['Gain1.gain'],
+        })
+      ).rejects.toThrow('Change group ID required');
     });
 
     it('should skip invalid controls and return correct count', async () => {
       const result = await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.gain', 'InvalidControl.foo', 'Gain1.mute']
+        Controls: ['Gain1.gain', 'InvalidControl.foo', 'Gain1.mute'],
       });
 
       // Should only add the 2 valid controls, skipping InvalidControl.foo
@@ -94,61 +103,70 @@ describe('QRWCClientAdapter - Change Groups', () => {
         callCount++;
         return {
           components: {
-            'Gain1': {
+            Gain1: {
               controls: {
-                'gain': { 
-                  state: { 
-                    Value: callCount <= 2 ? -10 : -5, 
-                    String: callCount <= 2 ? '-10dB' : '-5dB' 
-                  } 
-                }
-              }
-            }
-          }
+                gain: {
+                  state: {
+                    Value: callCount <= 2 ? -10 : -5,
+                    String: callCount <= 2 ? '-10dB' : '-5dB',
+                  },
+                },
+              },
+            },
+          },
         };
       });
       // Create group and add control
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
 
       // First poll establishes baseline
       await adapter.sendCommand('ChangeGroup.Poll', { Id: 'test-group' });
 
       // Second poll should detect change
-      const result = await adapter.sendCommand('ChangeGroup.Poll', { Id: 'test-group' });
+      const result = await adapter.sendCommand('ChangeGroup.Poll', {
+        Id: 'test-group',
+      });
 
       expect(result).toEqual({
         result: {
           Id: 'test-group',
-          Changes: [{
-            Name: 'Gain1.gain',
-            Value: -5,
-            String: '-5'
-          }]
-        }
+          Changes: [
+            {
+              Name: 'Gain1.gain',
+              Value: -5,
+              String: '-5',
+            },
+          ],
+        },
       });
     });
 
     it('should return empty array when no changes', async () => {
-      mockOfficialClient.executeCommand = jest.fn()
-        .mockResolvedValue([{ Name: 'Gain1.gain', Value: -10, String: '-10dB' }]);
+      mockOfficialClient.executeCommand = jest
+        .fn()
+        .mockResolvedValue([
+          { Name: 'Gain1.gain', Value: -10, String: '-10dB' },
+        ]);
 
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
 
       // Poll twice with same value
       await adapter.sendCommand('ChangeGroup.Poll', { Id: 'test-group' });
-      const result = await adapter.sendCommand('ChangeGroup.Poll', { Id: 'test-group' });
+      const result = await adapter.sendCommand('ChangeGroup.Poll', {
+        Id: 'test-group',
+      });
 
       expect(result).toEqual({
         result: {
           Id: 'test-group',
-          Changes: []
-        }
+          Changes: [],
+        },
       });
     });
   });
@@ -165,21 +183,23 @@ describe('QRWCClientAdapter - Change Groups', () => {
     it('should set up automatic polling', async () => {
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
 
       const sendCommandSpy = jest.spyOn(adapter, 'sendCommand');
 
       await adapter.sendCommand('ChangeGroup.AutoPoll', {
         Id: 'test-group',
-        Rate: 2 // 2 seconds
+        Rate: 2, // 2 seconds
       });
 
       // Fast forward 2 seconds
       jest.advanceTimersByTime(2000);
 
       // Should have called Poll
-      expect(sendCommandSpy).toHaveBeenCalledWith('ChangeGroup.Poll', { Id: 'test-group' });
+      expect(sendCommandSpy).toHaveBeenCalledWith('ChangeGroup.Poll', {
+        Id: 'test-group',
+      });
     });
   });
 
@@ -189,24 +209,26 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'test-group',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
 
       await adapter.sendCommand('ChangeGroup.AutoPoll', {
         Id: 'test-group',
-        Rate: 1
+        Rate: 1,
       });
 
       const result = await adapter.sendCommand('ChangeGroup.Destroy', {
-        Id: 'test-group'
+        Id: 'test-group',
       });
 
       expect(result).toEqual({ result: true });
 
       // Should not be able to poll destroyed group
-      await expect(adapter.sendCommand('ChangeGroup.Poll', {
-        Id: 'test-group'
-      })).rejects.toThrow('Change group not found');
+      await expect(
+        adapter.sendCommand('ChangeGroup.Poll', {
+          Id: 'test-group',
+        })
+      ).rejects.toThrow('Change group not found');
 
       jest.useRealTimers();
     });
@@ -219,20 +241,22 @@ describe('QRWCClientAdapter - Change Groups', () => {
       // Create groups with timers
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'group1',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
       await adapter.sendCommand('ChangeGroup.AutoPoll', {
         Id: 'group1',
-        Rate: 1
+        Rate: 1,
       });
 
       // Clear all caches
       adapter.clearAllCaches();
 
       // Groups should be gone
-      await expect(adapter.sendCommand('ChangeGroup.Poll', {
-        Id: 'group1'
-      })).rejects.toThrow('Change group not found');
+      await expect(
+        adapter.sendCommand('ChangeGroup.Poll', {
+          Id: 'group1',
+        })
+      ).rejects.toThrow('Change group not found');
 
       jest.useRealTimers();
     });
@@ -243,7 +267,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
       // Create a change group
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'event-test-group',
-        Controls: ['Gain1.gain', 'Gain1.mute']
+        Controls: ['Gain1.gain', 'Gain1.mute'],
       });
 
       // Set up event listener
@@ -252,7 +276,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
       // First poll - should emit event with all controls as changes
       await adapter.sendCommand('ChangeGroup.Poll', {
-        Id: 'event-test-group'
+        Id: 'event-test-group',
       });
 
       expect(eventHandler).toHaveBeenCalledTimes(1);
@@ -260,11 +284,11 @@ describe('QRWCClientAdapter - Change Groups', () => {
         groupId: 'event-test-group',
         changes: [
           { Name: 'Gain1.gain', Value: -10, String: '-10' },
-          { Name: 'Gain1.mute', Value: false, String: 'false' }
+          { Name: 'Gain1.mute', Value: false, String: 'false' },
         ],
         timestamp: expect.any(BigInt),
         timestampMs: expect.any(Number),
-        sequenceNumber: 0
+        sequenceNumber: 0,
       });
 
       // Clear the mock
@@ -272,7 +296,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
       // Second poll without changes - should not emit event
       await adapter.sendCommand('ChangeGroup.Poll', {
-        Id: 'event-test-group'
+        Id: 'event-test-group',
       });
 
       expect(eventHandler).not.toHaveBeenCalled();
@@ -283,18 +307,16 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
       // Third poll with changes - should emit event
       await adapter.sendCommand('ChangeGroup.Poll', {
-        Id: 'event-test-group'
+        Id: 'event-test-group',
       });
 
       expect(eventHandler).toHaveBeenCalledTimes(1);
       expect(eventHandler).toHaveBeenCalledWith({
         groupId: 'event-test-group',
-        changes: [
-          { Name: 'Gain1.gain', Value: -5, String: '-5' }
-        ],
+        changes: [{ Name: 'Gain1.gain', Value: -5, String: '-5' }],
         timestamp: expect.any(BigInt),
         timestampMs: expect.any(Number),
-        sequenceNumber: 1
+        sequenceNumber: 1,
       });
     });
 
@@ -302,15 +324,15 @@ describe('QRWCClientAdapter - Change Groups', () => {
       // Create two change groups
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'group1',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'group2',
-        Controls: ['Mixer1.level']
+        Controls: ['Mixer1.level'],
       });
 
       const events: any[] = [];
-      adapter.on('changeGroup:changes', (event) => events.push(event));
+      adapter.on('changeGroup:changes', event => events.push(event));
 
       // Poll both groups
       await adapter.sendCommand('ChangeGroup.Poll', { Id: 'group1' });
@@ -324,11 +346,11 @@ describe('QRWCClientAdapter - Change Groups', () => {
     it('should include nanosecond precision timestamps', async () => {
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'timestamp-test',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
 
       let capturedEvent: any;
-      adapter.on('changeGroup:changes', (event) => {
+      adapter.on('changeGroup:changes', event => {
         capturedEvent = event;
       });
 
@@ -345,7 +367,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
       await adapter.sendCommand('ChangeGroup.AddControl', {
         Id: 'auto-poll-test',
-        Controls: ['Gain1.gain']
+        Controls: ['Gain1.gain'],
       });
 
       const eventHandler = jest.fn();
@@ -354,7 +376,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
       // Enable auto-polling
       await adapter.sendCommand('ChangeGroup.AutoPoll', {
         Id: 'auto-poll-test',
-        Rate: 1 // 1 second
+        Rate: 1, // 1 second
       });
 
       // Wait for timer and flush promises
@@ -364,6 +386,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
 
       // Change value and wait for next poll
       mockQrwc.components['Gain1'].controls['gain'].state.Value = -15;
+      mockQrwc.components['Gain1'].controls['gain'].state.String = '-15dB';
       eventHandler.mockClear();
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -372,7 +395,7 @@ describe('QRWCClientAdapter - Change Groups', () => {
       expect(eventHandler).toHaveBeenCalledWith(
         expect.objectContaining({
           groupId: 'auto-poll-test',
-          changes: [{ Name: 'Gain1.gain', Value: -15, String: '-15' }]
+          changes: [{ Name: 'Gain1.gain', Value: -15, String: '-15' }],
         })
       );
 
