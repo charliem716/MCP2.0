@@ -5,6 +5,7 @@
 
 import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { OfficialQRWCClient } from '../../qrwc/officialClient.js';
+import type { Component } from '@q-sys/qrwc';
 import { extractControlValue } from './converters.js';
 import { validateControlValue } from './validators.js';
 import { QSysError, QSysErrorCode, ValidationError } from '../../shared/types/errors.js';
@@ -42,14 +43,19 @@ export function handleGetComponents(
 
   const componentNames = Object.keys(qrwc.components);
   const components = componentNames.map(name => {
-    const component = qrwc.components[name] as {
-      state?: { Type?: string; Properties?: unknown[] };
-    };
+    const component = qrwc.components[name];
+    if (!component) {
+      return {
+        Name: name,
+        Type: 'Unknown',
+        Properties: [],
+      };
+    }
 
     return {
       Name: name,
-      Type: component.state?.Type ?? 'Component',
-      Properties: component.state?.Properties ?? [],
+      Type: component.state.Type,
+      Properties: component.state.Properties,
     };
   });
 
@@ -76,18 +82,20 @@ export function handleGetControls(
       { componentName });
   }
 
-  const component = qrwc.components[componentName] as {
-    controls?: Record<
-      string,
-      { Position?: number; String?: string; Value?: unknown }
-    >;
-  };
-
-  if (!component.controls) {
+  const component = qrwc.components[componentName] as Component | undefined;
+  if (!component || !component.controls) {
     return { result: { Name: componentName, Controls: [] } };
   }
 
   const controls = Object.entries(component.controls).map(([name, control]) => {
+    if (!control) {
+      return {
+        Name: name,
+        Type: 'Unknown',
+        Value: null,
+        String: '',
+      };
+    }
     const { value, type } = extractControlValue(control);
 
     const result: ControlInfo = {
@@ -118,11 +126,12 @@ export function handleControlGet(
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
 ): { result: ControlInfo[] } {
-  const controls = params?.['Controls'] as unknown[];
-  if (!Array.isArray(controls)) {
+  const controlsParam = params?.['Controls'];
+  if (!Array.isArray(controlsParam)) {
     throw new ValidationError('Controls array is required',
       [{ field: 'Controls', message: 'Must be an array', code: 'INVALID_TYPE' }]);
   }
+  const controls = controlsParam;
 
   const qrwc = client.getQrwc();
   if (!qrwc) {
@@ -156,8 +165,7 @@ export function handleControlGet(
         { componentName });
     }
 
-    const control = (component as { controls?: Record<string, unknown> })
-      .controls?.[controlName];
+    const control = component.controls?.[controlName];
     if (!control) {
       throw new QSysError(`Control not found: ${fullName}`, QSysErrorCode.INVALID_CONTROL,
         { controlName: fullName });
@@ -184,11 +192,12 @@ export async function handleControlSet(
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
 ): Promise<{ result: Array<{ Name: string; Result: string; Error?: string }> }> {
-  const controls = params?.['Controls'] as unknown[];
-  if (!Array.isArray(controls)) {
+  const controlsParam = params?.['Controls'];
+  if (!Array.isArray(controlsParam)) {
     throw new ValidationError('Controls array is required',
       [{ field: 'Controls', message: 'Must be an array', code: 'INVALID_TYPE' }]);
   }
+  const controls = controlsParam;
 
   const qrwc = client.getQrwc();
   if (!qrwc) {
@@ -337,18 +346,21 @@ export function handleStatusGet(
 
   const componentCount = Object.keys(qrwc.components).length;
   const controlCount = Object.values(qrwc.components).reduce((count, comp) => {
-    const controls = (comp as { controls?: Record<string, unknown> }).controls;
-    return count + (controls ? Object.keys(controls).length : 0);
+    const component = comp as Component | undefined;
+    if (!component || !component.controls) return count;
+    return count + Object.keys(component.controls).length;
   }, 0);
 
   const hasAudio = Object.values(qrwc.components).some(comp => {
-    const type = (comp as { state?: { Type?: string } }).state?.Type;
-    return type?.includes('Audio') ?? false;
+    const component = comp as Component | undefined;
+    if (!component) return false;
+    return component.state.Type.includes('Audio');
   });
 
   const hasVideo = Object.values(qrwc.components).some(comp => {
-    const type = (comp as { state?: { Type?: string } }).state?.Type;
-    return type?.includes('Video') ?? false;
+    const component = comp as Component | undefined;
+    if (!component) return false;
+    return component.state.Type.includes('Video');
   });
 
   return {
@@ -390,13 +402,13 @@ export function handleGetAllControls(
   const allControls: ControlInfo[] = [];
 
   for (const [componentName, component] of Object.entries(qrwc.components)) {
-    const comp = component as { controls?: Record<string, unknown> };
-    if (!comp.controls) continue;
+    const comp = component;
+    if (!comp || !comp.controls) continue;
 
     for (const [controlName, control] of Object.entries(comp.controls)) {
+      if (!control) continue;
       const fullName = `${componentName}.${controlName}`;
-      const state = control as Record<string, unknown>;
-      const { value, type } = extractControlValue(state);
+      const { value, type } = extractControlValue(control);
 
       allControls.push({
         Name: fullName,
@@ -430,19 +442,17 @@ export function handleGetAllControlValues(
       { componentName });
   }
 
-  const component = qrwc.components[componentName] as {
-    controls?: Record<string, unknown>;
-  };
-  if (!component.controls) {
+  const component = qrwc.components[componentName] as Component | undefined;
+  if (!component || !component.controls) {
     return { result: {} };
   }
 
   const controlValues: Record<string, { Value: unknown; String: string }> = {};
 
   for (const [name, control] of Object.entries(component.controls)) {
+    if (!control) continue;
     const fullName = `${componentName}.${name}`;
-    const state = control as Record<string, unknown>;
-    const { value } = extractControlValue(state);
+    const { value } = extractControlValue(control);
 
     controlValues[fullName] = {
       Value: value,
@@ -488,20 +498,19 @@ export function handleDirectControl(
       { componentName });
   }
 
-  const controls = (component as { controls?: Record<string, unknown> })
-    .controls;
-  if (!controls || !controlName || !(controlName in controls)) {
+  if (!component.controls || !controlName || !(controlName in component.controls)) {
     throw new QSysError(`Control not found: ${componentName}.${controlName}`, 
       QSysErrorCode.INVALID_CONTROL, { componentName, controlName });
   }
 
-  const control = controls[controlName] as Record<string, unknown>;
+  const control = component.controls[controlName];
 
   if (operation === 'get') {
     const { value } = extractControlValue(control);
     return { result: value };
   } else if (operation === 'set' && params?.['value'] !== undefined) {
-    control['Value'] = params['value'];
+    // For direct control operations, we need to use the official client's setControlValue
+    await client.setControlValue(componentName, controlName, params['value']);
     return { result: 'Control updated successfully' };
   } else {
     throw new ValidationError(`Unknown operation: ${operation}`,
