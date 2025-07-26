@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
+import { BaseQSysTool, BaseToolParamsSchema, ToolExecutionContext } from './base.js';
 import { config as envConfig } from '../../shared/utils/env.js';
 import type { ToolCallResult } from '../handlers/index.js';
-import type { ToolExecutionContext } from './base.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type {
   QSysComponentControlsResponse,

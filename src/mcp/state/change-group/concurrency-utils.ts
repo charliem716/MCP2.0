@@ -28,9 +28,11 @@ export class Semaphore {
     this.permits++;
 
     if (this.waiting.length > 0) {
-      const resolve = this.waiting.shift()!;
-      this.permits--;
-      resolve();
+      const resolve = this.waiting.shift();
+      if (resolve) {
+        this.permits--;
+        resolve();
+      }
     }
   }
 }

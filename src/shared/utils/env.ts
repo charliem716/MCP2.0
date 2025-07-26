@@ -1,6 +1,10 @@
+/* eslint-disable no-console */
 /**
  * Environment Configuration System
  * Uses Zod for validation and dotenv for loading environment variables
+ * 
+ * Console statements are allowed in this file because it initializes before
+ * the logger is available and needs to report critical configuration errors.
  */
 
 import { z } from 'zod';

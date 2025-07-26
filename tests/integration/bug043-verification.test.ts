@@ -2,9 +2,7 @@
  * BUG-043 Error Handling Consistency Verification
  */
 
-import { QSysError, QSysErrorCode } from '../../src/shared/types/errors.js';
-import { ValidationError } from '../../src/shared/types/errors.js';
-import { MCPError, MCPErrorCode } from '../../src/shared/types/errors.js';
+import { MCPError, MCPErrorCode, QSysError, QSysErrorCode, ValidationError } from '../../src/shared/types/errors.js';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';

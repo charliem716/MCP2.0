@@ -54,12 +54,20 @@ export class DiskSpilloverManager {
     const filename = `${groupId}_${Date.now()}_${this.spilloverFileIndex++}.json`;
     const filepath = path.join(this.spilloverPath, filename);
 
+    const firstEvent = events[0];
+    const lastEvent = events[events.length - 1];
+    
+    if (!firstEvent || !lastEvent) {
+      logger.warn('Cannot spill empty events array', { groupId });
+      return false;
+    }
+    
     const spillData = {
       groupId,
       timestamp: Date.now(),
       eventCount: events.length,
-      startTime: events[0]!.timestampMs,
-      endTime: events[events.length - 1]!.timestampMs,
+      startTime: firstEvent.timestampMs,
+      endTime: lastEvent.timestampMs,
       events: events.map(e => ({
         ...e,
         timestamp: e.timestamp.toString(),

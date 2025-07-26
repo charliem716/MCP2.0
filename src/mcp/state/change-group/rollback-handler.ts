@@ -1,7 +1,6 @@
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import type { QRWCClientInterface } from '../../qrwc/adapter.js';
-import type { ControlChangeResult } from './types.js';
-import { ChangeGroupEvent } from './types.js';
+import type { ChangeGroupEvent, ControlChangeResult } from './types.js';
 import type { EventEmitter } from 'events';
 
 /**

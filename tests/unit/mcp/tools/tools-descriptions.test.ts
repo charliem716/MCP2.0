@@ -1,6 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { ListComponentsTool } from '../../../../src/mcp/tools/components.js';
-import { GetComponentControlsTool } from '../../../../src/mcp/tools/components.js';
+import { GetComponentControlsTool, ListComponentsTool } from '../../../../src/mcp/tools/components.js';
 import {
   ListControlsTool,
   GetControlValuesTool,

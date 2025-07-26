@@ -72,7 +72,10 @@ export class CompressionEngine {
       if (!controlEvents.has(controlName)) {
         controlEvents.set(controlName, []);
       }
-      controlEvents.get(controlName)!.push(event);
+      const controlEventList = controlEvents.get(controlName);
+      if (controlEventList) {
+        controlEventList.push(event);
+      }
     }
 
     // Apply compression to each control

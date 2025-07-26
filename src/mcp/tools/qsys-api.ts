@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { BaseQSysTool } from './base.js';
+import { BaseQSysTool, ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
-import type { ToolExecutionContext } from './base.js';
 import { QSysAPIReference } from './api-reference.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';

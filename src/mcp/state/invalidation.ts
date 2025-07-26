@@ -126,7 +126,10 @@ export class CacheInvalidationManager extends EventEmitter {
         if (!this.dependencyGraph.has(dependency)) {
           this.dependencyGraph.set(dependency, new Set());
         }
-        this.dependencyGraph.get(dependency)!.add(rule.id);
+        const dependents = this.dependencyGraph.get(dependency);
+        if (dependents) {
+          dependents.add(rule.id);
+        }
       }
     }
 
@@ -248,8 +251,8 @@ export class CacheInvalidationManager extends EventEmitter {
 
     // Sort rules by priority (highest first)
     const sortedRules = Array.from(dependentRules)
-      .map(ruleId => this.rules.get(ruleId)!)
-      .filter(rule => rule && rule.enabled)
+      .map(ruleId => this.rules.get(ruleId))
+      .filter((rule): rule is InvalidationRule => rule !== undefined && rule.enabled)
       .sort((a, b) => b.priority - a.priority);
 
     for (const rule of sortedRules) {
