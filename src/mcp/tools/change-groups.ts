@@ -708,7 +708,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
       if (enableCache) {
         // Set group priority if specified
         if (cacheConfig?.priority) {
-          // @ts-ignore - accessing private property for configuration
+          // @ts-expect-error - accessing private property for configuration
           this.eventCache.groupPriorities.set(groupId, cacheConfig.priority);
         }
 
@@ -734,9 +734,9 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
         };
       } else {
         // To disable caching, we clear the group's buffer
-        // @ts-ignore - accessing private method for group management
+        // @ts-expect-error - accessing private method for group management
         if (this.eventCache.buffers.has(groupId)) {
-          // @ts-ignore
+          // @ts-expect-error - accessing private method for group management
           this.eventCache.clearGroup(groupId);
         }
 
