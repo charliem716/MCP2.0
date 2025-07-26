@@ -27,6 +27,7 @@ import {
 } from './event-types.js';
 import { CompressionEngine } from './compression.js';
 import { DiskSpilloverManager } from './disk-spillover.js';
+import { QueryCache } from './query-cache.js';
 
 /**
  * Cached event with full metadata
@@ -163,6 +164,7 @@ export class EventCacheManager extends EventEmitter {
   private diskSpilloverActive = false;
   private adapter?: Pick<QRWCClientAdapter, 'on' | 'removeListener'>;
   private changeEventHandler?: (event: ChangeGroupEvent) => void;
+  private queryCache: QueryCache;
 
   constructor(
     private defaultConfig: EventCacheConfig = {
@@ -180,6 +182,7 @@ export class EventCacheManager extends EventEmitter {
     this.diskSpillover = new DiskSpilloverManager(this.defaultConfig);
     this.globalMemoryLimitBytes =
       (this.defaultConfig.globalMemoryLimitMB ?? 500) * 1024 * 1024;
+    this.queryCache = new QueryCache();
 
     // Apply default compression config
     this.defaultConfig.compressionConfig ??= {
@@ -266,6 +269,10 @@ export class EventCacheManager extends EventEmitter {
       timestamp,
       timestampMs
     );
+    
+    // Invalidate query cache for this group when new events arrive
+    this.queryCache.invalidate(groupId);
+    
     this.finalizeChangeProcessing(groupId, processedEvents.length);
   }
 
@@ -603,6 +610,16 @@ export class EventCacheManager extends EventEmitter {
    */
   async query(params: EventQuery): Promise<CachedEvent[]> {
     const queryParams = this.normalizeQueryParams(params);
+    
+    // Check cache first
+    const cached = this.queryCache.get(params);
+    if (cached) {
+      logger.debug('Query cache hit', { 
+        stats: this.queryCache.getStats() 
+      });
+      return cached;
+    }
+
     this.logQueryStart(queryParams);
 
     // Collect events from memory and disk
@@ -618,6 +635,11 @@ export class EventCacheManager extends EventEmitter {
       queryParams.offset,
       queryParams.limit
     );
+
+    // Cache successful results if we have any
+    if (results.length > 0) {
+      this.queryCache.set(params, results);
+    }
 
     this.logQueryComplete(results, queryParams);
     return results;
@@ -970,7 +992,8 @@ export class EventCacheManager extends EventEmitter {
       return { 
         totalEvents, 
         groups,
-        memoryUsageMB: totalMemoryUsage / (1024 * 1024)
+        memoryUsageMB: totalMemoryUsage / (1024 * 1024),
+        queryCache: this.queryCache.getStats()
       };
     }
 

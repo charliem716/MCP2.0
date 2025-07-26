@@ -27,6 +27,7 @@ import {
   createSetChangeGroupAutoPollTool,
   createListChangeGroupsTool,
   createReadChangeGroupEventsTool,
+  createSubscribeToChangeEventsTool,
 } from '../tools/change-groups.js';
 import type { EventCacheManager } from '../state/event-cache/manager.js';
 import type { BaseQSysTool, ToolExecutionResult } from '../tools/base.js';
@@ -128,10 +129,11 @@ export class MCPToolRegistry {
       createListChangeGroupsTool(this.qrwcClient),
     ];
 
-    // Add event cache tool if available
+    // Add event cache tools if available
     if (this.eventCacheManager) {
       qsysTools.push(
-        createReadChangeGroupEventsTool(this.qrwcClient, this.eventCacheManager)
+        createReadChangeGroupEventsTool(this.qrwcClient, this.eventCacheManager),
+        createSubscribeToChangeEventsTool(this.qrwcClient, this.eventCacheManager)
       );
     }
 

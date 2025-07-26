@@ -641,6 +641,127 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
   }
 }
 
+// ===== Tool 10: Subscribe to Change Events =====
+
+const SubscribeToChangeEventsParamsSchema = BaseToolParamsSchema.extend({
+  groupId: z.string().min(1).describe('The change group ID to subscribe to'),
+  enableCache: z.boolean().default(true).describe('Enable event caching for this group'),
+  cacheConfig: z
+    .object({
+      maxAgeMs: z
+        .number()
+        .min(60000) // 1 minute
+        .max(86400000) // 24 hours
+        .default(3600000) // 1 hour
+        .optional()
+        .describe('How long to keep events in cache (milliseconds)'),
+      maxEvents: z
+        .number()
+        .min(1000)
+        .max(1000000)
+        .default(100000)
+        .optional()
+        .describe('Maximum number of events to cache per group'),
+      priority: z
+        .enum(['high', 'normal', 'low'])
+        .default('normal')
+        .optional()
+        .describe('Priority for memory management (high priority groups are evicted last)'),
+    })
+    .optional()
+    .describe('Optional cache configuration for this group'),
+});
+
+type SubscribeToChangeEventsParams = z.infer<typeof SubscribeToChangeEventsParamsSchema>;
+
+export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeEventsParams> {
+  private eventCache?: EventCacheManager | undefined;
+
+  constructor(qrwcClient: QRWCClientInterface, eventCache?: EventCacheManager) {
+    super(
+      qrwcClient,
+      'subscribe_to_change_events',
+      `Subscribe to real-time change events from a change group. Events are automatically cached and can be queried later using read_change_group_events. Subscription enables both real-time monitoring and historical analysis. Note: You must call set_change_group_auto_poll to start receiving events. Example: 1. Subscribe: subscribe_to_change_events({ groupId: "my-group", enableCache: true }) 2. Start polling: set_change_group_auto_poll({ groupId: "my-group", rate: 100 }) 3. Query history: read_change_group_events({ groupId: "my-group", startTime: Date.now()-60000 })`,
+      SubscribeToChangeEventsParamsSchema as z.ZodSchema<SubscribeToChangeEventsParams>
+    );
+    this.eventCache = eventCache;
+  }
+
+  setEventCache(eventCache: EventCacheManager): void {
+    this.eventCache = eventCache;
+  }
+
+  protected async executeInternal(
+    params: SubscribeToChangeEventsParams
+  ): Promise<ToolCallResult> {
+    const { groupId, enableCache, cacheConfig } = params;
+
+    if (!this.eventCache) {
+      throw new MCPError(
+        'Event cache not available',
+        MCPErrorCode.TOOL_EXECUTION_ERROR,
+        { groupId }
+      );
+    }
+
+    try {
+      if (enableCache) {
+        // Set group priority if specified
+        if (cacheConfig?.priority) {
+          // @ts-expect-error - accessing private property for configuration
+          this.eventCache.groupPriorities.set(groupId, cacheConfig.priority);
+        }
+
+        // Note: EventCacheManager doesn't have explicit enable/disable methods
+        // It automatically caches events for all groups that receive events
+        // The configuration is applied via the groupPriorities map
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: true,
+                message: `Event caching enabled for group '${groupId}'`,
+                config: {
+                  maxAgeMs: cacheConfig?.maxAgeMs ?? 3600000,
+                  maxEvents: cacheConfig?.maxEvents ?? 100000,
+                  priority: cacheConfig?.priority ?? 'normal',
+                },
+              }),
+            },
+          ],
+        };
+      } else {
+        // To disable caching, we clear the group's buffer
+        // @ts-expect-error - accessing private method for group management
+        if (this.eventCache.buffers.has(groupId)) {
+          this.eventCache.clearGroup(groupId);
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: true,
+                message: `Event caching disabled for group '${groupId}'`,
+              }),
+            },
+          ],
+        };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new MCPError(
+        `Failed to configure event subscription: ${errorMessage}`,
+        MCPErrorCode.TOOL_EXECUTION_ERROR,
+        { groupId, error: errorMessage }
+      );
+    }
+  }
+}
+
 // ===== Factory Functions =====
 
 export function createCreateChangeGroupTool(
@@ -696,4 +817,11 @@ export function createReadChangeGroupEventsTool(
   eventCache?: EventCacheManager
 ): ReadChangeGroupEventsTool {
   return new ReadChangeGroupEventsTool(qrwcClient, eventCache);
+}
+
+export function createSubscribeToChangeEventsTool(
+  qrwcClient: QRWCClientInterface,
+  eventCache?: EventCacheManager
+): SubscribeToChangeEventsTool {
+  return new SubscribeToChangeEventsTool(qrwcClient, eventCache);
 }

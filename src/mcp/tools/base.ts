@@ -194,6 +194,11 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
         .join('; ');
     }
     
+    // For MCPError or other errors with code property
+    if (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') {
+      errorObj.code = (error as any).code;
+    }
+    
     return JSON.stringify(errorObj);
   }
 

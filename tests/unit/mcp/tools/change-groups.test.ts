@@ -9,7 +9,9 @@ import {
   ClearChangeGroupTool,
   SetChangeGroupAutoPollTool,
   ListChangeGroupsTool,
+  SubscribeToChangeEventsTool,
 } from '../../../../src/mcp/tools/change-groups.js';
+import type { EventCacheManager } from '../../../../src/mcp/state/event-cache/manager.js';
 
 describe('Change Group Tools', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;
@@ -582,6 +584,121 @@ describe('Change Group Tools', () => {
         'ChangeGroup.Destroy',
         expect.any(Object)
       );
+    });
+  });
+
+  describe('SubscribeToChangeEventsTool', () => {
+    let tool: SubscribeToChangeEventsTool;
+    let mockEventCache: jest.Mocked<EventCacheManager>;
+
+    beforeEach(() => {
+      mockEventCache = {
+        groupPriorities: new Map(),
+        clearGroup: jest.fn().mockReturnValue(true),
+        buffers: new Map([['test-group', {}]]),
+      } as any;
+
+      tool = new SubscribeToChangeEventsTool(mockQrwcClient, mockEventCache);
+    });
+
+    it('should have correct metadata', () => {
+      expect(tool.name).toBe('subscribe_to_change_events');
+      expect(tool.description).toContain('Subscribe to real-time change events');
+      expect(tool.description).toContain('set_change_group_auto_poll');
+      expect(tool.description).toContain('read_change_group_events');
+    });
+
+    it('should enable caching with default config', async () => {
+      const result = await tool.execute({
+        groupId: 'test-group',
+        enableCache: true,
+      });
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.message).toContain('Event caching enabled');
+      expect(response.config.maxAgeMs).toBe(3600000);
+      expect(response.config.maxEvents).toBe(100000);
+      expect(response.config.priority).toBe('normal');
+    });
+
+    it('should enable caching with custom config', async () => {
+      const result = await tool.execute({
+        groupId: 'test-group',
+        enableCache: true,
+        cacheConfig: {
+          maxAgeMs: 120000,
+          maxEvents: 50000,
+          priority: 'high',
+        },
+      });
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.config.maxAgeMs).toBe(120000);
+      expect(response.config.maxEvents).toBe(50000);
+      expect(response.config.priority).toBe('high');
+      expect(mockEventCache.groupPriorities.get('test-group')).toBe('high');
+    });
+
+    it('should disable caching for a group', async () => {
+      const result = await tool.execute({
+        groupId: 'test-group',
+        enableCache: false,
+      });
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.message).toContain('Event caching disabled');
+      expect(mockEventCache.clearGroup).toHaveBeenCalledWith('test-group');
+    });
+
+    it('should throw error when event cache is not available', async () => {
+      const toolWithoutCache = new SubscribeToChangeEventsTool(mockQrwcClient);
+
+      const result = await toolWithoutCache.execute({
+        groupId: 'test-group',
+        enableCache: true,
+      });
+
+      expect(result.isError).toBe(true);
+      const error = JSON.parse(result.content[0].text);
+      expect(error.error).toBe(true);
+      expect(error.message).toContain('Event cache not available');
+    });
+
+    it('should validate cache config parameters', async () => {
+      const result = await tool.execute({
+        groupId: 'test-group',
+        enableCache: true,
+        cacheConfig: {
+          maxAgeMs: 50000, // Below minimum
+          maxEvents: 500, // Below minimum
+          priority: 'invalid' as any,
+        },
+      });
+
+      expect(result.isError).toBe(true);
+      const error = JSON.parse(result.content[0].text);
+      expect(error.error).toBe(true);
+      expect(error.message).toContain('validation failed');
+    });
+
+    it('should handle errors gracefully', async () => {
+      // Mock clearGroup to throw an error
+      mockEventCache.clearGroup.mockImplementation(() => {
+        throw new Error('Failed to clear group');
+      });
+
+      const result = await tool.execute({
+        groupId: 'test-group',
+        enableCache: false,
+      });
+
+      expect(result.isError).toBe(true);
+      const error = JSON.parse(result.content[0].text);
+      expect(error.error).toBe(true);
+      expect(error.code).toBe('MCP_TOOL_EXECUTION_ERROR');
     });
   });
 });
