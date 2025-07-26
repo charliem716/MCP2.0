@@ -736,7 +736,6 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
         // To disable caching, we clear the group's buffer
         // @ts-expect-error - accessing private method for group management
         if (this.eventCache.buffers.has(groupId)) {
-          // @ts-expect-error - accessing private method for group management
           this.eventCache.clearGroup(groupId);
         }
 
