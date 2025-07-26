@@ -48,7 +48,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   private reconnectTimer?: NodeJS.Timeout;
   private shutdownInProgress = false;
   private disconnectTime: Date | null = null;
-  private shutdownHandler?: () => void;
+  private shutdownHandler?: (() => void) | undefined;
   private signalHandlersInstalled = false;
 
   constructor(options: OfficialQRWCClientOptions) {

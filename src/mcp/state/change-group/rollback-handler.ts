@@ -81,10 +81,11 @@ export class RollbackHandler {
         });
 
         // Emit rollback error event
-        this.eventEmitter.emit(ChangeGroupEvent.RollbackError, {
+        this.eventEmitter.emit(ChangeGroupEvent.Error, {
           changeGroupId,
           controlName: change.controlName,
           error: error instanceof Error ? error.message : 'Unknown error',
+          context: 'rollback',
         });
       }
     }

@@ -236,7 +236,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       result += `\nSystem Status: ${status.systemHealth.status || 'Unknown'}\n`;
     }
     if (status.Status) {
-      result += `Status: ${status.Status.Name || status.Status.String || 'OK'} (Code: ${status.Status.Code})\n`;
+      result += `Status: ${status.Status.Name || 'OK'} (Code: ${status.Status.Code})\n`;
     }
     
     // Network info if requested

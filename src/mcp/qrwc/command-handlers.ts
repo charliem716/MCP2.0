@@ -241,7 +241,18 @@ export async function handleControlSet(
         continue;
       }
 
-      const newValue = obj['Value'] ?? 0;
+      const rawValue = obj['Value'];
+      let newValue: number | string | boolean;
+      
+      // Ensure the value is of the correct type
+      if (typeof rawValue === 'number' || typeof rawValue === 'string' || typeof rawValue === 'boolean') {
+        newValue = rawValue;
+      } else if (rawValue === null || rawValue === undefined) {
+        newValue = 0; // Default value
+      } else {
+        // Convert complex types to string
+        newValue = String(rawValue);
+      }
       
       // Get control info for validation
       const controlInfo = component.controls?.[controlName];

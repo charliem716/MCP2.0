@@ -496,7 +496,7 @@ describe('ChangeGroupManager', () => {
         .mockRejectedValueOnce(new Error('Rollback error'));
 
       const rollbackErrorListener = jest.fn();
-      manager.on(ChangeGroupEvent.RollbackError, rollbackErrorListener);
+      manager.on(ChangeGroupEvent.Error, rollbackErrorListener);
 
       await expect(
         manager.executeChangeGroup(changeGroup, {
@@ -506,6 +506,12 @@ describe('ChangeGroupManager', () => {
       ).rejects.toThrow();
 
       expect(rollbackErrorListener).toHaveBeenCalled();
+      expect(rollbackErrorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: 'rollback',
+          error: expect.any(String)
+        })
+      );
     });
   });
 });

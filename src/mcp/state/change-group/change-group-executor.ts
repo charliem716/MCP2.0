@@ -125,9 +125,13 @@ export class ChangeGroupExecutor {
         const result = settled[i];
         const control = changeGroup.controls[i];
         
+        if (!result || !control) {
+          continue; // Skip if either is undefined
+        }
+        
         if (result.status === 'fulfilled') {
           results.push(result.value);
-        } else {
+        } else if (result.status === 'rejected') {
           // For rejected promises, create a failed result
           const error = result.reason;
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -178,7 +182,7 @@ export class ChangeGroupExecutor {
     }
     
     const match = /Control \S+ failed: (.+)/.exec(error.message);
-    return match ? match[1] : defaultMessage;
+    return match?.[1] ?? defaultMessage;
   }
 
   /**
