@@ -188,7 +188,9 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     let nonDefaultCount = 0;
 
     controls.forEach((ctrl: unknown) => {
-      const control = ctrl as any;
+      if (!ctrl || typeof ctrl !== 'object') return;
+      
+      const control = ctrl as { Component?: string; Name?: string; Value?: unknown; Type?: string };
       const componentName = control.Component ?? 'Unknown';
 
       // Group by component
@@ -199,8 +201,8 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 
       // Count by type
       const type = this.inferControlType(control);
-      if (type in byType) {
-        (byType as any)[type]++;
+      if (type === 'gain' || type === 'mute' || type === 'select' || type === 'trigger' || type === 'text' || type === 'other') {
+        byType[type]++;
       }
 
       // Count non-default values

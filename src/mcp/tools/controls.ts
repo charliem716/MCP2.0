@@ -148,9 +148,9 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         controls = response.result;
       } else if (typeof response.result === 'object' && 
                  'Controls' in response.result && 
-                 Array.isArray((response.result as any).Controls)) {
+                 isComponentControlsResponse(response.result)) {
         // Component.GetControls format  
-        const componentResponse = response.result as QSysComponentControlsResponse;
+        const componentResponse = response.result;
         controls = componentResponse.Controls;
         componentName = componentResponse.Name ?? 'unknown';
       }
@@ -772,8 +772,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         return errors;
       }
 
-      const typedResponse = response as any;
-      if (typedResponse.error) {
+      if (isQSysApiResponse(response) && response.error) {
         // Error accessing component
         for (const info of controlInfos) {
           this.cacheResult(info.fullName, false);
@@ -851,8 +850,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
           Name: control.name,
         });
 
-        const typedResponse = response as any;
-        if (typedResponse.error) {
+        if (isQSysApiResponse(response) && response.error) {
           this.cacheResult(control.name, false);
           return {
             controlName: control.name,
@@ -916,7 +914,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
 
     return await this.qrwcClient.sendCommand(
       'Control.Set',
-      commandParams as unknown as Record<string, unknown>
+      commandParams
     );
   }
 

@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema, ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
-import type { QSysStatusGetResponse } from '../types/qsys-api-responses.js';
+import type { QSysStatusGetResponse, QSysApiResponse, QSysComponentInfo } from '../types/qsys-api-responses.js';
+import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
@@ -121,10 +122,15 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     this.logger.debug('Parsing status response', { response });
 
     // Extract status information from response
-    const resp = response as { result?: QSysStatusGetResponse };
-    const baseResult = resp.result ?? (response as QSysStatusGetResponse);
-    // Cast to any to access additional fields that might be in the response
-    const result = baseResult as any;
+    let result: QSysStatusGetResponse;
+    
+    if (isQSysApiResponse<QSysStatusGetResponse>(response) && response.result) {
+      result = response.result;
+    } else if (typeof response === 'object' && response !== null && 'Platform' in response) {
+      result = response as QSysStatusGetResponse;
+    } else {
+      throw new MCPError('Invalid status response format', MCPErrorCode.TOOL_EXECUTION_ERROR);
+    }
 
     // Check if this is fallback data from adapter
     if (result.Platform?.includes('StatusGet not supported')) {
@@ -270,7 +276,13 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     const componentsResponse = await this.qrwcClient.sendCommand(
       'Component.GetComponents'
     );
-    const components = (componentsResponse as any)?.result ?? [];
+    
+    if (!isQSysApiResponse<QSysComponentInfo[]>(componentsResponse) || !componentsResponse.result) {
+      this.logger.warn('Invalid components response');
+      return {};
+    }
+    
+    const components = componentsResponse.result;
 
     // Detect status components using scoring system
     const statusComponents = this.detectStatusComponents(components);
@@ -284,7 +296,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     }
 
     // Get control values for all status components
-    const statusData: Record<string, any> = {};
+    const statusData: Record<string, Record<string, unknown>> = {};
 
     for (const component of statusComponents) {
       try {
@@ -295,10 +307,16 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
           }
         );
 
-        const controls = (controlsResponse as any)?.result?.Controls ?? [];
+        if (!isQSysApiResponse(controlsResponse) || !controlsResponse.result) {
+          this.logger.warn('Invalid controls response for component', { component: component.Name });
+          continue;
+        }
+        
+        const controlsResult = controlsResponse.result as { Controls?: Array<{ Name: string; Value: unknown; String?: string }> };
+        const controls = controlsResult.Controls ?? [];
 
         // Process controls into meaningful status data
-        const componentStatus: Record<string, any> = {};
+        const componentStatus: Record<string, unknown> = {};
 
         for (const control of controls) {
           // Include all controls from status components

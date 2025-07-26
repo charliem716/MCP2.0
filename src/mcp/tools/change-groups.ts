@@ -9,6 +9,7 @@ import type {
 } from '../state/event-cache/manager.js';
 import type { ControlValue } from '../state/event-cache/event-types.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
+import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 
 /**
  * Change Group Tools for Q-SYS
@@ -102,8 +103,11 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
     });
 
     // Extract the actual count of controls added from the result
-    const addedCount =
-      (result as any)?.result?.addedCount ?? params.controlNames.length;
+    let addedCount = params.controlNames.length;
+    
+    if (isQSysApiResponse<{ addedCount?: number }>(result) && result.result?.addedCount !== undefined) {
+      addedCount = result.result.addedCount;
+    }
 
     return {
       content: [
@@ -354,7 +358,8 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
       };
     } else {
       // Disable auto polling by clearing the timer
-      const adapter = this.qrwcClient as any;
+      // Note: This requires internal adapter knowledge
+      const adapter = this.qrwcClient as { autoPollTimers?: Map<string, NodeJS.Timeout> };
 
       // Check if adapter has the autoPollTimers Map and the group has an active timer
       if (adapter.autoPollTimers?.has(params.groupId)) {
@@ -405,7 +410,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     params: ListChangeGroupsParams
   ): Promise<ToolCallResult> {
     // Cast the client to access the listChangeGroups method
-    const adapter = this.qrwcClient as any;
+    const adapter = this.qrwcClient as { listChangeGroups?: () => unknown };
 
     if (typeof adapter.listChangeGroups !== 'function') {
       throw new MCPError('Change group listing not supported by this adapter',
