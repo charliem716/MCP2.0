@@ -682,7 +682,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
       qrwcClient,
       'subscribe_to_change_events',
       `Subscribe to real-time change events from a change group. Events are automatically cached and can be queried later using read_change_group_events. Subscription enables both real-time monitoring and historical analysis. Note: You must call set_change_group_auto_poll to start receiving events. Example: 1. Subscribe: subscribe_to_change_events({ groupId: "my-group", enableCache: true }) 2. Start polling: set_change_group_auto_poll({ groupId: "my-group", rate: 100 }) 3. Query history: read_change_group_events({ groupId: "my-group", startTime: Date.now()-60000 })`,
-      SubscribeToChangeEventsParamsSchema
+      SubscribeToChangeEventsParamsSchema as z.ZodSchema<SubscribeToChangeEventsParams>
     );
     this.eventCache = eventCache;
   }
