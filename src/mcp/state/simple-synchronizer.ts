@@ -8,6 +8,13 @@ import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { IStateRepository, ControlState } from './repository.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type { SyncSourceResult, SyncDetail } from './synchronizer/types.js';
+import type { 
+  QSysApiResponse,
+  QSysComponentGetResponse,
+  QSysComponentControlsResponse,
+  QSysComponentInfo
+} from '../types/qsys-api-responses.js';
+import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 
 export class SimpleSynchronizer {
   private interval: NodeJS.Timeout | null = null;
@@ -65,23 +72,53 @@ export class SimpleSynchronizer {
       const componentsResponse = await this.qrwcAdapter.sendCommand(
         'Component.GetComponents'
       );
-      const components = (componentsResponse as any)?.Components ?? [];
+      
+      // Type guard and extract components array
+      if (!isQSysApiResponse<QSysComponentInfo[]>(componentsResponse)) {
+        logger.warn('Invalid components response format');
+        return { updates, conflicts: [] };
+      }
+      
+      if (componentsResponse.error) {
+        logger.error('Failed to get components', { error: componentsResponse.error });
+        return { updates, conflicts: [] };
+      }
+      
+      const components = componentsResponse.result ?? [];
 
       // Get all controls from components
       for (const component of components) {
         const controlsResponse = await this.qrwcAdapter.sendCommand(
           'Component.GetControls',
           {
-            Name: component.Name ?? component.name,
+            Name: component.Name,
           }
         );
-        const controls = (controlsResponse as any)?.Controls ?? [];
+        
+        // Type guard for controls response
+        if (!isQSysApiResponse<QSysComponentControlsResponse>(controlsResponse)) {
+          logger.warn('Invalid controls response format', { component: component.Name });
+          continue;
+        }
+        
+        if (controlsResponse.error) {
+          logger.error('Failed to get controls', { 
+            component: component.Name, 
+            error: controlsResponse.error 
+          });
+          continue;
+        }
+        
+        const controlsData = controlsResponse.result;
+        if (!controlsData || !controlsData.Controls) {
+          continue;
+        }
 
-        for (const control of controls) {
-          const controlName = `${component.Name ?? component.name}.${control.Name ?? control.name}`;
+        for (const control of controlsData.Controls) {
+          const controlName = `${component.Name}.${control.Name}`;
           updates.set(controlName, {
             name: controlName,
-            value: control.Value !== undefined ? control.Value : control.value,
+            value: control.Value,
             timestamp: new Date(),
             source: 'qsys',
           });

@@ -9,6 +9,7 @@
 import { EventEmitter } from 'events';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { OfficialQRWCClient } from '../../qrwc/officialClient.js';
+import type { IControlState } from '@q-sys/qrwc';
 import {
   validateControlValue,
   isRetryableError as isRetryableErrorValidator,
@@ -223,7 +224,16 @@ export class QRWCClientAdapter
 
         return await this.executeCommand(command, params, options);
       } catch (error) {
-        lastError = error as Error;
+        // Ensure error is an Error object
+        if (error instanceof Error) {
+          lastError = error;
+        } else {
+          lastError = new QSysError(
+            typeof error === 'string' ? error : 'Unknown error occurred',
+            QSysErrorCode.COMMAND_FAILED,
+            { originalError: error }
+          );
+        }
 
         // Don't retry non-transient errors
         if (!this.isRetryableError(error)) {
@@ -328,7 +338,7 @@ export class QRWCClientAdapter
    */
   private async handleControlSetWrapper(params?: Record<string, unknown>): Promise<unknown> {
     const result = await handleControlSet(params, this.officialClient);
-    const resultArray = (result as { result: Array<{ Name: string; Result: string; Error?: string }> }).result;
+    const resultArray = result.result;
     
     // Check for any errors that should be thrown as exceptions
     const errorResult = resultArray.find(r => r.Result === 'Error');
@@ -377,9 +387,16 @@ export class QRWCClientAdapter
   ): Promise<{ Value: unknown; String?: string } | null> {
     return withErrorRecovery(
       async () => {
-        const result = (await this.sendCommand('Control.Get', {
+        const response = await this.sendCommand('Control.Get', {
           Controls: [controlName],
-        })) as ControlGetResult;
+        });
+        
+        // Type guard for ControlGetResult
+        if (!response || typeof response !== 'object' || !('result' in response)) {
+          return null;
+        }
+        
+        const result = response as ControlGetResult;
         const controls = result.result;
         if (Array.isArray(controls) && controls.length > 0 && controls[0]) {
           return controls[0];
@@ -423,7 +440,16 @@ export class QRWCClientAdapter
       try {
         return await operation();
       } catch (error) {
-        lastError = error as Error;
+        // Ensure error is an Error object
+        if (error instanceof Error) {
+          lastError = error;
+        } else {
+          lastError = new QSysError(
+            typeof error === 'string' ? error : 'Unknown error occurred',
+            QSysErrorCode.COMMAND_FAILED,
+            { originalError: error }
+          );
+        }
 
         // Don't retry non-transient errors
         if (!this.isRetryableError(error)) {
@@ -527,7 +553,12 @@ export class QRWCClientAdapter
       }
     }
     
-    const result: any = { result: { addedCount } };
+    interface ChangeGroupAddResult {
+      result: { addedCount: number };
+      warning?: string;
+    }
+    
+    const result: ChangeGroupAddResult = { result: { addedCount } };
     
     // If creating a new group and it already existed, add warning
     if (isCreatingNewGroup && existingGroup) {
@@ -572,9 +603,10 @@ export class QRWCClientAdapter
       const control = component?.controls?.[controlName];
       
       if (control) {
-        // Control values are stored directly on the control object, not in a state property
-        const currentValue = (control as any).Value ?? (control as any).state?.Value;
-        let currentString = (control as any).String ?? (control as any).state?.String ?? String(currentValue);
+        // Get control state which has IControlState interface
+        const controlState = control.state as IControlState;
+        const currentValue = controlState.Value ?? 0;
+        let currentString = controlState.String ?? String(currentValue);
         
         // For consistency with tests, strip common units from string values
         if (typeof currentString === 'string') {
