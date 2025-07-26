@@ -142,7 +142,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
           .join('; ');
         throw new ValidationError(
           'Parameter validation failed',
-          error.errors.map((err: any) => ({
+          error.errors.map((err) => ({
             field: err.path.join('.'),
             message: err.message,
             code: 'VALIDATION_ERROR',
@@ -176,11 +176,21 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    */
   protected formatErrorResponse(error: unknown): string {
     // Always return JSON for consistency with MCP protocol
-    const errorObj: any = {
+    interface ErrorResponse {
+      error: boolean;
+      toolName: string;
+      message: string;
+      code: string;
+      timestamp: string;
+      fields?: Array<{ field: string; message: string; code: string }>;
+      fieldErrors?: string;
+    }
+    
+    const errorObj: ErrorResponse = {
       error: true,
       toolName: this.name,
       message: error instanceof Error ? error.message : String(error),
-      code: (error as { code?: string })?.code ?? 'UNKNOWN_ERROR',
+      code: 'UNKNOWN_ERROR',
       timestamp: new Date().toISOString(),
     };
     
@@ -195,8 +205,11 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
     }
     
     // For MCPError or other errors with code property
-    if (error instanceof Error && 'code' in error && typeof (error as any).code === 'string') {
-      errorObj.code = (error as any).code;
+    if (error instanceof Error && 'code' in error) {
+      const errorWithCode = error as Error & { code?: string };
+      if (typeof errorWithCode.code === 'string') {
+        errorObj.code = errorWithCode.code;
+      }
     }
     
     return JSON.stringify(errorObj);

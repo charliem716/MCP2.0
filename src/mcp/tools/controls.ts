@@ -1,11 +1,15 @@
 import { z } from 'zod';
-import { BaseQSysTool, BaseToolParamsSchema, ToolExecutionContext } from './base.js';
+import { BaseQSysTool, BaseToolParamsSchema, type ToolExecutionContext } from './base.js';
 import { config as envConfig } from '../../shared/utils/env.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
-import type {
-  QSysComponentControlsResponse,
-  QSysControlGetResponse,
+import {
+  type QSysComponentControlsResponse,
+  type QSysControlGetResponse,
+  type QSysApiResponse,
+  isQSysApiResponse,
+  isComponentControlsResponse,
+  isControlsArrayResponse,
 } from '../types/qsys-api-responses.js';
 
 // Extract the control type from the existing interface
@@ -123,21 +127,32 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     this.logger.debug('Parsing controls response', { response });
 
     // Handle different response formats from Component.GetControls vs Component.GetAllControls
-    const resp = response as any;
+    if (!isQSysApiResponse<QSysComponentControlsResponse | QSysControlInfo[]>(response)) {
+      this.logger.warn('Invalid response format', { response });
+      return [];
+    }
+
+    // Check for error response
+    if (response.error) {
+      throw new Error(`Q-SYS API error: ${response.error.message}`);
+    }
 
     // Component.GetAllControls returns { result: [...] } directly
     // Component.GetControls returns { result: { Name: "...", Controls: [...] } }
-    let controls: any[] = [];
+    let controls: QSysControlInfo[] = [];
     let componentName = 'unknown';
 
-    if (resp?.result) {
-      if (Array.isArray(resp.result)) {
+    if (response.result) {
+      if (Array.isArray(response.result)) {
         // Component.GetAllControls format
-        controls = resp.result;
-      } else if (resp.result.Controls && Array.isArray(resp.result.Controls)) {
-        // Component.GetControls format
-        controls = resp.result.Controls;
-        componentName = resp.result.Name ?? 'unknown';
+        controls = response.result;
+      } else if (typeof response.result === 'object' && 
+                 'Controls' in response.result && 
+                 Array.isArray((response.result as any).Controls)) {
+        // Component.GetControls format  
+        const componentResponse = response.result as QSysComponentControlsResponse;
+        controls = componentResponse.Controls;
+        componentName = componentResponse.Name ?? 'unknown';
       }
     }
 
@@ -181,7 +196,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
 
     // When using Component.GetControls with a specific component,
     // all returned controls belong to that component
-    if (params.component && !Array.isArray(resp.result)) {
+    if (params.component && response.result && !Array.isArray(response.result)) {
       // Component.GetControls was used, so all controls are from the requested component
       // Don't filter by component name
     } else if (params.component) {
@@ -246,8 +261,18 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     if (control.Position !== undefined) metadata['position'] = control.Position;
 
     // Also check Properties object for legacy format
-    const props = (control as any).Properties;
-    if (props) {
+    const controlWithProps = control as QSysControlInfo & { 
+      Properties?: {
+        MinValue?: number;
+        MaxValue?: number;
+        Units?: string;
+        Step?: number;
+        ValueType?: string;
+      }
+    };
+    
+    if (controlWithProps.Properties) {
+      const props = controlWithProps.Properties;
       if (props.MinValue !== undefined) metadata['min'] = props.MinValue;
       if (props.MaxValue !== undefined) metadata['max'] = props.MaxValue;
       if (props.Units) metadata['units'] = props.Units;

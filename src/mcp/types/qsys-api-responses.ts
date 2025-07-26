@@ -6,6 +6,20 @@
  */
 
 /**
+ * Generic wrapper for Q-SYS API responses
+ * All Q-SYS API responses follow this pattern
+ */
+export interface QSysApiResponse<T> {
+  result?: T;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+  warning?: string;
+}
+
+/**
  * StatusGet method response
  * Example from API:
  * {
@@ -163,4 +177,56 @@ export function isQSysResult<T>(
     'result' in response &&
     !('error' in response)
   );
+}
+
+/**
+ * Type guard for wrapped API responses
+ */
+export function isQSysApiResponse<T>(
+  response: unknown
+): response is QSysApiResponse<T> {
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    ('result' in response || 'error' in response || 'warning' in response)
+  );
+}
+
+/**
+ * Type guard for component controls response
+ */
+export function isComponentControlsResponse(
+  response: unknown
+): response is QSysApiResponse<QSysComponentControlsResponse> {
+  if (!isQSysApiResponse<QSysComponentControlsResponse>(response)) {
+    return false;
+  }
+  
+  if (response.result) {
+    return (
+      typeof response.result === 'object' &&
+      'Name' in response.result &&
+      'Controls' in response.result &&
+      Array.isArray(response.result.Controls)
+    );
+  }
+  
+  return true; // Could be error response
+}
+
+/**
+ * Type guard for array of controls response
+ */
+export function isControlsArrayResponse(
+  response: unknown
+): response is QSysApiResponse<Array<{ Name: string; Value: unknown }>> {
+  if (!isQSysApiResponse<Array<{ Name: string; Value: unknown }>>(response)) {
+    return false;
+  }
+  
+  if (response.result) {
+    return Array.isArray(response.result);
+  }
+  
+  return true; // Could be error response
 }
