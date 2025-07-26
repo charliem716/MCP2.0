@@ -106,7 +106,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         content: [
           {
             type: 'text',
-            text: this.formatControlsResponse(controls, params),
+            text: JSON.stringify(controls),
           },
         ],
         isError: false,
@@ -316,7 +316,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
         content: [
           {
             type: 'text',
-            text: this.formatControlValuesResponse(values),
+            text: JSON.stringify(values),
           },
         ],
         isError: false,
@@ -509,7 +509,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             content: [
               {
                 type: 'text',
-                text: `Validation failed:\n${errorResults.map(r => `  ${r.name}: ${r.error}`).join('\n')}`,
+                text: JSON.stringify(errorResults),
               },
             ],
             isError: true,
@@ -578,11 +578,35 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         }
       }
 
+      // Convert results to the expected JSON format
+      const jsonResults = allResults.map(({ control, result }) => {
+        if (result.status === 'fulfilled') {
+          const response: any = {
+            name: control.name,
+            value: control.value,
+            success: true,
+          };
+          if (control.ramp !== undefined) {
+            response.rampTime = control.ramp;
+          }
+          return response;
+        } else {
+          return {
+            name: control.name,
+            value: control.value,
+            success: false,
+            error: result.reason instanceof Error 
+              ? result.reason.message 
+              : String(result.reason),
+          };
+        }
+      });
+
       return {
         content: [
           {
             type: 'text',
-            text: this.formatSetControlsResponseNew(allResults),
+            text: JSON.stringify(jsonResults),
           },
         ],
         isError: allResults.some(r => r.result.status === 'rejected'),

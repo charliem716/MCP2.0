@@ -136,9 +136,9 @@ describe('MCP Server Signal Handler Cleanup (BUG-028)', () => {
     // This test verifies that both MCPServer and OfficialQRWCClient handlers are cleaned up properly
     
     const setupMethod = Object.getPrototypeOf(new MCPServer(config)).constructor.prototype.setupGracefulShutdown;
-    let sigusr2Count = process.listenerCount('SIGUSR2');
-    let uncaughtCount = process.listenerCount('uncaughtException');
-    let unhandledCount = process.listenerCount('unhandledRejection');
+    const sigusr2Count = process.listenerCount('SIGUSR2');
+    const uncaughtCount = process.listenerCount('uncaughtException');
+    const unhandledCount = process.listenerCount('unhandledRejection');
 
     // Create multiple servers with proper cleanup
     for (let i = 0; i < 3; i++) {

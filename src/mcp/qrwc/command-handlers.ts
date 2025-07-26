@@ -180,10 +180,10 @@ export function handleControlGet(
 /**
  * Handle Control.Set command
  */
-export function handleControlSet(
+export async function handleControlSet(
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
-): { result: Array<{ Name: string; Result: string; Error?: string }> } {
+): Promise<{ result: Array<{ Name: string; Result: string; Error?: string }> }> {
   const controls = params?.['Controls'] as unknown[];
   if (!Array.isArray(controls)) {
     throw new ValidationError('Controls array is required',
@@ -263,7 +263,7 @@ export function handleControlSet(
       }
 
       // Update through official client
-      client.setControlValue(componentName, controlName, newValue);
+      await client.setControlValue(componentName, controlName, newValue);
       
       // Update local state
       if ('controls' in component && component.controls) {

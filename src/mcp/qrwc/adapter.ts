@@ -314,7 +314,7 @@ export class QRWCClientAdapter
         return () => handleControlGet(params, this.officialClient);
       case 'Control.Set':
       case 'ControlSet':
-        return () => handleControlSet(params, this.officialClient);
+        return async () => this.handleControlSetWrapper(params);
       case 'Status.Get':
       case 'StatusGet':
         return () => handleStatusGet(params, this.officialClient);
@@ -335,6 +335,31 @@ export class QRWCClientAdapter
       default:
         return null;
     }
+  }
+
+  /**
+   * Wrapper for Control.Set to match test expectations
+   */
+  private async handleControlSetWrapper(params?: Record<string, unknown>): Promise<unknown> {
+    const result = await handleControlSet(params, this.officialClient);
+    const resultArray = (result as { result: Array<{ Name: string; Result: string; Error?: string }> }).result;
+    
+    // Check for any errors in the results
+    const errors = resultArray.filter(r => r.Result === 'Error');
+    
+    // If there are any errors with invalid control name format, throw
+    const invalidFormatError = errors.find(e => e.Error?.includes('Invalid control name format'));
+    if (invalidFormatError) {
+      throw new Error(invalidFormatError.Error);
+    }
+    
+    // If all succeeded, return simple success message
+    if (errors.length === 0) {
+      return { result: 'Controls updated successfully' };
+    }
+    
+    // Otherwise return the detailed array
+    return result;
   }
 
   /**

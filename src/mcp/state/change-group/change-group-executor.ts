@@ -133,13 +133,7 @@ export class ChangeGroupExecutor {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           
           // Extract the actual error message if it's a ValidationError
-          let actualError = errorMessage;
-          if (error instanceof ValidationError && error.message.includes('failed:')) {
-            const match = error.message.match(/Control \S+ failed: (.+)/);
-            if (match) {
-              actualError = match[1];
-            }
-          }
+          const actualError = this.extractValidationError(error, errorMessage);
           
           results.push({
             controlName: control.name,
@@ -173,6 +167,18 @@ export class ChangeGroupExecutor {
     }
 
     return results;
+  }
+
+  /**
+   * Extract actual error message from ValidationError
+   */
+  private extractValidationError(error: unknown, defaultMessage: string): string {
+    if (!(error instanceof ValidationError) || !error.message.includes('failed:')) {
+      return defaultMessage;
+    }
+    
+    const match = /Control \S+ failed: (.+)/.exec(error.message);
+    return match ? match[1] : defaultMessage;
   }
 
   /**

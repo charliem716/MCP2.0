@@ -1,5 +1,5 @@
-import logger from '../shared/logger';
-import { CircularBuffer } from '../circular-buffer';
+import { globalLogger as logger } from '../../../../shared/utils/logger.js';
+import { CircularBuffer } from '../circular-buffer.js';
 
 describe('BUG-074 Fix: queryTimeRange performance', () => {
   it('should demonstrate O(log n) vs O(n) performance difference', () => {
@@ -34,10 +34,11 @@ describe('BUG-074 Fix: queryTimeRange performance', () => {
     );
     const getAllTime = process.hrtime.bigint() - getAllStart;
 
-    logger.info(
+    // Use console.log for test output visibility
+    console.log(
       `queryTimeRange (O(log n)): ${queryTime / 1000000n}ms for ${queryResults.length} results`
     );
-    logger.info(
+    console.log(
       `getAll + filter (O(n)): ${getAllTime / 1000000n}ms for ${filtered.length} results`
     );
 
@@ -47,7 +48,7 @@ describe('BUG-074 Fix: queryTimeRange performance', () => {
 
     // On 100k events, queryTimeRange should be at least 10x faster
     const speedup = Number(getAllTime) / Number(queryTime);
-    logger.info(`Speedup: ${speedup.toFixed(1)}x`);
+    console.log(`Speedup: ${speedup.toFixed(1)}x`);
     expect(speedup).toBeGreaterThan(5); // Conservative expectation
   });
 

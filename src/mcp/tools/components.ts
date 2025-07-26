@@ -66,7 +66,7 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
         content: [
           {
             type: 'text',
-            text: this.formatComponentsResponse(filteredComponents, params),
+            text: JSON.stringify(filteredComponents),
           },
         ],
         isError: false,
