@@ -48,8 +48,8 @@ export class MCPServer {
 
   constructor(private config: MCPServerConfig) {
     debugLog('MCPServer constructor called', config);
-    this.serverName = config.name ?? 'qsys-mcp-server';
-    this.serverVersion = config.version ?? '1.0.0';
+    this.serverName = config.name;
+    this.serverVersion = config.version;
 
     // Initialize the MCP server with capabilities
     debugLog('Creating MCP Server instance');

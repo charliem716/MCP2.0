@@ -185,20 +185,6 @@ export class QRWCClientAdapter
     return this.officialClient.isConnected();
   }
 
-  /**
-   * Count all controls across all components
-   */
-  private countAllControls(qrwc: QRWCInstance | undefined): number {
-    if (!qrwc || !qrwc.components) return 0;
-
-    let count = 0;
-    for (const component of Object.values(qrwc.components)) {
-      if (component?.controls) {
-        count += Object.keys(component.controls).length;
-      }
-    }
-    return count;
-  }
 
   // ===== Control Methods =====
 
