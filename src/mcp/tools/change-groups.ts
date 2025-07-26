@@ -5,6 +5,7 @@ import type { ToolCallResult } from '../handlers/index.js';
 import type {
   EventCacheManager,
   EventQuery,
+  CachedEvent,
 } from '../state/event-cache/manager.js';
 import type { ControlValue } from '../state/event-cache/event-types.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
@@ -484,6 +485,12 @@ const ReadChangeGroupEventsParamsSchema = BaseToolParamsSchema.extend({
     .enum(['raw', 'changes_only', 'summary'])
     .optional()
     .describe('Event aggregation mode (default: raw)'),
+  timeout: z
+    .number()
+    .min(1000)
+    .max(60000)
+    .optional()
+    .describe('Query timeout in milliseconds (default: 30000, min: 1000, max: 60000)'),
 });
 
 type ReadChangeGroupEventsParams = z.infer<
@@ -548,7 +555,42 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
       }),
     };
 
-    const events = await this.eventCache.query(queryParams);
+    // Get timeout value (default: 30 seconds)
+    const timeoutMs = params.timeout ?? 30000;
+    
+    // Create timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Query timeout after ${timeoutMs}ms. Consider using a more specific time range or control filter to reduce query complexity.`));
+      }, timeoutMs);
+    });
+
+    // Execute query with timeout protection
+    let events: CachedEvent[];
+    try {
+      events = await Promise.race([
+        this.eventCache.query(queryParams),
+        timeoutPromise
+      ]);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('timeout')) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                events: [],
+                error: error.message,
+                timeout: timeoutMs,
+                suggestion: 'Try reducing the time range or adding specific control filters',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+      throw error; // Re-throw non-timeout errors
+    }
 
     // Calculate summary statistics if requested
     let summary = undefined;
@@ -569,13 +611,19 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
       };
     }
 
+    // Convert BigInt timestamps to strings for JSON serialization
+    const serializedEvents = events.map(event => ({
+      ...event,
+      timestamp: event.timestamp.toString(),
+    }));
+
     return {
       content: [
         {
           type: 'text',
           text: JSON.stringify({
             success: true,
-            events,
+            events: serializedEvents,
             count: events.length,
             timeRange: {
               start: params.startTime || Date.now() - 60000,
