@@ -1,5 +1,5 @@
 import { QueryCache } from '../../../../../src/mcp/state/event-cache/query-cache';
-import { EventQuery, CachedEvent } from '../../../../../src/mcp/state/event-cache/types';
+import type { EventQuery, CachedEvent } from '../../../../../src/mcp/state/event-cache/manager';
 
 describe('QueryCache', () => {
   let cache: QueryCache;
@@ -197,8 +197,6 @@ describe('QueryCache', () => {
         valueFilter: { operator: 'gt', value: 50 },
         limit: 100,
         offset: 20,
-        orderBy: 'value',
-        orderDirection: 'desc',
         eventTypes: ['change', 'threshold_crossed'],
         aggregation: 'changes_only',
       };

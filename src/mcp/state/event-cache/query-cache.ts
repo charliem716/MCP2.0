@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { EventQuery, CachedEvent } from './types';
+import type { EventQuery, CachedEvent } from './manager.js';
 
 interface CacheEntry {
   events: CachedEvent[];
@@ -37,8 +37,6 @@ export class QueryCache {
       valueFilter: query.valueFilter || null,
       limit: query.limit || 1000,
       offset: query.offset || 0,
-      orderBy: query.orderBy || 'timestamp',
-      orderDirection: query.orderDirection || 'asc',
       eventTypes: query.eventTypes?.sort() || [],
       aggregation: query.aggregation || null,
     };
