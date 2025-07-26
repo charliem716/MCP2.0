@@ -428,7 +428,8 @@ describe('EventCacheManager - Memory Management', () => {
   });
 
   describe('Type Safety (from BUG-081)', () => {
-    it('should handle invalid change event gracefully', async () => {
+    it('should handle invalid change event gracefully', () => {
+      manager = new EventCacheManager();
       manager.attachToAdapter(mockAdapter as unknown as Pick<QRWCClientAdapter, 'on' | 'removeListener'>);
 
       // Emit an invalid event structure (missing required fields)
@@ -438,15 +439,13 @@ describe('EventCacheManager - Memory Management', () => {
         changes: 'not-an-array' as unknown as any[],
       });
 
-      // Add small delay to ensure event processing completes
-      await new Promise(resolve => setTimeout(resolve, 10));
-
       // Should not crash - query returns empty because invalid events are rejected
-      const results = manager.queryTimeRange(Date.now() - 1000, Date.now());
+      const results = manager.querySync({ startTime: Date.now() - 1000, endTime: Date.now() });
       expect(results).toHaveLength(0);
     });
 
     it('should handle valid change events with proper types', async () => {
+      manager = new EventCacheManager();
       manager.attachToAdapter(mockAdapter as unknown as Pick<QRWCClientAdapter, 'on' | 'removeListener'>);
 
       const now = Date.now();
@@ -494,6 +493,7 @@ describe('EventCacheManager - Memory Management', () => {
     });
 
     it('should handle mixed value types without type errors', async () => {
+      manager = new EventCacheManager();
       manager.attachToAdapter(mockAdapter as unknown as Pick<QRWCClientAdapter, 'on' | 'removeListener'>);
 
       const now = Date.now();
@@ -518,12 +518,16 @@ describe('EventCacheManager - Memory Management', () => {
       const events = manager.querySync({ startTime: now - 100, endTime: now + 100 });
       expect(events).toHaveLength(5);
 
+      // Create a map of events by control name for easier verification
+      const eventMap = new Map(events.map(e => [e.controlName, e]));
+
       // Verify each type was stored correctly
-      testCases.forEach((testCase, index) => {
-        const event = events[index];
-        expect(event?.Name).toBe(testCase.Name);
-        expect(event?.Value).toBe(testCase.Value);
-        expect(event?.String).toBe(testCase.String);
+      testCases.forEach((testCase) => {
+        const event = eventMap.get(testCase.Name);
+        expect(event).toBeDefined();
+        expect(event?.controlName).toBe(testCase.Name);
+        expect(event?.value).toBe(testCase.Value);
+        expect(event?.string).toBe(testCase.String);
       });
     });
   });
