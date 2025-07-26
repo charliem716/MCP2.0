@@ -435,4 +435,209 @@ describe('Event Cache Real-World Scenarios', () => {
       // Ignore
     }
   });
+
+  it('should handle concurrent access from multiple change groups', async () => {
+    const config: EventCacheConfig = {
+      maxEvents: 200000,
+      maxAgeMs: 300000, // 5 minutes
+      globalMemoryLimitMB: 100,
+      compressionConfig: {
+        enabled: true,
+        checkIntervalMs: 2000,
+      },
+    };
+
+    manager = new EventCacheManager(config);
+    mockAdapter = new MockQRWCAdapter();
+    manager.attachToAdapter(mockAdapter as any);
+
+    // Test parameters
+    const groupCount = 5;
+    const eventsPerGroupPerSecond = 200;
+    const duration = 5000; // 5 seconds
+    const queryInterval = 500; // Query every 500ms
+
+    // Track events sent per group
+    const eventCounts = new Map<string, number>();
+    const groupNames = Array.from({ length: groupCount }, (_, i) => `group-${i}`);
+    groupNames.forEach(g => eventCounts.set(g, 0));
+
+    // Start multiple concurrent writers
+    const writerIntervals: NodeJS.Timeout[] = [];
+    for (let groupIdx = 0; groupIdx < groupCount; groupIdx++) {
+      const groupId = groupNames[groupIdx];
+      
+      const interval = setInterval(() => {
+        const changes = [];
+        // Each group writes different controls
+        for (let i = 0; i < eventsPerGroupPerSecond / 10; i++) {
+          changes.push({
+            Name: `${groupId}-control${i}`,
+            Value: Math.random() * 100,
+            String: `${groupId}-${Date.now()}`,
+          });
+        }
+
+        mockAdapter.emit('changeGroup:changes', {
+          groupId,
+          changes,
+          timestamp: BigInt(Date.now() * 1_000_000),
+          timestampMs: Date.now(),
+          sequenceNumber: eventCounts.get(groupId)!,
+        } as ChangeData);
+
+        eventCounts.set(groupId, eventCounts.get(groupId)! + changes.length);
+      }, 100); // Write every 100ms
+
+      writerIntervals.push(interval);
+    }
+
+    // Start concurrent readers
+    const queryResults: Array<{ groupId: string; count: number; elapsed: number }> = [];
+    const queryInterval_ = setInterval(async () => {
+      // Query random groups concurrently
+      const queryPromises = groupNames.map(async groupId => {
+        const start = Date.now();
+        const results = await manager.query({
+          groupId,
+          startTime: Date.now() - 2000, // Last 2 seconds
+          limit: 1000,
+        });
+        const elapsed = Date.now() - start;
+        
+        return { groupId, count: results.length, elapsed };
+      });
+
+      const results = await Promise.all(queryPromises);
+      queryResults.push(...results);
+    }, queryInterval);
+
+    // Run test
+    await new Promise(resolve => setTimeout(resolve, duration));
+
+    // Stop all writers and readers
+    writerIntervals.forEach(interval => clearInterval(interval));
+    clearInterval(queryInterval_);
+
+    // Allow final processing
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify results
+    const stats = manager.getStatistics();
+    
+    // Check total events
+    const totalEventsSent = Array.from(eventCounts.values()).reduce((a, b) => a + b, 0);
+    expect(stats.totalEvents).toBeGreaterThanOrEqual(totalEventsSent * 0.95); // Allow 5% margin
+
+    // Verify each group has events
+    for (const groupId of groupNames) {
+      const groupStats = stats.groups.find(g => g.groupId === groupId);
+      expect(groupStats).toBeDefined();
+      expect(groupStats!.eventCount).toBeGreaterThan(0);
+      
+      // Query should return events
+      const events = await manager.query({ groupId });
+      expect(events.length).toBeGreaterThan(0);
+    }
+
+    // Check query performance under concurrent load
+    const avgQueryTime = queryResults.reduce((sum, r) => sum + r.elapsed, 0) / queryResults.length;
+    console.log(`Average query time under concurrent load: ${avgQueryTime.toFixed(2)}ms`);
+    expect(avgQueryTime).toBeLessThan(50); // Queries should stay fast
+
+    // Verify data integrity - no events should be dropped or corrupted
+    for (const groupId of groupNames) {
+      const allEvents = await manager.query({ groupId, limit: 100000 });
+      
+      // Check all events belong to correct group
+      expect(allEvents.every(e => e.groupId === groupId)).toBe(true);
+      
+      // Check control names are correct
+      const expectedPrefix = `${groupId}-control`;
+      expect(allEvents.every(e => e.controlName.startsWith(expectedPrefix))).toBe(true);
+    }
+
+    // Verify memory stayed within limits
+    expect(stats.memoryUsageMB).toBeLessThan(100);
+  }, 30000);
+
+  it('should maintain data integrity during concurrent writes and queries', async () => {
+    const config: EventCacheConfig = {
+      maxEvents: 50000,
+      maxAgeMs: 120000,
+      globalMemoryLimitMB: 50,
+    };
+
+    manager = new EventCacheManager(config);
+    mockAdapter = new MockQRWCAdapter();
+    manager.attachToAdapter(mockAdapter as any);
+
+    // Test scenario: Multiple change groups writing while queries run
+    const testData = new Map<string, Set<string>>();
+    const groups = ['audio', 'video', 'lighting'];
+    groups.forEach(g => testData.set(g, new Set()));
+
+    // Writer promises
+    const writerPromises = groups.map(async (groupId, idx) => {
+      for (let i = 0; i < 1000; i++) {
+        const value = `${groupId}-value-${i}`;
+        testData.get(groupId)!.add(value);
+
+        mockAdapter.emit('changeGroup:changes', {
+          groupId,
+          changes: [{
+            Name: `${groupId}-control`,
+            Value: i,
+            String: value,
+          }],
+          timestamp: BigInt(Date.now() * 1_000_000),
+          timestampMs: Date.now(),
+          sequenceNumber: i,
+        } as ChangeData);
+
+        // Stagger writes
+        if (i % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, idx * 5));
+        }
+      }
+    });
+
+    // Query promises - run queries during writes
+    const queryPromises = Array.from({ length: 20 }, async (_, queryIdx) => {
+      await new Promise(resolve => setTimeout(resolve, queryIdx * 100));
+      
+      const results = [];
+      for (const groupId of groups) {
+        const events = await manager.query({ 
+          groupId,
+          limit: 10000 
+        });
+        results.push({ groupId, count: events.length });
+      }
+      return results;
+    });
+
+    // Wait for all operations
+    await Promise.all([...writerPromises, ...queryPromises]);
+
+    // Verify data integrity
+    for (const [groupId, expectedValues] of testData) {
+      const events = await manager.query({ groupId, limit: 10000 });
+      
+      // Should have all events
+      expect(events.length).toBe(expectedValues.size);
+      
+      // All values should be present
+      const actualValues = new Set(events.map(e => e.string));
+      expect(actualValues.size).toBe(expectedValues.size);
+      
+      // No duplicates
+      expect(events.length).toBe(actualValues.size);
+      
+      // All values match
+      for (const value of expectedValues) {
+        expect(actualValues.has(value)).toBe(true);
+      }
+    }
+  }, 30000);
 });
