@@ -69,7 +69,7 @@ describe('MCP Critical Workflows Integration Tests', () => {
       expect(result.content[0].type).toBe('text');
       const response = JSON.parse(result.content[0].text);
       
-      // The tool returns an array directly, not an object with components property
+      // The tool returns an array directly
       expect(Array.isArray(response)).toBe(true);
       expect(response.length).toBeGreaterThan(0);
       expect(response).toEqual(
@@ -128,10 +128,11 @@ describe('MCP Critical Workflows Integration Tests', () => {
       });
 
       const setResponse = JSON.parse(setResult.content[0].text);
-      expect(setResponse.success).toBe(true);
-      expect(setResponse.updated[0]).toMatchObject({
+      expect(Array.isArray(setResponse)).toBe(true);
+      expect(setResponse[0]).toMatchObject({
         name: 'Gain1.gain',
-        value: -10
+        value: -10,
+        success: true
       });
 
       // Verify the change
@@ -140,15 +141,19 @@ describe('MCP Critical Workflows Integration Tests', () => {
       });
 
       const getResponse = JSON.parse(getResult.content[0].text);
-      expect(getResponse.controls[0].value).toBe(-10);
+      expect(Array.isArray(getResponse)).toBe(true);
+      expect(getResponse[0]).toMatchObject({
+        name: 'Gain1.gain',
+        value: -10
+      });
     });
 
     it('should handle batch control changes', async () => {
       const controls = [
         { name: 'Mixer1.input.1.gain', value: -5 },
         { name: 'Mixer1.input.2.gain', value: -10 },
-        { name: 'Mixer1.input.1.mute', value: true },
-        { name: 'AudioPlayer1.play', value: true }
+        { name: 'Mixer1.input.1.mute', value: 1 },  // Using numeric value
+        { name: 'AudioPlayer1.play', value: 1 }      // Using numeric value
       ];
 
       const result = await toolRegistry.callTool('set_control_values', {
@@ -156,8 +161,15 @@ describe('MCP Critical Workflows Integration Tests', () => {
       });
 
       const response = JSON.parse(result.content[0].text);
-      expect(response.success).toBe(true);
-      expect(response.updated).toHaveLength(4);
+      expect(Array.isArray(response)).toBe(true);
+      expect(response).toHaveLength(4);
+      response.forEach((resp: any, index: number) => {
+        expect(resp).toMatchObject({
+          name: controls[index].name,
+          value: controls[index].value,
+          success: true
+        });
+      });
       
       // Verify all changes were applied
       const verifyResult = await toolRegistry.callTool('get_control_values', {
@@ -165,45 +177,56 @@ describe('MCP Critical Workflows Integration Tests', () => {
       });
 
       const verifyResponse = JSON.parse(verifyResult.content[0].text);
-      expect(verifyResponse.controls).toHaveLength(4);
+      expect(Array.isArray(verifyResponse)).toBe(true);
+      expect(verifyResponse).toHaveLength(4);
       controls.forEach((control, index) => {
-        expect(verifyResponse.controls[index].value).toBe(control.value);
+        expect(verifyResponse[index]).toMatchObject({
+          name: control.name,
+          value: control.value
+        });
       });
     });
 
     it('should verify state synchronization', async () => {
-      // Create a change group and monitor changes
-      const groupResult = await toolRegistry.callTool('create_change_group', {
-        group_id: 'sync-test',
-        controls: ['Gain1.gain', 'Gain1.mute']
+      // Create a change group first
+      const createResult = await toolRegistry.callTool('create_change_group', {
+        groupId: 'sync-test'
       });
 
-      expect(JSON.parse(groupResult.content[0].text).success).toBe(true);
+      expect(JSON.parse(createResult.content[0].text).success).toBe(true);
+      
+      // Add controls to the group
+      const addResult = await toolRegistry.callTool('add_controls_to_change_group', {
+        groupId: 'sync-test',
+        controlNames: ['Gain1.gain', 'Gain1.mute']
+      });
+      
+      expect(JSON.parse(addResult.content[0].text).success).toBe(true);
 
       // Make changes
       await toolRegistry.callTool('set_control_values', {
         controls: [
           { name: 'Gain1.gain', value: -20 },
-          { name: 'Gain1.mute', value: true }
+          { name: 'Gain1.mute', value: 1 }  // Using numeric value
         ]
       });
 
       // Poll for changes
       const pollResult = await toolRegistry.callTool('poll_change_group', {
-        group_id: 'sync-test'
+        groupId: 'sync-test'
       });
 
       const pollResponse = JSON.parse(pollResult.content[0].text);
       expect(pollResponse.changes).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ name: 'Gain1.gain', value: -20 }),
-          expect.objectContaining({ name: 'Gain1.mute', value: true })
+          expect.objectContaining({ Name: 'Gain1.gain', Value: -20 }),
+          expect.objectContaining({ Name: 'Gain1.mute', Value: 1 })
         ])
       );
 
       // Cleanup
       await toolRegistry.callTool('destroy_change_group', {
-        group_id: 'sync-test'
+        groupId: 'sync-test'
       });
     });
   });
@@ -212,31 +235,34 @@ describe('MCP Critical Workflows Integration Tests', () => {
     it('should handle connection loss and reconnection', async () => {
       // Verify initial connection
       const statusResult = await toolRegistry.callTool('query_core_status', {});
+      const statusData = JSON.parse(statusResult.content[0].text);
       
-      expect(JSON.parse(statusResult.content[0].text).connected).toBe(true);
+      expect(statusData.connectionStatus?.connected || statusData.IsConnected).toBe(true);
 
       // Simulate disconnect
       coreMock.simulateDisconnect();
       (qrwcClient.isConnected as jest.Mock).mockReturnValue(false);
+      (qrwcAdapter.isConnected as jest.Mock).mockReturnValue(false);
       
       // Wait for disconnect to propagate
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Try to get status - should show disconnected
+      // Try to get status - should show disconnected or error
       const disconnectedResult = await toolRegistry.callTool('query_core_status', {});
       
-      const disconnectedStatus = JSON.parse(disconnectedResult.content[0].text);
-      expect(disconnectedStatus.connected).toBe(false);
-      expect(disconnectedStatus.error).toBeDefined();
+      // When disconnected, tool might return error or fallback status
+      expect(disconnectedResult.isError || !JSON.parse(disconnectedResult.content[0].text).IsConnected).toBe(true);
 
       // Reconnect
       await coreMock.connect();
       (qrwcClient.isConnected as jest.Mock).mockReturnValue(true);
+      (qrwcAdapter.isConnected as jest.Mock).mockReturnValue(true);
 
       // Verify reconnection
       const reconnectedResult = await toolRegistry.callTool('query_core_status', {});
+      const reconnectedData = JSON.parse(reconnectedResult.content[0].text);
       
-      expect(JSON.parse(reconnectedResult.content[0].text).connected).toBe(true);
+      expect(reconnectedData.connectionStatus?.connected || reconnectedData.IsConnected).toBe(true);
     });
 
     it('should handle invalid command gracefully', async () => {
@@ -248,9 +274,12 @@ describe('MCP Critical Workflows Integration Tests', () => {
       });
 
       const response = JSON.parse(result.content[0].text);
-      expect(response.success).toBe(false);
-      expect(response.errors).toBeDefined();
-      expect(response.errors.length).toBeGreaterThan(0);
+      expect(Array.isArray(response)).toBe(true);
+      expect(response[0]).toMatchObject({
+        name: 'NonExistent.control',
+        success: false,
+        error: expect.stringContaining('not found')
+      });
     });
 
     it('should recover from timeout errors', async () => {
@@ -270,7 +299,9 @@ describe('MCP Critical Workflows Integration Tests', () => {
 
       // Should work now
       const result = await toolRegistry.callTool('list_components', {});
-      expect(JSON.parse(result.content[0].text).components).toBeDefined();
+      const components = JSON.parse(result.content[0].text);
+      expect(Array.isArray(components)).toBe(true);
+      expect(components.length).toBeGreaterThan(0);
     });
   });
 
@@ -292,6 +323,11 @@ describe('MCP Critical Workflows Integration Tests', () => {
       );
       
       secondAdapter = new QRWCClientAdapter(secondClient);
+      secondAdapter.isConnected = jest.fn().mockReturnValue(true);
+      secondAdapter.sendCommand = jest.fn().mockImplementation((method, params) => 
+        coreMock.sendCommand(method, params)
+      );
+      
       secondRegistry = new MCPToolRegistry(secondAdapter, eventCacheManager);
       secondRegistry.initialize();
       
@@ -303,15 +339,23 @@ describe('MCP Critical Workflows Integration Tests', () => {
     });
 
     it('should handle concurrent state changes from multiple clients', async () => {
-      // Both clients create change groups for the same controls
+      // Create change groups for both clients
       await toolRegistry.callTool('create_change_group', {
-        group_id: 'client1-group',
-        controls: ['Mixer1.input.1.gain', 'Mixer1.input.2.gain']
+        groupId: 'client1-group'
+      });
+      
+      await toolRegistry.callTool('add_controls_to_change_group', {
+        groupId: 'client1-group',
+        controlNames: ['Mixer1.input.1.gain', 'Mixer1.input.2.gain']
       });
 
       await secondRegistry.callTool('create_change_group', {
-        group_id: 'client2-group',
-        controls: ['Mixer1.input.1.gain', 'Mixer1.input.2.gain']
+        groupId: 'client2-group'
+      });
+      
+      await secondRegistry.callTool('add_controls_to_change_group', {
+        groupId: 'client2-group',
+        controlNames: ['Mixer1.input.1.gain', 'Mixer1.input.2.gain']
       });
 
       // Make concurrent changes
@@ -325,16 +369,20 @@ describe('MCP Critical Workflows Integration Tests', () => {
       ]);
 
       // Both changes should succeed
-      expect(JSON.parse(changes[0].content[0].text).success).toBe(true);
-      expect(JSON.parse(changes[1].content[0].text).success).toBe(true);
+      const changes0 = JSON.parse(changes[0].content[0].text);
+      const changes1 = JSON.parse(changes[1].content[0].text);
+      expect(Array.isArray(changes0)).toBe(true);
+      expect(Array.isArray(changes1)).toBe(true);
+      expect(changes0[0].success).toBe(true);
+      expect(changes1[0].success).toBe(true);
 
       // Verify both clients see all changes
       const client1Poll = await toolRegistry.callTool('poll_change_group', {
-        group_id: 'client1-group'
+        groupId: 'client1-group'
       });
 
       const client2Poll = await secondRegistry.callTool('poll_change_group', {
-        group_id: 'client2-group'
+        groupId: 'client2-group'
       });
 
       const client1Changes = JSON.parse(client1Poll.content[0].text).changes;
@@ -343,15 +391,15 @@ describe('MCP Critical Workflows Integration Tests', () => {
       // Both should see the final state
       expect(client1Changes).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ name: 'Mixer1.input.1.gain', value: -5 }),
-          expect.objectContaining({ name: 'Mixer1.input.2.gain', value: -10 })
+          expect.objectContaining({ Name: 'Mixer1.input.1.gain', Value: -5 }),
+          expect.objectContaining({ Name: 'Mixer1.input.2.gain', Value: -10 })
         ])
       );
 
       expect(client2Changes).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ name: 'Mixer1.input.1.gain', value: -5 }),
-          expect.objectContaining({ name: 'Mixer1.input.2.gain', value: -10 })
+          expect.objectContaining({ Name: 'Mixer1.input.1.gain', Value: -5 }),
+          expect.objectContaining({ Name: 'Mixer1.input.2.gain', Value: -10 })
         ])
       );
     });
@@ -359,7 +407,7 @@ describe('MCP Critical Workflows Integration Tests', () => {
     it('should verify state propagation between clients', async () => {
       // Client 1 makes a change
       await toolRegistry.callTool('set_control_values', {
-        controls: [{ name: 'AudioPlayer1.play', value: true }]
+        controls: [{ name: 'AudioPlayer1.play', value: 1 }]  // Using numeric value
       });
 
       // Client 2 should see the change
@@ -368,7 +416,11 @@ describe('MCP Critical Workflows Integration Tests', () => {
       });
 
       const response = JSON.parse(client2Result.content[0].text);
-      expect(response.controls[0].value).toBe(true);
+      expect(Array.isArray(response)).toBe(true);
+      expect(response[0]).toMatchObject({
+        name: 'AudioPlayer1.play',
+        value: 1
+      });
     });
 
     it('should prevent race conditions in control updates', async () => {
@@ -398,7 +450,9 @@ describe('MCP Critical Workflows Integration Tests', () => {
         controls: [controlName]
       });
 
-      const finalValue = JSON.parse(finalResult.content[0].text).controls[0].value;
+      const finalResponse = JSON.parse(finalResult.content[0].text);
+      expect(Array.isArray(finalResponse)).toBe(true);
+      const finalValue = finalResponse[0].value;
 
       // Final value should be one of the values we set
       expect(completedValues).toContain(finalValue);

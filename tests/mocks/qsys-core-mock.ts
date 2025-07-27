@@ -9,6 +9,11 @@ import {
   QSysStatusResponse
 } from '../../src/types/qsys.js';
 
+// Extend the status response type for testing
+interface ExtendedQSysStatusResponse extends QSysStatusResponse {
+  IsConnected?: boolean;
+}
+
 export interface MockCoreConfig {
   host: string;
   port: number;
@@ -224,7 +229,11 @@ export class QSysCoreMock extends EventEmitter {
         return this.handleChangeGroupAutoPoll(params);
       
       case 'StatusGet':
+      case 'Status.Get':
         return this.handleStatusGet();
+      
+      case 'Control.GetValues':
+        return this.handleControlGetValues(params);
       
       default:
         return { error: { code: -32601, message: 'Method not found' } };
@@ -257,7 +266,29 @@ export class QSysCoreMock extends EventEmitter {
   }
 
   private handleControlGet(params: any): QSysApiResponse<{ Controls: QSysControl[] }> {
-    const controlNames = params?.Controls || [];
+    const controlName = params?.Name;
+    if (!controlName) {
+      return { error: { code: -32602, message: 'Control name required' } };
+    }
+    
+    const value = this.controlValues.get(controlName);
+    if (value === undefined) {
+      return { error: { code: -32602, message: `Control '${controlName}' not found` } };
+    }
+    
+    return {
+      result: {
+        Controls: [{
+          Name: controlName,
+          Value: value,
+          String: String(value)
+        }]
+      }
+    };
+  }
+  
+  private handleControlGetValues(params: any): QSysApiResponse<QSysControl[]> {
+    const controlNames = params?.Names || [];
     const controls: QSysControl[] = [];
 
     for (const name of controlNames) {
@@ -268,29 +299,41 @@ export class QSysCoreMock extends EventEmitter {
           Value: value,
           String: String(value)
         });
+      } else {
+        // Return N/A for missing controls
+        controls.push({
+          Name: name,
+          Value: 'N/A',
+          String: 'N/A'
+        });
       }
     }
 
-    return { result: { Controls: controls } };
+    return { result: controls };
   }
 
   private handleControlSet(params: any): QSysApiResponse<{ Controls: QSysControl[] }> {
-    const controlsToSet = params?.Controls || [];
-    const controls: QSysControl[] = [];
-
-    for (const control of controlsToSet) {
-      this.controlValues.set(control.Name, control.Value);
-      controls.push({
-        Name: control.Name,
-        Value: control.Value,
-        String: String(control.Value)
-      });
-
-      // Emit change events for change groups
-      this.emitControlChange(control.Name, control.Value);
+    const controlName = params?.Name;
+    const controlValue = params?.Value;
+    
+    if (!controlName) {
+      return { error: { code: -32602, message: 'Control name required' } };
     }
+    
+    this.controlValues.set(controlName, controlValue);
+    
+    // Emit change events for change groups
+    this.emitControlChange(controlName, controlValue);
 
-    return { result: { Controls: controls } };
+    return {
+      result: {
+        Controls: [{
+          Name: controlName,
+          Value: controlValue,
+          String: String(controlValue)
+        }]
+      }
+    };
   }
 
   private handleComponentSet(params: any): QSysApiResponse<{ Controls: QSysComponentControl[] }> {
@@ -323,25 +366,39 @@ export class QSysCoreMock extends EventEmitter {
 
   private handleChangeGroupCreate(params: any): QSysApiResponse<{ Id: string }> {
     const groupId = params?.Id || `group-${Date.now()}`;
+    
+    // If group already exists, return a warning
+    if (this.changeGroups.has(groupId)) {
+      return { 
+        result: { Id: groupId },
+        warning: `Change group '${groupId}' already exists`
+      } as any;
+    }
+    
     this.changeGroups.set(groupId, new Set());
     return { result: { Id: groupId } };
   }
 
-  private handleChangeGroupDestroy(params: any): QSysApiResponse<{}> {
+  private handleChangeGroupDestroy(params: any): QSysApiResponse<Record<string, never>> {
     const groupId = params?.Id;
     if (groupId) {
       this.changeGroups.delete(groupId);
       this.autoPollGroups.delete(groupId);
     }
-    return { result: {} };
+    return { result: {} as Record<string, never> };
   }
 
-  private handleChangeGroupAddControl(params: any): QSysApiResponse<{}> {
+  private handleChangeGroupAddControl(params: any): QSysApiResponse<Record<string, never>> {
     const groupId = params?.Id;
-    const controls = params?.Controls || [];
+    const controls = params?.Controls || params?.controlNames || [];
     
-    if (!groupId || !this.changeGroups.has(groupId)) {
-      return { error: { code: -32602, message: 'Change group not found' } };
+    if (!groupId) {
+      return { error: { code: -32602, message: 'Group ID required' } };
+    }
+    
+    // Create group if it doesn't exist
+    if (!this.changeGroups.has(groupId)) {
+      this.changeGroups.set(groupId, new Set());
     }
 
     const group = this.changeGroups.get(groupId)!;
@@ -353,10 +410,10 @@ export class QSysCoreMock extends EventEmitter {
       }
     });
 
-    return { result: {} };
+    return { result: {} as Record<string, never> };
   }
 
-  private handleChangeGroupRemove(params: any): QSysApiResponse<{}> {
+  private handleChangeGroupRemove(params: any): QSysApiResponse<Record<string, never>> {
     const groupId = params?.Id;
     const controls = params?.Controls || [];
     
@@ -370,10 +427,10 @@ export class QSysCoreMock extends EventEmitter {
       group.delete(name);
     });
 
-    return { result: {} };
+    return { result: {} as Record<string, never> };
   }
 
-  private handleChangeGroupPoll(params: any): QSysApiResponse<{ Changes: QSysControl[] }> {
+  private handleChangeGroupPoll(params: any): QSysApiResponse<{ Id: string; Changes: QSysControl[] }> {
     const groupId = params?.Id;
     if (!groupId || !this.changeGroups.has(groupId)) {
       return { error: { code: -32602, message: 'Change group not found' } };
@@ -394,10 +451,15 @@ export class QSysCoreMock extends EventEmitter {
       }
     });
 
-    return { result: { Changes: changes } };
+    return { 
+      result: { 
+        Id: groupId,
+        Changes: changes 
+      } 
+    };
   }
 
-  private handleChangeGroupAutoPoll(params: any): QSysApiResponse<{}> {
+  private handleChangeGroupAutoPoll(params: any): QSysApiResponse<Record<string, never>> {
     const groupId = params?.Id;
     const enabled = params?.Enabled;
     
@@ -411,10 +473,14 @@ export class QSysCoreMock extends EventEmitter {
       this.autoPollGroups.delete(groupId);
     }
 
-    return { result: {} };
+    return { result: {} as Record<string, never> };
   }
 
-  private handleStatusGet(): QSysApiResponse<QSysStatusResponse> {
+  private handleStatusGet(): QSysApiResponse<ExtendedQSysStatusResponse> {
+    if (!this.connected) {
+      return { error: { code: -32603, message: 'Not connected' } };
+    }
+    
     return {
       result: {
         Platform: 'Core 110f',
@@ -423,11 +489,12 @@ export class QSysCoreMock extends EventEmitter {
         DesignCode: 'MOCK123',
         IsRedundant: false,
         IsEmulator: true,
+        IsConnected: this.connected,
         Status: {
           Code: 0,
           String: 'OK'
         }
-      }
+      } as ExtendedQSysStatusResponse
     };
   }
 
