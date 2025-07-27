@@ -801,9 +801,9 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       }
 
       // Check which controls were returned
-      if (isComponentControlsResponse(response)) {
+      if (isQSysApiResponse(response) && !response.error && response.result && isComponentControlsResponse(response.result)) {
         const returnedControlNames = new Set(
-          response.Controls.map((c) => c.Name)
+          response.result.Controls.map((c) => c.Name)
         );
 
         for (const info of controlInfos) {

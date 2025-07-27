@@ -416,7 +416,13 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     params: ListChangeGroupsParams
   ): ToolCallResult {
     // Cast the client to access the listChangeGroups method
-    const adapter = this.qrwcClient as { listChangeGroups?: () => unknown };
+    const adapter = this.qrwcClient as { 
+      listChangeGroups?: () => Array<{
+        id: string;
+        controlCount: number;
+        hasAutoPoll: boolean;
+      }> 
+    };
 
     if (typeof adapter.listChangeGroups !== 'function') {
       throw new MCPError('Change group listing not supported by this adapter',

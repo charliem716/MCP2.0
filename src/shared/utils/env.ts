@@ -53,16 +53,16 @@ function isQSysConfigJSON(value: unknown): value is QSysConfigJSON {
   if (!value || typeof value !== 'object') return false;
   const config = value as Record<string, unknown>;
   
-  if (!config.qsysCore || typeof config.qsysCore !== 'object') return false;
+  if (!config['qsysCore'] || typeof config['qsysCore'] !== 'object') return false;
   
-  const qsysCore = config.qsysCore as Record<string, unknown>;
+  const qsysCore = config['qsysCore'] as Record<string, unknown>;
   
   // Check required fields
   return (
-    typeof qsysCore.host === 'string' &&
-    typeof qsysCore.port === 'number' &&
-    (qsysCore.username === undefined || typeof qsysCore.username === 'string') &&
-    (qsysCore.password === undefined || typeof qsysCore.password === 'string')
+    typeof qsysCore['host'] === 'string' &&
+    typeof qsysCore['port'] === 'number' &&
+    (qsysCore['username'] === undefined || typeof qsysCore['username'] === 'string') &&
+    (qsysCore['password'] === undefined || typeof qsysCore['password'] === 'string')
   );
 }
 

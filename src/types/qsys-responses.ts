@@ -67,9 +67,9 @@ export function isQSysComponent(obj: unknown): obj is QSysComponent {
   const record = obj as Record<string, unknown>;
   return (
     'Name' in record &&
-    typeof record.Name === 'string' &&
+    typeof record['Name'] === 'string' &&
     'Type' in record &&
-    typeof record.Type === 'string'
+    typeof record['Type'] === 'string'
   );
 }
 
@@ -81,11 +81,11 @@ export function isQSysControl(obj: unknown): obj is QSysControl {
   const record = obj as Record<string, unknown>;
   return (
     'Name' in record &&
-    typeof record.Name === 'string' &&
+    typeof record['Name'] === 'string' &&
     'Value' in record &&
-    (typeof record.Value === 'number' ||
-     typeof record.Value === 'string' ||
-     typeof record.Value === 'boolean')
+    (typeof record['Value'] === 'number' ||
+     typeof record['Value'] === 'string' ||
+     typeof record['Value'] === 'boolean')
   );
 }
 
@@ -97,9 +97,9 @@ export function isQSysResponse(obj: unknown): obj is QSysResponse {
   const record = obj as Record<string, unknown>;
   return (
     'jsonrpc' in record &&
-    record.jsonrpc === '2.0' &&
+    record['jsonrpc'] === '2.0' &&
     'id' in record &&
-    (typeof record.id === 'string' || typeof record.id === 'number')
+    (typeof record['id'] === 'string' || typeof record['id'] === 'number')
   );
 }
 
@@ -111,9 +111,9 @@ export function isQSysError(obj: unknown): obj is QSysError {
   const record = obj as Record<string, unknown>;
   return (
     'code' in record &&
-    typeof record.code === 'number' &&
+    typeof record['code'] === 'number' &&
     'message' in record &&
-    typeof record.message === 'string'
+    typeof record['message'] === 'string'
   );
 }
 
@@ -140,12 +140,12 @@ export function getComponentName(component: unknown): string {
   
   const record = component as Record<string, unknown>;
   
-  if ('Name' in record && typeof record.Name === 'string') {
-    return record.Name;
+  if ('Name' in record && typeof record['Name'] === 'string') {
+    return record['Name'];
   }
   
-  if ('name' in record && typeof record.name === 'string') {
-    return record.name;
+  if ('name' in record && typeof record['name'] === 'string') {
+    return record['name'];
   }
   
   return 'Unknown';

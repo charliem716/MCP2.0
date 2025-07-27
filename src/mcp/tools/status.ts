@@ -121,6 +121,21 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   ): QSysCoreStatus {
     this.logger.debug('Parsing status response', { response });
 
+    // Helper to safely access nested properties
+    const getNestedValue = (obj: unknown, path: string): unknown => {
+      if (!obj || typeof obj !== 'object') return undefined;
+      const parts = path.split('.');
+      let current: unknown = obj;
+      for (const part of parts) {
+        if (current && typeof current === 'object' && part in current) {
+          current = (current as Record<string, unknown>)[part];
+        } else {
+          return undefined;
+        }
+      }
+      return current;
+    };
+
     // Extract status information from response
     let result: QSysStatusGetResponse;
     
@@ -162,34 +177,34 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       },
       systemHealth: {
         status: String(result.Status?.String ?? 'unknown'),
-        temperature: Number(result.temperature ?? result.Temperature ?? 0),
-        fanSpeed: Number(result.fanSpeed ?? result.FanSpeed ?? 0),
+        temperature: Number((result as Record<string, unknown>)['temperature'] ?? (result as Record<string, unknown>)['Temperature'] ?? 0),
+        fanSpeed: Number((result as Record<string, unknown>)['fanSpeed'] ?? (result as Record<string, unknown>)['FanSpeed'] ?? 0),
         powerSupplyStatus: String('unknown'),
       },
       designInfo: {
         designCompiled: Boolean(result.State === 'Active'),
         compileTime: String('Unknown'),
-        processingLoad: Number(result.designInfo?.processingLoad ?? 0),
-        componentCount: Number(result.designInfo?.componentsCount ?? 0),
+        processingLoad: Number(getNestedValue(result, 'designInfo.processingLoad') ?? 0),
+        componentCount: Number(getNestedValue(result, 'designInfo.componentsCount') ?? 0),
         snapshotCount: Number(0),
         activeServices: [] as string[],
       },
       networkInfo: {
-        ipAddress: String(result.Network?.LAN_A?.IP ?? result.ipAddress ?? 'Unknown'),
-        macAddress: String(result.macAddress ?? 'Unknown'),
-        gateway: String(result.Network?.LAN_A?.Gateway ?? result.gateway ?? 'Unknown'),
+        ipAddress: String(getNestedValue(result, 'Network.LAN_A.IP') ?? (result as Record<string, unknown>)['ipAddress'] ?? 'Unknown'),
+        macAddress: String((result as Record<string, unknown>)['macAddress'] ?? 'Unknown'),
+        gateway: String(getNestedValue(result, 'Network.LAN_A.Gateway') ?? (result as Record<string, unknown>)['gateway'] ?? 'Unknown'),
         dnsServers: [] as string[],
         ntpServer: String('Unknown'),
         networkMode: String('Unknown'),
       },
       performanceMetrics: {
-        cpuUsage: Number(result.Performance?.CPU ?? result.cpuUsage ?? result.CPUUsage ?? 0),
-        memoryUsage: Number(result.Performance?.Memory ?? result.memoryUsage ?? result.MemoryUsage ?? 0),
+        cpuUsage: Number(getNestedValue(result, 'Performance.CPU') ?? (result as Record<string, unknown>)['cpuUsage'] ?? (result as Record<string, unknown>)['CPUUsage'] ?? 0),
+        memoryUsage: Number(getNestedValue(result, 'Performance.Memory') ?? (result as Record<string, unknown>)['memoryUsage'] ?? (result as Record<string, unknown>)['MemoryUsage'] ?? 0),
         memoryUsedMB: Number(0),
         memoryTotalMB: Number(0),
         audioLatency: Number(0),
         networkLatency: Number(0),
-        fanSpeed: Number(result.fanSpeed ?? result.FanSpeed ?? 0),
+        fanSpeed: Number((result as Record<string, unknown>)['fanSpeed'] ?? (result as Record<string, unknown>)['FanSpeed'] ?? 0),
       },
       // Additional fields from Q-SYS response
       Platform: String(result.Platform ?? 'Unknown'),
