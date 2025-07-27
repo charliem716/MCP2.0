@@ -42,6 +42,7 @@ export interface MCPControl {
 /**
  * Extract value from Q-SYS control state object
  */
+// eslint-disable-next-line complexity -- Multiple control types require different extraction logic
 export function extractControlValue(state: unknown): {
   value: unknown;
   type: string;

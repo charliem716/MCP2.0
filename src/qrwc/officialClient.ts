@@ -70,7 +70,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
   /**
    * Connect to Q-SYS Core using the official QRWC library
-   */
+  // eslint-disable-next-line max-statements -- Complex connection sequence with error handling   */
   async connect(): Promise<void> {
     if (
       this.connectionState === ConnectionState.CONNECTING ||

@@ -3,12 +3,7 @@ import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import { config as envConfig } from '../../../shared/utils/env.js';
 import type { ChangeGroup } from '../repository.js';
 import type { QRWCClientInterface } from '../../qrwc/adapter.js';
-import type {
-  ChangeGroupExecutionResult,
-  ControlChangeResult,
-  ChangeGroupExecutionOptions,
-} from './types.js';
-import { ChangeGroupEvent } from './types.js';
+import { ChangeGroupEvent, type ChangeGroupExecutionResult, type ControlChangeResult, type ChangeGroupExecutionOptions } from './types.js';
 import { ChangeGroupExecutor } from './change-group-executor.js';
 import { RollbackHandler } from './rollback-handler.js';
 import { createTimeoutPromise } from './concurrency-utils.js';
@@ -51,6 +46,7 @@ export class ChangeGroupManager extends EventEmitter {
   /**
    * Execute a change group with transaction-like semantics
    */
+  // eslint-disable-next-line max-statements -- Complex orchestration of change group execution with validation, rollback, and event handling
   async executeChangeGroup(
     changeGroup: ChangeGroup,
     options: Partial<ChangeGroupExecutionOptions> = {}

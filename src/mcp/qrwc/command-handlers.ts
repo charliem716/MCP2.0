@@ -185,6 +185,7 @@ export function handleControlGet(
 /**
  * Handle Control.Set command
  */
+// eslint-disable-next-line max-statements, complexity -- Complex operation handling multiple control updates with validation
 export async function handleControlSet(
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
@@ -338,17 +339,18 @@ export function handleStatusGet(
 
   const componentCount = Object.keys(qrwc.components).length;
   const controlCount = Object.values(qrwc.components).reduce((count, comp) => {
-    if (!comp.controls) return count;
     return count + Object.keys(comp.controls).length;
   }, 0);
 
-  const hasAudio = Object.values(qrwc.components).some(comp => {
-    return comp.state?.Type?.includes('Audio') ?? false;
-  });
+  const hasAudio = Object.values(qrwc.components).some(comp => 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety: Type may be undefined
+    comp.state?.Type?.includes('Audio') ?? false
+  );
 
-  const hasVideo = Object.values(qrwc.components).some(comp => {
-    return comp.state?.Type?.includes('Video') ?? false;
-  });
+  const hasVideo = Object.values(qrwc.components).some(comp => 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety: Type may be undefined
+    comp.state?.Type?.includes('Video') ?? false
+  );
 
   return {
     result: {
@@ -389,9 +391,8 @@ export function handleGetAllControls(
   const allControls: ControlInfo[] = [];
 
   for (const [componentName, component] of Object.entries(qrwc.components)) {
-    const comp = component as Component;
-    if (!comp.controls) continue;
-
+    const comp = component;
+    
     for (const [controlName, control] of Object.entries(comp.controls)) {
       const fullName = `${componentName}.${controlName}`;
       const { value, type } = extractControlValue(control);
@@ -429,7 +430,7 @@ export function handleGetAllControlValues(
   }
 
   const component = qrwc.components[componentName] as Component | undefined;
-  if (!component || !component.controls) {
+  if (!component) {
     return { result: {} };
   }
 
@@ -451,6 +452,7 @@ export function handleGetAllControlValues(
 /**
  * Handle direct control operations
  */
+// eslint-disable-next-line max-statements -- Direct control operations require multiple validation steps
 export async function handleDirectControl(
   command: string,
   params: Record<string, unknown> | undefined,
@@ -483,7 +485,7 @@ export async function handleDirectControl(
       { componentName });
   }
 
-  if (!component.controls || !controlName || !(controlName in component.controls)) {
+  if (!controlName || !(controlName in component.controls)) {
     throw new QSysError(`Control not found: ${componentName}.${controlName}`, 
       QSysErrorCode.INVALID_CONTROL, { componentName, controlName });
   }

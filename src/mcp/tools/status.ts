@@ -1,10 +1,8 @@
 import { z } from 'zod';
-import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
-import type { ToolExecutionContext } from './base.js';
+import { BaseQSysTool, BaseToolParamsSchema, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
-import type { QSysStatusGetResponse, QSysApiResponse, QSysComponentInfo, QSysControl } from '../types/qsys-api-responses.js';
-import { isQSysApiResponse } from '../types/qsys-api-responses.js';
+import { isQSysApiResponse, type QSysStatusGetResponse, type QSysApiResponse, type QSysComponentInfo, type QSysControl } from '../types/qsys-api-responses.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
@@ -115,7 +113,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
   /**
    * Parse the QRWC response for status information
-   */
+  // eslint-disable-next-line complexity -- Parse complex Q-SYS status response structure   */
   private parseStatusResponse(
     response: unknown,
     params: QueryCoreStatusParams
@@ -206,13 +204,13 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         fanSpeed: Number((result as unknown as Record<string, unknown>)['fanSpeed'] ?? (result as unknown as Record<string, unknown>)['FanSpeed'] ?? 0),
       },
       // Additional fields from Q-SYS response
-      Platform: String(result.Platform ?? 'Unknown'),
+      Platform: String(result.Platform),
       Version: String(result.Version ?? 'Unknown'),
-      DesignName: String(result.DesignName ?? 'Unknown'),
-      DesignCode: String(result.DesignCode ?? ''),
+      DesignName: String(result.DesignName),
+      DesignCode: String(result.DesignCode),
       Status: {
-        Name: String(result.Status?.String ?? 'Unknown'),
-        Code: Number(result.Status?.Code ?? -1),
+        Name: String(result.Status.String),
+        Code: Number(result.Status.Code),
         PercentCPU: Number(0),
       },
       IsConnected: Boolean(result.IsConnected ?? true),
@@ -221,7 +219,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
   /**
    * Format status response for display
-   */
+  // eslint-disable-next-line max-statements -- Format comprehensive status information   */
   private formatStatusResponse(
     status: QSysCoreStatus,
     params: QueryCoreStatusParams
@@ -230,8 +228,8 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     
     // Core info
     if (status.coreInfo) {
-      result += `Design: ${status.coreInfo.designName ?? 'Unknown'}\n`;
-      result += `Platform: ${status.coreInfo.platform ?? 'Unknown'}\n`;
+      result += `Design: ${status.coreInfo.designName}\n`;
+      result += `Platform: ${status.coreInfo.platform}\n`;
       if (status.coreInfo.model) {
         result += `Model: ${status.coreInfo.model}\n`;
       }
@@ -252,10 +250,10 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     
     // System health
     if (status.systemHealth) {
-      result += `\nSystem Status: ${status.systemHealth.status ?? 'Unknown'}\n`;
+      result += `\nSystem Status: ${status.systemHealth.status}\n`;
     }
     if (status.Status) {
-      result += `Status: ${status.Status.Name ?? 'OK'} (Code: ${status.Status.Code})\n`;
+      result += `Status: ${status.Status.Name} (Code: ${status.Status.Code})\n`;
     }
     
     // Network info if requested
@@ -283,6 +281,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   /**
    * Get status from status components when StatusGet fails
    */
+  // eslint-disable-next-line max-statements -- Complex status component parsing and aggregation
   private async getStatusFromComponents(
     params: QueryCoreStatusParams
   ): Promise<unknown> {
@@ -384,7 +383,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
    */
   private getStatusScore(component: QSysComponentInfo): number {
     let score = 0;
-    const name = (component.Name ?? '').toLowerCase();
+    const name = component.Name.toLowerCase();
 
     // Name pattern matching (3 points)
     const statusPatterns = ['status', 'monitor', 'health', 'diagnostic'];
@@ -416,7 +415,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     if (Array.isArray(component.Properties)) {
       const hasStatusProperties = component.Properties.some((prop) =>
         ['status', 'health', 'state', 'online'].some(keyword =>
-          String(prop.Name ?? '')
+          prop.Name
             .toLowerCase()
             .includes(keyword)
         )

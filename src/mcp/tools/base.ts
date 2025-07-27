@@ -264,8 +264,10 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
     }
 
     const shape = schemaWithShape.shape;
-    if (!shape) return {};
-
+    if (!shape) {
+      return {};
+    }
+    
     const properties: Record<string, unknown> = {};
 
     for (const [key, zodSchema] of Object.entries(shape)) {
@@ -286,13 +288,10 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
     }
 
     const shape = (this.paramsSchema as z.ZodObject<Record<string, z.ZodSchema>>).shape;
-    if (!shape) return [];
-
     const required: string[] = [];
 
     for (const [key, zodSchema] of Object.entries(shape)) {
-      const schema = zodSchema as z.ZodSchema;
-      if (!schema.isOptional()) {
+      if (!zodSchema.isOptional()) {
         required.push(key);
       }
     }
@@ -324,7 +323,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       case 'ZodArray':
         return {
           type: 'array',
-          items: def.type ? this.zodSchemaToJsonSchema(def.type) : {},
+          items: def.type ? this.zodSchemaToJsonSchema(def.type as z.ZodSchema) : {},
           description: def.description,
         };
       case 'ZodObject': {
@@ -332,14 +331,12 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
         const shape = def.shape as Record<string, z.ZodSchema> | undefined;
         if (!shape) return { type: 'object', properties: {}, description: def.description };
         for (const [key, nestedSchema] of Object.entries(shape)) {
-          properties[key] = this.zodSchemaToJsonSchema(
-            nestedSchema as z.ZodSchema
-          );
+          properties[key] = this.zodSchemaToJsonSchema(nestedSchema);
         }
         return { type: 'object', properties, description: def.description };
       }
       case 'ZodOptional':
-        return def.innerType ? this.zodSchemaToJsonSchema(def.innerType) : {};
+        return def.innerType ? this.zodSchemaToJsonSchema(def.innerType as z.ZodSchema) : {};
       case 'ZodEnum':
         return {
           type: 'string',

@@ -30,6 +30,7 @@ export interface ControlInfo {
 /**
  * Validate a control value based on its type and constraints
  */
+// eslint-disable-next-line complexity -- Comprehensive validation for multiple Q-SYS control types
 export function validateControlValue(
   controlName: string,
   value: unknown,
@@ -64,7 +65,7 @@ export function validateControlValue(
 
     case 'Number':
     case 'Float':
-    case 'Integer':
+    case 'Integer': {
       const num = Number(value);
       if (isNaN(num)) {
         return {
@@ -86,8 +87,9 @@ export function validateControlValue(
         };
       }
       return { valid: true, value: num };
+    }
 
-    case 'String':
+    case 'String': {
       // Convert to string if not already
       const stringValue = String(value);
       if (typeof value === 'object' && value !== null) {
@@ -104,6 +106,7 @@ export function validateControlValue(
         };
       }
       return { valid: true, value: stringValue };
+    }
 
     default:
       // Unknown type - pass through
@@ -194,7 +197,7 @@ export function isRetryableError(error: unknown): boolean {
       'connection reset',
     ];
     return retryableMessages.some(msg =>
-      err.message.toLowerCase().includes(msg)
+      err.message?.toLowerCase().includes(msg) ?? false
     );
   }
 

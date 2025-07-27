@@ -187,7 +187,7 @@ export class MCPServer {
       origin: string
     ) => {
       logger.error('Uncaught exception in MCP server', { error, origin });
-      this.shutdown().catch((shutdownError) => {
+      this.shutdown().catch((shutdownError: unknown) => {
         logger.error('Shutdown error during uncaught exception', { shutdownError });
       });
       process.exit(1);
@@ -321,6 +321,7 @@ export class MCPServer {
   /**
    * Shutdown the server and clean up resources
    */
+  // eslint-disable-next-line max-statements -- Complex shutdown sequence requires proper cleanup of all resources
   async shutdown(): Promise<void> {
     if (!this.isConnected) return;
 

@@ -54,7 +54,7 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
   /**
    * Change Group Management Methods
    */
-  createChangeGroup(
+  async createChangeGroup(
     controls: Array<{
       name: string;
       value: number | string | boolean;
@@ -81,18 +81,18 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
     return Promise.resolve(this.changeGroupManager.createChangeGroup(strictControls, source));
   }
 
-  getChangeGroup(groupId: string): Promise<ChangeGroup | null> {
+  async getChangeGroup(groupId: string): Promise<ChangeGroup | null> {
     return Promise.resolve(this.changeGroupManager.getChangeGroup(groupId));
   }
 
-  updateChangeGroupStatus(
+  async updateChangeGroupStatus(
     groupId: string,
     status: 'pending' | 'applying' | 'completed' | 'failed'
   ): Promise<boolean> {
     return Promise.resolve(this.changeGroupManager.updateChangeGroupStatus(groupId, status));
   }
 
-  cleanupChangeGroups(): Promise<number> {
+  async cleanupChangeGroups(): Promise<number> {
     return Promise.resolve(this.changeGroupManager.cleanupChangeGroups());
   }
 
@@ -139,7 +139,7 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
   /**
    * Lifecycle Management
    */
-  cleanup(): Promise<void> {
+  async cleanup(): Promise<void> {
     logger.info('Starting cache cleanup');
 
     // Stop timers
@@ -165,7 +165,7 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
       }
 
       // Cleanup resources
-      this.cleanup();
+      await this.cleanup();
 
       // Shutdown cache
       this.shutdownCache();

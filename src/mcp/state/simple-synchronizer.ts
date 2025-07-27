@@ -56,6 +56,7 @@ export class SimpleSynchronizer {
   /**
    * Perform synchronization (for compatibility with existing interface)
    */
+  // eslint-disable-next-line max-statements -- Full state synchronization with Q-SYS Core
   async synchronize(
     cacheStates?: Map<string, ControlState>,
     source: 'qsys' | 'persistence' = 'qsys'
@@ -110,7 +111,8 @@ export class SimpleSynchronizer {
         }
         
         const controlsData = controlsResponse.result;
-        if (!controlsData || !controlsData.Controls) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety check
+        if (!controlsData.Controls) {
           continue;
         }
 

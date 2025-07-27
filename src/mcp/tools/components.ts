@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
-import type { ToolExecutionContext } from './base.js';
+import { BaseQSysTool, BaseToolParamsSchema, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type {
@@ -52,7 +51,7 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
         'Component.GetComponents'
       );
 
-      if (!response || typeof response !== 'object') {
+      if (typeof response !== 'object') {
         throw new QSysError('Invalid response from Q-SYS Core', QSysErrorCode.COMMAND_FAILED,
           { response });
       }
@@ -87,7 +86,7 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
     let components: QSysComponentInfo[] = [];
     const resp = response as { result?: QSysComponentInfo[] };
 
-    if (resp?.result && Array.isArray(resp.result)) {
+    if (resp.result && Array.isArray(resp.result)) {
       components = resp.result;
     } else if (Array.isArray(response)) {
       components = response as QSysComponentInfo[];
@@ -100,13 +99,13 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
       return {
         Name: comp.Name,
         Type: comp.Type,
-        Properties: comp.Properties ? comp.Properties.reduce(
+        Properties: comp.Properties.reduce(
           (acc, prop) => {
             acc[prop.Name] = prop.Value;
             return acc;
           },
           {} as Record<string, unknown>
-        ) : {},
+        ),
       };
     });
   }
@@ -143,7 +142,7 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
       if (params.includeProperties && comp.Properties) {
         result += '\n  Properties:\n';
         for (const [key, value] of Object.entries(comp.Properties)) {
-          result += `    ${key}: ${value}\n`;
+          result += `    ${key}: ${String(value)}\n`;
         }
       }
       
@@ -207,6 +206,7 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
       });
 
       if (
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime validation of API response
         !response ||
         typeof response !== 'object' ||
         !('result' in response)
@@ -217,6 +217,7 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
 
       const typedResponse = response as unknown as { result: QSysComponentGetResponse };
       const result = typedResponse.result;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime validation
       if (!result?.Controls || !Array.isArray(result.Controls)) {
         throw new MCPError('Invalid response format: missing Controls array', 
           MCPErrorCode.TOOL_EXECUTION_ERROR, { result });

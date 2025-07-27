@@ -2,18 +2,16 @@ import { EventEmitter } from 'events';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import { config as envConfig } from '../../../shared/utils/env.js';
 import { LRUCache, EvictionPolicy } from '../lru-cache.js';
-import type {
-  IStateRepository,
-  ControlState,
-  ChangeGroup,
-  CacheConfig,
-  CacheStatistics,
-  StateRepositoryEventData,
-} from '../repository.js';
 import {
   StateRepositoryEvent,
   StateRepositoryError,
   StateUtils,
+  type IStateRepository,
+  type ControlState,
+  type ChangeGroup,
+  type CacheConfig,
+  type CacheStatistics,
+  type StateRepositoryEventData,
 } from '../repository.js';
 
 /**
@@ -75,7 +73,8 @@ export class CoreCache extends EventEmitter {
   /**
    * Get control state by name
    */
-  getState(controlName: string): Promise<ControlState | null> {
+  // eslint-disable-next-line @typescript-eslint/require-await -- Async for interface compatibility
+  async getState(controlName: string): Promise<ControlState | null> {
     this.ensureInitialized();
 
     const state = this.cache.get(controlName);
@@ -86,13 +85,13 @@ export class CoreCache extends EventEmitter {
       logger.debug('Cache miss', { controlName });
     }
 
-    return Promise.resolve(state ?? null);
+    return state ?? null;
   }
 
   /**
    * Get multiple control states
    */
-  getStates(controlNames: string[]): Promise<Map<string, ControlState>> {
+  async getStates(controlNames: string[]): Promise<Map<string, ControlState>> {
     this.ensureInitialized();
 
     const results = new Map<string, ControlState>();
@@ -118,7 +117,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Set control state
    */
-  setState(controlName: string, state: ControlState): Promise<void> {
+  async setState(controlName: string, state: ControlState): Promise<void> {
     this.ensureInitialized();
 
     const oldState = this.cache.get(controlName);
@@ -139,7 +138,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Set multiple control states
    */
-  setStates(states: Map<string, ControlState>): Promise<void> {
+  async setStates(states: Map<string, ControlState>): Promise<void> {
     this.ensureInitialized();
 
     for (const [name, state] of states) {
@@ -161,7 +160,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Remove control state
    */
-  removeState(controlName: string): Promise<boolean> {
+  async removeState(controlName: string): Promise<boolean> {
     this.ensureInitialized();
 
     const removed = this.cache.delete(controlName);
@@ -176,7 +175,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Remove multiple control states
    */
-  removeStates(controlNames: string[]): Promise<number> {
+  async removeStates(controlNames: string[]): Promise<number> {
     this.ensureInitialized();
 
     let removed = 0;
@@ -198,7 +197,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Clear all states
    */
-  clear(): Promise<void> {
+  async clear(): Promise<void> {
     this.ensureInitialized();
 
     const size = this.cache.size;
@@ -211,7 +210,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Check if state exists
    */
-  hasState(controlName: string): Promise<boolean> {
+  async hasState(controlName: string): Promise<boolean> {
     this.ensureInitialized();
     return Promise.resolve(this.cache.has(controlName));
   }
@@ -236,7 +235,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Get all control names
    */
-  getKeys(): Promise<string[]> {
+  async getKeys(): Promise<string[]> {
     this.ensureInitialized();
     return Promise.resolve(this.cache.keys());
   }
@@ -244,7 +243,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Get cache statistics
    */
-  getStatistics(): Promise<CacheStatistics> {
+  async getStatistics(): Promise<CacheStatistics> {
     return Promise.resolve(this.cache.getStatistics());
   }
 
@@ -264,9 +263,7 @@ export class CoreCache extends EventEmitter {
    * Shutdown cache cleanly
    */
   protected shutdownCache(): void {
-    if (this.cache) {
-      this.cache.shutdown();
-    }
+    this.cache.shutdown();
   }
 
   /**

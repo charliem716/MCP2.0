@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
-import { StateRepositoryEvent } from '../repository.js';
-import type { ChangeGroup, ControlState, StateRepositoryError } from '../repository.js';
+import { StateRepositoryEvent, type ChangeGroup, type ControlState, type StateRepositoryError } from '../repository.js';
 import type { CoreCache } from './core-cache.js';
 
 /**

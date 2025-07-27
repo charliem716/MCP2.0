@@ -186,7 +186,8 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         value = ctrl.Value;
       } else {
         // Convert to string if it's some other type or undefined/null
-        value = String(ctrl.Value ?? '');
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Value can be null/undefined
+        value = ctrl.Value == null ? '' : String(ctrl.Value);
       }
 
       return {
@@ -194,7 +195,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         component:
           ctrl.Component ??
           (componentName !== 'unknown' ? componentName : this.extractComponentFromName(ctrl.Name)),
-        type: controlType ?? ctrl.Type ?? 'unknown',
+        type: controlType || ctrl.Type || 'unknown',
         value,
         metadata: this.extractMetadata(ctrl),
       };
@@ -310,7 +311,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       if (params.includeMetadata && control.metadata) {
         result += '\n  Metadata:\n';
         for (const [key, value] of Object.entries(control.metadata)) {
-          result += `    ${key}: ${value}\n`;
+          result += `    ${key}: ${String(value)}\n`;
         }
       }
       
@@ -519,6 +520,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     });
   }
 
+  // eslint-disable-next-line max-statements -- Complex control value setting with validation and error handling
   protected async executeInternal(
     params: SetControlValuesParams,
     context: ToolExecutionContext
@@ -655,6 +657,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
   /**
    * Optimized validation that uses batching, caching, and parallelization
    */
+  // eslint-disable-next-line max-statements -- Batch control validation with optimized queries
   private async validateControlsExistOptimized(
     controls: SetControlValuesParams['controls']
   ): Promise<

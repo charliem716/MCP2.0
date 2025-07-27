@@ -397,7 +397,7 @@ export class QRWCClientAdapter
   private async getControlValue(
     controlName: string
   ): Promise<{ Value: unknown; String?: string } | null> {
-    return withErrorRecovery(
+    return withErrorRecovery<{ Value: unknown; String?: string } | null>(
       async () => {
         const response = await this.sendCommand('Control.Get', {
           Controls: [controlName],
@@ -410,7 +410,7 @@ export class QRWCClientAdapter
         
         const controls = response.result;
         if (Array.isArray(controls) && controls.length > 0 && controls[0]) {
-          return controls[0];
+          return controls[0] as { Value: unknown; String?: string };
         }
         return null;
       },
@@ -521,6 +521,7 @@ export class QRWCClientAdapter
   /**
    * Handle ChangeGroup.AddControl command
    */
+  // eslint-disable-next-line max-statements -- Complex logic for adding controls to change groups with validation
   private handleChangeGroupAddControl(params?: Record<string, unknown>): unknown {
     if (!params?.['Id']) {
       throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
@@ -583,6 +584,7 @@ export class QRWCClientAdapter
   /**
    * Handle ChangeGroup.Poll command
    */
+  // eslint-disable-next-line max-statements -- Complex polling logic checking control changes across multiple components
   private handleChangeGroupPoll(params?: Record<string, unknown>): unknown {
     if (!params?.['Id']) {
       throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
@@ -618,6 +620,7 @@ export class QRWCClientAdapter
         // Get control state which has IControlState interface
         const controlState = control.state;
         const currentValue = controlState.Value ?? 0;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety: String may be undefined despite types
         let currentString = controlState.String ?? String(currentValue);
         
         // For consistency with tests, strip common units from string values

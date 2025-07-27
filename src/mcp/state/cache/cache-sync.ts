@@ -113,7 +113,7 @@ export class CacheSyncManager {
 
       // Update cache with synchronized states
       if (result.updates.size > 0) {
-        this.coreCache.setStates(result.updates);
+        await this.coreCache.setStates(result.updates);
       }
 
       const duration = Date.now() - startTime;
@@ -174,7 +174,7 @@ export class CacheSyncManager {
       const states = await this.persistenceManager.loadState();
 
       if (states && states.size > 0) {
-        this.coreCache.setStates(states);
+        await this.coreCache.setStates(states);
         logger.info('Cache restored from persistence', {
           stateCount: states.size,
         });

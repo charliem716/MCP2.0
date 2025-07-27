@@ -412,7 +412,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     );
   }
 
-  protected executeInternal(
+  protected async executeInternal(
     params: ListChangeGroupsParams
   ): Promise<ToolCallResult> {
     // Cast the client to access the listChangeGroups method
@@ -531,6 +531,7 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
     this.eventCache = eventCache;
   }
 
+  // eslint-disable-next-line complexity -- Complex change group event query with multiple filters
   protected async executeInternal(
     params: ReadChangeGroupEventsParams
   ): Promise<ToolCallResult> {
@@ -708,7 +709,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
     this.eventCache = eventCache;
   }
 
-  protected executeInternal(
+  protected async executeInternal(
     params: SubscribeToChangeEventsParams
   ): Promise<ToolCallResult> {
     const { groupId, enableCache, cacheConfig } = params;

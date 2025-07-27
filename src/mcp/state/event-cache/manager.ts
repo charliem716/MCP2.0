@@ -970,6 +970,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Get statistics for a change group or all groups
    */
+  // eslint-disable-next-line max-statements -- Comprehensive statistics calculation
   getStatistics(groupId?: string): CacheStatistics | null | { totalEvents: number; groups: Array<CacheStatistics & { groupId: string; totalEvents: number }>; memoryUsageMB: number; queryCache: unknown } {
     // If no groupId provided, return global statistics
     if (groupId === undefined) {
@@ -1047,7 +1048,7 @@ export class EventCacheManager extends EventEmitter {
     for (const groupId of this.buffers.keys()) {
       const groupStats = this.getStatistics(groupId);
       if (groupStats && typeof groupStats === 'object' && 'eventCount' in groupStats) {
-        stats.set(groupId, groupStats as CacheStatistics);
+        stats.set(groupId, groupStats);
       }
     }
 

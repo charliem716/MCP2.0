@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { BaseQSysTool } from './base.js';
-import type { ToolExecutionContext } from './base.js';
+import { BaseQSysTool, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import { MCPError, MCPErrorCode, ValidationError } from '../../shared/types/errors.js';
@@ -98,7 +97,6 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
       );
 
       if (
-        !response ||
         typeof response !== 'object' ||
         !('result' in response)
       ) {
@@ -295,10 +293,8 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 
     if (type === 'Boolean') return value === true || value === 1;
     if (type === 'Float' || type === 'Integer') return value !== 0;
-    if (type === 'String')
-      return value !== '' && value != null;
-
-    return false;
+    // type must be 'String' at this point
+    return value !== '';
   }
 }
 

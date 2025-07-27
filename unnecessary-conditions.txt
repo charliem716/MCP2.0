@@ -1,0 +1,20 @@
+  621:29  warning  Unnecessary conditional, expected left-hand side of `??` operator to be possibly null or undefined  @typescript-eslint/no-unnecessary-condition
+  341:9   warning  Unnecessary conditional, value is always falsy                                                      @typescript-eslint/no-unnecessary-condition
+  346:12  warning  Unnecessary conditional, expected left-hand side of `??` operator to be possibly null or undefined  @typescript-eslint/no-unnecessary-condition
+  346:22  warning  Unnecessary optional chain on a non-nullish value                                                   @typescript-eslint/no-unnecessary-condition
+  346:28  warning  Unnecessary optional chain on a non-nullish value                                                   @typescript-eslint/no-unnecessary-condition
+  350:12  warning  Unnecessary conditional, expected left-hand side of `??` operator to be possibly null or undefined  @typescript-eslint/no-unnecessary-condition
+  350:22  warning  Unnecessary optional chain on a non-nullish value                                                   @typescript-eslint/no-unnecessary-condition
+  350:28  warning  Unnecessary optional chain on a non-nullish value                                                   @typescript-eslint/no-unnecessary-condition
+  393:9   warning  Unnecessary conditional, value is always falsy                                                      @typescript-eslint/no-unnecessary-condition
+  432:21  warning  Unnecessary conditional, value is always falsy                                                      @typescript-eslint/no-unnecessary-condition
+  486:7   warning  Unnecessary conditional, value is always falsy                                                      @typescript-eslint/no-unnecessary-condition
+  267:9  warning  Unnecessary conditional, value is always truthy  @typescript-eslint/no-unnecessary-condition
+   38:9   warning  Unnecessary conditional, value is always falsy                                                      @typescript-eslint/no-unnecessary-condition
+   82:9   warning  Unnecessary conditional, value is always falsy                                                      @typescript-eslint/no-unnecessary-condition
+  222:25  warning  Unnecessary optional chain on a non-nullish value                                                   @typescript-eslint/no-unnecessary-condition
+  113:30  warning  Unnecessary conditional, value is always falsy                                  @typescript-eslint/no-unnecessary-condition
+  289:9   warning  Unnecessary conditional, value is always falsy                                                        @typescript-eslint/no-unnecessary-condition
+   55:11  warning  Unnecessary conditional, value is always falsy         @typescript-eslint/no-unnecessary-condition
+   90:13  warning  Unnecessary optional chain on a non-nullish value      @typescript-eslint/no-unnecessary-condition
+  103:21  warning  Unnecessary conditional, value is always truthy        @typescript-eslint/no-unnecessary-condition

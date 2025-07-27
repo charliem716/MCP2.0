@@ -1,11 +1,12 @@
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import type { ControlState } from '../repository.js';
-import type {
-  PersistenceConfig,
-  PersistenceStats,
-  PersistedState,
+import { 
+  PersistenceFormat, 
+  CompressionType,
+  type PersistenceConfig,
+  type PersistenceStats,
+  type PersistedState,
 } from './types.js';
-import { PersistenceFormat, CompressionType } from './types.js';
 import { BackupManager } from './backup.js';
 import { FileOperations } from './file-operations.js';
 import { PersistenceError, PersistenceErrorCode } from './errors.js';

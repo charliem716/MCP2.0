@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { BaseQSysTool } from './base.js';
-import type { ToolExecutionContext } from './base.js';
+import { BaseQSysTool, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import { QSysAPIReference } from './api-reference.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
@@ -69,7 +68,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     this.apiReference = new QSysAPIReference();
   }
 
-  protected executeInternal(
+  protected async executeInternal(
     params: QueryQSysAPIParams,
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {

@@ -1,11 +1,7 @@
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import type { ChangeGroup, ControlState } from '../repository.js';
 import type { QRWCClientInterface } from '../../qrwc/adapter.js';
-import type {
-  ControlChangeResult,
-  ChangeGroupExecutionOptions,
-} from './types.js';
-import { ChangeGroupEvent } from './types.js';
+import { ChangeGroupEvent, type ControlChangeResult, type ChangeGroupExecutionOptions } from './types.js';
 import { Semaphore } from './concurrency-utils.js';
 import type { EventEmitter } from 'events';
 import { ValidationError } from '../../../shared/types/errors.js';
@@ -35,7 +31,8 @@ export class ChangeGroupExecutor {
       });
     }
 
-    if (!changeGroup.controls || changeGroup.controls.length === 0) {
+    // Controls array is required by schema and has min(1), so we only need to check length
+    if (changeGroup.controls.length === 0) {
       errors.push({
         field: 'controls',
         message: 'Change group must contain at least one control',
@@ -70,6 +67,7 @@ export class ChangeGroupExecutor {
   /**
    * Execute control changes with concurrency control
    */
+  // eslint-disable-next-line max-statements -- Batch control execution with concurrency management
   async executeControls(
     changeGroup: ChangeGroup,
     options: ChangeGroupExecutionOptions
@@ -78,8 +76,8 @@ export class ChangeGroupExecutor {
     const results: ControlChangeResult[] = [];
     const promises: Array<Promise<ControlChangeResult>> = [];
 
-    // Early return if no controls
-    if (!changeGroup.controls || changeGroup.controls.length === 0) {
+    // Early return if no controls (controls array is required by schema but could be empty)
+    if (changeGroup.controls.length === 0) {
       return results;
     }
     
@@ -168,7 +166,7 @@ export class ChangeGroupExecutor {
         // Ensure we have an Error object
         const error = firstError instanceof Error 
           ? firstError 
-          : new Error(String(firstError));
+          : new Error(typeof firstError === 'string' ? firstError : JSON.stringify(firstError));
         
         // Attach results to the error so they can be retrieved
         (error as Error & { __results?: ControlChangeResult[] }).__results = results;
@@ -194,6 +192,7 @@ export class ChangeGroupExecutor {
   /**
    * Execute a single control change
    */
+  // eslint-disable-next-line max-statements -- Individual control execution with retry and error handling
   private async executeIndividualControl(
     control: { name: string; value: ControlState['value']; ramp?: number },
     changeGroupId: string
@@ -219,8 +218,10 @@ export class ChangeGroupExecutor {
           controls?: Array<{ Value: unknown }>;
         };
 
-        if (currentState?.controls?.[0]?.Value !== undefined) {
-          const value = currentState.controls[0].Value;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- controls is optional in response type
+        const firstControl = currentState?.controls?.[0];
+        if (firstControl && firstControl.Value !== undefined) {
+          const value = firstControl.Value;
           // Validate that the value is of the expected type
           if (
             typeof value === 'string' ||
