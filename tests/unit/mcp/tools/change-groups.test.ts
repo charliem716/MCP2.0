@@ -99,7 +99,10 @@ describe('Change Group Tools', () => {
         'ChangeGroup.AddControl',
         {
           Id: 'test-group-1',
-          Controls: ['Gain1.gain', 'Gain1.mute'],
+          Controls: [
+            { Name: 'Gain1.gain' },
+            { Name: 'Gain1.mute' },
+          ],
         }
       );
       expect(result.content[0].text).toContain('"controlsAdded":2');
