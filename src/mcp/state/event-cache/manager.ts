@@ -28,6 +28,7 @@ import {
 import { CompressionEngine } from './compression.js';
 import { DiskSpilloverManager } from './disk-spillover.js';
 import { QueryCache } from './query-cache.js';
+import { validateEventCacheConfig, getConfigSummary } from './config-validator.js';
 
 /**
  * Cached event with full metadata
@@ -187,9 +188,27 @@ export class EventCacheManager extends EventEmitter {
     private defaultConfig: EventCacheConfig = {
       maxEvents: 100000,
       maxAgeMs: 3600000, // 1 hour
-    }
+    },
+    adapter?: QRWCClientAdapter
   ) {
     super();
+    
+    // Validate configuration
+    const validation = validateEventCacheConfig(this.defaultConfig);
+    if (!validation.valid) {
+      throw new Error(`Invalid configuration: ${validation.errors.join(', ')}`);
+    }
+    
+    // Log warnings if any
+    if (validation.warnings.length > 0) {
+      logger.warn('EventCacheConfig warnings', { warnings: validation.warnings });
+    }
+    
+    // Log configuration summary
+    logger.info('EventCache configuration', { 
+      summary: getConfigSummary(this.defaultConfig).split('\n')
+    });
+    
     this.buffers = new Map();
     this.lastValues = new Map();
     this.lastEventTimes = new Map();
@@ -242,6 +261,11 @@ export class EventCacheManager extends EventEmitter {
     }
 
     // Disk spillover will initialize itself when needed
+    
+    // If adapter provided, attach immediately
+    if (adapter) {
+      this.attachToAdapter(adapter);
+    }
   }
 
   /**
