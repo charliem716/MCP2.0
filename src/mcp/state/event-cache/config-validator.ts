@@ -13,10 +13,12 @@ export function validateEventCacheConfig(config: EventCacheConfig): ValidationRe
   const warnings: string[] = [];
 
   // Validate memory limits
-  if (config.globalMemoryLimitMB < 10) {
-    errors.push('globalMemoryLimitMB must be at least 10MB');
-  } else if (config.globalMemoryLimitMB < 50) {
-    warnings.push('globalMemoryLimitMB < 50MB: Low memory limit may cause frequent evictions');
+  if (config.globalMemoryLimitMB !== undefined) {
+    if (config.globalMemoryLimitMB < 10) {
+      errors.push('globalMemoryLimitMB must be at least 10MB');
+    } else if (config.globalMemoryLimitMB < 50) {
+      warnings.push('globalMemoryLimitMB < 50MB: Low memory limit may cause frequent evictions');
+    }
   }
 
   // Validate event limits
@@ -69,13 +71,16 @@ export function validateEventCacheConfig(config: EventCacheConfig): ValidationRe
     }
 
     // Validate threshold settings
-    if (spilloverConfig.thresholdPercent !== undefined) {
-      if (spilloverConfig.thresholdPercent < 0 || spilloverConfig.thresholdPercent > 100) {
-        errors.push('Spillover thresholdPercent must be between 0 and 100');
-      } else if (spilloverConfig.thresholdPercent < 50) {
-        warnings.push('Spillover thresholdPercent < 50%: May cause premature disk writes');
-      } else if (spilloverConfig.thresholdPercent > 90) {
-        warnings.push('Spillover thresholdPercent > 90%: May not leave enough memory headroom');
+    if (spilloverConfig.thresholdMB !== undefined) {
+      if (spilloverConfig.thresholdMB < 10) {
+        errors.push('Spillover thresholdMB must be at least 10MB');
+      } else if (spilloverConfig.thresholdMB < 100) {
+        warnings.push('Spillover thresholdMB < 100MB: May cause frequent disk writes');
+      }
+      
+      // Check percentage independently
+      if (config.globalMemoryLimitMB !== undefined && spilloverConfig.thresholdMB > config.globalMemoryLimitMB * 0.9) {
+        warnings.push('Spillover thresholdMB > 90% of memory limit: May not leave enough headroom');
       }
     }
 
@@ -95,21 +100,18 @@ export function validateEventCacheConfig(config: EventCacheConfig): ValidationRe
   if (config.compressionConfig?.enabled) {
     const compressionConfig = config.compressionConfig;
     
-    if (compressionConfig.minAgeMs !== undefined) {
-      if (compressionConfig.minAgeMs < 0) {
-        errors.push('Compression minAgeMs cannot be negative');
-      } else if (compressionConfig.minAgeMs < 30000) { // 30 seconds
-        warnings.push('Compression minAgeMs < 30s: May impact performance with frequent compressions');
-      }
+    // Validate compression window settings
+    if (compressionConfig.recentWindowMs !== undefined && compressionConfig.recentWindowMs < 1000) {
+      errors.push('Compression recentWindowMs must be at least 1 second');
     }
-
-    if (compressionConfig.compressionRatio !== undefined) {
-      if (compressionConfig.compressionRatio <= 0 || compressionConfig.compressionRatio >= 1) {
-        errors.push('Compression ratio must be between 0 and 1');
-      } else if (compressionConfig.compressionRatio < 0.2) {
-        warnings.push('Compression ratio < 0.2: Aggressive compression may impact query performance');
-      } else if (compressionConfig.compressionRatio > 0.8) {
-        warnings.push('Compression ratio > 0.8: May not provide significant space savings');
+    
+    if (compressionConfig.mediumWindowMs !== undefined && compressionConfig.mediumWindowMs < 60000) {
+      warnings.push('Compression mediumWindowMs < 1 minute: May compress events too quickly');
+    }
+    
+    if (compressionConfig.significantChangePercent !== undefined) {
+      if (compressionConfig.significantChangePercent < 0 || compressionConfig.significantChangePercent > 100) {
+        errors.push('Compression significantChangePercent must be between 0 and 100');
       }
     }
   }
@@ -128,9 +130,9 @@ export function validateEventCacheConfig(config: EventCacheConfig): ValidationRe
   // Cross-validation checks
   if (config.compressionConfig?.enabled && config.diskSpilloverConfig?.enabled) {
     // Both compression and spillover enabled - this is fine but worth noting
-    if (config.compressionConfig.minAgeMs && config.maxAgeMs) {
-      if (config.compressionConfig.minAgeMs > config.maxAgeMs / 2) {
-        warnings.push('Compression minAgeMs > half of maxAgeMs: Events may be evicted before compression');
+    if (config.compressionConfig.recentWindowMs !== undefined && config.maxAgeMs) {
+      if (config.compressionConfig.recentWindowMs > config.maxAgeMs / 2) {
+        warnings.push('Compression recentWindowMs > half of maxAgeMs: Events may be evicted before compression');
       }
     }
   }
@@ -140,7 +142,7 @@ export function validateEventCacheConfig(config: EventCacheConfig): ValidationRe
   const memoryPerEvent = 1024; // Rough estimate: 1KB per event
   const estimatedMemoryMB = (totalPossibleEvents * memoryPerEvent) / (1024 * 1024);
   
-  if (estimatedMemoryMB > config.globalMemoryLimitMB * 0.8) {
+  if (config.globalMemoryLimitMB !== undefined && estimatedMemoryMB > config.globalMemoryLimitMB * 0.8) {
     warnings.push(
       `Estimated memory usage (${Math.round(estimatedMemoryMB)}MB) approaches the global limit (${config.globalMemoryLimitMB}MB). ` +
       'Consider reducing maxEvents or increasing globalMemoryLimitMB'
@@ -158,37 +160,56 @@ export function validateEventCacheConfig(config: EventCacheConfig): ValidationRe
  * Validates and sanitizes the configuration, applying defaults where necessary
  */
 export function sanitizeEventCacheConfig(config: Partial<EventCacheConfig>): EventCacheConfig {
-  const defaults: EventCacheConfig = {
-    maxEvents: 100000,
-    maxAgeMs: 3600000, // 1 hour
-    globalMemoryLimitMB: 500,
-    memoryCheckIntervalMs: 5000,
-    compressionConfig: {
-      enabled: false,
-      minAgeMs: 60000, // 1 minute
-      compressionRatio: 0.5
-    },
-    diskSpilloverConfig: {
-      enabled: false,
-      directory: './event-cache-spillover',
-      thresholdPercent: 80,
-      maxFileSizeMB: 100
-    }
+  const defaultCompressionConfig = {
+    enabled: false,
+    checkIntervalMs: 60000,
+    recentWindowMs: 300000,
+    mediumWindowMs: 3600000,
+    ancientWindowMs: 86400000,
+    significantChangePercent: 10,
+    minTimeBetweenEventsMs: 100
+  };
+  
+  const defaultDiskSpilloverConfig = {
+    enabled: false,
+    directory: './event-cache-spillover',
+    thresholdMB: 400,
+    maxFileSizeMB: 100
   };
 
-  // Merge with defaults
+  // Build the sanitized config with defaults for all common properties
   const sanitized: EventCacheConfig = {
-    ...defaults,
-    ...config,
-    compressionConfig: config.compressionConfig ? {
-      ...defaults.compressionConfig,
-      ...config.compressionConfig
-    } : defaults.compressionConfig,
-    diskSpilloverConfig: config.diskSpilloverConfig ? {
-      ...defaults.diskSpilloverConfig,
-      ...config.diskSpilloverConfig
-    } : defaults.diskSpilloverConfig
+    maxEvents: config.maxEvents ?? 100000,
+    maxAgeMs: config.maxAgeMs ?? 3600000, // 1 hour
+    globalMemoryLimitMB: config.globalMemoryLimitMB ?? 500,
+    memoryCheckIntervalMs: config.memoryCheckIntervalMs ?? 5000,
   };
+  
+  // Add truly optional properties only if defined
+  if (config.compressOldEvents !== undefined) {
+    sanitized.compressOldEvents = config.compressOldEvents;
+  }
+  if (config.persistToDisk !== undefined) {
+    sanitized.persistToDisk = config.persistToDisk;
+  }
+  if (config.cleanupIntervalMs !== undefined) {
+    sanitized.cleanupIntervalMs = config.cleanupIntervalMs;
+  }
+  
+  // Add optional configs only if they exist
+  if (config.compressionConfig !== undefined || config.compressOldEvents) {
+    sanitized.compressionConfig = {
+      ...defaultCompressionConfig,
+      ...(config.compressionConfig || {})
+    };
+  }
+  
+  if (config.diskSpilloverConfig !== undefined || config.persistToDisk) {
+    sanitized.diskSpilloverConfig = {
+      ...defaultDiskSpilloverConfig,
+      ...(config.diskSpilloverConfig || {})
+    };
+  }
 
   return sanitized;
 }
@@ -199,7 +220,7 @@ export function sanitizeEventCacheConfig(config: Partial<EventCacheConfig>): Eve
 export function getConfigSummary(config: EventCacheConfig): string {
   const lines: string[] = [
     'Event Cache Configuration:',
-    `  Memory Limit: ${config.globalMemoryLimitMB}MB`,
+    `  Memory Limit: ${config.globalMemoryLimitMB || 500}MB`,
     `  Max Events: ${config.maxEvents.toLocaleString()}`,
     `  Retention: ${formatDuration(config.maxAgeMs)}`,
     `  Memory Check Interval: ${formatDuration(config.memoryCheckIntervalMs || 5000)}`
@@ -207,8 +228,8 @@ export function getConfigSummary(config: EventCacheConfig): string {
 
   if (config.compressionConfig?.enabled) {
     lines.push('  Compression: Enabled');
-    lines.push(`    Min Age: ${formatDuration(config.compressionConfig.minAgeMs || 60000)}`);
-    lines.push(`    Target Ratio: ${Math.round((config.compressionConfig.compressionRatio || 0.5) * 100)}%`);
+    lines.push(`    Recent Window: ${formatDuration(config.compressionConfig.recentWindowMs || 300000)}`);
+    lines.push(`    Check Interval: ${formatDuration(config.compressionConfig.checkIntervalMs || 60000)}`);
   } else {
     lines.push('  Compression: Disabled');
   }
@@ -216,7 +237,7 @@ export function getConfigSummary(config: EventCacheConfig): string {
   if (config.diskSpilloverConfig?.enabled) {
     lines.push('  Disk Spillover: Enabled');
     lines.push(`    Directory: ${config.diskSpilloverConfig.directory}`);
-    lines.push(`    Threshold: ${config.diskSpilloverConfig.thresholdPercent || 80}%`);
+    lines.push(`    Threshold: ${config.diskSpilloverConfig.thresholdMB || 400}MB`);
     lines.push(`    Max File Size: ${config.diskSpilloverConfig.maxFileSizeMB || 100}MB`);
   } else {
     lines.push('  Disk Spillover: Disabled');

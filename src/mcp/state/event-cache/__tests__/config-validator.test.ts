@@ -224,7 +224,7 @@ describe('EventCacheConfig Validator', () => {
         expect(result.warnings).toContain('Spillover directory will be created: ./spillover');
       });
 
-      it('should validate threshold percent', () => {
+      it('should validate threshold MB', () => {
         mockFs.existsSync.mockReturnValue(true);
         mockFs.accessSync.mockImplementation(() => {});
 
@@ -236,25 +236,25 @@ describe('EventCacheConfig Validator', () => {
           diskSpilloverConfig: {
             enabled: true,
             directory: './spillover',
-            thresholdPercent: 150
+            thresholdMB: 5
           }
         };
 
         let result = validateEventCacheConfig(config);
         expect(result.valid).toBe(false);
-        expect(result.errors).toContain('Spillover thresholdPercent must be between 0 and 100');
+        expect(result.errors).toContain('Spillover thresholdMB must be at least 10MB');
 
         // Test low threshold warning
-        config.diskSpilloverConfig!.thresholdPercent = 30;
+        config.diskSpilloverConfig!.thresholdMB = 50;
         result = validateEventCacheConfig(config);
         expect(result.valid).toBe(true);
-        expect(result.warnings).toContain('Spillover thresholdPercent < 50%: May cause premature disk writes');
+        expect(result.warnings).toContain('Spillover thresholdMB < 100MB: May cause frequent disk writes');
 
         // Test high threshold warning
-        config.diskSpilloverConfig!.thresholdPercent = 95;
+        config.diskSpilloverConfig!.thresholdMB = 91;
         result = validateEventCacheConfig(config);
         expect(result.valid).toBe(true);
-        expect(result.warnings).toContain('Spillover thresholdPercent > 90%: May not leave enough memory headroom');
+        expect(result.warnings).toContain('Spillover thresholdMB > 90% of memory limit: May not leave enough headroom');
       });
 
       it('should validate file size limits', () => {
@@ -292,56 +292,51 @@ describe('EventCacheConfig Validator', () => {
     });
 
     describe('Compression validation', () => {
-      it('should validate compression age settings', () => {
-        // Test negative age
+      it('should validate compression window settings', () => {
+        // Test negative window
         let config: EventCacheConfig = {
           globalMemoryLimitMB: 100,
           maxEvents: 10000,
           maxAgeMs: 300000,
           compressionConfig: {
             enabled: true,
-            minAgeMs: -1000
+            recentWindowMs: 500
           }
         };
 
         let result = validateEventCacheConfig(config);
         expect(result.valid).toBe(false);
-        expect(result.errors).toContain('Compression minAgeMs cannot be negative');
+        expect(result.errors).toContain('Compression recentWindowMs must be at least 1 second');
 
-        // Test low age warning
-        config.compressionConfig!.minAgeMs = 15000; // 15 seconds
+        // Test low medium window warning
+        config.compressionConfig!.recentWindowMs = 5000;
+        config.compressionConfig!.mediumWindowMs = 30000; // 30 seconds
         result = validateEventCacheConfig(config);
         expect(result.valid).toBe(true);
-        expect(result.warnings).toContain('Compression minAgeMs < 30s: May impact performance with frequent compressions');
+        expect(result.warnings).toContain('Compression mediumWindowMs < 1 minute: May compress events too quickly');
       });
 
-      it('should validate compression ratio', () => {
-        // Test invalid ratio
+      it('should validate compression significant change percent', () => {
+        // Test invalid percent
         let config: EventCacheConfig = {
           globalMemoryLimitMB: 100,
           maxEvents: 10000,
           maxAgeMs: 300000,
           compressionConfig: {
             enabled: true,
-            compressionRatio: 1.5
+            significantChangePercent: 150
           }
         };
 
         let result = validateEventCacheConfig(config);
         expect(result.valid).toBe(false);
-        expect(result.errors).toContain('Compression ratio must be between 0 and 1');
+        expect(result.errors).toContain('Compression significantChangePercent must be between 0 and 100');
 
-        // Test aggressive compression warning
-        config.compressionConfig!.compressionRatio = 0.1;
+        // Valid percent should pass
+        config.compressionConfig!.significantChangePercent = 10;
         result = validateEventCacheConfig(config);
         expect(result.valid).toBe(true);
-        expect(result.warnings).toContain('Compression ratio < 0.2: Aggressive compression may impact query performance');
-
-        // Test ineffective compression warning
-        config.compressionConfig!.compressionRatio = 0.9;
-        result = validateEventCacheConfig(config);
-        expect(result.valid).toBe(true);
-        expect(result.warnings).toContain('Compression ratio > 0.8: May not provide significant space savings');
+        expect(result.warnings).toHaveLength(0);
       });
     });
 
@@ -380,14 +375,14 @@ describe('EventCacheConfig Validator', () => {
     });
 
     describe('Cross-validation checks', () => {
-      it('should warn when compression age exceeds half retention', () => {
+      it('should warn when compression window exceeds half retention', () => {
         const config: EventCacheConfig = {
           globalMemoryLimitMB: 100,
           maxEvents: 10000,
           maxAgeMs: 120000, // 2 minutes
           compressionConfig: {
             enabled: true,
-            minAgeMs: 90000 // 1.5 minutes
+            recentWindowMs: 90000 // 1.5 minutes
           },
           diskSpilloverConfig: {
             enabled: true,
@@ -401,7 +396,7 @@ describe('EventCacheConfig Validator', () => {
         const result = validateEventCacheConfig(config);
         
         expect(result.valid).toBe(true);
-        expect(result.warnings).toContain('Compression minAgeMs > half of maxAgeMs: Events may be evicted before compression');
+        expect(result.warnings).toContain('Compression recentWindowMs > half of maxAgeMs: Events may be evicted before compression');
       });
 
       it('should warn when estimated memory usage approaches limit', () => {
@@ -427,8 +422,8 @@ describe('EventCacheConfig Validator', () => {
       expect(config.maxAgeMs).toBe(3600000);
       expect(config.globalMemoryLimitMB).toBe(500);
       expect(config.memoryCheckIntervalMs).toBe(5000);
-      expect(config.compressionConfig?.enabled).toBe(false);
-      expect(config.diskSpilloverConfig?.enabled).toBe(false);
+      expect(config.compressionConfig).toBeUndefined();
+      expect(config.diskSpilloverConfig).toBeUndefined();
     });
 
     it('should merge partial config with defaults', () => {
@@ -442,10 +437,10 @@ describe('EventCacheConfig Validator', () => {
       expect(config.maxEvents).toBe(50000);
       expect(config.maxAgeMs).toBe(3600000); // default
       expect(config.compressionConfig?.enabled).toBe(true);
-      expect(config.compressionConfig?.minAgeMs).toBe(60000); // default
+      expect(config.compressionConfig?.recentWindowMs).toBe(300000); // default
     });
 
-    it('should preserve all provided values', () => {
+    it('should preserve provided values and merge with defaults', () => {
       const input: Partial<EventCacheConfig> = {
         maxEvents: 25000,
         maxAgeMs: 180000,
@@ -453,20 +448,29 @@ describe('EventCacheConfig Validator', () => {
         memoryCheckIntervalMs: 10000,
         compressionConfig: {
           enabled: true,
-          minAgeMs: 30000,
-          compressionRatio: 0.3
+          recentWindowMs: 30000,
+          significantChangePercent: 25
         },
         diskSpilloverConfig: {
           enabled: true,
           directory: '/custom/path',
-          thresholdPercent: 70,
+          thresholdMB: 70,
           maxFileSizeMB: 50
         }
       };
 
       const config = sanitizeEventCacheConfig(input);
       
-      expect(config).toEqual(input);
+      // Check provided values are preserved
+      expect(config.maxEvents).toBe(25000);
+      expect(config.maxAgeMs).toBe(180000);
+      expect(config.globalMemoryLimitMB).toBe(200);
+      expect(config.memoryCheckIntervalMs).toBe(10000);
+      expect(config.compressionConfig?.enabled).toBe(true);
+      expect(config.compressionConfig?.recentWindowMs).toBe(30000);
+      expect(config.diskSpilloverConfig?.enabled).toBe(true);
+      expect(config.diskSpilloverConfig?.directory).toBe('/custom/path');
+      expect(config.diskSpilloverConfig?.thresholdMB).toBe(70);
     });
   });
 
@@ -496,16 +500,16 @@ describe('EventCacheConfig Validator', () => {
         maxAgeMs: 3600000,
         compressionConfig: {
           enabled: true,
-          minAgeMs: 120000,
-          compressionRatio: 0.4
+          recentWindowMs: 120000,
+          checkIntervalMs: 60000
         }
       };
 
       const summary = getConfigSummary(config);
       
       expect(summary).toContain('Compression: Enabled');
-      expect(summary).toContain('Min Age: 2min');
-      expect(summary).toContain('Target Ratio: 40%');
+      expect(summary).toContain('Recent Window: 2min');
+      expect(summary).toContain('Check Interval: 1min');
     });
 
     it('should include spillover details when enabled', () => {
@@ -516,7 +520,7 @@ describe('EventCacheConfig Validator', () => {
         diskSpilloverConfig: {
           enabled: true,
           directory: '/var/cache/events',
-          thresholdPercent: 75,
+          thresholdMB: 75,
           maxFileSizeMB: 200
         }
       };
@@ -525,7 +529,7 @@ describe('EventCacheConfig Validator', () => {
       
       expect(summary).toContain('Disk Spillover: Enabled');
       expect(summary).toContain('Directory: /var/cache/events');
-      expect(summary).toContain('Threshold: 75%');
+      expect(summary).toContain('Threshold: 75MB');
       expect(summary).toContain('Max File Size: 200MB');
     });
 
