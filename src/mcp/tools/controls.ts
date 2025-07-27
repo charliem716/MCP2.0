@@ -158,7 +158,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         controls = response.result;
       } else if (typeof response.result === 'object' && 
                  'Controls' in response.result && 
-                 isComponentControlsResponse(response.result)) {
+                 Array.isArray(response.result.Controls)) {
         // Component.GetControls format  
         const componentResponse = response.result;
         controls = componentResponse.Controls;
