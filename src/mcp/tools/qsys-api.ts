@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { BaseQSysTool, ToolExecutionContext } from './base.js';
+import { BaseQSysTool } from './base.js';
+import type { ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import { QSysAPIReference } from './api-reference.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
@@ -68,7 +69,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     this.apiReference = new QSysAPIReference();
   }
 
-  protected async executeInternal(
+  protected executeInternal(
     params: QueryQSysAPIParams,
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
@@ -93,7 +94,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           break;
       }
 
-      return {
+      return Promise.resolve({
         content: [
           {
             type: 'text',
@@ -101,7 +102,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           },
         ],
         isError: false,
-      };
+      });
     } catch (error) {
       throw new MCPError(
         `Failed to query API reference: ${error instanceof Error ? error.message : String(error)}`,

@@ -9,7 +9,7 @@ import { Qrwc } from '@q-sys/qrwc';
 import { createLogger, type Logger } from '../shared/utils/logger.js';
 import { config as envConfig } from '../shared/utils/env.js';
 import { ConnectionState } from '../shared/types/common.js';
-import { QSysError, QSysErrorCode } from '../shared/types/errors.js';
+import { QSysError, QSysErrorCode, type ErrorContext } from '../shared/types/errors.js';
 
 /**
  * Configuration options for the Official QRWC Client
@@ -219,7 +219,8 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Used for commands not directly supported by the QRWC library
    */
   async sendRawCommand(method: string, params: unknown): Promise<unknown> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       throw new QSysError(
         'WebSocket not connected',
         QSysErrorCode.CONNECTION_FAILED
@@ -250,17 +251,18 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
             data instanceof Buffer ? data.toString('utf8') : 
             data instanceof ArrayBuffer ? Buffer.from(data).toString('utf8') :
             JSON.stringify(data);
-          const response = JSON.parse(dataStr) as { id?: string; error?: unknown; result?: unknown };
+          const response = JSON.parse(dataStr) as { id?: string | number; error?: unknown; result?: unknown };
           if (response.id === id) {
             clearTimeout(timeout);
             this.ws?.off('message', messageHandler);
 
             if (response.error) {
+              const errorObj = response.error as { message?: string };
               reject(
                 new QSysError(
-                  `Command failed: ${response.error.message}`,
+                  `Command failed: ${errorObj.message ?? 'Unknown error'}`,
                   QSysErrorCode.COMMAND_FAILED,
-                  response.error
+                  response.error as ErrorContext
                 )
               );
             } else {
@@ -272,8 +274,8 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
         }
       };
 
-      this.ws!.on('message', messageHandler);
-      this.ws!.send(message);
+      ws.on('message', messageHandler);
+      ws.send(message);
 
       this.logger.debug('Sent raw command', { method, params });
     });

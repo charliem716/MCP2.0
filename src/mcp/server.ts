@@ -187,7 +187,9 @@ export class MCPServer {
       origin: string
     ) => {
       logger.error('Uncaught exception in MCP server', { error, origin });
-      this.shutdown().catch(() => {});
+      this.shutdown().catch((shutdownError) => {
+        logger.error('Shutdown error during uncaught exception', { shutdownError });
+      });
       process.exit(1);
     };
 

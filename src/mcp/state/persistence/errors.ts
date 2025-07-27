@@ -2,7 +2,8 @@
  * Persistence-specific error types
  */
 
-import { BaseError, ErrorCategory, ErrorContext, ErrorSeverity } from '../../../shared/types/errors.js';
+import { BaseError, ErrorCategory, ErrorSeverity } from '../../../shared/types/errors.js';
+import type { ErrorContext } from '../../../shared/types/errors.js';
 
 /**
  * Persistence error codes

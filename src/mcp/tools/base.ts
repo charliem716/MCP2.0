@@ -244,10 +244,6 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    */
   private getSchemaProperties(): Record<string, unknown> {
     // This is a simplified conversion - for production, consider using zod-to-json-schema
-    // Check if schema has shape property (indicating it's a ZodObject)
-    if (!this.paramsSchema || typeof this.paramsSchema !== 'object') {
-      return {};
-    }
 
     // Type guard to check if this is a ZodObject
     // Define interface for Zod schema with internal properties
@@ -328,7 +324,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       case 'ZodArray':
         return {
           type: 'array',
-          items: this.zodSchemaToJsonSchema(def.type),
+          items: def.type ? this.zodSchemaToJsonSchema(def.type) : {},
           description: def.description,
         };
       case 'ZodObject': {
@@ -343,7 +339,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
         return { type: 'object', properties, description: def.description };
       }
       case 'ZodOptional':
-        return this.zodSchemaToJsonSchema(def.innerType);
+        return def.innerType ? this.zodSchemaToJsonSchema(def.innerType) : {};
       case 'ZodEnum':
         return {
           type: 'string',

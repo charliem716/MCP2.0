@@ -194,7 +194,7 @@ export function isRetryableError(error: unknown): boolean {
       'connection reset',
     ];
     return retryableMessages.some(msg =>
-      err.message!.toLowerCase().includes(msg)
+      err.message.toLowerCase().includes(msg)
     );
   }
 

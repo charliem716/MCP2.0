@@ -109,11 +109,9 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         ? `Component.GetControls`
         : `Component.GetAllControls`;
 
-      const commandParams = params.component ? { Name: params.component } : {};
-      const response = await this.qrwcClient.sendCommand(
-        command,
-        commandParams
-      );
+      const response = params.component
+        ? await this.qrwcClient.sendCommand(command, { Name: params.component })
+        : await this.qrwcClient.sendCommand(command);
 
       const controls = this.parseControlsResponse(response, params);
 
@@ -164,7 +162,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         // Component.GetControls format  
         const componentResponse = response.result;
         controls = componentResponse.Controls;
-        componentName = componentResponse.Name ?? 'unknown';
+        componentName = componentResponse.Name;
       }
     }
 
@@ -186,17 +184,16 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         typeof ctrl.Value === 'boolean'
       ) {
         value = ctrl.Value;
-      } else if (ctrl.Value !== null && ctrl.Value !== undefined) {
-        // Convert to string if it's some other type
-        value = String(ctrl.Value);
+      } else {
+        // Convert to string if it's some other type or undefined/null
+        value = String(ctrl.Value ?? '');
       }
 
       return {
         name: ctrl.Name,
         component:
           ctrl.Component ??
-          componentName ??
-          this.extractComponentFromName(ctrl.Name),
+          (componentName !== 'unknown' ? componentName : this.extractComponentFromName(ctrl.Name)),
         type: controlType ?? ctrl.Type ?? 'unknown',
         value,
         metadata: this.extractMetadata(ctrl),
@@ -228,7 +225,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
   }
 
   private inferControlType(control: QSysControlInfo): string {
-    const name = control.Name ?? '';
+    const name = control.Name;
     const lowerName = name.toLowerCase();
 
     // Infer type from control name patterns
@@ -248,7 +245,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
 
     // Check control Type
     if (control.Type === 'Boolean') return 'mute';
-    if (control.Type === 'Float' && control.String?.includes('dB'))
+    if (control.Type === 'Float' && control.String.includes('dB'))
       return 'gain';
 
     return 'unknown';
@@ -269,8 +266,8 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     if (control.ValueMax !== undefined) metadata['max'] = control.ValueMax;
     if (control.StringMin) metadata['stringMin'] = control.StringMin;
     if (control.StringMax) metadata['stringMax'] = control.StringMax;
-    if (control.Direction) metadata['direction'] = control.Direction;
-    if (control.Position !== undefined) metadata['position'] = control.Position;
+    metadata['direction'] = control.Direction;
+    metadata['position'] = control.Position;
 
     // Also check Properties object for legacy format
     const controlWithProps = control as QSysControlInfo & { 
@@ -366,7 +363,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
   private parseControlValuesResponse(
     response: unknown,
     requestedControls: string[]
-  ): ControlValue[] {
+  ): ControlValueResult[] {
     this.logger.debug('Parsing control values response', {
       response,
       requestedControls,
@@ -421,7 +418,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
           value = String(control.Value);
         }
 
-        const result: ControlValue = {
+        const result: ControlValueResult = {
           name: controlName,
           value,
           timestamp: new Date().toISOString(),
@@ -433,7 +430,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
 
         return result;
       } else {
-        const result: ControlValue = {
+        const result: ControlValueResult = {
           name: controlName,
           value: 'N/A',
           error: 'Control not found',
@@ -445,7 +442,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
     });
   }
 
-  private formatControlValuesResponse(values: ControlValue[]): string {
+  private formatControlValuesResponse(values: ControlValueResult[]): string {
     if (values.length === 0) {
       return 'No control values found';
     }
@@ -570,11 +567,12 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             continue;
           }
 
-          if (!componentControlsMap.has(componentName)) {
-            componentControlsMap.set(componentName, []);
+          let controls = componentControlsMap.get(componentName);
+          if (!controls) {
+            controls = [];
+            componentControlsMap.set(componentName, controls);
           }
 
-          const controls = componentControlsMap.get(componentName)!;
           controls.push({
             name: controlName, // Store just the control name part
             value: control.value,
@@ -705,11 +703,14 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
           if (!componentValidations.has(componentName)) {
             componentValidations.set(componentName, []);
           }
-          componentValidations.get(componentName)!.push({
-            controlName,
-            fullName: control.name,
-            value: control.value,
-          });
+          const validations = componentValidations.get(componentName);
+          if (validations) {
+            validations.push({
+              controlName,
+              fullName: control.name,
+              value: control.value,
+            });
+          }
         }
       } else {
         namedControls.push({ name: control.name, value: control.value });
@@ -767,9 +768,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     }> = [];
 
     try {
-      const response = await this.qrwcClient.sendCommand('Component.Get', {
+      const response = await this.qrwcClient.sendCommand('Component.GetControls', {
         Name: componentName,
-        Controls: controlInfos.map(info => ({ Name: info.controlName })),
       });
 
       if (!response || typeof response !== 'object') {
@@ -1009,7 +1009,7 @@ interface QSysControl {
   metadata?: Record<string, unknown>;
 }
 
-interface ControlValue {
+interface ControlValueResult {
   name: string;
   value: number | string | boolean;
   string?: string;

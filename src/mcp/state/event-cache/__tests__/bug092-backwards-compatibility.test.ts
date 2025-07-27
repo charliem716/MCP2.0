@@ -79,8 +79,10 @@ describe('BUG-092: Query Method Backwards Compatibility', () => {
       });
 
       expect(results.length).toBe(1);
-      expect(results[0]!.controlName).toBe('Control1');
-      expect(results[0]!.value).toBe(10);
+      if (results.length > 0) {
+        expect(results[0].controlName).toBe('Control1');
+        expect(results[0].value).toBe(10);
+      }
     });
 
     it('should only return memory-cached events', () => {

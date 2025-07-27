@@ -81,7 +81,7 @@ export interface CommandMap {
         Ramp?: number;
       }>;
     };
-    result: { Name: string; Result: string; Error?: string }[];
+    result: Array<{ Name: string; Result: string; Error?: string }>;
   };
   
   // Control Commands

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { BaseQSysTool, BaseToolParamsSchema, ToolExecutionContext } from './base.js';
+import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
+import type { ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type { QSysStatusGetResponse, QSysApiResponse, QSysComponentInfo, QSysControl } from '../types/qsys-api-responses.js';
@@ -65,15 +66,15 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       // Send command to get core status
       const response = await this.qrwcClient.sendCommand('Status.Get');
 
-      if (!response || typeof response !== 'object') {
+      if (!response.result) {
         throw new MCPError(
-          'Invalid response from Q-SYS Core',
+          'No result in response from Q-SYS Core',
           MCPErrorCode.PROTOCOL_ERROR,
           { response }
         );
       }
 
-      const status = this.parseStatusResponse(response, params);
+      const status = this.parseStatusResponse(response.result, params);
 
       return {
         content: [
@@ -148,7 +149,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     }
 
     // Check if this is fallback data from adapter
-    if (result.Platform?.includes('StatusGet not supported')) {
+    if (result.Platform.includes('StatusGet not supported')) {
       throw new MCPError(
         'StatusGet returned fallback data - will scan for status components',
         MCPErrorCode.METHOD_NOT_FOUND,
@@ -159,16 +160,14 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     // Build comprehensive status object
     return {
       coreInfo: {
-        name: String(result.Platform ?? 'Unknown Core'),
+        name: String(result.Platform),
         version: String(result.Version ?? 'Unknown'),
-        model: String(result.Platform ?? 'Unknown'),
-        platform: String(result.Platform ?? 'Unknown'),
-        serialNumber: String(result.SerialNumber ?? 'Unknown'),
-        firmwareVersion: String(
-          result.FirmwareVersion ?? result.Version ?? 'Unknown'
-        ),
+        model: String(result.Platform),
+        platform: String(result.Platform),
+        serialNumber: String((result as unknown as Record<string, unknown>)['SerialNumber']) || 'Unknown',
+        firmwareVersion: String((result as unknown as Record<string, unknown>)['FirmwareVersion']) || String(result.Version) || 'Unknown',
         buildTime: String('Unknown'),
-        designName: String(result.DesignName ?? 'No Design Loaded'),
+        designName: String(result.DesignName),
       },
       connectionStatus: {
         connected: Boolean(result.IsConnected ?? true),
@@ -176,9 +175,9 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         lastSeen: new Date().toISOString(),
       },
       systemHealth: {
-        status: String(result.Status?.String ?? 'unknown'),
-        temperature: Number((result as Record<string, unknown>)['temperature'] ?? (result as Record<string, unknown>)['Temperature'] ?? 0),
-        fanSpeed: Number((result as Record<string, unknown>)['fanSpeed'] ?? (result as Record<string, unknown>)['FanSpeed'] ?? 0),
+        status: String(result.Status.String),
+        temperature: Number((result as unknown as Record<string, unknown>)['temperature'] ?? (result as unknown as Record<string, unknown>)['Temperature'] ?? 0),
+        fanSpeed: Number((result as unknown as Record<string, unknown>)['fanSpeed'] ?? (result as unknown as Record<string, unknown>)['FanSpeed'] ?? 0),
         powerSupplyStatus: String('unknown'),
       },
       designInfo: {
@@ -190,21 +189,21 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         activeServices: [] as string[],
       },
       networkInfo: {
-        ipAddress: String(getNestedValue(result, 'Network.LAN_A.IP') ?? (result as Record<string, unknown>)['ipAddress'] ?? 'Unknown'),
-        macAddress: String((result as Record<string, unknown>)['macAddress'] ?? 'Unknown'),
-        gateway: String(getNestedValue(result, 'Network.LAN_A.Gateway') ?? (result as Record<string, unknown>)['gateway'] ?? 'Unknown'),
+        ipAddress: String(getNestedValue(result, 'Network.LAN_A.IP')) || String((result as unknown as Record<string, unknown>)['ipAddress']) || 'Unknown',
+        macAddress: String((result as unknown as Record<string, unknown>)['macAddress']) || 'Unknown',
+        gateway: String(getNestedValue(result, 'Network.LAN_A.Gateway')) || String((result as unknown as Record<string, unknown>)['gateway']) || 'Unknown',
         dnsServers: [] as string[],
         ntpServer: String('Unknown'),
         networkMode: String('Unknown'),
       },
       performanceMetrics: {
-        cpuUsage: Number(getNestedValue(result, 'Performance.CPU') ?? (result as Record<string, unknown>)['cpuUsage'] ?? (result as Record<string, unknown>)['CPUUsage'] ?? 0),
-        memoryUsage: Number(getNestedValue(result, 'Performance.Memory') ?? (result as Record<string, unknown>)['memoryUsage'] ?? (result as Record<string, unknown>)['MemoryUsage'] ?? 0),
+        cpuUsage: Number(getNestedValue(result, 'Performance.CPU') ?? (result as unknown as Record<string, unknown>)['cpuUsage'] ?? (result as unknown as Record<string, unknown>)['CPUUsage'] ?? 0),
+        memoryUsage: Number(getNestedValue(result, 'Performance.Memory') ?? (result as unknown as Record<string, unknown>)['memoryUsage'] ?? (result as unknown as Record<string, unknown>)['MemoryUsage'] ?? 0),
         memoryUsedMB: Number(0),
         memoryTotalMB: Number(0),
         audioLatency: Number(0),
         networkLatency: Number(0),
-        fanSpeed: Number((result as Record<string, unknown>)['fanSpeed'] ?? (result as Record<string, unknown>)['FanSpeed'] ?? 0),
+        fanSpeed: Number((result as unknown as Record<string, unknown>)['fanSpeed'] ?? (result as unknown as Record<string, unknown>)['FanSpeed'] ?? 0),
       },
       // Additional fields from Q-SYS response
       Platform: String(result.Platform ?? 'Unknown'),

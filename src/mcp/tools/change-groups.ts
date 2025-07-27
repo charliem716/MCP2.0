@@ -45,7 +45,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
         Id: params.groupId,
         Controls: [], // Initialize with empty controls
       }
-    )) as { result: boolean; warning?: string };
+    )) as unknown as { result: boolean; warning?: string };
 
     const response: {
       success: boolean;
@@ -102,7 +102,7 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
   ): Promise<ToolCallResult> {
     const result = await this.qrwcClient.sendCommand('ChangeGroup.AddControl', {
       Id: params.groupId,
-      Controls: params.controlNames,
+      Controls: params.controlNames.map(name => ({ Name: name })),
     });
 
     // Extract the actual count of controls added from the result
@@ -412,7 +412,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     );
   }
 
-  protected async executeInternal(
+  protected executeInternal(
     params: ListChangeGroupsParams
   ): Promise<ToolCallResult> {
     // Cast the client to access the listChangeGroups method
@@ -431,7 +431,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
 
     const groups = adapter.listChangeGroups();
 
-    return {
+    return Promise.resolve({
       content: [
         {
           type: 'text',
@@ -445,7 +445,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
           }),
         },
       ],
-    };
+    });
   }
 }
 
@@ -708,7 +708,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
     this.eventCache = eventCache;
   }
 
-  protected async executeInternal(
+  protected executeInternal(
     params: SubscribeToChangeEventsParams
   ): Promise<ToolCallResult> {
     const { groupId, enableCache, cacheConfig } = params;
@@ -733,7 +733,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
         // It automatically caches events for all groups that receive events
         // The configuration is applied via the groupPriorities map
 
-        return {
+        return Promise.resolve({
           content: [
             {
               type: 'text',
@@ -748,7 +748,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
               }),
             },
           ],
-        };
+        });
       } else {
         // To disable caching, we clear the group's buffer
         // @ts-expect-error - accessing private method for group management
@@ -756,7 +756,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
           this.eventCache.clearGroup(groupId);
         }
 
-        return {
+        return Promise.resolve({
           content: [
             {
               type: 'text',
@@ -766,7 +766,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
               }),
             },
           ],
-        };
+        });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -193,9 +193,15 @@ export function parseControlId(
     return null;
   }
 
+  const [componentName, controlName] = parts;
+  if (!componentName || !controlName) {
+    logger.warn(`Invalid control ID format: ${controlId}`);
+    return null;
+  }
+
   return {
-    componentName: parts[0]!,
-    controlName: parts[1]!,
+    componentName,
+    controlName,
   };
 }
 

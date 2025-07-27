@@ -412,12 +412,14 @@ export class CacheInvalidationManager extends EventEmitter {
           controlsToInvalidate = [];
           break;
 
-        default:
+        default: {
+          const exhaustiveCheck: never = rule.strategy;
           throw new StateError(
-            `Unsupported invalidation strategy: ${rule.strategy}`,
+            `Unsupported invalidation strategy: ${String(exhaustiveCheck)}`,
             StateErrorCode.INVALIDATION_ERROR,
             { strategy: rule.strategy, ruleId: rule.id }
           );
+        }
       }
 
       // Execute invalidation

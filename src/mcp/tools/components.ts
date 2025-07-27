@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { BaseQSysTool, BaseToolParamsSchema, ToolExecutionContext } from './base.js';
+import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
+import type { ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type {
@@ -201,9 +202,8 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      const response = await this.qrwcClient.sendCommand('Component.Get', {
+      const response = await this.qrwcClient.sendCommand('Component.GetControls', {
         Name: params.component,
-        Controls: params.controls.map(name => ({ Name: name })),
       });
 
       if (
@@ -215,7 +215,7 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
           { response });
       }
 
-      const typedResponse = response as { result: QSysComponentGetResponse };
+      const typedResponse = response as unknown as { result: QSysComponentGetResponse };
       const result = typedResponse.result;
       if (!result?.Controls || !Array.isArray(result.Controls)) {
         throw new MCPError('Invalid response format: missing Controls array', 

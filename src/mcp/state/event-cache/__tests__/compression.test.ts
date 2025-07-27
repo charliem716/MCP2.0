@@ -125,7 +125,7 @@ describe('EventCacheManager Compression', () => {
 
       // Should only have state transitions: true->false, false->true, true->false
       const transitions = results.filter(
-        (e, i) => i === 0 || e.value !== results[i - 1]!.value
+        (e, i) => i === 0 || (i > 0 && results[i - 1] && e.value !== results[i - 1].value)
       );
 
       expect(transitions.length).toBeLessThanOrEqual(4);

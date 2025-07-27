@@ -75,7 +75,7 @@ export class CacheSyncManager {
    */
   async invalidatePattern(pattern: string | RegExp): Promise<void> {
     const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
-    const keys = this.coreCache.getKeys();
+    const keys = await this.coreCache.getKeys();
     const toInvalidate = keys.filter((key: string) => regex.test(key));
 
     await this.invalidateStates(toInvalidate);
@@ -99,10 +99,10 @@ export class CacheSyncManager {
 
       // Get current cache state
       const cacheStates = new Map<string, ControlState>();
-      const keys = this.coreCache.getKeys();
+      const keys = await this.coreCache.getKeys();
 
       for (const key of keys) {
-        const state = this.coreCache.getState(key);
+        const state = await this.coreCache.getState(key);
         if (state) {
           cacheStates.set(key, state);
         }
@@ -140,10 +140,10 @@ export class CacheSyncManager {
 
     try {
       const states = new Map<string, ControlState>();
-      const keys = this.coreCache.getKeys();
+      const keys = await this.coreCache.getKeys();
 
       for (const key of keys) {
-        const state = this.coreCache.getState(key);
+        const state = await this.coreCache.getState(key);
         if (state) {
           states.set(key, state);
         }

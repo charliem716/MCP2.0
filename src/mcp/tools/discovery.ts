@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { BaseQSysTool, ToolExecutionContext } from './base.js';
+import { BaseQSysTool } from './base.js';
+import type { ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import { MCPError, MCPErrorCode, ValidationError } from '../../shared/types/errors.js';
@@ -198,7 +199,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
       // Count by type
       const type = this.inferControlType(control);
       if (type === 'gain' || type === 'mute' || type === 'select' || type === 'trigger' || type === 'text' || type === 'other') {
-        byType[type]++;
+        byType[type] = (byType[type] ?? 0) + 1;
       }
 
       // Count non-default values
@@ -254,8 +255,9 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 
     // Type filter
     if (params.filter?.type) {
+      const filterType = params.filter.type;
       filtered = filtered.filter(
-        (ctrl) => this.inferControlType(ctrl) === params.filter!.type
+        (ctrl) => this.inferControlType(ctrl) === filterType
       );
     }
 

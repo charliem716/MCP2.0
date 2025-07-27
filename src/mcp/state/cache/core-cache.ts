@@ -75,7 +75,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Get control state by name
    */
-  getState(controlName: string): ControlState | null {
+  getState(controlName: string): Promise<ControlState | null> {
     this.ensureInitialized();
 
     const state = this.cache.get(controlName);
@@ -86,13 +86,13 @@ export class CoreCache extends EventEmitter {
       logger.debug('Cache miss', { controlName });
     }
 
-    return state ?? null;
+    return Promise.resolve(state ?? null);
   }
 
   /**
    * Get multiple control states
    */
-  getStates(controlNames: string[]): Map<string, ControlState> {
+  getStates(controlNames: string[]): Promise<Map<string, ControlState>> {
     this.ensureInitialized();
 
     const results = new Map<string, ControlState>();
@@ -112,13 +112,13 @@ export class CoreCache extends EventEmitter {
       misses: controlNames.length - hits,
     });
 
-    return results;
+    return Promise.resolve(results);
   }
 
   /**
    * Set control state
    */
-  setState(controlName: string, state: ControlState): void {
+  setState(controlName: string, state: ControlState): Promise<void> {
     this.ensureInitialized();
 
     const oldState = this.cache.get(controlName);
@@ -132,12 +132,14 @@ export class CoreCache extends EventEmitter {
       oldState,
       newState: state,
     } as StateRepositoryEventData[StateRepositoryEvent.StateChanged]);
+    
+    return Promise.resolve();
   }
 
   /**
    * Set multiple control states
    */
-  setStates(states: Map<string, ControlState>): void {
+  setStates(states: Map<string, ControlState>): Promise<void> {
     this.ensureInitialized();
 
     for (const [name, state] of states) {
@@ -153,12 +155,13 @@ export class CoreCache extends EventEmitter {
     }
 
     logger.debug('Batch update completed', { count: states.size });
+    return Promise.resolve();
   }
 
   /**
    * Remove control state
    */
-  removeState(controlName: string): boolean {
+  removeState(controlName: string): Promise<boolean> {
     this.ensureInitialized();
 
     const removed = this.cache.delete(controlName);
@@ -167,13 +170,13 @@ export class CoreCache extends EventEmitter {
       logger.debug('State removed', { controlName });
     }
 
-    return removed;
+    return Promise.resolve(removed);
   }
 
   /**
    * Remove multiple control states
    */
-  removeStates(controlNames: string[]): number {
+  removeStates(controlNames: string[]): Promise<number> {
     this.ensureInitialized();
 
     let removed = 0;
@@ -189,27 +192,28 @@ export class CoreCache extends EventEmitter {
       removed,
     });
 
-    return removed;
+    return Promise.resolve(removed);
   }
 
   /**
    * Clear all states
    */
-  clear(): void {
+  clear(): Promise<void> {
     this.ensureInitialized();
 
     const size = this.cache.size;
     this.cache.clear();
 
     logger.info('Cache cleared', { removedEntries: size });
+    return Promise.resolve();
   }
 
   /**
    * Check if state exists
    */
-  hasState(controlName: string): boolean {
+  hasState(controlName: string): Promise<boolean> {
     this.ensureInitialized();
-    return this.cache.has(controlName);
+    return Promise.resolve(this.cache.has(controlName));
   }
 
   /**
@@ -232,16 +236,16 @@ export class CoreCache extends EventEmitter {
   /**
    * Get all control names
    */
-  getKeys(): string[] {
+  getKeys(): Promise<string[]> {
     this.ensureInitialized();
-    return this.cache.keys();
+    return Promise.resolve(this.cache.keys());
   }
 
   /**
    * Get cache statistics
    */
-  getStatistics(): CacheStatistics {
-    return this.cache.getStatistics();
+  getStatistics(): Promise<CacheStatistics> {
+    return Promise.resolve(this.cache.getStatistics());
   }
 
   /**

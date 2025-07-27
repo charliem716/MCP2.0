@@ -403,13 +403,12 @@ export class QRWCClientAdapter
           Controls: [controlName],
         });
         
-        // Type guard for ControlGetResult
-        if (!response || typeof response !== 'object' || !('result' in response)) {
+        // Check if response has a result
+        if (!response.result) {
           return null;
         }
         
-        const result = response as ControlGetResult;
-        const controls = result.result;
+        const controls = response.result;
         if (Array.isArray(controls) && controls.length > 0 && controls[0]) {
           return controls[0];
         }

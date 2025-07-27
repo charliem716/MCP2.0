@@ -373,9 +373,13 @@ describe('BUG-083: Refactored Methods', () => {
 
       // Events should be sorted by timestamp
       for (let i = 1; i < events.length; i++) {
-        expect(events[i]!.timestampMs).toBeGreaterThanOrEqual(
-          events[i - 1]!.timestampMs
-        );
+        const currentEvent = events[i];
+        const previousEvent = events[i - 1];
+        if (currentEvent && previousEvent) {
+          expect(currentEvent.timestampMs).toBeGreaterThanOrEqual(
+            previousEvent.timestampMs
+          );
+        }
       }
     });
   });

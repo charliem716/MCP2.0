@@ -165,9 +165,14 @@ export class ChangeGroupExecutor {
       
       // Throw the first error after collecting all results
       if (firstError) {
+        // Ensure we have an Error object
+        const error = firstError instanceof Error 
+          ? firstError 
+          : new Error(String(firstError));
+        
         // Attach results to the error so they can be retrieved
-        (firstError as Error & { __results?: ControlChangeResult[] }).__results = results;
-        throw firstError;
+        (error as Error & { __results?: ControlChangeResult[] }).__results = results;
+        throw error;
       }
     }
 
@@ -252,7 +257,7 @@ export class ChangeGroupExecutor {
               ],
             };
 
-      await this.qrwcClient.sendCommand(command, params);
+      await this.qrwcClient.sendCommand(command as any, params as any);
 
       const result: ControlChangeResult = {
         controlName: control.name,

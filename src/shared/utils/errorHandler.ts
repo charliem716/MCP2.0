@@ -107,7 +107,7 @@ export class ErrorUtils {
       }
     }
 
-    throw lastError!;
+    throw lastError ?? new Error('Retry failed with unknown error');
   }
 }
 
