@@ -11,11 +11,11 @@ function isControlState(value: unknown): value is ControlState {
   if (!value || typeof value !== 'object') return false;
   const state = value as Record<string, unknown>;
   return (
-    typeof state.name === 'string' &&
-    typeof state.type === 'string' &&
+    typeof state['name'] === 'string' &&
+    typeof state['type'] === 'string' &&
     'value' in state &&
-    typeof state.string === 'string' &&
-    typeof state.position === 'number'
+    typeof state['string'] === 'string' &&
+    typeof state['position'] === 'number'
   );
 }
 
@@ -28,17 +28,17 @@ function isPersistedState(value: unknown): value is PersistedState {
   
   // Check required fields
   if (
-    typeof state.version !== 'string' ||
-    typeof state.timestamp !== 'string' ||
-    typeof state.controlCount !== 'number' ||
-    !state.controls ||
-    typeof state.controls !== 'object'
+    typeof state['version'] !== 'string' ||
+    typeof state['timestamp'] !== 'string' ||
+    typeof state['controlCount'] !== 'number' ||
+    !state['controls'] ||
+    typeof state['controls'] !== 'object'
   ) {
     return false;
   }
   
   // Validate controls
-  const controls = state.controls as Record<string, unknown>;
+  const controls = state['controls'] as Record<string, unknown>;
   for (const [key, control] of Object.entries(controls)) {
     if (!isControlState(control)) {
       return false;
@@ -83,9 +83,12 @@ export class FileOperations {
     }
     
     // Convert timestamp string back to Date
-    parsed.timestamp = new Date(parsed.timestamp as string);
+    const result: PersistedState = {
+      ...parsed,
+      timestamp: new Date(parsed.timestamp)
+    };
     
-    return parsed as PersistedState;
+    return result;
   }
 
   /**
@@ -100,9 +103,12 @@ export class FileOperations {
     }
     
     // Convert timestamp string back to Date
-    parsed.timestamp = new Date(parsed.timestamp as string);
+    const result: PersistedState = {
+      ...parsed,
+      timestamp: new Date(parsed.timestamp)
+    };
     
-    return parsed as PersistedState;
+    return result;
   }
 
   /**

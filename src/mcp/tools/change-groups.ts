@@ -412,9 +412,9 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     );
   }
 
-  protected executeInternal(
+  protected async executeInternal(
     params: ListChangeGroupsParams
-  ): ToolCallResult {
+  ): Promise<ToolCallResult> {
     // Cast the client to access the listChangeGroups method
     const adapter = this.qrwcClient as { 
       listChangeGroups?: () => Array<{
@@ -708,9 +708,9 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
     this.eventCache = eventCache;
   }
 
-  protected executeInternal(
+  protected async executeInternal(
     params: SubscribeToChangeEventsParams
-  ): ToolCallResult {
+  ): Promise<ToolCallResult> {
     const { groupId, enableCache, cacheConfig } = params;
 
     if (!this.eventCache) {

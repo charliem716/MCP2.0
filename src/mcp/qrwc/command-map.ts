@@ -58,7 +58,7 @@ export interface CommandMap {
   
   'Component.Get': {
     params: { Name: string };
-    result: ComponentGetResponse;
+    result: QSysComponentGetResponse;
   };
   
   'Component.GetControls': {
@@ -81,7 +81,7 @@ export interface CommandMap {
         Ramp?: number;
       }>;
     };
-    result: ControlSetResponse;
+    result: { Name: string; Result: string; Error?: string }[];
   };
   
   // Control Commands
@@ -90,7 +90,7 @@ export interface CommandMap {
       Controls?: string[];
       Name?: string;
     };
-    result: ControlGetResponse;
+    result: QSysControlGetResponse;
   };
   
   'Control.GetValues': {

@@ -1,5 +1,5 @@
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
-import { StateRepositoryError, type ControlState, type StateRepositoryEvent } from '../repository.js';
+import { StateRepositoryError, StateRepositoryEvent, type ControlState } from '../repository.js';
 import type { CoreCache } from './core-cache.js';
 import type { StatePersistenceManager } from '../persistence/manager.js';
 import type { CacheInvalidationManager } from '../invalidation.js';

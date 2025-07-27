@@ -68,10 +68,10 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     this.apiReference = new QSysAPIReference();
   }
 
-  protected executeInternal(
+  protected async executeInternal(
     params: QueryQSysAPIParams,
     context: ToolExecutionContext
-  ): ToolCallResult {
+  ): Promise<ToolCallResult> {
     try {
       let response: Record<string, unknown> = {};
 

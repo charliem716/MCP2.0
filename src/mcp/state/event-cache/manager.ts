@@ -1046,8 +1046,8 @@ export class EventCacheManager extends EventEmitter {
 
     for (const groupId of this.buffers.keys()) {
       const groupStats = this.getStatistics(groupId);
-      if (groupStats) {
-        stats.set(groupId, groupStats);
+      if (groupStats && typeof groupStats === 'object' && 'eventCount' in groupStats) {
+        stats.set(groupId, groupStats as CacheStatistics);
       }
     }
 

@@ -169,8 +169,7 @@ export function handleControlGet(
         { controlName: fullName });
     }
 
-    const controlState = control as Record<string, unknown>;
-    const { value, type } = extractControlValue(controlState);
+    const { value, type } = extractControlValue(control as unknown);
 
     return {
       Name: fullName,
@@ -496,7 +495,12 @@ export async function handleDirectControl(
     return { result: value };
   } else if (operation === 'set' && params?.['value'] !== undefined) {
     // For direct control operations, we need to use the official client's setControlValue
-    await client.setControlValue(componentName, controlName, params['value']);
+    const value = params['value'];
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+      throw new ValidationError(`Invalid value type for control ${controlName}`,
+        [{ field: 'value', message: 'Must be string, number, or boolean', code: 'INVALID_TYPE' }]);
+    }
+    await client.setControlValue(componentName, controlName, value);
     return { result: 'Control updated successfully' };
   } else {
     throw new ValidationError(`Unknown operation: ${operation}`,
