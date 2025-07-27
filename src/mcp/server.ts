@@ -147,12 +147,12 @@ export class MCPServer {
     });
 
     // Resources handlers (placeholder for future implementation)
-    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    this.server.setRequestHandler(ListResourcesRequestSchema, () => {
       logger.debug('Received list_resources request');
       return { resources: [] };
     });
 
-    this.server.setRequestHandler(ReadResourceRequestSchema, async request => {
+    this.server.setRequestHandler(ReadResourceRequestSchema, request => {
       logger.debug('Received read_resource request', {
         uri: request.params.uri,
       });
@@ -160,12 +160,12 @@ export class MCPServer {
     });
 
     // Prompts handlers (placeholder for future implementation)
-    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+    this.server.setRequestHandler(ListPromptsRequestSchema, () => {
       logger.debug('Received list_prompts request');
       return { prompts: [] };
     });
 
-    this.server.setRequestHandler(GetPromptRequestSchema, async request => {
+    this.server.setRequestHandler(GetPromptRequestSchema, request => {
       logger.debug('Received get_prompt request', {
         name: request.params.name,
       });
@@ -212,7 +212,7 @@ export class MCPServer {
     return {
       code,
       message,
-      data: data ? { details: String(data) } : undefined,
+      data: data ? { details: typeof data === 'object' ? JSON.stringify(data) : String(data as string | number | boolean) } : undefined,
     };
   }
 

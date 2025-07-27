@@ -33,11 +33,11 @@ export class QueryCache {
       groupId: query.groupId ?? '',
       startTime: query.startTime ?? 0,
       endTime: query.endTime ?? 0,
-      controlNames: query.controlNames?.sort() || [],
+      controlNames: query.controlNames?.sort() ?? [],
       valueFilter: query.valueFilter ?? null,
       limit: query.limit ?? 1000,
       offset: query.offset ?? 0,
-      eventTypes: query.eventTypes?.sort() || [],
+      eventTypes: query.eventTypes?.sort() ?? [],
       aggregation: query.aggregation ?? null,
     };
 

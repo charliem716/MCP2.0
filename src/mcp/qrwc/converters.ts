@@ -100,10 +100,10 @@ export function qsysToMcpComponent(
   component: { state?: { Type?: string; Properties?: unknown[] } }
 ): MCPComponent {
   // Extract component type from state
-  const componentType = component?.state?.Type ?? 'Component';
+  const componentType = component.state?.Type ?? 'Component';
 
   // Extract properties from state
-  const properties = component?.state?.Properties ?? [];
+  const properties = component.state?.Properties ?? [];
 
   return {
     Name: name,
@@ -133,7 +133,14 @@ export function qsysToMcpControl(
           : 0
         : 0;
 
-  const strValue = String(value ?? '');
+  let strValue: string;
+  if (value == null) {
+    strValue = '';
+  } else if (typeof value === 'object') {
+    strValue = JSON.stringify(value);
+  } else {
+    strValue = String(value as string | number | boolean);
+  }
 
   return {
     Name: controlName,

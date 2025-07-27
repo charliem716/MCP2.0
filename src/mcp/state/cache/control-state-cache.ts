@@ -54,14 +54,14 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
   /**
    * Change Group Management Methods
    */
-  async createChangeGroup(
+  createChangeGroup(
     controls: Array<{
       name: string;
       value: number | string | boolean;
       ramp?: number | undefined;
     }>,
     source: string
-  ): Promise<ChangeGroup> {
+  ): ChangeGroup {
     // Convert undefined ramp to missing property for strict typing
     const strictControls = controls.map(c => {
       const control: {
@@ -81,18 +81,18 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
     return this.changeGroupManager.createChangeGroup(strictControls, source);
   }
 
-  async getChangeGroup(groupId: string): Promise<ChangeGroup | null> {
+  getChangeGroup(groupId: string): ChangeGroup | null {
     return this.changeGroupManager.getChangeGroup(groupId);
   }
 
-  async updateChangeGroupStatus(
+  updateChangeGroupStatus(
     groupId: string,
     status: 'pending' | 'applying' | 'completed' | 'failed'
-  ): Promise<boolean> {
+  ): boolean {
     return this.changeGroupManager.updateChangeGroupStatus(groupId, status);
   }
 
-  async cleanupChangeGroups(): Promise<number> {
+  cleanupChangeGroups(): number {
     return this.changeGroupManager.cleanupChangeGroups();
   }
 
@@ -139,7 +139,7 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
   /**
    * Lifecycle Management
    */
-  async cleanup(): Promise<void> {
+  cleanup(): void {
     logger.info('Starting cache cleanup');
 
     // Stop timers
@@ -164,10 +164,10 @@ export class ControlStateCache extends CoreCache implements IStateRepository {
       }
 
       // Cleanup resources
-      await this.cleanup();
+      this.cleanup();
 
       // Shutdown cache
-      await this.shutdownCache();
+      this.shutdownCache();
 
       this.initialized = false;
 

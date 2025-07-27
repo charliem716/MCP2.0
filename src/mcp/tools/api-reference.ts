@@ -399,7 +399,7 @@ export class QSysAPIReference {
     if (filters.component_type) {
       results = results.filter(
         m =>
-          m.componentTypes?.includes(filters.component_type) ||
+          m.componentTypes?.includes(filters.component_type) ??
           m.category === 'Component'
       );
     }

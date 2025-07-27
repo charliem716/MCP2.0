@@ -15,6 +15,18 @@ import {
 // Extract the control type from the existing interface
 type QSysControlInfo = QSysComponentControlsResponse['Controls'][0];
 
+// Type for control values (matches the Zod schema)
+type ControlValue = number | string | boolean;
+
+// Type for control set response
+interface ControlSetResponse {
+  name: string;
+  value: ControlValue;
+  success: boolean;
+  rampTime?: number;
+  error?: string;
+}
+
 /**
  * Parameters for the list_controls tool
  */
@@ -182,8 +194,8 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       return {
         name: ctrl.Name,
         component:
-          ctrl.Component ||
-          componentName ||
+          ctrl.Component ??
+          componentName ??
           this.extractComponentFromName(ctrl.Name),
         type: controlType ?? ctrl.Type ?? 'unknown',
         value,
@@ -605,7 +617,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       // Convert results to the expected JSON format
       const jsonResults = allResults.map(({ control, result }) => {
         if (result.status === 'fulfilled') {
-          const response: any = {
+          const response: ControlSetResponse = {
             name: control.name,
             value: control.value,
             success: true,
@@ -615,7 +627,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
           }
           return response;
         } else {
-          return {
+          const errorResponse: ControlSetResponse = {
             name: control.name,
             value: control.value,
             success: false,
@@ -623,6 +635,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
               ? result.reason.message 
               : String(result.reason),
           };
+          return errorResponse;
         }
       });
 
@@ -662,9 +675,9 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     // Group controls by validation strategy
     const componentValidations = new Map<
       string,
-      Array<{ controlName: string; fullName: string; value: any }>
+      Array<{ controlName: string; fullName: string; value: ControlValue }>
     >();
-    const namedControls: Array<{ name: string; value: any }> = [];
+    const namedControls: Array<{ name: string; value: ControlValue }> = [];
 
     // First pass: check cache and group uncached controls
     for (const control of controls) {
@@ -717,7 +730,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     }
 
     // Parallel validation for named controls (batch into groups of 10)
-    const namedBatches: Array<Array<{ name: string; value: any }>> = [];
+    const namedBatches: Array<Array<{ name: string; value: ControlValue }>> = [];
     for (let i = 0; i < namedControls.length; i += 10) {
       namedBatches.push(namedControls.slice(i, i + 10));
     }
@@ -739,7 +752,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
    */
   private async validateComponentControls(
     componentName: string,
-    controlInfos: Array<{ controlName: string; fullName: string; value: any }>
+    controlInfos: Array<{ controlName: string; fullName: string; value: ControlValue }>
   ): Promise<
     Array<{
       controlName: string;
@@ -780,7 +793,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             controlName: info.fullName,
             value: info.value,
             message:
-              typedResponse.error.message ||
+              response.error.message ??
               `Failed to access component '${componentName}'`,
           });
         }
@@ -788,9 +801,9 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       }
 
       // Check which controls were returned
-      if (typedResponse.result?.Controls) {
+      if (isComponentControlsResponse(response)) {
         const returnedControlNames = new Set(
-          typedResponse.result.Controls.map((c: any) => c.Name)
+          response.Controls.map((c) => c.Name)
         );
 
         for (const info of controlInfos) {
@@ -828,7 +841,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
    * Validate a batch of named controls
    */
   private async validateNamedControlsBatch(
-    batch: Array<{ name: string; value: any }>
+    batch: Array<{ name: string; value: ControlValue }>
   ): Promise<
     Array<{
       controlName: string;
@@ -856,7 +869,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             controlName: control.name,
             value: control.value,
             message:
-              typedResponse.error.message ||
+              response.error.message ??
               `Control '${control.name}' not found`,
           };
         } else {

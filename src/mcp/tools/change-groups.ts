@@ -47,16 +47,19 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
       }
     )) as { result: boolean; warning?: string };
 
-    const response: any = {
+    const response: {
+      success: boolean;
+      groupId: string;
+      warning?: string;
+      message: string;
+    } = {
       success: true,
       groupId: params.groupId,
+      message: result.warning ?? `Change group '${params.groupId}' created successfully`,
     };
 
     if (result.warning) {
       response.warning = result.warning;
-      response.message = result.warning;
-    } else {
-      response.message = `Change group '${params.groupId}' created successfully`;
     }
 
     return {
@@ -359,7 +362,10 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
     } else {
       // Disable auto polling by clearing the timer
       // Note: This requires internal adapter knowledge
-      const adapter = this.qrwcClient as { autoPollTimers?: Map<string, NodeJS.Timeout> };
+      const adapter = this.qrwcClient as { 
+        autoPollTimers?: Map<string, NodeJS.Timeout>;
+        autoPollFailureCounts?: Map<string, number>;
+      };
 
       // Check if adapter has the autoPollTimers Map and the group has an active timer
       if (adapter.autoPollTimers?.has(params.groupId)) {

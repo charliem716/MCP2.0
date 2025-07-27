@@ -3,6 +3,7 @@ import { BaseQSysTool, ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import { MCPError, MCPErrorCode, ValidationError } from '../../shared/types/errors.js';
+import type { QSysControl } from '../types/qsys-api-responses.js';
 
 /**
  * Parameters for the qsys_get_all_controls tool
@@ -107,7 +108,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
         );
       }
 
-      const result = response.result as { Controls?: unknown[] };
+      const result = response.result as { Controls?: QSysControl[] };
       const allControls = result.Controls ?? [];
 
       if (!Array.isArray(allControls)) {
@@ -128,7 +129,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 
       // Apply pagination
       const limit =
-        params.pagination?.limit ||
+        params.pagination?.limit ??
         (mode === 'filtered' ? 100 : allControls.length);
       const offset = params.pagination?.offset ?? 0;
       const paginatedControls = filteredControls.slice(offset, offset + limit);
@@ -146,7 +147,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
         controls:
           params.includeValues !== false
             ? paginatedControls
-            : paginatedControls.map((c: any) => ({
+            : paginatedControls.map((c) => ({
                 name: c.Name,
                 component: c.Component,
               })),
@@ -175,8 +176,8 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     }
   }
 
-  private generateSummaryResponse(controls: unknown[]): ToolCallResult {
-    const byComponent: Record<string, unknown[]> = {};
+  private generateSummaryResponse(controls: QSysControl[]): ToolCallResult {
+    const byComponent: Record<string, QSysControl[]> = {};
     const byType: Record<string, number> = {
       gain: 0,
       mute: 0,
@@ -187,17 +188,12 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     };
     let nonDefaultCount = 0;
 
-    controls.forEach((ctrl: unknown) => {
-      if (!ctrl || typeof ctrl !== 'object') return;
-      
-      const control = ctrl as { Component?: string; Name?: string; Value?: unknown; Type?: string };
+    controls.forEach((control) => {
       const componentName = control.Component ?? 'Unknown';
 
       // Group by component
-      if (!byComponent[componentName]) {
-        byComponent[componentName] = [];
-      }
-      byComponent[componentName].push(ctrl);
+      byComponent[componentName] ??= [];
+      byComponent[componentName].push(control);
 
       // Count by type
       const type = this.inferControlType(control);
@@ -242,16 +238,16 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
   }
 
   private applyFilters(
-    controls: unknown[],
+    controls: QSysControl[],
     params: GetAllControlsParams
-  ): unknown[] {
+  ): QSysControl[] {
     let filtered = controls;
 
     // Legacy component filter support
     const componentFilter = params.filter?.component ?? params.componentFilter;
     if (componentFilter) {
       const regex = new RegExp(componentFilter, 'i');
-      filtered = filtered.filter((ctrl: any) =>
+      filtered = filtered.filter((ctrl) =>
         regex.test(ctrl.Component ?? '')
       );
     }
@@ -259,26 +255,26 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     // Type filter
     if (params.filter?.type) {
       filtered = filtered.filter(
-        (ctrl: any) => this.inferControlType(ctrl) === params.filter!.type
+        (ctrl) => this.inferControlType(ctrl) === params.filter!.type
       );
     }
 
     // Name pattern filter
     if (params.filter?.namePattern) {
       const regex = new RegExp(params.filter.namePattern, 'i');
-      filtered = filtered.filter((ctrl: any) => regex.test(ctrl.Name ?? ''));
+      filtered = filtered.filter((ctrl) => regex.test(ctrl.Name));
     }
 
     // Non-default value filter
     if (params.filter?.hasNonDefaultValue) {
-      filtered = filtered.filter((ctrl: any) => this.hasNonDefaultValue(ctrl));
+      filtered = filtered.filter((ctrl) => this.hasNonDefaultValue(ctrl));
     }
 
     return filtered;
   }
 
-  private inferControlType(control: any): string {
-    const name = (control.Name ?? '').toLowerCase();
+  private inferControlType(control: QSysControl): string {
+    const name = control.Name.toLowerCase();
     const type = control.Type;
 
     if (name.includes('gain') || name.includes('level')) return 'gain';
@@ -291,7 +287,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     return 'other';
   }
 
-  private hasNonDefaultValue(control: any): boolean {
+  private hasNonDefaultValue(control: QSysControl): boolean {
     const value = control.Value;
     const type = control.Type;
 

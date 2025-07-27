@@ -59,7 +59,7 @@ export class CoreCache extends EventEmitter {
     this.config = { ...this.config, ...config };
 
     // Recreate cache with new configuration
-    await this.shutdownCache();
+    this.shutdownCache();
     this.cache = new LRUCache<string, ControlState>(this.config.maxEntries);
 
     this.setupCacheEventHandlers();
@@ -73,7 +73,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Get control state by name
    */
-  async getState(controlName: string): Promise<ControlState | null> {
+  getState(controlName: string): ControlState | null {
     this.ensureInitialized();
 
     const state = this.cache.get(controlName);
@@ -90,7 +90,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Get multiple control states
    */
-  async getStates(controlNames: string[]): Promise<Map<string, ControlState>> {
+  getStates(controlNames: string[]): Map<string, ControlState> {
     this.ensureInitialized();
 
     const results = new Map<string, ControlState>();
@@ -116,7 +116,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Set control state
    */
-  async setState(controlName: string, state: ControlState): Promise<void> {
+  setState(controlName: string, state: ControlState): void {
     this.ensureInitialized();
 
     const oldState = this.cache.get(controlName);
@@ -135,7 +135,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Set multiple control states
    */
-  async setStates(states: Map<string, ControlState>): Promise<void> {
+  setStates(states: Map<string, ControlState>): void {
     this.ensureInitialized();
 
     for (const [name, state] of states) {
@@ -156,7 +156,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Remove control state
    */
-  async removeState(controlName: string): Promise<boolean> {
+  removeState(controlName: string): boolean {
     this.ensureInitialized();
 
     const removed = this.cache.delete(controlName);
@@ -171,7 +171,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Remove multiple control states
    */
-  async removeStates(controlNames: string[]): Promise<number> {
+  removeStates(controlNames: string[]): number {
     this.ensureInitialized();
 
     let removed = 0;
@@ -193,7 +193,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Clear all states
    */
-  async clear(): Promise<void> {
+  clear(): void {
     this.ensureInitialized();
 
     const size = this.cache.size;
@@ -205,7 +205,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Check if state exists
    */
-  async hasState(controlName: string): Promise<boolean> {
+  hasState(controlName: string): boolean {
     this.ensureInitialized();
     return this.cache.has(controlName);
   }
@@ -214,7 +214,7 @@ export class CoreCache extends EventEmitter {
    * Remove a specific control from cache
    * @internal For use by CacheSyncManager
    */
-  async removeControl(controlName: string): Promise<boolean> {
+  removeControl(controlName: string): boolean {
     this.ensureInitialized();
     return this.cache.delete(controlName);
   }
@@ -230,7 +230,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Get all control names
    */
-  async getKeys(): Promise<string[]> {
+  getKeys(): string[] {
     this.ensureInitialized();
     return this.cache.keys();
   }
@@ -238,7 +238,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Get cache statistics
    */
-  async getStatistics(): Promise<CacheStatistics> {
+  getStatistics(): CacheStatistics {
     return this.cache.getStatistics();
   }
 
@@ -257,7 +257,7 @@ export class CoreCache extends EventEmitter {
   /**
    * Shutdown cache cleanly
    */
-  protected async shutdownCache(): Promise<void> {
+  protected shutdownCache(): void {
     if (this.cache) {
       this.cache.shutdown();
     }

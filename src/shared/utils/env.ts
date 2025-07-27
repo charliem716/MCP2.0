@@ -46,6 +46,26 @@ interface QSysConfigJSON {
   };
 }
 
+/**
+ * Type guard for QSysConfigJSON
+ */
+function isQSysConfigJSON(value: unknown): value is QSysConfigJSON {
+  if (!value || typeof value !== 'object') return false;
+  const config = value as Record<string, unknown>;
+  
+  if (!config.qsysCore || typeof config.qsysCore !== 'object') return false;
+  
+  const qsysCore = config.qsysCore as Record<string, unknown>;
+  
+  // Check required fields
+  return (
+    typeof qsysCore.host === 'string' &&
+    typeof qsysCore.port === 'number' &&
+    (qsysCore.username === undefined || typeof qsysCore.username === 'string') &&
+    (qsysCore.password === undefined || typeof qsysCore.password === 'string')
+  );
+}
+
 function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
   // Use absolute path to ensure config is found regardless of cwd
   const configPath =
@@ -57,12 +77,17 @@ function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
 
   try {
     const configContent = readFileSync(configPath, 'utf-8');
-    const config = JSON.parse(configContent) as QSysConfigJSON;
+    const parsed = JSON.parse(configContent) as unknown;
+    
+    if (!isQSysConfigJSON(parsed)) {
+      throw new Error('Invalid Q-SYS configuration format');
+    }
+    
     if (process.env['MCP_MODE'] !== 'true') {
       // Use console during initialization
       console.info('Loaded Q-SYS Core configuration from qsys-core.config.json');
     }
-    return config.qsysCore;
+    return parsed.qsysCore;
   } catch (error) {
     if (process.env['MCP_MODE'] !== 'true') {
       // Use console during initialization

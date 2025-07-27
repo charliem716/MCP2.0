@@ -309,7 +309,14 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
    */
   private zodSchemaToJsonSchema(schema: z.ZodSchema): unknown {
     // Access Zod internal definition - required for schema introspection
-    const def = (schema as z.ZodTypeAny)._def;
+    const def = (schema as z.ZodTypeAny)._def as {
+      typeName: string;
+      description?: string;
+      type?: z.ZodTypeAny;
+      innerType?: z.ZodTypeAny;
+      shape?: Record<string, z.ZodTypeAny>;
+      values?: readonly string[];
+    };
 
     switch (def.typeName) {
       case 'ZodString':

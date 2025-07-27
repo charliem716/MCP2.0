@@ -2,6 +2,51 @@ import { promises as fs } from 'fs';
 import { dirname } from 'path';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import type { PersistedState, PersistenceConfig } from './types.js';
+import type { ControlState } from '../repository.js';
+
+/**
+ * Type guard for ControlState
+ */
+function isControlState(value: unknown): value is ControlState {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Record<string, unknown>;
+  return (
+    typeof state.name === 'string' &&
+    typeof state.type === 'string' &&
+    'value' in state &&
+    typeof state.string === 'string' &&
+    typeof state.position === 'number'
+  );
+}
+
+/**
+ * Type guard for PersistedState
+ */
+function isPersistedState(value: unknown): value is PersistedState {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Record<string, unknown>;
+  
+  // Check required fields
+  if (
+    typeof state.version !== 'string' ||
+    typeof state.timestamp !== 'string' ||
+    typeof state.controlCount !== 'number' ||
+    !state.controls ||
+    typeof state.controls !== 'object'
+  ) {
+    return false;
+  }
+  
+  // Validate controls
+  const controls = state.controls as Record<string, unknown>;
+  for (const [key, control] of Object.entries(controls)) {
+    if (!isControlState(control)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
 
 /**
  * File Operations for State Persistence
@@ -31,7 +76,16 @@ export class FileOperations {
    */
   async readJSON(): Promise<PersistedState> {
     const content = await fs.readFile(this.config.filePath, 'utf8');
-    return JSON.parse(content);
+    const parsed = JSON.parse(content) as unknown;
+    
+    if (!isPersistedState(parsed)) {
+      throw new Error('Invalid persisted state format');
+    }
+    
+    // Convert timestamp string back to Date
+    parsed.timestamp = new Date(parsed.timestamp as string);
+    
+    return parsed as PersistedState;
   }
 
   /**
@@ -39,7 +93,16 @@ export class FileOperations {
    */
   async readJSONFromPath(path: string): Promise<PersistedState> {
     const content = await fs.readFile(path, 'utf8');
-    return JSON.parse(content);
+    const parsed = JSON.parse(content) as unknown;
+    
+    if (!isPersistedState(parsed)) {
+      throw new Error('Invalid persisted state format in backup file');
+    }
+    
+    // Convert timestamp string back to Date
+    parsed.timestamp = new Date(parsed.timestamp as string);
+    
+    return parsed as PersistedState;
   }
 
   /**

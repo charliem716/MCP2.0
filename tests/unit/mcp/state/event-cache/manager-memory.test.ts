@@ -1,6 +1,7 @@
 import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager.js';
 import { QRWCClientAdapter } from '../../../../../src/mcp/qrwc/adapter.js';
 import { EventEmitter } from 'events';
+import { CircularBuffer } from '../../../../../src/mcp/state/event-cache/circular-buffer.js';
 
 // Mock the logger
 jest.mock('../../../../../src/shared/utils/logger.js', () => ({
@@ -327,9 +328,6 @@ describe('EventCacheManager - Memory Management', () => {
 
   describe('forceEvict method', () => {
     it('should evict specified number of events from buffer', () => {
-      const {
-        CircularBuffer,
-      } = require('../../../../../src/mcp/state/event-cache/circular-buffer.js');
       const buffer = new CircularBuffer(100);
 
       // Add 50 events
@@ -350,9 +348,6 @@ describe('EventCacheManager - Memory Management', () => {
     });
 
     it('should handle evicting more events than available', () => {
-      const {
-        CircularBuffer,
-      } = require('../../../../../src/mcp/state/event-cache/circular-buffer.js');
       const buffer = new CircularBuffer(100);
 
       // Add only 5 events

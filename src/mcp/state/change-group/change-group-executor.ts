@@ -24,7 +24,7 @@ export class ChangeGroupExecutor {
   /**
    * Validate change group before execution
    */
-  async validateChangeGroup(changeGroup: ChangeGroup): Promise<void> {
+  validateChangeGroup(changeGroup: ChangeGroup): void {
     const errors = [];
     
     if (!changeGroup.id) {
@@ -157,8 +157,8 @@ export class ChangeGroupExecutor {
       for (const result of settled) {
         if (result.status === 'fulfilled') {
           results.push(result.value);
-        } else if (!firstError) {
-          firstError = result.reason;
+        } else {
+          firstError ??= result.reason;
         }
       }
       

@@ -20,14 +20,14 @@ export class CacheChangeGroupManager {
   /**
    * Create a new change group for batch operations
    */
-  async createChangeGroup(
+  createChangeGroup(
     controls: Array<{
       name: string;
       value: number | string | boolean;
       ramp?: number;
     }>,
     source: string
-  ): Promise<ChangeGroup> {
+  ): ChangeGroup {
     const changeGroup: ChangeGroup = {
       id: randomUUID(),
       controls,
@@ -54,17 +54,17 @@ export class CacheChangeGroupManager {
   /**
    * Get change group by ID
    */
-  async getChangeGroup(groupId: string): Promise<ChangeGroup | null> {
-    return this.changeGroups.get(groupId) || null;
+  getChangeGroup(groupId: string): ChangeGroup | null {
+    return this.changeGroups.get(groupId) ?? null;
   }
 
   /**
    * Update change group status
    */
-  async updateChangeGroupStatus(
+  updateChangeGroupStatus(
     groupId: string,
     status: 'pending' | 'applying' | 'completed' | 'failed'
-  ): Promise<boolean> {
+  ): boolean {
     const group = this.changeGroups.get(groupId);
     if (!group) {
       return false;
@@ -83,7 +83,7 @@ export class CacheChangeGroupManager {
   /**
    * Clean up old change groups
    */
-  async cleanupChangeGroups(): Promise<number> {
+  cleanupChangeGroups(): number {
     const now = Date.now();
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours
     let cleaned = 0;

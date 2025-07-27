@@ -51,7 +51,7 @@ export class CacheSyncManager {
     const invalidated: string[] = [];
 
     for (const name of controlNames) {
-      if (await this.coreCache.removeControl(name)) {
+      if (this.coreCache.removeControl(name)) {
         invalidated.push(name);
       }
     }
@@ -74,7 +74,7 @@ export class CacheSyncManager {
    */
   async invalidatePattern(pattern: string | RegExp): Promise<void> {
     const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
-    const keys = await this.coreCache.getKeys();
+    const keys = this.coreCache.getKeys();
     const toInvalidate = keys.filter((key: string) => regex.test(key));
 
     await this.invalidateStates(toInvalidate);
@@ -98,10 +98,10 @@ export class CacheSyncManager {
 
       // Get current cache state
       const cacheStates = new Map<string, ControlState>();
-      const keys = await this.coreCache.getKeys();
+      const keys = this.coreCache.getKeys();
 
       for (const key of keys) {
-        const state = await this.coreCache.getState(key);
+        const state = this.coreCache.getState(key);
         if (state) {
           cacheStates.set(key, state);
         }
@@ -112,7 +112,7 @@ export class CacheSyncManager {
 
       // Update cache with synchronized states
       if (result.updates.size > 0) {
-        await this.coreCache.setStates(result.updates);
+        this.coreCache.setStates(result.updates);
       }
 
       const duration = Date.now() - startTime;
@@ -139,10 +139,10 @@ export class CacheSyncManager {
 
     try {
       const states = new Map<string, ControlState>();
-      const keys = await this.coreCache.getKeys();
+      const keys = this.coreCache.getKeys();
 
       for (const key of keys) {
-        const state = await this.coreCache.getState(key);
+        const state = this.coreCache.getState(key);
         if (state) {
           states.set(key, state);
         }
@@ -173,7 +173,7 @@ export class CacheSyncManager {
       const states = await this.persistenceManager.loadState();
 
       if (states && states.size > 0) {
-        await this.coreCache.setStates(states);
+        this.coreCache.setStates(states);
         logger.info('Cache restored from persistence', {
           stateCount: states.size,
         });

@@ -40,10 +40,12 @@ jest.mock('../../../../src/shared/utils/env.js', () => ({
   },
 }));
 
+import { env, config, appRoot } from '../../../../src/shared/utils/env.js';
+
 describe('Environment Configuration', () => {
   describe('env', () => {
     it('should have required environment variables', () => {
-      const { env } = require('../../../../src/shared/utils/env.js');
+      // env imported at top of file
 
       expect(env.NODE_ENV).toBe('test');
       expect(env.OPENAI_API_KEY).toBe('test-key');
@@ -54,7 +56,7 @@ describe('Environment Configuration', () => {
 
   describe('config', () => {
     it('should have correct configuration structure', () => {
-      const { config } = require('../../../../src/shared/utils/env.js');
+      // config imported at top of file
 
       expect(config.qsys).toBeDefined();
       expect(config.qsys.host).toBe('192.168.1.100');
@@ -67,7 +69,7 @@ describe('Environment Configuration', () => {
 
   describe('appRoot', () => {
     it('should provide application root path', () => {
-      const { appRoot } = require('../../../../src/shared/utils/env.js');
+      // appRoot imported at top of file
 
       expect(appRoot).toBe('/test/app/root');
       expect(typeof appRoot).toBe('string');

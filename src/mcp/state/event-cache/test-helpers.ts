@@ -7,6 +7,13 @@ import type { ChangeGroupEvent } from './types.js';
 import type { ControlChange } from './event-types.js';
 
 /**
+ * Events emitted by MockQRWCAdapter
+ */
+export interface MockQRWCAdapterEvents {
+  'changeGroup:changes': (event: ChangeGroupEvent) => void;
+}
+
+/**
  * Mock adapter for testing that satisfies the event cache requirements
  */
 export class MockQRWCAdapter extends EventEmitter {
@@ -33,15 +40,23 @@ export class MockQRWCAdapter extends EventEmitter {
   }
 
   // Override the on method with proper typing to match QRWCClientAdapter
-  override on(event: string, listener: (...args: any[]) => void): this {
+  override on<E extends keyof MockQRWCAdapterEvents>(
+    event: E,
+    listener: MockQRWCAdapterEvents[E]
+  ): this;
+  override on(event: string, listener: (...args: unknown[]) => void): this {
     super.on(event, listener);
     return this;
   }
 
   // Override the removeListener method with proper typing to match QRWCClientAdapter
+  override removeListener<E extends keyof MockQRWCAdapterEvents>(
+    event: E,
+    listener: MockQRWCAdapterEvents[E]
+  ): this;
   override removeListener(
     event: string,
-    listener: (...args: any[]) => void
+    listener: (...args: unknown[]) => void
   ): this {
     super.removeListener(event, listener);
     return this;

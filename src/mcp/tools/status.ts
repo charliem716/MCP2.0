@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema, ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
-import type { QSysStatusGetResponse, QSysApiResponse, QSysComponentInfo } from '../types/qsys-api-responses.js';
+import type { QSysStatusGetResponse, QSysApiResponse, QSysComponentInfo, QSysControl } from '../types/qsys-api-responses.js';
 import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
@@ -312,7 +312,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
           continue;
         }
         
-        const controlsResult = controlsResponse.result as { Controls?: Array<{ Name: string; Value: unknown; String?: string }> };
+        const controlsResult = controlsResponse.result as { Controls?: QSysControl[] };
         const controls = controlsResult.Controls ?? [];
 
         // Process controls into meaningful status data
@@ -331,9 +331,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
         // Group by component category if possible
         const category = this.categorizeComponent(component.Name);
-        if (!statusData[category]) {
-          statusData[category] = {};
-        }
+        statusData[category] ??= {};
 
         statusData[category][component.Name] = componentStatus;
       } catch (error) {
@@ -351,8 +349,8 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   /**
    * Detect status components using hybrid scoring system
    */
-  private detectStatusComponents(components: any[]): any[] {
-    const statusComponents: Array<{ component: any; score: number }> = [];
+  private detectStatusComponents(components: QSysComponentInfo[]): QSysComponentInfo[] {
+    const statusComponents: Array<{ component: QSysComponentInfo; score: number }> = [];
 
     for (const component of components) {
       const score = this.getStatusScore(component);
@@ -370,7 +368,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   /**
    * Calculate status score for a component
    */
-  private getStatusScore(component: any): number {
+  private getStatusScore(component: QSysComponentInfo): number {
     let score = 0;
     const name = (component.Name ?? '').toLowerCase();
 

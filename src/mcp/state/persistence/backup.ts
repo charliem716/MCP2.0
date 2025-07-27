@@ -105,7 +105,7 @@ export class BackupManager {
       }
 
       logger.debug('Most recent backup found', { backup: backups[0] });
-      return backups[0] || null;
+      return backups[0] ?? null;
     } catch (error) {
       logger.error('Failed to get most recent backup', { error });
       return null;

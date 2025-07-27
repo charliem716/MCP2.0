@@ -246,7 +246,11 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
       const messageHandler = (data: WebSocket.Data) => {
         try {
-          const response = JSON.parse(data.toString());
+          const dataStr = typeof data === 'string' ? data : 
+            data instanceof Buffer ? data.toString('utf8') : 
+            data instanceof ArrayBuffer ? Buffer.from(data).toString('utf8') :
+            JSON.stringify(data);
+          const response = JSON.parse(dataStr) as { id?: string; error?: unknown; result?: unknown };
           if (response.id === id) {
             clearTimeout(timeout);
             this.ws?.off('message', messageHandler);

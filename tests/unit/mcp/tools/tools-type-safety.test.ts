@@ -2,10 +2,15 @@ import {
   ListControlsTool,
   GetControlValuesTool,
   SetControlValuesTool,
+  createListControlsTool,
+  createGetControlValuesTool,
+  createSetControlValuesTool,
 } from '../../../../src/mcp/tools/controls.js';
 import {
   ListComponentsTool,
   GetComponentControlsTool,
+  createListComponentsTool,
+  createGetComponentControlsTool,
 } from '../../../../src/mcp/tools/components.js';
 import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
 
@@ -59,15 +64,7 @@ describe('Tools Type Safety', () => {
   describe('Factory Functions Type Safety', () => {
     test('Factory functions should enforce type safety', () => {
       // Import factory functions
-      const {
-        createListControlsTool,
-        createGetControlValuesTool,
-        createSetControlValuesTool,
-      } = require('../../../../src/mcp/tools/controls.js');
-      const {
-        createListComponentsTool,
-        createGetComponentControlsTool,
-      } = require('../../../../src/mcp/tools/components.js');
+      // Factory functions imported at top of file
 
       // All factory functions should work with typed client
       expect(createListControlsTool(mockQrwcClient)).toBeInstanceOf(

@@ -65,23 +65,28 @@ export interface QSysComponentInfo {
 }
 
 /**
+ * Individual control information
+ */
+export interface QSysControl {
+  Name: string;
+  Type: 'Boolean' | 'Float' | 'Integer' | 'String';
+  Value: number | string | boolean;
+  String: string;
+  Position: number;
+  Direction: 'Read' | 'Write' | 'Read/Write';
+  ValueMin?: number;
+  ValueMax?: number;
+  StringMin?: string;
+  StringMax?: string;
+  Component?: string; // Component name (added by adapter for GetAllControls)
+}
+
+/**
  * Component.GetControls response
  */
 export interface QSysComponentControlsResponse {
   Name: string;
-  Controls: Array<{
-    Name: string;
-    Type: 'Boolean' | 'Float' | 'Integer' | 'String';
-    Value: number | string | boolean;
-    String: string;
-    Position: number;
-    Direction: 'Read' | 'Write' | 'Read/Write';
-    ValueMin?: number;
-    ValueMax?: number;
-    StringMin?: string;
-    StringMax?: string;
-    Component?: string; // Component name (added by adapter for GetAllControls)
-  }>;
+  Controls: QSysControl[];
 }
 
 /**

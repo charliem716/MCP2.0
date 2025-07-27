@@ -78,10 +78,8 @@ interface QSYSComponent {
  * Q-SYS control structure from QRWC
  */
 interface QSYSControl {
-  Value?: unknown;
-  String?: string;
-  Position?: number;
-  Type?: string;
+  state: IControlState;
+  // Other control properties like methods may exist
   [key: string]: unknown;
 }
 
@@ -323,7 +321,7 @@ export class QRWCClientAdapter
       case 'ChangeGroup.AddControl':
         return () => this.handleChangeGroupAddControl(params);
       case 'ChangeGroup.Poll':
-        return async () => this.handleChangeGroupPoll(params);
+        return () => this.handleChangeGroupPoll(params);
       case 'ChangeGroup.AutoPoll':
         return () => this.handleChangeGroupAutoPoll(params);
       case 'ChangeGroup.Destroy':
@@ -516,7 +514,8 @@ export class QRWCClientAdapter
     }
     
     const groupId = params['Id'] as string;
-    const controls = params['Controls'] as string[] || [];
+    const controlsParam = params['Controls'];
+    const controls = Array.isArray(controlsParam) ? controlsParam as string[] : [];
     
     // Check if creating a new group with empty controls (from CreateChangeGroupTool)
     const isCreatingNewGroup = controls.length === 0;
@@ -571,7 +570,7 @@ export class QRWCClientAdapter
   /**
    * Handle ChangeGroup.Poll command
    */
-  private async handleChangeGroupPoll(params?: Record<string, unknown>): Promise<unknown> {
+  private handleChangeGroupPoll(params?: Record<string, unknown>): unknown {
     if (!params?.['Id']) {
       throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
     }
@@ -604,7 +603,7 @@ export class QRWCClientAdapter
       
       if (control) {
         // Get control state which has IControlState interface
-        const controlState = control.state as IControlState;
+        const controlState = control.state;
         const currentValue = controlState.Value ?? 0;
         let currentString = controlState.String ?? String(currentValue);
         
@@ -655,7 +654,7 @@ export class QRWCClientAdapter
     }
     
     const groupId = params['Id'] as string;
-    const rate = params['Rate'] as number ?? 1; // Default 1 second
+    const rate = (params['Rate'] as number | undefined) ?? 1; // Default 1 second
     
     const group = this.changeGroups.get(groupId);
     if (!group) {
@@ -677,7 +676,7 @@ export class QRWCClientAdapter
         } catch (error) {
           logger.error('Auto-poll failed', { groupId, error });
           // Increment failure count
-          const failures = (this.autoPollFailureCounts.get(groupId) || 0) + 1;
+          const failures = (this.autoPollFailureCounts.get(groupId) ?? 0) + 1;
           this.autoPollFailureCounts.set(groupId, failures);
           
           // Stop auto-polling if too many failures

@@ -15,6 +15,15 @@ export type CommandHandler = (
   client?: OfficialQRWCClient
 ) => unknown;
 
+/**
+ * Convert any value to a string representation
+ */
+function valueToString(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value as string | number | boolean);
+}
+
 interface ComponentInfo {
   Name: string;
   Type: string;
@@ -82,27 +91,16 @@ export function handleGetControls(
       { componentName });
   }
 
-  const component = qrwc.components[componentName] as Component | undefined;
-  if (!component || !component.controls) {
-    return { result: { Name: componentName, Controls: [] } };
-  }
+  const component = qrwc.components[componentName];
 
   const controls = Object.entries(component.controls).map(([name, control]) => {
-    if (!control) {
-      return {
-        Name: name,
-        Type: 'Unknown',
-        Value: null,
-        String: '',
-      };
-    }
     const { value, type } = extractControlValue(control);
 
     const result: ControlInfo = {
       Name: name,
       Type: type,
       Value: value,
-      String: String(value ?? ''),
+      String: valueToString(value),
     };
 
     // Only add Position if it exists
@@ -146,7 +144,7 @@ export function handleControlGet(
       fullName = controlObj;
     } else if (typeof controlObj === 'object' && controlObj !== null) {
       const obj = controlObj as Record<string, unknown>;
-      fullName = String(obj['Name'] ?? obj['name'] ?? '');
+      fullName = obj['Name'] != null ? valueToString(obj['Name']) : obj['name'] != null ? valueToString(obj['name']) : '';
     } else {
       throw new ValidationError('Invalid control format',
         [{ field: 'control', message: 'Control must be a string or object', code: 'INVALID_FORMAT' }]);
@@ -165,7 +163,7 @@ export function handleControlGet(
         { componentName });
     }
 
-    const control = component.controls?.[controlName];
+    const control = component.controls[controlName];
     if (!control) {
       throw new QSysError(`Control not found: ${fullName}`, QSysErrorCode.INVALID_CONTROL,
         { controlName: fullName });
@@ -178,7 +176,7 @@ export function handleControlGet(
       Name: fullName,
       Type: type,
       Value: value,
-      String: String(value ?? ''),
+      String: valueToString(value),
     };
   });
 
@@ -228,7 +226,7 @@ export async function handleControlSet(
       }
 
       const obj = controlObj as Record<string, unknown>;
-      name = String(obj['Name'] ?? obj['name'] ?? '');
+      name = obj['Name'] != null ? valueToString(obj['Name']) : obj['name'] != null ? valueToString(obj['name']) : '';
       const [componentName, controlName] = name.split('.');
 
       if (!componentName || !controlName) {
@@ -260,11 +258,11 @@ export async function handleControlSet(
         newValue = 0; // Default value
       } else {
         // Convert complex types to string
-        newValue = String(rawValue);
+        newValue = valueToString(rawValue);
       }
       
       // Get control info for validation
-      const controlInfo = component.controls?.[controlName];
+      const controlInfo = component.controls[controlName];
       const validation = validateControlValue(name, newValue, controlInfo);
 
       if (!validation.valid) {
@@ -286,14 +284,9 @@ export async function handleControlSet(
       await client.setControlValue(componentName, controlName, newValue);
       
       // Update local state
-      if ('controls' in component && component.controls) {
-        const controls = component.controls as Record<
-          string,
-          { Value?: unknown }
-        >;
-        if (controls[controlName]) {
-          controls[controlName].Value = newValue;
-        }
+      const control = component.controls[controlName];
+      if (control && 'Value' in control) {
+        (control as { Value?: unknown }).Value = newValue;
       }
       
       results.push({
@@ -352,14 +345,12 @@ export function handleStatusGet(
   }, 0);
 
   const hasAudio = Object.values(qrwc.components).some(comp => {
-    const component = comp as Component | undefined;
-    if (!component) return false;
+    const component = comp as Component;
     return component.state.Type.includes('Audio');
   });
 
   const hasVideo = Object.values(qrwc.components).some(comp => {
-    const component = comp as Component | undefined;
-    if (!component) return false;
+    const component = comp as Component;
     return component.state.Type.includes('Video');
   });
 
@@ -402,11 +393,10 @@ export function handleGetAllControls(
   const allControls: ControlInfo[] = [];
 
   for (const [componentName, component] of Object.entries(qrwc.components)) {
-    const comp = component;
-    if (!comp || !comp.controls) continue;
+    const comp = component as Component;
+    if (!comp.controls) continue;
 
     for (const [controlName, control] of Object.entries(comp.controls)) {
-      if (!control) continue;
       const fullName = `${componentName}.${controlName}`;
       const { value, type } = extractControlValue(control);
 
@@ -414,7 +404,7 @@ export function handleGetAllControls(
         Name: fullName,
         Type: type,
         Value: value,
-        String: String(value ?? ''),
+        String: valueToString(value),
       });
     }
   }
@@ -450,13 +440,12 @@ export function handleGetAllControlValues(
   const controlValues: Record<string, { Value: unknown; String: string }> = {};
 
   for (const [name, control] of Object.entries(component.controls)) {
-    if (!control) continue;
     const fullName = `${componentName}.${name}`;
     const { value } = extractControlValue(control);
 
     controlValues[fullName] = {
       Value: value,
-      String: String(value ?? ''),
+      String: valueToString(value),
     };
   }
 
@@ -466,11 +455,11 @@ export function handleGetAllControlValues(
 /**
  * Handle direct control operations
  */
-export function handleDirectControl(
+export async function handleDirectControl(
   command: string,
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
-): unknown {
+): Promise<unknown> {
   const qrwc = client.getQrwc();
   if (!qrwc) {
     throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);

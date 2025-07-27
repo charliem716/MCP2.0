@@ -4,6 +4,14 @@ import { config as envConfig } from '../../shared/utils/env.js';
 import type { CacheStatistics } from './repository.js';
 
 /**
+ * Events emitted by LRUCache
+ */
+export interface LRUCacheEvents<K, V> {
+  eviction: (key: K, value: V) => void;
+  expiration: (key: K, value: V) => void;
+}
+
+/**
  * Simple LRU Cache implementation using Map's insertion order
  *
  * Features:
@@ -155,9 +163,13 @@ export class LRUCache<K, V> extends EventEmitter {
   /**
    * Emit events (for compatibility with listeners)
    */
+  override on<E extends keyof LRUCacheEvents<K, V>>(
+    event: E,
+    listener: LRUCacheEvents<K, V>[E]
+  ): this;
   override on(
     event: string | symbol,
-    listener: (...args: any[]) => void
+    listener: (...args: unknown[]) => void
   ): this {
     // Only support 'eviction' and 'expiration' events for compatibility
     if (event === 'eviction' || event === 'expiration') {

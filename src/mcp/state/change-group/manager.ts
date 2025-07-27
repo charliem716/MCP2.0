@@ -80,7 +80,7 @@ export class ChangeGroupManager extends EventEmitter {
     try {
       // Validate if requested
       if (execOptions.validateBeforeExecution) {
-        await this.executor.validateChangeGroup(changeGroup);
+        this.executor.validateChangeGroup(changeGroup);
       }
 
       // Execute with timeout
@@ -122,8 +122,9 @@ export class ChangeGroupManager extends EventEmitter {
       });
 
       // Try to get results from error if available
-      if ((error as any).__results) {
-        results = (error as any).__results;
+      const errorWithResults = error as { __results?: ChangeGroupResult[] };
+      if (errorWithResults.__results) {
+        results = errorWithResults.__results;
       }
 
       // Rollback on error if configured
@@ -204,7 +205,7 @@ export class ChangeGroupManager extends EventEmitter {
    * Get execution result for a change group
    */
   getExecutionResult(changeGroupId: string): ChangeGroupExecutionResult | null {
-    return this.executionHistory.get(changeGroupId) || null;
+    return this.executionHistory.get(changeGroupId) ?? null;
   }
 
   /**

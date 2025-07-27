@@ -282,7 +282,7 @@ export class CacheInvalidationManager extends EventEmitter {
    * Get rule by ID
    */
   getRule(ruleId: string): InvalidationRule | null {
-    return this.rules.get(ruleId) || null;
+    return this.rules.get(ruleId) ?? null;
   }
 
   /**
@@ -312,7 +312,7 @@ export class CacheInvalidationManager extends EventEmitter {
     for (const rule of enabledRules) {
       strategyCount.set(
         rule.strategy,
-        (strategyCount.get(rule.strategy) || 0) + 1
+        (strategyCount.get(rule.strategy) ?? 0) + 1
       );
     }
 

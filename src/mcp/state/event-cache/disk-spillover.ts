@@ -149,7 +149,8 @@ export class DiskSpilloverManager {
 
       return allEvents.sort((a, b) => Number(a.timestamp - b.timestamp));
     } catch (error) {
-      if ((error as any).code !== 'ENOENT') {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code !== 'ENOENT') {
         logger.error('Failed to load from disk', { error, groupId });
       }
       return [];
