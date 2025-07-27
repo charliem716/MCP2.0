@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { validateEventCacheConfig, sanitizeEventCacheConfig, getConfigSummary } from '../config-validator';
-import { EventCacheConfig } from '../types';
+import type { EventCacheConfig } from '../manager';
 
 // Mock fs module
 jest.mock('fs');

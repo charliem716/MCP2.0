@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { EventCacheConfig } from './types';
+import type { EventCacheConfig } from './manager';
 
 export interface ValidationResult {
   valid: boolean;

@@ -1,10 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { EventCacheManager } from '../../src/mcp/state/event-cache/manager';
+import { EventCacheManager, type EventCacheConfig } from '../../src/mcp/state/event-cache/manager';
 import { validateEventCacheConfig, sanitizeEventCacheConfig } from '../../src/mcp/state/event-cache/config-validator';
 import { MockQRWCAdapter } from '../../src/mcp/state/event-cache/test-helpers';
-import { EventCacheConfig } from '../../src/mcp/state/event-cache/types';
 
 describe('Event Cache Config Validation Integration', () => {
   let tempDir: string;
