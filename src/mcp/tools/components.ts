@@ -84,11 +84,16 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
 
     // Handle different response formats from QRWC client
     let components: QSysComponentInfo[] = [];
-    const resp = response as { result?: QSysComponentInfo[] };
+    const resp = response as any;
 
-    if (resp.result && Array.isArray(resp.result)) {
+    if (resp.result?.Components && Array.isArray(resp.result.Components)) {
+      // Handle { result: { Components: [...] } } format
+      components = resp.result.Components;
+    } else if (resp.result && Array.isArray(resp.result)) {
+      // Handle { result: [...] } format
       components = resp.result;
     } else if (Array.isArray(response)) {
+      // Handle direct array format
       components = response as QSysComponentInfo[];
     } else {
       this.logger.warn('No components found in response', { response });
