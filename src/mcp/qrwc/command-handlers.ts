@@ -104,8 +104,8 @@ export function handleGetControls(
     };
 
     // Only add Position if it exists
-    if (control.Position !== undefined) {
-      result.Position = control.Position;
+    if ('Position' in control && control.Position !== undefined) {
+      result.Position = control.Position as number;
     }
 
     return result;
@@ -339,19 +339,16 @@ export function handleStatusGet(
 
   const componentCount = Object.keys(qrwc.components).length;
   const controlCount = Object.values(qrwc.components).reduce((count, comp) => {
-    const component = comp as Component | undefined;
-    if (!component || !component.controls) return count;
-    return count + Object.keys(component.controls).length;
+    if (!comp.controls) return count;
+    return count + Object.keys(comp.controls).length;
   }, 0);
 
   const hasAudio = Object.values(qrwc.components).some(comp => {
-    const component = comp as Component;
-    return component.state.Type.includes('Audio');
+    return comp.state?.Type?.includes('Audio') ?? false;
   });
 
   const hasVideo = Object.values(qrwc.components).some(comp => {
-    const component = comp as Component;
-    return component.state.Type.includes('Video');
+    return comp.state?.Type?.includes('Video') ?? false;
   });
 
   return {

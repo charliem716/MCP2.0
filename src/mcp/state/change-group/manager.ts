@@ -122,7 +122,7 @@ export class ChangeGroupManager extends EventEmitter {
       });
 
       // Try to get results from error if available
-      const errorWithResults = error as { __results?: ChangeGroupResult[] };
+      const errorWithResults = error as { __results?: ControlChangeResult[] };
       if (errorWithResults.__results) {
         results = errorWithResults.__results;
       }

@@ -115,9 +115,16 @@ export class CacheChangeGroupManager {
     }
 
     this.changeGroupCleanupTimer = setInterval(() => {
-      this.cleanupChangeGroups().catch(error => {
-        logger.error('Change group cleanup failed', { error });
-      });
+      try {
+        const cleaned = this.cleanupChangeGroups();
+        if (cleaned > 0) {
+          logger.debug(`Cleaned up ${cleaned} expired change groups`);
+        }
+      } catch (error) {
+        logger.error('Change group cleanup failed', { 
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
     }, intervalMs);
   }
 

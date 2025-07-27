@@ -8,13 +8,13 @@ import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { IStateRepository, ControlState } from './repository.js';
 import type { QRWCClientInterface } from '../qrwc/adapter.js';
 import type { SyncSourceResult, SyncDetail } from './synchronizer/types.js';
-import type { 
-  QSysApiResponse,
-  QSysComponentGetResponse,
-  QSysComponentControlsResponse,
-  QSysComponentInfo
+import { 
+  isQSysApiResponse,
+  type QSysApiResponse,
+  type QSysComponentGetResponse,
+  type QSysComponentControlsResponse,
+  type QSysComponentInfo
 } from '../types/qsys-api-responses.js';
-import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 
 export class SimpleSynchronizer {
   private interval: NodeJS.Timeout | null = null;
@@ -34,7 +34,7 @@ export class SimpleSynchronizer {
     }
 
     this.interval = setInterval(() => {
-      this.sync().catch(error => {
+      this.sync().catch((error: unknown) => {
         logger.error('Sync failed', { error });
       });
     }, this.intervalMs);

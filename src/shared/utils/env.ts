@@ -184,7 +184,7 @@ function parseEnvironment(): Environment {
     // Use console.error during environment parsing to avoid circular dependency
     if (process.env['NODE_ENV'] === 'test') {
       // In test mode, show minimal error info
-      const errors = result.error.errors.map((e: any) => ({
+      const errors = result.error.errors.map((e) => ({
         path: e.path.join('.'),
         message: e.message
       }));
@@ -208,7 +208,7 @@ function parseEnvironment(): Environment {
       process.exit(1);
     } else {
       throw new ConfigurationError('Invalid environment configuration',
-        { missingVariables: result.error.errors.map((e: any) => e.path.join('.')) });
+        { missingVariables: result.error.errors.map((e) => e.path.join('.')) });
     }
   }
 

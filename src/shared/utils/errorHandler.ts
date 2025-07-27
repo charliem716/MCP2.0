@@ -37,7 +37,7 @@ export class GlobalErrorHandler {
   /**
    * Handle an error with logging
    */
-  async handleError(error: Error, context?: ErrorContext): Promise<void> {
+  handleError(error: Error, context?: ErrorContext): void {
     if (this.config.logErrors) {
       this.logger.error(error.message, {
         error: error.stack,

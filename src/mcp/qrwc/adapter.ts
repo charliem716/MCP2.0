@@ -27,16 +27,18 @@ import {
   handleGetAllControlValues,
   handleDirectControl,
 } from './command-handlers.js';
+import type { CommandMap, CommandName, CommandParams, CommandResult } from './command-map.js';
+import { isQSysApiResponse, type QSysApiResponse } from '../types/qsys-api-responses.js';
 
 /**
  * Interface that MCP tools expect from a QRWC client
  */
 export interface QRWCClientInterface {
   isConnected(): boolean;
-  sendCommand(
-    command: string,
-    params?: Record<string, unknown>
-  ): Promise<unknown>;
+  sendCommand<T extends CommandName>(
+    command: T,
+    params?: CommandParams<T>
+  ): Promise<QSysApiResponse<CommandResult<T>>>;
 }
 
 /**
@@ -194,11 +196,11 @@ export class QRWCClientAdapter
    * This eliminates code duplication and provides real Q-SYS data.
    * Includes retry logic for transient failures.
    */
-  async sendCommand(
-    command: string,
-    params?: Record<string, unknown>,
+  async sendCommand<T extends CommandName>(
+    command: T,
+    params?: CommandParams<T>,
     options: RetryOptions = {}
-  ): Promise<unknown> {
+  ): Promise<QSysApiResponse<CommandResult<T>>> {
     const { maxRetries = 3, retryDelay = 1000, retryBackoff = 2 } = options;
 
     let lastError: Error = new QSysError('Unknown error', QSysErrorCode.COMMAND_FAILED);
@@ -208,8 +210,8 @@ export class QRWCClientAdapter
         // Allow Status.Get to work even when disconnected
         if (
           !this.isConnected() &&
-          command !== 'Status.Get' &&
-          command !== 'StatusGet'
+          (command as string) !== 'Status.Get' &&
+          (command as string) !== 'StatusGet'
         ) {
           throw new QSysError('QRWC client not connected', QSysErrorCode.CONNECTION_FAILED);
         }
@@ -220,7 +222,19 @@ export class QRWCClientAdapter
           attempt,
         });
 
-        return await this.executeCommand(command, params, options);
+        const result = await this.executeCommand(command, params, options);
+        
+        // Check if result is already wrapped in QSysApiResponse
+        if (isQSysApiResponse(result)) {
+          return result as QSysApiResponse<CommandResult<T>>;
+        }
+        
+        // Wrap in QSysApiResponse structure
+        return {
+          jsonrpc: '2.0',
+          id: Date.now(),
+          result: result as CommandResult<T>
+        } as QSysApiResponse<CommandResult<T>>;
       } catch (error) {
         // Ensure error is an Error object
         if (error instanceof Error) {

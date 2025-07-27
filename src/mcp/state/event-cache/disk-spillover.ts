@@ -117,7 +117,7 @@ export class DiskSpilloverManager {
         try {
           const filepath = path.join(this.spilloverPath, file);
           const content = await fs.readFile(filepath, 'utf-8');
-          const data = JSON.parse(content);
+          const data = JSON.parse(content) as unknown;
 
           if (!isSpilledEventFile(data)) {
             logger.warn('Invalid spillover file format', { file });

@@ -1,6 +1,5 @@
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
-import { StateRepositoryError } from '../repository.js';
-import type { ControlState, StateRepositoryEvent } from '../repository.js';
+import { StateRepositoryError, type ControlState, type StateRepositoryEvent } from '../repository.js';
 import type { CoreCache } from './core-cache.js';
 import type { StatePersistenceManager } from '../persistence/manager.js';
 import type { CacheInvalidationManager } from '../invalidation.js';
@@ -45,7 +44,7 @@ export class CacheSyncManager {
   async invalidateStates(controlNames: string[]): Promise<void> {
     if (!this.invalidationManager) {
       logger.warn('Invalidation manager not configured');
-      return;
+      return Promise.resolve();
     }
 
     const invalidated: string[] = [];
@@ -67,6 +66,8 @@ export class CacheSyncManager {
         timestamp: new Date(),
       });
     }
+    
+    return Promise.resolve();
   }
 
   /**

@@ -303,8 +303,10 @@ export class MCPServer {
     signals.forEach(signal => {
       const handler = () => {
         logger.info(`Received ${signal}, shutting down gracefully...`);
-        this.shutdown().catch(error => {
-          logger.error('Error during shutdown', { error });
+        this.shutdown().catch((error: unknown) => {
+          logger.error('Error during shutdown', { 
+            error: error instanceof Error ? error.message : String(error)
+          });
           process.exit(1);
         });
       };

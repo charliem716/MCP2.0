@@ -82,7 +82,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       });
 
       // Validate parameters using Zod
-      const validatedParams = await this.validateParams(rawParams);
+      const validatedParams = this.validateParams(rawParams);
 
       // Check QRWC connection
       if (!this.qrwcClient.isConnected()) {
@@ -131,7 +131,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
   /**
    * Validate parameters using Zod schema
    */
-  protected async validateParams(rawParams: unknown): Promise<TParams> {
+  protected validateParams(rawParams: unknown): TParams {
     try {
       // Use Zod's parse for strict validation
       return this.paramsSchema.parse(rawParams ?? {});
@@ -289,7 +289,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       return [];
     }
 
-    const shape = this.paramsSchema.shape;
+    const shape = (this.paramsSchema as z.ZodObject<Record<string, z.ZodSchema>>).shape;
     if (!shape) return [];
 
     const required: string[] = [];
@@ -331,15 +331,17 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
           items: this.zodSchemaToJsonSchema(def.type),
           description: def.description,
         };
-      case 'ZodObject':
+      case 'ZodObject': {
         const properties: Record<string, unknown> = {};
-        const shape = def.shape();
+        const shape = def.shape as Record<string, z.ZodSchema> | undefined;
+        if (!shape) return { type: 'object', properties: {}, description: def.description };
         for (const [key, nestedSchema] of Object.entries(shape)) {
           properties[key] = this.zodSchemaToJsonSchema(
             nestedSchema as z.ZodSchema
           );
         }
         return { type: 'object', properties, description: def.description };
+      }
       case 'ZodOptional':
         return this.zodSchemaToJsonSchema(def.innerType);
       case 'ZodEnum':

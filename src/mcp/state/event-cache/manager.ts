@@ -970,13 +970,13 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Get statistics for a change group or all groups
    */
-  getStatistics(groupId?: string): any {
+  getStatistics(groupId?: string): CacheStatistics | null | { totalEvents: number; groups: Array<CacheStatistics & { groupId: string; totalEvents: number }>; memoryUsageMB: number; queryCache: unknown } {
     // If no groupId provided, return global statistics
     if (groupId === undefined) {
       const allStats = this.getAllStatistics();
       let totalEvents = 0;
       let totalMemoryUsage = 0;
-      const groups: any[] = [];
+      const groups: Array<CacheStatistics & { groupId: string; totalEvents: number }> = [];
 
       for (const [gId, stats] of allStats.entries()) {
         totalEvents += stats.eventCount;
@@ -1229,7 +1229,7 @@ export class EventCacheManager extends EventEmitter {
    * Manually trigger compression (useful for testing)
    * @param skipCooldown - Whether to skip the 30-second cooldown check
    */
-  async runCompression(skipCooldown = false): Promise<void> {
+  runCompression(skipCooldown = false): void {
     if (!this.defaultConfig.compressionConfig?.enabled) {
       return;
     }

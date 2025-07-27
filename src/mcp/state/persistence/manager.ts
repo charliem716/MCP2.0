@@ -110,18 +110,8 @@ export class StatePersistenceManager {
         ...(metadata ? { metadata } : {}),
       };
 
-      // Save based on format
-      switch (this.config.format) {
-        case PersistenceFormat.JSON:
-          await this.fileOps.writeJSON(state);
-          break;
-        default:
-          throw new PersistenceError(
-            `Unsupported format: ${this.config.format}`,
-            PersistenceErrorCode.UNSUPPORTED_FORMAT,
-            { format: this.config.format }
-          );
-      }
+      // Save based on format (currently only JSON is supported)
+      await this.fileOps.writeJSON(state);
 
       // Update stats
       this.stats.totalSaves++;
@@ -159,19 +149,8 @@ export class StatePersistenceManager {
         return null;
       }
 
-      // Load based on format
-      let state: PersistedState;
-      switch (this.config.format) {
-        case PersistenceFormat.JSON:
-          state = await this.fileOps.readJSON();
-          break;
-        default:
-          throw new PersistenceError(
-            `Unsupported format: ${this.config.format}`,
-            PersistenceErrorCode.UNSUPPORTED_FORMAT,
-            { format: this.config.format }
-          );
-      }
+      // Load based on format (currently only JSON is supported)
+      const state = await this.fileOps.readJSON();
 
       // Validate state
       this.validatePersistedState(state);

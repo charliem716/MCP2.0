@@ -400,7 +400,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
     // Component properties analysis (2 points for relevant properties)
     if (Array.isArray(component.Properties)) {
-      const hasStatusProperties = component.Properties.some((prop: any) =>
+      const hasStatusProperties = component.Properties.some((prop) =>
         ['status', 'health', 'state', 'online'].some(keyword =>
           String(prop.Name ?? '')
             .toLowerCase()
@@ -473,14 +473,12 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   /**
    * Organize status data into a clean structure
    */
-  private organizeStatusData(statusData: Record<string, any>): unknown {
-    const organized: Record<string, any> = {};
+  private organizeStatusData(statusData: Record<string, Record<string, unknown>>): unknown {
+    const organized: Record<string, unknown> = {};
 
     // Process each category
     for (const [category, components] of Object.entries(statusData)) {
       if (Object.keys(components).length > 0) {
-        organized[category] = {};
-
         // Keep component structure for clarity
         organized[category] = components;
       }

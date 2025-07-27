@@ -54,6 +54,7 @@ export class ChangeGroupExecutor {
           [{ field: 'name', message: 'Control name is required', code: 'REQUIRED_FIELD' }]);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime validation
       if (control.value === undefined || control.value === null) {
         throw new ValidationError(`Control ${control.name} value is required`,
           [{ field: control.name, message: 'Value is required', code: 'REQUIRED_FIELD' }]);
@@ -131,9 +132,9 @@ export class ChangeGroupExecutor {
         
         if (result.status === 'fulfilled') {
           results.push(result.value);
-        } else if (result.status === 'rejected') {
+        } else {
           // For rejected promises, create a failed result
-          const error = result.reason;
+          const error = result.reason as unknown;
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           
           // Extract the actual error message if it's a ValidationError
@@ -152,7 +153,7 @@ export class ChangeGroupExecutor {
       // For fail-fast mode, we need to collect results as they complete
       // even if one fails
       const settled = await Promise.allSettled(promises);
-      let firstError: any = null;
+      let firstError: unknown = null;
       
       for (const result of settled) {
         if (result.status === 'fulfilled') {

@@ -53,7 +53,7 @@ export class CoreCache extends EventEmitter {
   async initialize(config: CacheConfig): Promise<void> {
     if (this.initialized) {
       logger.warn('CoreCache already initialized');
-      return;
+      return Promise.resolve();
     }
 
     this.config = { ...this.config, ...config };
@@ -68,6 +68,8 @@ export class CoreCache extends EventEmitter {
     logger.info('CoreCache initialized', {
       config: this.config,
     });
+    
+    return Promise.resolve();
   }
 
   /**

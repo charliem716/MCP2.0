@@ -282,7 +282,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     if (name.includes('select') || name.includes('input.select'))
       return 'select';
     if (name.includes('trigger')) return 'trigger';
-    if (type === 'String' || type === 'Text') return 'text';
+    if (type === 'String') return 'text';
 
     return 'other';
   }
@@ -292,8 +292,8 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
     const type = control.Type;
 
     if (type === 'Boolean') return value === true || value === 1;
-    if (type === 'Float' || type === 'Number') return value !== 0;
-    if (type === 'String' || type === 'Text')
+    if (type === 'Float' || type === 'Integer') return value !== 0;
+    if (type === 'String')
       return value !== '' && value != null;
 
     return false;
