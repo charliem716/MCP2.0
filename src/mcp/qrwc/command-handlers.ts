@@ -269,7 +269,10 @@ async function processSingleControl(
   }
 
   const { name, componentName, controlName, newValue } = params;
-  const component = qrwc.components[componentName]!;
+  const component = qrwc.components[componentName];
+  if (!component) {
+    return { Name: name, Result: 'Error', Error: `Component '${componentName}' not found` };
+  }
 
   // Validate control value
   const controlInfo = component.controls[controlName];

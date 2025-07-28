@@ -102,39 +102,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
       this.setState(ConnectionState.CONNECTED);
       this.reconnectAttempts = 0;
-
-      // Calculate downtime and emit appropriate event
-      const downtime = this.disconnectTime
-        ? Date.now() - this.disconnectTime.getTime()
-        : 0;
-
-      if (downtime > 0) {
-        this.logger.info('Q-SYS Core reconnected after downtime', {
-          downtimeMs: downtime,
-          requiresCacheInvalidation: downtime > 30000,
-        });
-      }
-
-      this.setupWebSocketHandlers();
-
-      this.logger.info(
-        'Successfully connected to Q-SYS Core using official QRWC library'
-      );
-
-      // Emit appropriate event based on downtime
-      if (downtime > 30000) {
-        this.emit('connected', {
-          requiresCacheInvalidation: true,
-          downtimeMs: downtime,
-        });
-      } else {
-        this.emit('connected', {
-          requiresCacheInvalidation: false,
-          downtimeMs: downtime,
-        });
-      }
-
-      this.disconnectTime = null;
+      this.handleConnectionSuccess();
     } catch (error) {
       this.setState(ConnectionState.DISCONNECTED);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -150,6 +118,44 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
         { error: errorMsg }
       );
     }
+  }
+
+  /**
+   * Handle successful connection
+   */
+  private handleConnectionSuccess(): void {
+    // Calculate downtime and emit appropriate event
+    const downtime = this.disconnectTime
+      ? Date.now() - this.disconnectTime.getTime()
+      : 0;
+
+    if (downtime > 0) {
+      this.logger.info('Q-SYS Core reconnected after downtime', {
+        downtimeMs: downtime,
+        requiresCacheInvalidation: downtime > 30000,
+      });
+    }
+
+    this.setupWebSocketHandlers();
+
+    this.logger.info(
+      'Successfully connected to Q-SYS Core using official QRWC library'
+    );
+
+    // Emit appropriate event based on downtime
+    if (downtime > 30000) {
+      this.emit('connected', {
+        requiresCacheInvalidation: true,
+        downtimeMs: downtime,
+      });
+    } else {
+      this.emit('connected', {
+        requiresCacheInvalidation: false,
+        downtimeMs: downtime,
+      });
+    }
+
+    this.disconnectTime = null;
   }
 
   /**

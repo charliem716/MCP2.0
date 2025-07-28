@@ -16,8 +16,7 @@ jest.mock('../validators.js', () => ({
 
 import { handleControlSet } from '../command-handlers.js';
 import type { OfficialQRWCClient } from '../officialClient.js';
-import { ValidationError } from '../../../shared/types/errors.js';
-import { QSysError, QSysErrorCode } from '../../../shared/types/errors.js';
+import { ValidationError, QSysError, QSysErrorCode } from '../../../shared/types/errors.js';
 
 describe('command-handlers', () => {
   describe('handleControlSet', () => {
@@ -249,7 +248,7 @@ describe('command-handlers', () => {
 
     it('should process controls sequentially', async () => {
       const callOrder: string[] = [];
-      mockClient.setControlValue.mockImplementation(async (component, control) => {
+      mockClient.setControlValue.mockImplementation((component, control) => {
         callOrder.push(`${component}.${control}`);
       });
 

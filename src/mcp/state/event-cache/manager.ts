@@ -219,7 +219,43 @@ export class EventCacheManager extends EventEmitter {
     this.globalMemoryLimitBytes =
       (this.defaultConfig.globalMemoryLimitMB ?? 500) * 1024 * 1024;
     this.queryCache = new QueryCache();
+    
+    // Initialize default configs
+    this.initializeDefaultConfigs();
 
+    logger.info('EventCacheManager initialized', {
+      maxEvents: this.defaultConfig.maxEvents,
+      maxAgeMs: this.defaultConfig.maxAgeMs,
+      globalMemoryLimitMB: this.defaultConfig.globalMemoryLimitMB ?? 500,
+      compressionEnabled: this.defaultConfig.compressionConfig?.enabled ?? false,
+      diskSpilloverEnabled: this.defaultConfig.diskSpilloverConfig?.enabled ?? false,
+    });
+
+    // Start background cleanup timer if maxAge is configured
+    if (this.defaultConfig.maxAgeMs && this.defaultConfig.maxAgeMs > 0) {
+      this.startCleanupTimer();
+    }
+
+    // Start memory monitoring
+    this.startMemoryMonitoring();
+
+    // Start compression if enabled
+    if (this.defaultConfig.compressionConfig?.enabled) {
+      this.startCompressionTimer();
+    }
+
+    // Disk spillover will initialize itself when needed
+    
+    // If adapter provided, attach immediately
+    if (adapter) {
+      this.attachToAdapter(adapter);
+    }
+  }
+
+  /**
+   * Initialize default configurations
+   */
+  private initializeDefaultConfigs(): void {
     // Apply default compression config
     this.defaultConfig.compressionConfig ??= {
       enabled: false,
@@ -238,34 +274,6 @@ export class EventCacheManager extends EventEmitter {
       thresholdMB: 400, // Start spillover at 400MB
       maxFileSizeMB: 50,
     };
-
-    logger.info('EventCacheManager initialized', {
-      maxEvents: this.defaultConfig.maxEvents,
-      maxAgeMs: this.defaultConfig.maxAgeMs,
-      globalMemoryLimitMB: this.defaultConfig.globalMemoryLimitMB ?? 500,
-      compressionEnabled: this.defaultConfig.compressionConfig.enabled,
-      diskSpilloverEnabled: this.defaultConfig.diskSpilloverConfig.enabled,
-    });
-
-    // Start background cleanup timer if maxAge is configured
-    if (this.defaultConfig.maxAgeMs && this.defaultConfig.maxAgeMs > 0) {
-      this.startCleanupTimer();
-    }
-
-    // Start memory monitoring
-    this.startMemoryMonitoring();
-
-    // Start compression if enabled
-    if (this.defaultConfig.compressionConfig.enabled) {
-      this.startCompressionTimer();
-    }
-
-    // Disk spillover will initialize itself when needed
-    
-    // If adapter provided, attach immediately
-    if (adapter) {
-      this.attachToAdapter(adapter);
-    }
   }
 
   /**
@@ -1454,7 +1462,7 @@ export class EventCacheManager extends EventEmitter {
 
       return success;
     } catch (error) {
-      await this.handleError(error as Error, `spillToDisk groupId:${groupId}`);
+      this.handleError(error as Error, `spillToDisk groupId:${groupId}`);
       return false;
     }
   }
@@ -1474,7 +1482,7 @@ export class EventCacheManager extends EventEmitter {
     try {
       return await this.diskSpillover.loadFromDisk(groupId, startTime, endTime);
     } catch (error) {
-      await this.handleError(error as Error, `loadFromDisk groupId:${groupId}`);
+      this.handleError(error as Error, `loadFromDisk groupId:${groupId}`);
       return [];
     }
   }
@@ -1535,7 +1543,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Handle errors with recovery strategies
    */
-  private async handleError(error: Error, context: string): Promise<void> {
+  private handleError(error: Error, context: string): void {
     logger.error(`Event cache error in ${context}`, { error });
     
     // Track error
@@ -1565,10 +1573,10 @@ export class EventCacheManager extends EventEmitter {
     } else if (error.message.includes('memory') || error.message.includes('ENOMEM')) {
       // Memory pressure - emergency eviction
       logger.warn('Memory error detected, triggering emergency eviction');
-      await this.emergencyEviction();
+      this.emergencyEviction();
     } else if (error.message.includes('corrupt') || error.message.includes('invalid')) {
       // Corruption detected - clear affected group if identifiable
-      const groupMatch = context.match(/groupId:(\S+)/);
+      const groupMatch = /groupId:(\S+)/.exec(context);
       if (groupMatch?.[1]) {
         logger.warn('Corruption detected, clearing affected group', { groupId: groupMatch[1] });
         this.clearGroup(groupMatch[1]);
@@ -1579,7 +1587,7 @@ export class EventCacheManager extends EventEmitter {
   /**
    * Emergency eviction - remove 50% of events across all groups
    */
-  private async emergencyEviction(): Promise<void> {
+  private emergencyEviction(): void {
     logger.warn('Starting emergency eviction - removing 50% of events');
     
     const bufferInfo = this.getBufferInfo();
