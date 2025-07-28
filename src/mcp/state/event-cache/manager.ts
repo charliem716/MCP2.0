@@ -195,7 +195,7 @@ export class EventCacheManager extends EventEmitter {
     super();
     
     // Validate configuration (skip if explicitly requested or in test environment)
-    const shouldValidate = !this.defaultConfig.skipValidation && process.env.NODE_ENV !== 'test';
+    const shouldValidate = !this.defaultConfig.skipValidation && process.env['NODE_ENV'] !== 'test';
     if (shouldValidate) {
       const validation = validateEventCacheConfig(this.defaultConfig);
       if (!validation.valid) {
