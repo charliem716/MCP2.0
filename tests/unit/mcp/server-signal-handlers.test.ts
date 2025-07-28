@@ -37,6 +37,9 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     mockProcess.listenerCount =
       EventEmitter.prototype.listenerCount.bind(mockProcess);
     
+    // Add mock env
+    mockProcess.env = { NODE_ENV: 'test' };
+    
     // Add mock stdin/stdout/stderr
     mockProcess.stdin = { 
       on: jest.fn(),

@@ -175,7 +175,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   private buildSystemHealth(result: QSysStatusGetResponse): QSysCoreStatus['systemHealth'] {
     const record = result as unknown as Record<string, unknown>;
     return {
-      status: String(result.Status.String),
+      status: result.Status.String ? String(result.Status.String) : 'unknown',
       temperature: Number(record['temperature'] ?? record['Temperature'] ?? 0),
       fanSpeed: Number(record['fanSpeed'] ?? record['FanSpeed'] ?? 0),
       powerSupplyStatus: String('unknown'),
@@ -201,10 +201,13 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
    */
   private buildNetworkInfo(result: QSysStatusGetResponse): QSysCoreStatus['networkInfo'] {
     const record = result as unknown as Record<string, unknown>;
+    const lanIp = this.getNestedValue(result, 'Network.LAN_A.IP');
+    const gateway = this.getNestedValue(result, 'Network.LAN_A.Gateway');
+    
     return {
-      ipAddress: String(this.getNestedValue(result, 'Network.LAN_A.IP')) || String(record['ipAddress']) || 'Unknown',
-      macAddress: String(record['macAddress']) || 'Unknown',
-      gateway: String(this.getNestedValue(result, 'Network.LAN_A.Gateway')) || String(record['gateway']) || 'Unknown',
+      ipAddress: lanIp ? String(lanIp) : (record['ipAddress'] ? String(record['ipAddress']) : 'Unknown'),
+      macAddress: record['macAddress'] ? String(record['macAddress']) : 'Unknown',
+      gateway: gateway ? String(gateway) : (record['gateway'] ? String(record['gateway']) : 'Unknown'),
       dnsServers: [] as string[],
       ntpServer: String('Unknown'),
       networkMode: String('Unknown'),

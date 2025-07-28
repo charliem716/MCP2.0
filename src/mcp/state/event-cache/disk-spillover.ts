@@ -229,4 +229,25 @@ export class DiskSpilloverManager {
       return 0;
     }
   }
+
+  /**
+   * Get disk spillover usage statistics
+   */
+  async getUsageStats(): Promise<number> {
+    try {
+      const stats = await this.getSpilloverStats();
+      return stats.totalSizeMB;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  /**
+   * Get disk spillover usage statistics (sync version for monitoring)
+   */
+  getUsageStatsSync(): number {
+    // Return a cached value or 0
+    // In a real implementation, this could maintain a cached value updated periodically
+    return 0;
+  }
 }

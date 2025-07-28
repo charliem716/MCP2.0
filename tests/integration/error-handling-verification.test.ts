@@ -90,14 +90,14 @@ describe('BUG-043: Error Handling Consistency', () => {
       const executor = new ChangeGroupExecutor(mockClient as any, eventEmitter);
       
       // Missing ID
-      await expect(
-        executor.validateChangeGroup({ controls: [] } as any)
-      ).rejects.toThrow(ValidationError);
+      expect(() => {
+        executor.validateChangeGroup({ controls: [] } as any);
+      }).toThrow(ValidationError);
       
       // Missing controls
-      await expect(
-        executor.validateChangeGroup({ id: 'test' } as any)
-      ).rejects.toThrow(ValidationError);
+      expect(() => {
+        executor.validateChangeGroup({ id: 'test' } as any);
+      }).toThrow(ValidationError);
     });
   });
 

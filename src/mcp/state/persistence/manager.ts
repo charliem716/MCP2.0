@@ -139,6 +139,9 @@ export class StatePersistenceManager {
    */
   async loadState(): Promise<Map<string, ControlState> | null> {
     const startTime = Date.now();
+    
+    // Count all load attempts
+    this.stats.totalLoads++;
 
     try {
       logger.debug('Loading state');
@@ -147,6 +150,8 @@ export class StatePersistenceManager {
       const exists = await this.fileOps.fileExists(this.config.filePath);
       if (!exists) {
         logger.info('No persisted state found');
+        // Don't count as error - just no file
+        this.stats.totalLoads--; // Undo the increment since this isn't really a load attempt
         return null;
       }
 
@@ -156,14 +161,18 @@ export class StatePersistenceManager {
       // Validate state
       this.validatePersistedState(state);
 
-      // Convert to Map
+      // Convert to Map with timestamp conversion
       const controls = new Map<string, ControlState>();
       for (const [key, value] of Object.entries(state.controls)) {
-        controls.set(key, value);
+        // Convert timestamp string back to Date
+        const control = {
+          ...value,
+          timestamp: new Date(value.timestamp)
+        };
+        controls.set(key, control);
       }
 
-      // Update stats
-      this.stats.totalLoads++;
+      // Update stats (totalLoads already incremented at start)
       this.stats.lastLoadTime = new Date();
       this.stats.fileSizeBytes = await this.fileOps.getFileSize(
         this.config.filePath

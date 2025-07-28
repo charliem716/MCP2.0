@@ -529,7 +529,19 @@ export class QRWCClientAdapter
     
     const groupId = params['Id'] as string;
     const controlsParam = params['Controls'];
-    const controls = Array.isArray(controlsParam) ? controlsParam as string[] : [];
+    let controls: string[] = [];
+    
+    // Handle both string array and object array formats
+    if (Array.isArray(controlsParam)) {
+      controls = controlsParam.map(control => {
+        if (typeof control === 'string') {
+          return control;
+        } else if (typeof control === 'object' && control !== null && 'Name' in control) {
+          return control.Name as string;
+        }
+        return '';
+      }).filter(name => name.length > 0);
+    }
     
     // Check if creating a new group with empty controls (from CreateChangeGroupTool)
     const isCreatingNewGroup = controls.length === 0;

@@ -12,10 +12,10 @@ function isControlState(value: unknown): value is ControlState {
   const state = value as Record<string, unknown>;
   return (
     typeof state['name'] === 'string' &&
-    typeof state['type'] === 'string' &&
     'value' in state &&
-    typeof state['string'] === 'string' &&
-    typeof state['position'] === 'number'
+    (typeof state['timestamp'] === 'string' || state['timestamp'] instanceof Date) &&
+    typeof state['source'] === 'string' &&
+    ['qsys', 'cache', 'user'].includes(state['source'])
   );
 }
 

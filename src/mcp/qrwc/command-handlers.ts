@@ -63,8 +63,8 @@ export function handleGetComponents(
 
     return {
       Name: name,
-      Type: component.state.Type,
-      Properties: component.state.Properties,
+      Type: component.state?.Type || 'Unknown',
+      Properties: component.state?.Properties || [],
     };
   });
 
