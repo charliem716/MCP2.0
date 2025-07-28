@@ -15,7 +15,7 @@ function isControlState(value: unknown): value is ControlState {
     'value' in state &&
     (typeof state['timestamp'] === 'string' || state['timestamp'] instanceof Date) &&
     typeof state['source'] === 'string' &&
-    ['qsys', 'cache', 'user'].includes(state['source'] as string)
+    ['qsys', 'cache', 'user'].includes(state['source'])
   );
 }
 

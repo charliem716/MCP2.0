@@ -2063,7 +2063,8 @@ export class EventCacheManager extends EventEmitter {
       }
     }
     
-    if (totalOriginal === 0) return 0;
+    // Return -1 when no compression data is available (not 0 which means no compression achieved)
+    if (totalOriginal === 0) return -1;
     
     // Return compression ratio as percentage
     return Math.round((totalCompressed / totalOriginal) * 100);
