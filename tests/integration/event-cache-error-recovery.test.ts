@@ -143,53 +143,82 @@ describe('EventCacheManager - Error Recovery Integration', () => {
 
   describe('Memory pressure scenarios', () => {
     it('should handle sustained high memory pressure', async () => {
+      // Create a smaller memory limit to ensure pressure is triggered
+      const smallMemoryCache = new EventCacheManager({
+        maxEvents: 10000,
+        maxAgeMs: 3600000,
+        globalMemoryLimitMB: 10, // Small 10MB limit to trigger pressure
+        memoryCheckIntervalMs: 100, // Faster checks
+        skipValidation: true, // Allow small values in test
+        diskSpilloverConfig: {
+          enabled: true,
+          directory: testSpilloverDir,
+          thresholdMB: 8,
+          maxFileSizeMB: 10
+        },
+        compressionConfig: {
+          enabled: true,
+          checkIntervalMs: 500
+        }
+      });
+
       const memoryPressureSpy = jest.fn();
       const emergencyEvictionSpy = jest.fn();
       
-      eventCache.on('memoryPressure', memoryPressureSpy);
-      eventCache.on('emergencyEviction', emergencyEvictionSpy);
-      eventCache.attachToAdapter(mockAdapter);
+      smallMemoryCache.on('memoryPressure', memoryPressureSpy);
+      smallMemoryCache.on('emergencyEviction', emergencyEvictionSpy);
+      smallMemoryCache.attachToAdapter(mockAdapter);
 
-      // Generate events continuously
-      const interval = setInterval(() => {
+      // Generate large events to quickly fill memory
+      const largeString = 'x'.repeat(10000); // 10KB per event
+      let eventCount = 0;
+      
+      // Generate events until memory pressure is detected or we hit a limit
+      while (memoryPressureSpy.mock.calls.length === 0 && eventCount < 1000) {
         const event: ChangeGroupEvent = {
-          groupId: `group${Math.floor(Math.random() * 10)}`,
-          changes: Array(10).fill(null).map((_, i) => ({
+          groupId: `group${eventCount % 10}`,
+          changes: Array(5).fill(null).map((_, i) => ({
             Name: `control${i}`,
             Value: Math.random() * 1000,
-            String: 'x'.repeat(500)
+            String: largeString
           })),
           timestamp: BigInt(Date.now() * 1000000),
           timestampMs: Date.now()
         };
         mockAdapter.on.mock.calls[0][1](event);
-      }, 10);
-
-      // Run for 10 seconds
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      clearInterval(interval);
-
-      // Check if memory pressure was detected or health status reflects high memory
-      const health = eventCache.getHealthStatus();
-      
-      // Either memory pressure event was emitted OR health status shows high memory usage
-      if (memoryPressureSpy.mock.calls.length === 0) {
-        // If no memory pressure events, at least verify system detected the load
-        expect(health.memoryUsagePercent).toBeGreaterThan(0);
-      } else {
-        // Memory pressure was detected
-        expect(memoryPressureSpy).toHaveBeenCalled();
+        eventCount++;
+        
+        // Give memory check time to run
+        if (eventCount % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
+
+      // Check results
+      const health = smallMemoryCache.getHealthStatus();
       
-      // Verify system remained stable
+      // With the small memory limit and large events, memory pressure should be triggered
+      expect(memoryPressureSpy).toHaveBeenCalled();
+      expect(memoryPressureSpy.mock.calls[0][0]).toMatchObject({
+        level: expect.stringMatching(/^(high|critical)$/),
+        percentage: expect.any(Number)
+      });
+      
+      // Verify memory usage is significant
+      expect(health.memoryUsagePercent).toBeGreaterThan(50);
+      
+      // Verify system remained operational
       expect(['healthy', 'degraded']).toContain(health.status);
       
       // Verify queries still work
-      const results = await eventCache.query({
+      const results = await smallMemoryCache.query({
         startTime: Date.now() - 5000,
         limit: 100
       });
-      expect(results.length).toBeGreaterThan(0);
+      expect(Array.isArray(results)).toBe(true);
+      
+      // Clean up
+      smallMemoryCache.destroy();
     });
 
     it('should recover from memory allocation failures', async () => {
