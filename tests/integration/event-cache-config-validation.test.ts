@@ -8,16 +8,26 @@ import { MockQRWCAdapter } from '../../src/mcp/state/event-cache/test-helpers';
 describe('Event Cache Config Validation Integration', () => {
   let tempDir: string;
   let adapter: MockQRWCAdapter;
+  let originalNodeEnv: string | undefined;
 
   beforeEach(async () => {
     // Create a temporary directory for testing
     tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'event-cache-test-'));
     adapter = new MockQRWCAdapter();
+    // Store original NODE_ENV and set to production to enable validation
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
   });
 
   afterEach(async () => {
     // Cleanup temp directory
     await fs.promises.rm(tempDir, { recursive: true, force: true });
+    // Restore original NODE_ENV
+    if (originalNodeEnv !== undefined) {
+      process.env.NODE_ENV = originalNodeEnv;
+    } else {
+      delete process.env.NODE_ENV;
+    }
   });
 
   describe('Manager initialization with validation', () => {

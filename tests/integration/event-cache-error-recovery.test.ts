@@ -18,8 +18,13 @@ describe('EventCacheManager - Error Recovery Integration', () => {
     on: jest.fn(),
     removeListener: jest.fn()
   };
+  let originalNodeEnv: string | undefined;
 
   beforeEach(async () => {
+    // Store original NODE_ENV and set to production to enable validation
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    
     // Clean up test directory
     await fs.rm(testSpilloverDir, { recursive: true, force: true });
     
@@ -44,6 +49,12 @@ describe('EventCacheManager - Error Recovery Integration', () => {
   afterEach(async () => {
     eventCache.destroy();
     await fs.rm(testSpilloverDir, { recursive: true, force: true });
+    // Restore original NODE_ENV
+    if (originalNodeEnv !== undefined) {
+      process.env.NODE_ENV = originalNodeEnv;
+    } else {
+      delete process.env.NODE_ENV;
+    }
   });
 
   describe('Disk full recovery', () => {

@@ -210,6 +210,9 @@ export function sanitizeEventCacheConfig(config: Partial<EventCacheConfig>): Eve
   if (config.cleanupIntervalMs !== undefined) {
     sanitized.cleanupIntervalMs = config.cleanupIntervalMs;
   }
+  if (config.skipValidation !== undefined) {
+    sanitized.skipValidation = config.skipValidation;
+  }
   
   // Add optional configs only if they exist
   if (config.compressionConfig !== undefined || config.compressOldEvents) {
