@@ -88,7 +88,9 @@ describe('MCP Tools Integration Tests', () => {
       const controls = JSON.parse(controlsResult.content[0].text!);
       expect(controls).toHaveLength(2);
       expect(controls[0].name).toBe('gain');
+      expect(controls[0].component).toBe('MainGain');
       expect(controls[1].name).toBe('mute');
+      expect(controls[1].component).toBe('MainGain');
     });
   });
 
@@ -284,14 +286,18 @@ describe('MCP Tools Integration Tests', () => {
       // Step 1: Query system status
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
         result: {
+          Platform: 'Q-SYS Core',
+          Version: '1.0.0',
           DesignName: 'Conference Room A',
           Status: { Code: 0, String: 'OK' },
+          State: 'Active',
+          IsConnected: true
         },
       });
 
       const statusResult = await registry.callTool('query_core_status', {});
       const statusData = JSON.parse(statusResult.content[0].text!);
-      expect(statusData.DesignName).toBe('Conference Room A');
+      expect(statusData.coreInfo.designName).toBe('Conference Room A');
 
       // Step 2: Find all gain components
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
@@ -342,7 +348,16 @@ describe('MCP Tools Integration Tests', () => {
       mockQrwcClient.sendCommand
         .mockResolvedValueOnce({ result: [] }) // components
         .mockResolvedValueOnce({ result: [] }) // controls
-        .mockResolvedValueOnce({ result: { Status: { Code: 0 } } }); // status
+        .mockResolvedValueOnce({ 
+          result: { 
+            Platform: 'Q-SYS Core',
+            Version: '1.0.0',
+            DesignName: 'Test Design',
+            Status: { Code: 0, String: 'OK' },
+            State: 'Active',
+            IsConnected: true
+          } 
+        }); // status
 
       const [components, controls, status] = await Promise.all([
         registry.callTool('list_components', {}),

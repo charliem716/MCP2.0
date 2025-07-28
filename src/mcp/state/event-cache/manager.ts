@@ -28,6 +28,7 @@ import {
 import { CompressionEngine } from './compression.js';
 import { DiskSpilloverManager } from './disk-spillover.js';
 import { QueryCache } from './query-cache.js';
+import { validateEventCacheConfig, getConfigSummary } from './config-validator.js';
 
 /**
  * Cached event with full metadata
@@ -116,6 +117,21 @@ interface SpilloverFileData {
 }
 
 /**
+ * Health status of the event cache
+ */
+export interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  errorCount: number;
+  memoryUsagePercent: number;
+  issues: string[];
+  lastError?: {
+    message: string;
+    context: string;
+    timestamp: number;
+  };
+}
+
+/**
  * Configuration for event cache
  */
 export interface EventCacheConfig {
@@ -126,6 +142,7 @@ export interface EventCacheConfig {
   cleanupIntervalMs?: number;
   globalMemoryLimitMB?: number;
   memoryCheckIntervalMs?: number;
+  skipValidation?: boolean; // For test environments with minimal configs
   compressionConfig?: {
     enabled: boolean;
     checkIntervalMs?: number;
@@ -165,14 +182,37 @@ export class EventCacheManager extends EventEmitter {
   private adapter?: Pick<QRWCClientAdapter, 'on' | 'removeListener'>;
   private changeEventHandler?: (event: ChangeGroupEvent) => void;
   private queryCache: QueryCache;
+  private errorCount = 0;
+  private lastError?: { message: string; context: string; timestamp: number };
 
   constructor(
     private defaultConfig: EventCacheConfig = {
       maxEvents: 100000,
       maxAgeMs: 3600000, // 1 hour
-    }
+    },
+    adapter?: QRWCClientAdapter
   ) {
     super();
+    
+    // Validate configuration (skip if explicitly requested or in test environment)
+    const shouldValidate = !this.defaultConfig.skipValidation && process.env.NODE_ENV !== 'test';
+    if (shouldValidate) {
+      const validation = validateEventCacheConfig(this.defaultConfig);
+      if (!validation.valid) {
+        throw new Error(`Invalid configuration: ${validation.errors.join(', ')}`);
+      }
+      
+      // Log warnings if any
+      if (validation.warnings.length > 0) {
+        logger.warn('EventCacheConfig warnings', { warnings: validation.warnings });
+      }
+    }
+    
+    // Log configuration summary
+    logger.info('EventCache configuration', { 
+      summary: getConfigSummary(this.defaultConfig).split('\n')
+    });
+    
     this.buffers = new Map();
     this.lastValues = new Map();
     this.lastEventTimes = new Map();
@@ -183,7 +223,43 @@ export class EventCacheManager extends EventEmitter {
     this.globalMemoryLimitBytes =
       (this.defaultConfig.globalMemoryLimitMB ?? 500) * 1024 * 1024;
     this.queryCache = new QueryCache();
+    
+    // Initialize default configs
+    this.initializeDefaultConfigs();
 
+    logger.info('EventCacheManager initialized', {
+      maxEvents: this.defaultConfig.maxEvents,
+      maxAgeMs: this.defaultConfig.maxAgeMs,
+      globalMemoryLimitMB: this.defaultConfig.globalMemoryLimitMB ?? 500,
+      compressionEnabled: this.defaultConfig.compressionConfig?.enabled ?? false,
+      diskSpilloverEnabled: this.defaultConfig.diskSpilloverConfig?.enabled ?? false,
+    });
+
+    // Start background cleanup timer if maxAge is configured
+    if (this.defaultConfig.maxAgeMs && this.defaultConfig.maxAgeMs > 0) {
+      this.startCleanupTimer();
+    }
+
+    // Start memory monitoring
+    this.startMemoryMonitoring();
+
+    // Start compression if enabled
+    if (this.defaultConfig.compressionConfig?.enabled) {
+      this.startCompressionTimer();
+    }
+
+    // Disk spillover will initialize itself when needed
+    
+    // If adapter provided, attach immediately
+    if (adapter) {
+      this.attachToAdapter(adapter);
+    }
+  }
+
+  /**
+   * Initialize default configurations
+   */
+  private initializeDefaultConfigs(): void {
     // Apply default compression config
     this.defaultConfig.compressionConfig ??= {
       enabled: false,
@@ -202,29 +278,6 @@ export class EventCacheManager extends EventEmitter {
       thresholdMB: 400, // Start spillover at 400MB
       maxFileSizeMB: 50,
     };
-
-    logger.info('EventCacheManager initialized', {
-      maxEvents: this.defaultConfig.maxEvents,
-      maxAgeMs: this.defaultConfig.maxAgeMs,
-      globalMemoryLimitMB: this.defaultConfig.globalMemoryLimitMB ?? 500,
-      compressionEnabled: this.defaultConfig.compressionConfig.enabled,
-      diskSpilloverEnabled: this.defaultConfig.diskSpilloverConfig.enabled,
-    });
-
-    // Start background cleanup timer if maxAge is configured
-    if (this.defaultConfig.maxAgeMs && this.defaultConfig.maxAgeMs > 0) {
-      this.startCleanupTimer();
-    }
-
-    // Start memory monitoring
-    this.startMemoryMonitoring();
-
-    // Start compression if enabled
-    if (this.defaultConfig.compressionConfig.enabled) {
-      this.startCompressionTimer();
-    }
-
-    // Disk spillover will initialize itself when needed
   }
 
   /**
@@ -1400,17 +1453,22 @@ export class EventCacheManager extends EventEmitter {
       return false;
     }
 
-    const success = await this.diskSpillover.spillToDisk(groupId, events);
+    try {
+      const success = await this.diskSpillover.spillToDisk(groupId, events);
 
-    if (success) {
-      this.emit('diskSpillover', {
-        groupId,
-        eventCount: events.length,
-        sizeBytes: events.length * 100, // Rough estimate
-      });
+      if (success) {
+        this.emit('diskSpillover', {
+          groupId,
+          eventCount: events.length,
+          sizeBytes: events.length * 100, // Rough estimate
+        });
+      }
+
+      return success;
+    } catch (error) {
+      this.handleError(error as Error, `spillToDisk groupId:${groupId}`);
+      return false;
     }
-
-    return success;
   }
 
   /**
@@ -1425,7 +1483,12 @@ export class EventCacheManager extends EventEmitter {
       return [];
     }
 
-    return this.diskSpillover.loadFromDisk(groupId, startTime, endTime);
+    try {
+      return await this.diskSpillover.loadFromDisk(groupId, startTime, endTime);
+    } catch (error) {
+      this.handleError(error as Error, `loadFromDisk groupId:${groupId}`);
+      return [];
+    }
   }
 
   /**
@@ -1479,6 +1542,85 @@ export class EventCacheManager extends EventEmitter {
     const freed = this.performMemoryEviction(currentUsage);
 
     this.handleMemoryPressureResolution(currentUsage, freed);
+  }
+
+  /**
+   * Handle errors with recovery strategies
+   */
+  private handleError(error: Error, context: string): void {
+    logger.error(`Event cache error in ${context}`, { error });
+    
+    // Track error
+    this.errorCount++;
+    this.lastError = {
+      message: error.message,
+      context,
+      timestamp: Date.now()
+    };
+    
+    // Emit error event for monitoring
+    this.emit('error', { 
+      error, 
+      context, 
+      timestamp: Date.now(),
+      groupId: context.includes('groupId:') ? context.split('groupId:')[1]?.split(' ')[0] : undefined
+    });
+    
+    // Attempt recovery based on error type
+    if (error.message.includes('ENOSPC') || error.message.includes('disk full')) {
+      // Disk full - disable spillover
+      logger.warn('Disk full, disabling spillover');
+      if (this.defaultConfig.diskSpilloverConfig) {
+        this.defaultConfig.diskSpilloverConfig.enabled = false;
+      }
+      this.diskSpilloverActive = false;
+    } else if (error.message.includes('memory') || error.message.includes('ENOMEM')) {
+      // Memory pressure - emergency eviction
+      logger.warn('Memory error detected, triggering emergency eviction');
+      this.emergencyEviction();
+    } else if (error.message.includes('corrupt') || error.message.includes('invalid')) {
+      // Corruption detected - clear affected group if identifiable
+      const groupMatch = /groupId:(\S+)/.exec(context);
+      if (groupMatch?.[1]) {
+        logger.warn('Corruption detected, clearing affected group', { groupId: groupMatch[1] });
+        this.clearGroup(groupMatch[1]);
+      }
+    }
+  }
+
+  /**
+   * Emergency eviction - remove 50% of events across all groups
+   */
+  private emergencyEviction(): void {
+    logger.warn('Starting emergency eviction - removing 50% of events');
+    
+    const bufferInfo = this.getBufferInfo();
+    let totalEvicted = 0;
+    
+    for (const info of bufferInfo) {
+      const buffer = this.buffers.get(info.groupId);
+      if (!buffer) continue;
+      
+      const currentSize = buffer.getSize();
+      const toEvict = Math.floor(currentSize * 0.5);
+      
+      if (toEvict > 0) {
+        const evicted = buffer.forceEvict(toEvict);
+        totalEvicted += evicted;
+        
+        logger.info('Emergency eviction performed', {
+          groupId: info.groupId,
+          evicted,
+          remaining: buffer.getSize(),
+          priority: info.priority
+        });
+      }
+    }
+    
+    this.emit('emergencyEviction', {
+      totalEvicted,
+      timestamp: Date.now()
+    });
   }
 
   /**
@@ -1766,5 +1908,63 @@ export class EventCacheManager extends EventEmitter {
       percentage,
       groupStats,
     };
+  }
+
+  /**
+   * Get health status of the event cache
+   */
+  getHealthStatus(): HealthStatus {
+    const memoryStats = this.getMemoryStats();
+    const issues: string[] = [];
+    
+    // Check memory usage
+    if (memoryStats.percentage >= 90) {
+      issues.push(`Critical memory usage: ${memoryStats.percentage.toFixed(1)}%`);
+    } else if (memoryStats.percentage >= 80) {
+      issues.push(`High memory usage: ${memoryStats.percentage.toFixed(1)}%`);
+    }
+    
+    // Check disk spillover
+    if (this.defaultConfig.diskSpilloverConfig?.enabled && this.diskSpilloverActive) {
+      issues.push('Disk spillover is active');
+    }
+    
+    // Check error count
+    if (this.errorCount > 10) {
+      issues.push(`High error count: ${this.errorCount} errors`);
+    }
+    
+    // Check compression
+    if (this.defaultConfig.compressionConfig?.enabled) {
+      const compressionActive = Array.from(this.buffers.keys()).some(
+        groupId => this.compressionEngine.getStats(groupId) !== undefined
+      );
+      if (compressionActive) {
+        issues.push('Compression is active on some groups');
+      }
+    }
+    
+    // Determine overall status
+    let status: 'healthy' | 'degraded' | 'unhealthy';
+    if (memoryStats.percentage >= 90 || this.errorCount > 50) {
+      status = 'unhealthy';
+    } else if (memoryStats.percentage >= 80 || this.errorCount > 10 || issues.length > 0) {
+      status = 'degraded';
+    } else {
+      status = 'healthy';
+    }
+    
+    const result: HealthStatus = {
+      status,
+      errorCount: this.errorCount,
+      memoryUsagePercent: memoryStats.percentage,
+      issues
+    };
+    
+    if (this.lastError) {
+      result.lastError = this.lastError;
+    }
+    
+    return result;
   }
 }

@@ -112,39 +112,132 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   }
 
   /**
+   * Helper to safely access nested properties
+   */
+  private getNestedValue(obj: unknown, path: string): unknown {
+    if (!obj || typeof obj !== 'object') return undefined;
+    const parts = path.split('.');
+    let current: unknown = obj;
+    for (const part of parts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part];
+      } else {
+        return undefined;
+      }
+    }
+    return current;
+  }
+
+  /**
+   * Extract and validate the status response
+   */
+  private extractStatusResult(response: unknown): QSysStatusGetResponse {
+    if (isQSysApiResponse<QSysStatusGetResponse>(response) && response.result) {
+      return response.result;
+    } else if (typeof response === 'object' && response !== null && 'Platform' in response) {
+      return response as QSysStatusGetResponse;
+    } else {
+      throw new MCPError('Invalid status response format', MCPErrorCode.TOOL_EXECUTION_ERROR);
+    }
+  }
+
+  /**
+   * Build core information from status response
+   */
+  private buildCoreInfo(result: QSysStatusGetResponse): QSysCoreStatus['coreInfo'] {
+    const record = result as unknown as Record<string, unknown>;
+    return {
+      name: String(result.Platform),
+      version: String(result.Version ?? 'Unknown'),
+      model: String(result.Platform),
+      platform: String(result.Platform),
+      serialNumber: String(record['SerialNumber']) || 'Unknown',
+      firmwareVersion: String(record['FirmwareVersion']) || String(result.Version) || 'Unknown',
+      buildTime: String('Unknown'),
+      designName: String(result.DesignName),
+    };
+  }
+
+  /**
+   * Build connection status from response
+   */
+  private buildConnectionStatus(result: QSysStatusGetResponse): QSysCoreStatus['connectionStatus'] {
+    return {
+      connected: Boolean(result.IsConnected ?? true),
+      uptime: String('Unknown'),
+      lastSeen: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Build system health information
+   */
+  private buildSystemHealth(result: QSysStatusGetResponse): QSysCoreStatus['systemHealth'] {
+    const record = result as unknown as Record<string, unknown>;
+    return {
+      status: String(result.Status.String),
+      temperature: Number(record['temperature'] ?? record['Temperature'] ?? 0),
+      fanSpeed: Number(record['fanSpeed'] ?? record['FanSpeed'] ?? 0),
+      powerSupplyStatus: String('unknown'),
+    };
+  }
+
+  /**
+   * Build design information
+   */
+  private buildDesignInfo(result: QSysStatusGetResponse): QSysCoreStatus['designInfo'] {
+    return {
+      designCompiled: Boolean(result.State === 'Active'),
+      compileTime: String('Unknown'),
+      processingLoad: Number(this.getNestedValue(result, 'designInfo.processingLoad') ?? 0),
+      componentCount: Number(this.getNestedValue(result, 'designInfo.componentsCount') ?? 0),
+      snapshotCount: Number(0),
+      activeServices: [] as string[],
+    };
+  }
+
+  /**
+   * Build network information
+   */
+  private buildNetworkInfo(result: QSysStatusGetResponse): QSysCoreStatus['networkInfo'] {
+    const record = result as unknown as Record<string, unknown>;
+    return {
+      ipAddress: String(this.getNestedValue(result, 'Network.LAN_A.IP')) || String(record['ipAddress']) || 'Unknown',
+      macAddress: String(record['macAddress']) || 'Unknown',
+      gateway: String(this.getNestedValue(result, 'Network.LAN_A.Gateway')) || String(record['gateway']) || 'Unknown',
+      dnsServers: [] as string[],
+      ntpServer: String('Unknown'),
+      networkMode: String('Unknown'),
+    };
+  }
+
+  /**
+   * Build performance metrics
+   */
+  private buildPerformanceMetrics(result: QSysStatusGetResponse): QSysCoreStatus['performanceMetrics'] {
+    const record = result as unknown as Record<string, unknown>;
+    return {
+      cpuUsage: Number(this.getNestedValue(result, 'Performance.CPU') ?? record['cpuUsage'] ?? record['CPUUsage'] ?? 0),
+      memoryUsage: Number(this.getNestedValue(result, 'Performance.Memory') ?? record['memoryUsage'] ?? record['MemoryUsage'] ?? 0),
+      memoryUsedMB: Number(0),
+      memoryTotalMB: Number(0),
+      audioLatency: Number(0),
+      networkLatency: Number(0),
+      fanSpeed: Number(record['fanSpeed'] ?? record['FanSpeed'] ?? 0),
+    };
+  }
+
+  /**
    * Parse the QRWC response for status information
-  // eslint-disable-next-line complexity -- Parse complex Q-SYS status response structure   */
+   */
   private parseStatusResponse(
     response: unknown,
     params: QueryCoreStatusParams
   ): QSysCoreStatus {
     this.logger.debug('Parsing status response', { response });
 
-    // Helper to safely access nested properties
-    const getNestedValue = (obj: unknown, path: string): unknown => {
-      if (!obj || typeof obj !== 'object') return undefined;
-      const parts = path.split('.');
-      let current: unknown = obj;
-      for (const part of parts) {
-        if (current && typeof current === 'object' && part in current) {
-          current = (current as Record<string, unknown>)[part];
-        } else {
-          return undefined;
-        }
-      }
-      return current;
-    };
-
-    // Extract status information from response
-    let result: QSysStatusGetResponse;
-    
-    if (isQSysApiResponse<QSysStatusGetResponse>(response) && response.result) {
-      result = response.result;
-    } else if (typeof response === 'object' && response !== null && 'Platform' in response) {
-      result = response as QSysStatusGetResponse;
-    } else {
-      throw new MCPError('Invalid status response format', MCPErrorCode.TOOL_EXECUTION_ERROR);
-    }
+    // Extract and validate the result
+    const result = this.extractStatusResult(response);
 
     // Check if this is fallback data from adapter
     if (result.Platform.includes('StatusGet not supported')) {
@@ -155,54 +248,14 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       );
     }
 
-    // Build comprehensive status object
+    // Build comprehensive status object using helper methods
     return {
-      coreInfo: {
-        name: String(result.Platform),
-        version: String(result.Version ?? 'Unknown'),
-        model: String(result.Platform),
-        platform: String(result.Platform),
-        serialNumber: String((result as unknown as Record<string, unknown>)['SerialNumber']) || 'Unknown',
-        firmwareVersion: String((result as unknown as Record<string, unknown>)['FirmwareVersion']) || String(result.Version) || 'Unknown',
-        buildTime: String('Unknown'),
-        designName: String(result.DesignName),
-      },
-      connectionStatus: {
-        connected: Boolean(result.IsConnected ?? true),
-        uptime: String('Unknown'),
-        lastSeen: new Date().toISOString(),
-      },
-      systemHealth: {
-        status: String(result.Status.String),
-        temperature: Number((result as unknown as Record<string, unknown>)['temperature'] ?? (result as unknown as Record<string, unknown>)['Temperature'] ?? 0),
-        fanSpeed: Number((result as unknown as Record<string, unknown>)['fanSpeed'] ?? (result as unknown as Record<string, unknown>)['FanSpeed'] ?? 0),
-        powerSupplyStatus: String('unknown'),
-      },
-      designInfo: {
-        designCompiled: Boolean(result.State === 'Active'),
-        compileTime: String('Unknown'),
-        processingLoad: Number(getNestedValue(result, 'designInfo.processingLoad') ?? 0),
-        componentCount: Number(getNestedValue(result, 'designInfo.componentsCount') ?? 0),
-        snapshotCount: Number(0),
-        activeServices: [] as string[],
-      },
-      networkInfo: {
-        ipAddress: String(getNestedValue(result, 'Network.LAN_A.IP')) || String((result as unknown as Record<string, unknown>)['ipAddress']) || 'Unknown',
-        macAddress: String((result as unknown as Record<string, unknown>)['macAddress']) || 'Unknown',
-        gateway: String(getNestedValue(result, 'Network.LAN_A.Gateway')) || String((result as unknown as Record<string, unknown>)['gateway']) || 'Unknown',
-        dnsServers: [] as string[],
-        ntpServer: String('Unknown'),
-        networkMode: String('Unknown'),
-      },
-      performanceMetrics: {
-        cpuUsage: Number(getNestedValue(result, 'Performance.CPU') ?? (result as unknown as Record<string, unknown>)['cpuUsage'] ?? (result as unknown as Record<string, unknown>)['CPUUsage'] ?? 0),
-        memoryUsage: Number(getNestedValue(result, 'Performance.Memory') ?? (result as unknown as Record<string, unknown>)['memoryUsage'] ?? (result as unknown as Record<string, unknown>)['MemoryUsage'] ?? 0),
-        memoryUsedMB: Number(0),
-        memoryTotalMB: Number(0),
-        audioLatency: Number(0),
-        networkLatency: Number(0),
-        fanSpeed: Number((result as unknown as Record<string, unknown>)['fanSpeed'] ?? (result as unknown as Record<string, unknown>)['FanSpeed'] ?? 0),
-      },
+      coreInfo: this.buildCoreInfo(result),
+      connectionStatus: this.buildConnectionStatus(result),
+      systemHealth: this.buildSystemHealth(result),
+      designInfo: this.buildDesignInfo(result),
+      networkInfo: this.buildNetworkInfo(result),
+      performanceMetrics: this.buildPerformanceMetrics(result),
       // Additional fields from Q-SYS response
       Platform: String(result.Platform),
       Version: String(result.Version ?? 'Unknown'),
@@ -227,37 +280,20 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     let result = `Q-SYS Core Status\n\n`;
     
     // Core info
-    if (status.coreInfo) {
-      result += `Design: ${status.coreInfo.designName}\n`;
-      result += `Platform: ${status.coreInfo.platform}\n`;
-      if (status.coreInfo.model) {
-        result += `Model: ${status.coreInfo.model}\n`;
-      }
-    }
-    
-    // Basic info from direct fields
-    if (status.DesignName) {
-      result += `Design Name: ${status.DesignName}\n`;
-    }
-    if (status.Platform) {
-      result += `Platform: ${status.Platform}\n`;
+    result += `Design: ${status.coreInfo.designName}\n`;
+    result += `Platform: ${status.coreInfo.platform}\n`;
+    if (status.coreInfo.model) {
+      result += `Model: ${status.coreInfo.model}\n`;
     }
     
     // Connection status
-    if (status.connectionStatus) {
-      result += `\nConnection: ${status.connectionStatus.connected ? 'Connected' : 'Disconnected'}\n`;
-    }
+    result += `\nConnection: ${status.connectionStatus.connected ? 'Connected' : 'Disconnected'}\n`;
     
     // System health
-    if (status.systemHealth) {
-      result += `\nSystem Status: ${status.systemHealth.status}\n`;
-    }
-    if (status.Status) {
-      result += `Status: ${status.Status.Name} (Code: ${status.Status.Code})\n`;
-    }
+    result += `\nSystem Status: ${status.systemHealth.status}\n`;
     
     // Network info if requested
-    if (params.includeNetworkInfo && status.networkInfo) {
+    if (params.includeNetworkInfo) {
       result += '\nNetwork Information:\n';
       if (status.networkInfo.ipAddress && status.networkInfo.ipAddress !== 'Unknown') {
         result += `  IP Address: ${status.networkInfo.ipAddress}\n`;
@@ -265,7 +301,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     }
     
     // Performance metrics if requested
-    if (params.includePerformance && status.performanceMetrics) {
+    if (params.includePerformance) {
       result += '\nPerformance:\n';
       if (status.performanceMetrics.cpuUsage > 0) {
         result += `  CPU Usage: ${status.performanceMetrics.cpuUsage}%\n`;

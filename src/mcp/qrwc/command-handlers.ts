@@ -183,129 +183,147 @@ export function handleControlGet(
 }
 
 /**
+ * Parse control name into component and control parts
+ */
+function parseControlName(name: string): { componentName: string; controlName: string } | null {
+  const [componentName, controlName] = name.split('.');
+  if (!componentName || !controlName) {
+    return null;
+  }
+  return { componentName, controlName };
+}
+
+/**
+ * Extract control name from control object
+ */
+function extractControlName(controlObj: unknown): string {
+  if (typeof controlObj !== 'object' || !controlObj) {
+    return '';
+  }
+  const obj = controlObj as Record<string, unknown>;
+  return obj['Name'] != null ? valueToString(obj['Name']) : 
+         obj['name'] != null ? valueToString(obj['name']) : '';
+}
+
+/**
+ * Convert raw value to appropriate type for Q-SYS
+ */
+function convertControlValue(rawValue: unknown): number | string | boolean {
+  if (typeof rawValue === 'number' || typeof rawValue === 'string' || typeof rawValue === 'boolean') {
+    return rawValue;
+  } else if (rawValue === null || rawValue === undefined) {
+    return 0; // Default value
+  } else {
+    // Convert complex types to string
+    return valueToString(rawValue);
+  }
+}
+
+/**
+ * Extract and validate control update parameters
+ */
+function extractControlUpdateParams(
+  controlObj: unknown,
+  qrwc: NonNullable<ReturnType<OfficialQRWCClient['getQrwc']>>
+): { name: string; componentName: string; controlName: string; newValue: number | string | boolean; error?: string } | null {
+  // Extract control name
+  const name = extractControlName(controlObj);
+  if (!name) {
+    logger.error('Failed to set control value', { control: '', error: new Error('Invalid control object') });
+    return null;
+  }
+
+  // Parse control name
+  const parsed = parseControlName(name);
+  if (!parsed) {
+    return { name, componentName: '', controlName: '', newValue: 0, error: `Invalid control name format: ${name}` };
+  }
+
+  // Check component exists
+  const component = qrwc.components[parsed.componentName];
+  if (!component) {
+    return { name, ...parsed, newValue: 0, error: `Component not found: ${parsed.componentName}` };
+  }
+
+  // Extract and convert value
+  const obj = controlObj as Record<string, unknown>;
+  const newValue = convertControlValue(obj['Value']);
+
+  return { name, ...parsed, newValue };
+}
+
+/**
+ * Process a single control update
+ */
+async function processSingleControl(
+  controlObj: unknown,
+  client: OfficialQRWCClient,
+  qrwc: NonNullable<ReturnType<OfficialQRWCClient['getQrwc']>>
+): Promise<{ Name: string; Result: string; Error?: string }> {
+  const params = extractControlUpdateParams(controlObj, qrwc);
+  if (!params) {
+    return { Name: '', Result: 'Error', Error: 'Invalid control object' };
+  }
+  if (params.error) {
+    return { Name: params.name, Result: 'Error', Error: params.error };
+  }
+
+  const { name, componentName, controlName, newValue } = params;
+  const component = qrwc.components[componentName];
+  if (!component) {
+    return { Name: name, Result: 'Error', Error: `Component '${componentName}' not found` };
+  }
+
+  // Validate control value
+  const controlInfo = component.controls[controlName];
+  const validation = validateControlValue(name, newValue, controlInfo);
+  if (!validation.valid) {
+    logger.error('Failed to set control value', { control: name, error: new Error(validation.error ?? 'Invalid value') });
+    return { Name: name, Result: 'Error', Error: validation.error ?? 'Invalid value' };
+  }
+
+  try {
+    // Update through official client
+    await client.setControlValue(componentName, controlName, newValue);
+    
+    // Update local state
+    const control = component.controls[controlName];
+    if (control && 'Value' in control) {
+      (control as { Value?: unknown }).Value = newValue;
+    }
+    
+    return { Name: name, Result: 'Success' };
+  } catch (error) {
+    logger.error('Failed to set control value', { control: name, error });
+    return { Name: name, Result: 'Error', Error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
  * Handle Control.Set command
  */
-// eslint-disable-next-line max-statements, complexity -- Complex operation handling multiple control updates with validation
 export async function handleControlSet(
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
 ): Promise<{ result: Array<{ Name: string; Result: string; Error?: string }> }> {
+  // Validate parameters
   const controlsParam = params?.['Controls'];
   if (!Array.isArray(controlsParam)) {
     throw new ValidationError('Controls array is required',
       [{ field: 'Controls', message: 'Must be an array', code: 'INVALID_TYPE' }]);
   }
-  const controls = controlsParam;
 
+  // Get QRWC instance
   const qrwc = client.getQrwc();
   if (!qrwc) {
     throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
+  // Process each control sequentially to maintain order and avoid race conditions
   const results: Array<{ Name: string; Result: string; Error?: string }> = [];
-
-  for (const controlObj of controls) {
-    // Initialize name variable to avoid ReferenceError in catch block (BUG-060 fix)
-    let name = '';
-    
-    try {
-      if (typeof controlObj !== 'object' || !controlObj) {
-        // For invalid control objects, add error result
-        results.push({
-          Name: '',
-          Result: 'Error',
-          Error: 'Invalid control object'
-        });
-        
-        // Log error with empty name
-        logger.error('Failed to set control value', {
-          control: '',
-          error: new Error('Invalid control object')
-        });
-        continue;
-      }
-
-      const obj = controlObj as Record<string, unknown>;
-      name = obj['Name'] != null ? valueToString(obj['Name']) : obj['name'] != null ? valueToString(obj['name']) : '';
-      const [componentName, controlName] = name.split('.');
-
-      if (!componentName || !controlName) {
-        results.push({
-          Name: name,
-          Result: 'Error',
-          Error: `Invalid control name format: ${name}`
-        });
-        continue;
-      }
-
-      const component = qrwc.components[componentName];
-      if (!component) {
-        results.push({
-          Name: name,
-          Result: 'Error',
-          Error: `Component not found: ${componentName}`
-        });
-        continue;
-      }
-
-      const rawValue = obj['Value'];
-      let newValue: number | string | boolean;
-      
-      // Ensure the value is of the correct type
-      if (typeof rawValue === 'number' || typeof rawValue === 'string' || typeof rawValue === 'boolean') {
-        newValue = rawValue;
-      } else if (rawValue === null || rawValue === undefined) {
-        newValue = 0; // Default value
-      } else {
-        // Convert complex types to string
-        newValue = valueToString(rawValue);
-      }
-      
-      // Get control info for validation
-      const controlInfo = component.controls[controlName];
-      const validation = validateControlValue(name, newValue, controlInfo);
-
-      if (!validation.valid) {
-        results.push({
-          Name: name,
-          Result: 'Error',
-          Error: validation.error ?? 'Invalid value'
-        });
-        
-        // Log error with control name
-        logger.error('Failed to set control value', {
-          control: name,
-          error: new Error(validation.error ?? 'Invalid value')
-        });
-        continue;
-      }
-
-      // Update through official client
-      await client.setControlValue(componentName, controlName, newValue);
-      
-      // Update local state
-      const control = component.controls[controlName];
-      if (control && 'Value' in control) {
-        (control as { Value?: unknown }).Value = newValue;
-      }
-      
-      results.push({
-        Name: name,
-        Result: 'Success'
-      });
-    } catch (error) {
-      // This catch block now has access to the name variable (BUG-060 fix)
-      logger.error('Failed to set control value', {
-        control: name, // No longer undefined
-        error
-      });
-      
-      results.push({
-        Name: name,
-        Result: 'Error',
-        Error: error instanceof Error ? error.message : String(error)
-      });
-    }
+  for (const controlObj of controlsParam) {
+    const result = await processSingleControl(controlObj, client, qrwc);
+    results.push(result);
   }
 
   return { result: results };
