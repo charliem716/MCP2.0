@@ -44,18 +44,30 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
       // Mock the QRC object with components
       const mockComponents = {
         'Main Mixer': {
+          state: {
+            Type: 'Component',
+            Properties: [],
+          },
           controls: {
             gain: { state: -10 },
             mute: { state: false },
           },
         },
         'Output Gain': {
+          state: {
+            Type: 'Component',
+            Properties: [],
+          },
           controls: {
             level: { state: 0 },
             mute: { state: true },
           },
         },
         'APM 1': {
+          state: {
+            Type: 'Component',
+            Properties: [],
+          },
           controls: {
             'input.1.gain': { state: -5 },
             'input.1.mute': { state: false },

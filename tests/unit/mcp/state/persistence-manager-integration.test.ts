@@ -78,6 +78,9 @@ describe('StatePersistenceManager Integration', () => {
 
   describe('Basic Operations', () => {
     it('should save and load state successfully', async () => {
+      // Use real timers for file operations
+      jest.useRealTimers();
+      
       const controls = new Map([
         ['control1', createTestState('control1', 42)],
         ['control2', createTestState('control2', 'ON')],
@@ -89,9 +92,17 @@ describe('StatePersistenceManager Integration', () => {
       // Verify file was created
       const fileExists = await fs.access(testFilePath).then(() => true).catch(() => false);
       expect(fileExists).toBe(true);
+      
+      // Read file content to debug
+      const fileContent = await fs.readFile(testFilePath, 'utf8');
+      console.log('File content after save:', fileContent);
 
       // Load state
       const loadedControls = await manager.loadState();
+      
+      // Debug: check stats to see if load was attempted
+      const statsBeforeAssert = manager.getStatistics();
+      console.log('Stats after load:', statsBeforeAssert);
 
       expect(loadedControls).not.toBeNull();
       expect(loadedControls?.size).toBe(2);
@@ -104,6 +115,9 @@ describe('StatePersistenceManager Integration', () => {
       expect(stats.totalLoads).toBe(1);
       expect(stats.saveErrors).toBe(0);
       expect(stats.loadErrors).toBe(0);
+      
+      // Restore fake timers
+      jest.useFakeTimers();
     });
 
     it('should return null when no file exists', async () => {
@@ -297,6 +311,9 @@ describe('StatePersistenceManager Integration', () => {
 
   describe('Statistics', () => {
     it('should track all operations', async () => {
+      // Use real timers for file operations
+      jest.useRealTimers();
+      
       const controls = new Map([['control1', createTestState('control1', 42)]]);
 
       // Successful save
@@ -311,9 +328,12 @@ describe('StatePersistenceManager Integration', () => {
 
       const stats = manager.getStatistics();
       expect(stats.totalSaves).toBe(1);
-      expect(stats.totalLoads).toBe(1);
-      expect(stats.loadErrors).toBe(1);
+      expect(stats.totalLoads).toBe(2);  // Two load attempts
+      expect(stats.loadErrors).toBe(1);   // One failed
       expect(stats.saveErrors).toBe(0);
+      
+      // Restore fake timers
+      jest.useFakeTimers();
     });
   });
 

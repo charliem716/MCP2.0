@@ -184,6 +184,15 @@ export class EventCacheManager extends EventEmitter {
   private queryCache: QueryCache;
   private errorCount = 0;
   private lastError?: { message: string; context: string; timestamp: number };
+  
+  // Performance monitoring
+  private startTime = Date.now();
+  private eventCounter = 0;
+  private queryCounter = 0;
+  private queryLatencies: number[] = [];
+  private lastEventCounterReset = Date.now();
+  private lastQueryCounterReset = Date.now();
+  private memoryUsageTrend: Array<{ timestamp: number; usage: number }> = [];
 
   constructor(
     private defaultConfig: EventCacheConfig = {
@@ -325,6 +334,9 @@ export class EventCacheManager extends EventEmitter {
     
     // Invalidate query cache for this group when new events arrive
     this.queryCache.invalidate(groupId);
+    
+    // Track event ingestion
+    this.eventCounter += processedEvents.length;
     
     this.finalizeChangeProcessing(groupId, processedEvents.length);
   }
@@ -662,6 +674,7 @@ export class EventCacheManager extends EventEmitter {
    * Query historical events (async version with disk spillover support)
    */
   async query(params: EventQuery): Promise<CachedEvent[]> {
+    const queryStartTime = Date.now();
     const queryParams = this.normalizeQueryParams(params);
     
     // Check cache first
@@ -670,6 +683,7 @@ export class EventCacheManager extends EventEmitter {
       logger.debug('Query cache hit', { 
         stats: this.queryCache.getStats() 
       });
+      this.trackQueryPerformance(Date.now() - queryStartTime);
       return cached;
     }
 
@@ -694,6 +708,8 @@ export class EventCacheManager extends EventEmitter {
       this.queryCache.set(params, results);
     }
 
+    const queryTime = Date.now() - queryStartTime;
+    this.trackQueryPerformance(queryTime);
     this.logQueryComplete(results, queryParams);
     return results;
   }
@@ -1024,7 +1040,7 @@ export class EventCacheManager extends EventEmitter {
    * Get statistics for a change group or all groups
    */
   // eslint-disable-next-line max-statements -- Comprehensive statistics calculation
-  getStatistics(groupId?: string): CacheStatistics | null | { totalEvents: number; groups: Array<CacheStatistics & { groupId: string; totalEvents: number }>; memoryUsageMB: number; queryCache: unknown } {
+  getStatistics(groupId?: string): CacheStatistics | null | { totalEvents: number; groups: Array<CacheStatistics & { groupId: string; totalEvents: number }>; memoryUsageMB: number; queryCache: unknown; errorCount: number; lastError?: { message: string; context: string; timestamp: number }; uptime: number; health: HealthStatus; performance: { eventsPerSecond: number; queriesPerMinute: number; averageQueryLatency: number }; resources: { memoryTrend: Array<{ timestamp: number; usage: number }>; diskSpilloverUsage: number; compressionEffectiveness: number } } {
     // If no groupId provided, return global statistics
     if (groupId === undefined) {
       const allStats = this.getAllStatistics();
@@ -1043,11 +1059,41 @@ export class EventCacheManager extends EventEmitter {
         });
       }
 
+      // Calculate performance metrics
+      const now = Date.now();
+      const eventWindowMs = now - this.lastEventCounterReset;
+      const eventsPerSecond = eventWindowMs > 0 ? (this.eventCounter / eventWindowMs) * 1000 : 0;
+      
+      const queryWindowMs = now - this.lastQueryCounterReset;
+      const queriesPerMinute = queryWindowMs > 0 ? (this.queryCounter / queryWindowMs) * 60000 : 0;
+      
+      const averageQueryLatency = this.queryLatencies.length > 0 
+        ? this.queryLatencies.reduce((a, b) => a + b, 0) / this.queryLatencies.length 
+        : 0;
+
+      // Calculate resource metrics
+      const diskSpilloverUsage = this.diskSpillover.getUsageStatsSync();
+      const compressionStats = this.calculateCompressionEffectiveness();
+
       return { 
         totalEvents, 
         groups,
         memoryUsageMB: totalMemoryUsage / (1024 * 1024),
-        queryCache: this.queryCache.getStats()
+        queryCache: this.queryCache.getStats(),
+        errorCount: this.errorCount,
+        lastError: this.lastError,
+        uptime: now - this.startTime,
+        health: this.getHealthStatus(),
+        performance: {
+          eventsPerSecond: Math.round(eventsPerSecond * 100) / 100,
+          queriesPerMinute: Math.round(queriesPerMinute * 100) / 100,
+          averageQueryLatency: Math.round(averageQueryLatency * 100) / 100
+        },
+        resources: {
+          memoryTrend: this.memoryUsageTrend.slice(-10), // Last 10 samples
+          diskSpilloverUsage,
+          compressionEffectiveness: compressionStats
+        }
       };
     }
 
@@ -1357,6 +1403,15 @@ export class EventCacheManager extends EventEmitter {
   private async checkMemoryPressure(): Promise<void> {
     const usage = this.getGlobalMemoryUsage();
     const percentage = (usage / this.globalMemoryLimitBytes) * 100;
+
+    // Track memory trend
+    const now = Date.now();
+    this.memoryUsageTrend.push({ timestamp: now, usage: percentage });
+    
+    // Keep only last 100 samples
+    if (this.memoryUsageTrend.length > 100) {
+      this.memoryUsageTrend = this.memoryUsageTrend.slice(-100);
+    }
 
     // Emit warnings at thresholds
     if (percentage >= 80 && this.lastMemoryPressure < 80) {
@@ -1966,5 +2021,51 @@ export class EventCacheManager extends EventEmitter {
     }
     
     return result;
+  }
+
+  /**
+   * Track query performance metrics
+   */
+  private trackQueryPerformance(latency: number): void {
+    this.queryCounter++;
+    this.queryLatencies.push(latency);
+    
+    // Keep only last 1000 samples
+    if (this.queryLatencies.length > 1000) {
+      this.queryLatencies = this.queryLatencies.slice(-1000);
+    }
+    
+    // Reset counters periodically (every 5 minutes)
+    const now = Date.now();
+    if (now - this.lastQueryCounterReset > 300000) {
+      this.queryCounter = 0;
+      this.lastQueryCounterReset = now;
+    }
+    
+    if (now - this.lastEventCounterReset > 300000) {
+      this.eventCounter = 0;
+      this.lastEventCounterReset = now;
+    }
+  }
+
+  /**
+   * Calculate compression effectiveness across all groups
+   */
+  private calculateCompressionEffectiveness(): number {
+    let totalOriginal = 0;
+    let totalCompressed = 0;
+    
+    for (const groupId of this.buffers.keys()) {
+      const stats = this.compressionEngine.getStats(groupId);
+      if (stats) {
+        totalOriginal += stats.original;
+        totalCompressed += stats.compressed;
+      }
+    }
+    
+    if (totalOriginal === 0) return 0;
+    
+    // Return compression ratio as percentage
+    return Math.round((totalCompressed / totalOriginal) * 100);
   }
 }

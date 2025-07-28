@@ -32,7 +32,7 @@ const createMockQrwcClient = (): jest.Mocked<QRWCClientInterface> => ({
   sendCommand: jest.fn().mockImplementation((command, params) => {
     if (command === 'Component.GetComponents') {
       return Promise.resolve({
-        Components: [
+        result: [
           { Name: 'TestComponent', Type: 'gain' },
           { Name: 'Mixer', Type: 'mixer' }
         ]
@@ -42,17 +42,21 @@ const createMockQrwcClient = (): jest.Mocked<QRWCClientInterface> => ({
       const componentName = params?.Name;
       if (componentName === 'TestComponent') {
         return Promise.resolve({
-          Controls: [
-            { Name: 'gain', Value: -10, String: '-10dB' },
-            { Name: 'mute', Value: false, String: 'false' }
-          ]
+          result: {
+            Controls: [
+              { Name: 'gain', Value: -10, String: '-10dB' },
+              { Name: 'mute', Value: false, String: 'false' }
+            ]
+          }
         });
       }
       if (componentName === 'Mixer') {
         return Promise.resolve({
-          Controls: [
-            { Name: 'level', Value: 0, String: '0dB' }
-          ]
+          result: {
+            Controls: [
+              { Name: 'level', Value: 0, String: '0dB' }
+            ]
+          }
         });
       }
     }
@@ -157,7 +161,7 @@ describe('SimpleSynchronizer', () => {
     });
 
     it('should handle empty component list', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValueOnce({ Components: [] });
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: [] });
 
       const result = await synchronizer.synchronize();
 
@@ -168,9 +172,9 @@ describe('SimpleSynchronizer', () => {
     it('should handle component with no controls', async () => {
       mockQrwcClient.sendCommand
         .mockResolvedValueOnce({ 
-          Components: [{ Name: 'EmptyComponent', Type: 'custom' }] 
+          result: [{ Name: 'EmptyComponent', Type: 'custom' }] 
         })
-        .mockResolvedValueOnce({ Controls: [] });
+        .mockResolvedValueOnce({ result: { Controls: [] } });
 
       const result = await synchronizer.synchronize();
 
