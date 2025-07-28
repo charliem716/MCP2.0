@@ -75,8 +75,7 @@ describe('ListControlsTool', () => {
       const result = await tool.execute({});
 
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'Component.GetAllControls',
-        {}
+        'Component.GetAllControls'
       );
       expect(result.isError).toBe(false);
       const controls = JSON.parse(result.content[0].text);
@@ -104,7 +103,7 @@ describe('ListControlsTool', () => {
       });
       expect(controls[2]).toEqual({
         name: 'ZoneAmpControl.output.1.gain',
-        component: 'unknown', // componentName defaults to 'unknown' and prevents extraction from name
+        component: 'ZoneAmpControl', // extracted from control name
         type: 'gain',
         value: -6.0,
         metadata: {
@@ -272,9 +271,9 @@ describe('ListControlsTool', () => {
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(2);
       expect(controls[0].name).toBe('DeviceA.control1');
-      expect(controls[0].component).toBe('unknown'); // componentName defaults to 'unknown'
+      expect(controls[0].component).toBe('DeviceA'); // extracted from control name
       expect(controls[1].name).toBe('DeviceB.sub.control2');
-      expect(controls[1].component).toBe('unknown'); // componentName defaults to 'unknown'
+      expect(controls[1].component).toBe('DeviceB'); // extracted from control name
     });
   });
 

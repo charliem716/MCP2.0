@@ -227,37 +227,20 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     let result = `Q-SYS Core Status\n\n`;
     
     // Core info
-    if (status.coreInfo) {
-      result += `Design: ${status.coreInfo.designName}\n`;
-      result += `Platform: ${status.coreInfo.platform}\n`;
-      if (status.coreInfo.model) {
-        result += `Model: ${status.coreInfo.model}\n`;
-      }
-    }
-    
-    // Basic info from direct fields
-    if (status.DesignName) {
-      result += `Design Name: ${status.DesignName}\n`;
-    }
-    if (status.Platform) {
-      result += `Platform: ${status.Platform}\n`;
+    result += `Design: ${status.coreInfo.designName}\n`;
+    result += `Platform: ${status.coreInfo.platform}\n`;
+    if (status.coreInfo.model) {
+      result += `Model: ${status.coreInfo.model}\n`;
     }
     
     // Connection status
-    if (status.connectionStatus) {
-      result += `\nConnection: ${status.connectionStatus.connected ? 'Connected' : 'Disconnected'}\n`;
-    }
+    result += `\nConnection: ${status.connectionStatus.connected ? 'Connected' : 'Disconnected'}\n`;
     
     // System health
-    if (status.systemHealth) {
-      result += `\nSystem Status: ${status.systemHealth.status}\n`;
-    }
-    if (status.Status) {
-      result += `Status: ${status.Status.Name} (Code: ${status.Status.Code})\n`;
-    }
+    result += `\nSystem Status: ${status.systemHealth.status}\n`;
     
     // Network info if requested
-    if (params.includeNetworkInfo && status.networkInfo) {
+    if (params.includeNetworkInfo) {
       result += '\nNetwork Information:\n';
       if (status.networkInfo.ipAddress && status.networkInfo.ipAddress !== 'Unknown') {
         result += `  IP Address: ${status.networkInfo.ipAddress}\n`;
@@ -265,7 +248,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     }
     
     // Performance metrics if requested
-    if (params.includePerformance && status.performanceMetrics) {
+    if (params.includePerformance) {
       result += '\nPerformance:\n';
       if (status.performanceMetrics.cpuUsage > 0) {
         result += `  CPU Usage: ${status.performanceMetrics.cpuUsage}%\n`;

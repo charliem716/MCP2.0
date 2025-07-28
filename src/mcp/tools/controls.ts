@@ -195,7 +195,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         component:
           ctrl.Component ??
           (componentName !== 'unknown' ? componentName : this.extractComponentFromName(ctrl.Name)),
-        type: controlType || ctrl.Type || 'unknown',
+        type: controlType,
         value,
         metadata: this.extractMetadata(ctrl),
       };
@@ -374,8 +374,10 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
     let controls: unknown[] = [];
     const resp = response as { controls?: unknown[]; result?: unknown[] };
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for unknown API response
     if (resp?.controls && Array.isArray(resp.controls)) {
       controls = resp.controls;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for unknown API response  
     } else if (resp?.result && Array.isArray(resp.result)) {
       controls = resp.result;
     } else if (Array.isArray(response)) {
@@ -415,8 +417,9 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
           typeof control.Value === 'boolean'
         ) {
           value = control.Value;
-        } else if (control.Value !== null && control.Value !== undefined) {
-          value = String(control.Value);
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for API response
+          value = control.Value == null ? '' : String(control.Value);
         }
 
         const result: ControlValueResult = {
@@ -775,6 +778,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         Name: componentName,
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for API response
       if (!response || typeof response !== 'object') {
         // Component doesn't exist
         for (const info of controlInfos) {
@@ -796,6 +800,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             controlName: info.fullName,
             value: info.value,
             message:
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- API response may not have error.message
               response.error.message ??
               `Failed to access component '${componentName}'`,
           });
@@ -872,6 +877,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             controlName: control.name,
             value: control.value,
             message:
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- API response may not have error.message
               response.error.message ??
               `Control '${control.name}' not found`,
           };

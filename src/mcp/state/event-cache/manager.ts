@@ -1925,7 +1925,7 @@ export class EventCacheManager extends EventEmitter {
     // Check compression
     if (this.defaultConfig.compressionConfig?.enabled) {
       const compressionActive = Array.from(this.buffers.keys()).some(
-        groupId => this.compressionEngine.getStats(groupId) !== null
+        groupId => this.compressionEngine.getStats(groupId) !== undefined
       );
       if (compressionActive) {
         issues.push('Compression is active on some groups');
