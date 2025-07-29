@@ -32,7 +32,7 @@ export class ChangeGroupExecutor {
     }
 
     // Controls array is required by schema and has min(1), so we only need to check length
-    if (!changeGroup.controls || changeGroup.controls.length === 0) {
+    if (changeGroup.controls.length === 0) {
       errors.push({
         field: 'controls',
         message: 'Change group must contain at least one control',

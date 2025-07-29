@@ -30,7 +30,7 @@ export interface OfficialQRWCClientOptions {
 export interface OfficialQRWCClientEvents {
   connected: [data: { requiresCacheInvalidation: boolean; downtimeMs: number }];
   disconnected: [reason: string];
-  reconnecting: [attempt: number];
+  reconnecting: [data: { attempt: number }];
   error: [error: Error];
   state_change: [state: ConnectionState];
 }
@@ -162,6 +162,8 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * Disconnect from Q-SYS Core
    */
   disconnect(): void {
+    this.logger.debug('disconnect() called');
+    
     // Always clean up signal handlers, even if already disconnected
     this.removeGracefulShutdownHandlers();
     
@@ -170,11 +172,11 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       this.shutdownInProgress ||
       this.connectionState === ConnectionState.DISCONNECTED
     ) {
-      this.logger.debug('Already disconnected or shutting down');
+      this.logger.debug('Already disconnected');
       return;
     }
 
-    this.logger.debug('Disconnecting from Q-SYS Core...');
+    this.setState(ConnectionState.DISCONNECTING);
     this.logger.info('Disconnecting from Q-SYS Core');
     this.shutdownInProgress = true;
 
@@ -184,22 +186,36 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       delete this.reconnectTimer;
     }
 
+    // Close QRWC instance first
+    if (this.qrwc) {
+      try {
+        this.qrwc.close();
+      } catch (error) {
+        this.logger.debug('Error closing QRWC instance', { error });
+      }
+      delete this.qrwc;
+    }
+
     // Close WebSocket connection
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
       delete this.ws;
     }
 
-    // Clear QRWC instance
-    delete this.qrwc;
-
     this.setState(ConnectionState.DISCONNECTED);
     this.emit('disconnected', 'Client disconnect');
 
-    this.logger.info('Disconnected successfully from Q-SYS Core');
+    this.logger.info('Disconnected from Q-SYS Core');
 
     // Reset shutdown flag to allow future connections
     this.shutdownInProgress = false;
+  }
+
+  /**
+   * Get current connection state
+   */
+  getState(): ConnectionState {
+    return this.connectionState;
   }
 
   /**
@@ -487,7 +503,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
         nextAttempt: new Date(Date.now() + longTermDelay).toISOString(),
       });
 
-      this.emit('reconnecting', this.reconnectAttempts + 1);
+      this.emit('reconnecting', { attempt: this.reconnectAttempts + 1 });
 
       this.reconnectTimer = setTimeout(() => {
         this.reconnectAttempts++; // Continue counting attempts
@@ -512,7 +528,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       delay,
     });
 
-    this.emit('reconnecting', this.reconnectAttempts);
+    this.emit('reconnecting', { attempt: this.reconnectAttempts });
 
     this.reconnectTimer = setTimeout(() => {
       this.connect().catch((error: unknown) => {
@@ -545,7 +561,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     // Create and store the shutdown handler with bound context
     this.shutdownHandler = () => {
       this.logger.debug('Graceful shutdown signal received');
-      this.disconnect();
+      void this.disconnect();
     };
 
     // Add handlers

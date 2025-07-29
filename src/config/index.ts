@@ -32,6 +32,15 @@ interface APIConfig {
   rateLimitMaxRequests: number;
 }
 
+interface FileConfig {
+  host?: string;
+  port?: string | number;
+  username?: string;
+  password?: string;
+  secure?: boolean;
+  rejectUnauthorized?: boolean;
+}
+
 export interface AppConfig {
   qsys: QSysConfig;
   mcp: MCPConfig;
@@ -43,7 +52,7 @@ export interface AppConfig {
 }
 
 class ConfigManager {
-  private static instance: ConfigManager;
+  private static instance: ConfigManager | undefined;
   private config: AppConfig;
 
   private constructor() {
@@ -51,14 +60,12 @@ class ConfigManager {
   }
 
   static getInstance(): ConfigManager {
-    if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager();
-    }
+    ConfigManager.instance ??= new ConfigManager();
     return ConfigManager.instance;
   }
 
   private loadConfig(): AppConfig {
-    const environment = process.env['NODE_ENV'] || 'development';
+    const environment = process.env['NODE_ENV'] ?? 'development';
     
     return {
       qsys: this.loadQSysConfig(),
@@ -73,23 +80,31 @@ class ConfigManager {
 
   private loadQSysConfig(): QSysConfig {
     // First try to load from qsys-core.config.json
-    let fileConfig: any = {};
+    let fileConfig: FileConfig = {};
     try {
       const configPath = path.join(process.cwd(), 'qsys-core.config.json');
       if (fs.existsSync(configPath)) {
         const configContent = fs.readFileSync(configPath, 'utf-8');
-        fileConfig = JSON.parse(configContent);
+        const parsed = JSON.parse(configContent) as unknown;
+        if (parsed && typeof parsed === 'object') {
+          fileConfig = parsed as FileConfig;
+        }
       }
     } catch (error) {
       // Fallback to env config
     }
 
     // Merge with environment variables (env takes precedence)
+    const host = process.env['QSYS_HOST'] ?? fileConfig.host ?? existingEnvConfig.qsys.host;
+    const port = parseInt(process.env['QSYS_PORT'] ?? String(fileConfig.port ?? existingEnvConfig.qsys.port), 10);
+    const username = process.env['QSYS_USERNAME'] ?? fileConfig.username ?? existingEnvConfig.qsys.username;
+    const password = process.env['QSYS_PASSWORD'] ?? fileConfig.password ?? existingEnvConfig.qsys.password;
+    
     return {
-      host: process.env['QSYS_HOST'] || fileConfig.host || existingEnvConfig.qsys.host || 'localhost',
-      port: parseInt(process.env['QSYS_PORT'] || fileConfig.port || existingEnvConfig.qsys.port || '443', 10),
-      username: process.env['QSYS_USERNAME'] || fileConfig.username || existingEnvConfig.qsys.username,
-      password: process.env['QSYS_PASSWORD'] || fileConfig.password || existingEnvConfig.qsys.password,
+      host,
+      port,
+      username,
+      password,
       secure: process.env['QSYS_SECURE'] !== 'false' && fileConfig.secure !== false,
       rejectUnauthorized: process.env['QSYS_REJECT_UNAUTHORIZED'] !== 'false' && fileConfig.rejectUnauthorized !== false
     };
@@ -97,21 +112,21 @@ class ConfigManager {
 
   private loadMCPConfig(): MCPConfig {
     return {
-      logLevel: process.env['LOG_LEVEL'] || 'info',
-      cacheSize: parseInt(process.env['MCP_CACHE_SIZE'] || '1000', 10),
+      logLevel: process.env['LOG_LEVEL'] ?? 'info',
+      cacheSize: parseInt(process.env['MCP_CACHE_SIZE'] ?? '1000', 10),
       eventCacheEnabled: process.env['EVENT_CACHE_ENABLED'] !== 'false',
-      maxEventsPerGroup: parseInt(process.env['EVENT_CACHE_MAX_EVENTS'] || '10000', 10),
-      groupExpirationMinutes: parseInt(process.env['EVENT_CACHE_EXPIRATION_MINUTES'] || '60', 10)
+      maxEventsPerGroup: parseInt(process.env['EVENT_CACHE_MAX_EVENTS'] ?? '10000', 10),
+      groupExpirationMinutes: parseInt(process.env['EVENT_CACHE_EXPIRATION_MINUTES'] ?? '60', 10)
     };
   }
 
   private loadAPIConfig(): APIConfig {
     return {
-      port: parseInt(process.env['PORT'] || process.env['API_PORT'] || '3000', 10),
+      port: parseInt(process.env['PORT'] ?? process.env['API_PORT'] ?? '3000', 10),
       cors: process.env['CORS_ENABLED'] !== 'false',
-      corsOrigin: process.env['CORS_ORIGIN'] || '*',
-      rateLimitWindowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] || '900000', 10), // 15 minutes
-      rateLimitMaxRequests: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] || '100', 10)
+      corsOrigin: process.env['CORS_ORIGIN'] ?? '*',
+      rateLimitWindowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '900000', 10), // 15 minutes
+      rateLimitMaxRequests: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] ?? '100', 10)
     };
   }
 
@@ -127,13 +142,13 @@ class ConfigManager {
    * Get a nested configuration value using dot notation
    * Example: getPath('qsys.host') returns the Q-SYS host
    */
-  getPath(path: string): any {
+  getPath(path: string): unknown {
     const keys = path.split('.');
-    let result: any = this.config;
+    let result: unknown = this.config;
     
     for (const key of keys) {
       if (result && typeof result === 'object' && key in result) {
-        result = result[key];
+        result = (result as Record<string, unknown>)[key];
       } else {
         return undefined;
       }

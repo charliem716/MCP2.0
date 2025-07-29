@@ -533,11 +533,13 @@ export class QRWCClientAdapter
     
     // Handle both string array and object array formats
     if (Array.isArray(controlsParam)) {
-      controls = controlsParam.map(control => {
+      controls = controlsParam.map((control: unknown) => {
         if (typeof control === 'string') {
           return control;
         } else if (typeof control === 'object' && control !== null && 'Name' in control) {
-          return control.Name as string;
+          // Type assertion with validation
+          const controlObj = control as { Name: unknown };
+          return typeof controlObj.Name === 'string' ? controlObj.Name : '';
         }
         return '';
       }).filter(name => name.length > 0);

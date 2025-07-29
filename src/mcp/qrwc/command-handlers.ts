@@ -50,21 +50,18 @@ export function handleGetComponents(
     throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
-  const componentNames = Object.keys(qrwc.components);
-  const components = componentNames.map(name => {
-    const component = qrwc.components[name];
-    if (!component) {
-      return {
-        Name: name,
-        Type: 'Unknown',
-        Properties: [],
-      };
-    }
-
+  const components = Object.entries(qrwc.components).map(([name, component]) => {
+    // ESLint's no-unnecessary-condition rule is giving contradictory advice here
+    // The state property is optional on QSYSComponent, so we need to handle it
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const type = component.state?.Type ?? 'Unknown';
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const properties = component.state?.Properties ?? [];
+    
     return {
       Name: name,
-      Type: component.state?.Type || 'Unknown',
-      Properties: component.state?.Properties || [],
+      Type: type,
+      Properties: properties,
     };
   });
 

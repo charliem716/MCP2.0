@@ -205,13 +205,41 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     const gateway = this.getNestedValue(result, 'Network.LAN_A.Gateway');
     
     return {
-      ipAddress: lanIp ? String(lanIp) : (record['ipAddress'] ? String(record['ipAddress']) : 'Unknown'),
-      macAddress: record['macAddress'] ? String(record['macAddress']) : 'Unknown',
-      gateway: gateway ? String(gateway) : (record['gateway'] ? String(record['gateway']) : 'Unknown'),
+      ipAddress: this.formatValue(lanIp) ?? this.formatValue(record['ipAddress']) ?? 'Unknown',
+      macAddress: this.formatValue(record['macAddress']) ?? 'Unknown',
+      gateway: this.formatValue(gateway) ?? this.formatValue(record['gateway']) ?? 'Unknown',
       dnsServers: [] as string[],
-      ntpServer: String('Unknown'),
-      networkMode: String('Unknown'),
+      ntpServer: 'Unknown',
+      networkMode: 'Unknown',
     };
+  }
+
+  /**
+   * Format a value to string safely
+   */
+  private formatValue(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    if (typeof value === 'object' && 'address' in value) {
+      return this.formatValue((value as { address: unknown }).address);
+    }
+    if (typeof value === 'object' && 'value' in value) {
+      return this.formatValue((value as { value: unknown }).value);
+    }
+    // For other objects, try to get a meaningful representation
+    try {
+      const str = JSON.stringify(value);
+      return str === '{}' ? null : str;
+    } catch {
+      return null;
+    }
   }
 
   /**

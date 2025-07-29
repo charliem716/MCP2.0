@@ -164,24 +164,24 @@ export interface EventCacheConfig {
  * Manages event caching for all change groups
  */
 export class EventCacheManager extends EventEmitter {
-  private buffers: Map<string, CircularBuffer<CachedEvent>>;
+  private buffers!: Map<string, CircularBuffer<CachedEvent>>;
   private globalSequence = 0;
-  private lastValues: Map<string, Map<string, ControlValue>>;
-  private lastEventTimes: Map<string, Map<string, number>>;
-  private eventRates: Map<string, number[]>;
+  private lastValues!: Map<string, Map<string, ControlValue>>;
+  private lastEventTimes!: Map<string, Map<string, number>>;
+  private eventRates!: Map<string, number[]>;
   private isAttached = false;
   private cleanupInterval?: NodeJS.Timeout | undefined;
   private memoryCheckInterval?: NodeJS.Timeout | undefined;
   private compressionInterval?: NodeJS.Timeout | undefined;
-  private globalMemoryLimitBytes: number;
+  private globalMemoryLimitBytes!: number;
   private lastMemoryPressure = 0;
-  private groupPriorities: Map<string, 'high' | 'normal' | 'low'>;
-  private compressionEngine: CompressionEngine;
-  private diskSpillover: DiskSpilloverManager;
+  private groupPriorities!: Map<string, 'high' | 'normal' | 'low'>;
+  private compressionEngine!: CompressionEngine;
+  private diskSpillover!: DiskSpilloverManager;
   private diskSpilloverActive = false;
   private adapter?: Pick<QRWCClientAdapter, 'on' | 'removeListener'>;
   private changeEventHandler?: (event: ChangeGroupEvent) => void;
-  private queryCache: QueryCache;
+  private queryCache!: QueryCache;
   private errorCount = 0;
   private lastError?: { message: string; context: string; timestamp: number };
   
@@ -203,7 +203,23 @@ export class EventCacheManager extends EventEmitter {
   ) {
     super();
     
-    // Validate configuration (skip if explicitly requested or in test environment)
+    // Validate and initialize configuration
+    this.validateConfiguration();
+    this.initializeDataStructures();
+    this.initializeDefaultConfigs();
+    this.logInitialization();
+    this.startBackgroundServices();
+    
+    // If adapter provided, attach immediately
+    if (adapter) {
+      this.attachToAdapter(adapter);
+    }
+  }
+
+  /**
+   * Validate configuration
+   */
+  private validateConfiguration(): void {
     const shouldValidate = !this.defaultConfig.skipValidation && process.env['NODE_ENV'] !== 'test';
     if (shouldValidate) {
       const validation = validateEventCacheConfig(this.defaultConfig);
@@ -221,7 +237,12 @@ export class EventCacheManager extends EventEmitter {
     logger.info('EventCache configuration', { 
       summary: getConfigSummary(this.defaultConfig).split('\n')
     });
-    
+  }
+
+  /**
+   * Initialize data structures
+   */
+  private initializeDataStructures(): void {
     this.buffers = new Map();
     this.lastValues = new Map();
     this.lastEventTimes = new Map();
@@ -232,10 +253,12 @@ export class EventCacheManager extends EventEmitter {
     this.globalMemoryLimitBytes =
       (this.defaultConfig.globalMemoryLimitMB ?? 500) * 1024 * 1024;
     this.queryCache = new QueryCache();
-    
-    // Initialize default configs
-    this.initializeDefaultConfigs();
+  }
 
+  /**
+   * Log initialization information
+   */
+  private logInitialization(): void {
     logger.info('EventCacheManager initialized', {
       maxEvents: this.defaultConfig.maxEvents,
       maxAgeMs: this.defaultConfig.maxAgeMs,
@@ -243,7 +266,12 @@ export class EventCacheManager extends EventEmitter {
       compressionEnabled: this.defaultConfig.compressionConfig?.enabled ?? false,
       diskSpilloverEnabled: this.defaultConfig.diskSpilloverConfig?.enabled ?? false,
     });
+  }
 
+  /**
+   * Start background services
+   */
+  private startBackgroundServices(): void {
     // Start background cleanup timer if maxAge is configured
     if (this.defaultConfig.maxAgeMs && this.defaultConfig.maxAgeMs > 0) {
       this.startCleanupTimer();
@@ -258,11 +286,6 @@ export class EventCacheManager extends EventEmitter {
     }
 
     // Disk spillover will initialize itself when needed
-    
-    // If adapter provided, attach immediately
-    if (adapter) {
-      this.attachToAdapter(adapter);
-    }
   }
 
   /**
@@ -1040,7 +1063,7 @@ export class EventCacheManager extends EventEmitter {
    * Get statistics for a change group or all groups
    */
   // eslint-disable-next-line max-statements -- Comprehensive statistics calculation
-  getStatistics(groupId?: string): CacheStatistics | null | { totalEvents: number; groups: Array<CacheStatistics & { groupId: string; totalEvents: number }>; memoryUsageMB: number; queryCache: unknown; errorCount: number; lastError?: { message: string; context: string; timestamp: number }; uptime: number; health: HealthStatus; performance: { eventsPerSecond: number; queriesPerMinute: number; averageQueryLatency: number }; resources: { memoryTrend: Array<{ timestamp: number; usage: number }>; diskSpilloverUsage: number; compressionEffectiveness: number } } {
+  getStatistics(groupId?: string): CacheStatistics | null | { totalEvents: number; groups: Array<CacheStatistics & { groupId: string; totalEvents: number }>; memoryUsageMB: number; queryCache: unknown; errorCount: number; lastError: { message: string; context: string; timestamp: number } | undefined; uptime: number; health: HealthStatus; performance: { eventsPerSecond: number; queriesPerMinute: number; averageQueryLatency: number }; resources: { memoryTrend: Array<{ timestamp: number; usage: number }>; diskSpilloverUsage: number; compressionEffectiveness: number } } {
     // If no groupId provided, return global statistics
     if (groupId === undefined) {
       const allStats = this.getAllStatistics();
@@ -1723,10 +1746,12 @@ export class EventCacheManager extends EventEmitter {
         priority: this.groupPriorities.get(id) ?? 'normal',
       }))
       .sort((a, b) => {
+        // Sort by priority first - low priority (0) should be evicted first, high priority (2) last
         const priorityOrder = { low: 0, normal: 1, high: 2 };
         const priorityDiff =
           priorityOrder[a.priority] - priorityOrder[b.priority];
-        if (priorityDiff !== 0) return priorityDiff;
+        if (priorityDiff !== 0) return priorityDiff; // Lower priority first for eviction
+        // Within same priority, evict larger buffers first
         return b.memory - a.memory;
       });
   }
@@ -1846,13 +1871,14 @@ export class EventCacheManager extends EventEmitter {
     bufferInfo: BufferInfo[],
     currentUsage: number
   ): number {
-    logger.warn('Memory pressure critical - clearing smallest groups');
+    logger.warn('Memory pressure critical - clearing buffers by priority');
 
     let freed = 0;
-    const smallestFirst = bufferInfo.slice().reverse();
+    // bufferInfo is already sorted by priority (low first), so use it directly
+    // Don't reverse - we want to clear low priority buffers first!
     const target = this.globalMemoryLimitBytes * 0.7;
 
-    for (const { groupId } of smallestFirst) {
+    for (const { groupId, priority } of bufferInfo) {
       if (currentUsage - freed <= target) break;
 
       const buffer = this.buffers.get(groupId);
@@ -1865,6 +1891,7 @@ export class EventCacheManager extends EventEmitter {
         logger.warn('Cleared entire buffer due to critical memory pressure', {
           groupId,
           eventsCleared: size,
+          priority,
         });
       }
     }

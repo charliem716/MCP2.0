@@ -16,8 +16,8 @@ import {
  * Safe JSON stringify that handles circular references
  */
 function safeJsonStringify(obj: unknown): string {
-  const seen = new WeakSet();
-  return JSON.stringify(obj, (key, value) => {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(obj, (key, value: unknown) => {
     if (typeof value === 'object' && value !== null) {
       if (seen.has(value)) {
         return '[Circular Reference]';
@@ -182,8 +182,8 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
               error: 'CONTROLS_LIST_ERROR',
               message: error instanceof Error ? error.message : 'Unknown error occurred',
               details: {
-                component: params.component || 'all',
-                controlType: params.controlType || 'all'
+                component: params.component ?? 'all',
+                controlType: params.controlType ?? 'all'
               }
             }),
           },
