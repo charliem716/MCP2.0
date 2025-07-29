@@ -2,19 +2,9 @@
  * Event Cache Manager Tests
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import { EventCacheManager } from '../manager.js';
 import { MockQRWCAdapter } from '../test-helpers.js';
-
-// Mock the logger
-jest.mock('../../../../shared/utils/logger.js', () => ({
-  globalLogger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-  },
-}));
 
 describe('EventCacheManager', () => {
   let eventCache: EventCacheManager;
@@ -36,11 +26,19 @@ describe('EventCacheManager', () => {
     });
   });
 
+  afterEach(() => {
+    // Clean up to prevent memory leaks
+    if (eventCache) {
+      eventCache.destroy();
+    }
+  });
+
   describe('initialization', () => {
     it('should create with default config', () => {
       const cache = new EventCacheManager();
       expect(cache).toBeDefined();
       expect(cache.getGroupIds()).toEqual([]);
+      cache.destroy();
     });
 
     it('should create with custom config', () => {
@@ -49,6 +47,7 @@ describe('EventCacheManager', () => {
         maxAgeMs: 300000,
       });
       expect(cache).toBeDefined();
+      cache.destroy();
     });
   });
 

@@ -26,10 +26,11 @@ import {
   createClearChangeGroupTool,
   createSetChangeGroupAutoPollTool,
   createListChangeGroupsTool,
-  createReadChangeGroupEventsTool,
-  createSubscribeToChangeEventsTool,
+  // BUG-132: EventCache-dependent tools removed
+  // createReadChangeGroupEventsTool,
+  // createSubscribeToChangeEventsTool,
 } from '../tools/change-groups.js';
-import type { EventCacheManager } from '../state/event-cache/manager.js';
+// BUG-132: EventCacheManager removed - using simplified state management
 import type { BaseQSysTool, ToolExecutionResult } from '../tools/base.js';
 
 /**
@@ -71,8 +72,8 @@ export class MCPToolRegistry {
   private initialized = false;
 
   constructor(
-    private controlSystem: IControlSystem,
-    private eventCacheManager?: EventCacheManager
+    private controlSystem: IControlSystem
+    // BUG-132: EventCacheManager removed - simplified architecture
   ) {
     logger.debug('MCPToolRegistry created');
   }
@@ -129,13 +130,8 @@ export class MCPToolRegistry {
       createListChangeGroupsTool(this.controlSystem),
     ];
 
-    // Add event cache tools if available
-    if (this.eventCacheManager) {
-      qsysTools.push(
-        createReadChangeGroupEventsTool(this.controlSystem, this.eventCacheManager),
-        createSubscribeToChangeEventsTool(this.controlSystem, this.eventCacheManager)
-      );
-    }
+    // BUG-132: Event cache tools removed - functionality integrated into SimpleStateManager
+    // These tools are no longer needed with the simplified architecture
 
     qsysTools.forEach(tool => {
       this.registerQSysTool(tool);

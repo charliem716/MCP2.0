@@ -2,12 +2,7 @@ import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
 import type { IControlSystem } from '../interfaces/control-system.js';
 import type { ToolCallResult } from '../handlers/index.js';
-import type {
-  EventCacheManager,
-  EventQuery,
-  CachedEvent,
-} from '../state/event-cache/manager.js';
-import type { ControlValue } from '../state/event-cache/event-types.js';
+// BUG-132: EventCache imports removed - functionality integrated into SimpleStateManager
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 
@@ -514,6 +509,8 @@ type ReadChangeGroupEventsParams = z.infer<
   typeof ReadChangeGroupEventsParamsSchema
 >;
 
+// BUG-132: EventCache-dependent tool removed
+/*
 export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEventsParams> {
   private eventCache?: EventCacheManager | undefined;
 
@@ -658,6 +655,7 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
     };
   }
 }
+*/
 
 // ===== Tool 10: Subscribe to Change Events =====
 
@@ -692,6 +690,8 @@ const SubscribeToChangeEventsParamsSchema = BaseToolParamsSchema.extend({
 
 type SubscribeToChangeEventsParams = z.infer<typeof SubscribeToChangeEventsParamsSchema>;
 
+// BUG-132: EventCache-dependent tool removed
+/*
 export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeEventsParams> {
   private eventCache?: EventCacheManager | undefined;
 
@@ -779,6 +779,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
     }
   }
 }
+*/
 
 // ===== Factory Functions =====
 
@@ -830,16 +831,22 @@ export function createListChangeGroupsTool(
   return new ListChangeGroupsTool(controlSystem);
 }
 
+// BUG-132: EventCache-dependent tool removed
+/*
 export function createReadChangeGroupEventsTool(
   controlSystem: IControlSystem,
   eventCache?: EventCacheManager
 ): ReadChangeGroupEventsTool {
   return new ReadChangeGroupEventsTool(controlSystem, eventCache);
 }
+*/
 
+// BUG-132: EventCache-dependent tool removed
+/*
 export function createSubscribeToChangeEventsTool(
   controlSystem: IControlSystem,
   eventCache?: EventCacheManager
 ): SubscribeToChangeEventsTool {
   return new SubscribeToChangeEventsTool(controlSystem, eventCache);
 }
+*/

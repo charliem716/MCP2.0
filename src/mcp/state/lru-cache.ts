@@ -12,20 +12,30 @@ export interface LRUCacheEvents<K, V> {
 }
 
 /**
+ * Cache entry with TTL support
+ */
+interface CacheEntry<V> {
+  value: V;
+  expiresAt?: number;
+}
+
+/**
  * Simple LRU Cache implementation using Map's insertion order
  *
  * Features:
  * - O(1) get, set, delete operations using Map
  * - Automatic LRU eviction when cache is full
  * - Basic statistics tracking (hits, misses, evictions)
+ * - TTL (Time To Live) support
  * - Simple and maintainable code
  */
 export class LRUCache<K, V> extends EventEmitter {
-  private readonly cache = new Map<K, V>();
+  private readonly cache = new Map<K, CacheEntry<V>>();
   private hitCount = 0;
   private missCount = 0;
   private evictionCount = 0;
   private readonly createdAt = Date.now();
+  private readonly defaultTtlMs = envConfig.cache.ttlMs;
 
   constructor(private readonly maxEntries = envConfig.cache.maxEntries) {
     super();
@@ -37,44 +47,60 @@ export class LRUCache<K, V> extends EventEmitter {
    * Get value from cache
    */
   get(key: K): V | null {
-    const value = this.cache.get(key);
+    const entry = this.cache.get(key);
 
-    if (value === undefined) {
+    if (entry === undefined) {
+      this.missCount++;
+      return null;
+    }
+
+    // Check if expired
+    if (entry.expiresAt && Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      this.emit('expiration', key, entry.value);
       this.missCount++;
       return null;
     }
 
     // Move to end (most recent) by deleting and re-adding
     this.cache.delete(key);
-    this.cache.set(key, value);
+    this.cache.set(key, entry);
 
     this.hitCount++;
-    return value;
+    return entry.value;
   }
 
   /**
    * Set key-value pair in cache
    */
-  set(key: K, value: V): boolean {
+  set(key: K, value: V, ttlMs?: number): boolean {
     // If key exists, delete it first to update position
     if (this.cache.has(key)) {
       this.cache.delete(key);
     }
 
+    // Create entry with optional TTL
+    const entry: CacheEntry<V> = { value };
+    if (ttlMs !== undefined) {
+      entry.expiresAt = Date.now() + ttlMs;
+    } else if (this.defaultTtlMs) {
+      entry.expiresAt = Date.now() + this.defaultTtlMs;
+    }
+
     // Add new entry
-    this.cache.set(key, value);
+    this.cache.set(key, entry);
 
     // Check if we need to evict
     if (this.cache.size > this.maxEntries) {
       // Get first (oldest) key and value
       const firstKey = this.cache.keys().next().value as K;
-      const evictedValue = this.cache.get(firstKey);
+      const evictedEntry = this.cache.get(firstKey);
       this.cache.delete(firstKey);
       this.evictionCount++;
 
       // Emit eviction event for compatibility
-      if (evictedValue) {
-        this.emit('eviction', firstKey, evictedValue);
+      if (evictedEntry) {
+        this.emit('eviction', firstKey, evictedEntry.value);
       }
     }
 
@@ -114,7 +140,15 @@ export class LRUCache<K, V> extends EventEmitter {
    * Get all values in cache (in LRU order)
    */
   values(): V[] {
-    return Array.from(this.cache.values());
+    return Array.from(this.cache.values()).map(entry => entry.value);
+  }
+
+  /**
+   * Get all entries as key-value pairs (for iteration)
+   */
+  entries(): IterableIterator<[K, V]> {
+    const entries = Array.from(this.cache.entries());
+    return entries.map(([k, v]): [K, V] => [k, v.value])[Symbol.iterator]();
   }
 
   /**

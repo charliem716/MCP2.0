@@ -21,8 +21,10 @@ const debugLog = (message: string, data?: unknown) => {
 import { MCPToolRegistry } from './handlers/index.js';
 import { OfficialQRWCClient } from '../qrwc/officialClient.js';
 import { QRWCClientAdapter } from './qrwc/adapter.js';
-import { EventCacheManager } from './state/event-cache/manager.js';
+// BUG-132: EventCacheManager removed - using simplified state management
 import type { MCPServerConfig } from '../shared/types/mcp.js';
+import { DIContainer, ServiceTokens } from './infrastructure/container.js';
+import type { IControlSystem } from './interfaces/control-system.js';
 
 /**
  * MCP Server for Q-SYS Control
@@ -36,7 +38,7 @@ export class MCPServer {
   private toolRegistry: MCPToolRegistry;
   private officialQrwcClient: OfficialQRWCClient;
   private qrwcClientAdapter: QRWCClientAdapter;
-  private eventCacheManager: EventCacheManager;
+  // BUG-132: EventCacheManager removed - simplified architecture
   private isConnected = false;
   private serverName: string;
   private serverVersion: string;
@@ -69,7 +71,10 @@ export class MCPServer {
     );
     debugLog('MCP Server instance created');
 
-    // Initialize components
+    // Initialize components with dependency injection
+    const container = DIContainer.getInstance();
+    
+    // Create Q-SYS client
     this.officialQrwcClient = new OfficialQRWCClient({
       host: config.qrwc.host,
       port: config.qrwc.port ?? 443,
@@ -81,18 +86,28 @@ export class MCPServer {
     });
     this.qrwcClientAdapter = new QRWCClientAdapter(this.officialQrwcClient);
 
-    // Initialize Event Cache Manager
-    this.eventCacheManager = new EventCacheManager({
-      maxEvents: config.eventCache?.maxEvents ?? 100000,
-      maxAgeMs: config.eventCache?.maxAgeMs ?? 3600000, // 1 hour default
+    // Register services in the container
+    container.register(ServiceTokens.CONTROL_SYSTEM, this.qrwcClientAdapter);
+
+    // Initialize State Repository using the factory (BUG-132 fix)
+    container.registerFactory(ServiceTokens.STATE_REPOSITORY, async () => {
+      const { createStateRepository } = await import('./state/factory.js');
+      return await createStateRepository('simple', {
+        maxEntries: 1000,
+        ttlMs: 3600000,
+        cleanupIntervalMs: 60000,
+        enableMetrics: true,
+        persistenceEnabled: false,
+      });
     });
 
-    // Attach event cache to adapter to start capturing events
-    this.eventCacheManager.attachToAdapter(this.qrwcClientAdapter);
+    // BUG-132: Simplified architecture - EventCacheManager removed
+    // Event caching functionality is now integrated into SimpleStateManager if needed
+    // container.register(ServiceTokens.EVENT_CACHE, null); // Deprecated
 
     this.toolRegistry = new MCPToolRegistry(
-      this.qrwcClientAdapter,
-      this.eventCacheManager
+      container.resolve<IControlSystem>(ServiceTokens.CONTROL_SYSTEM)
+      // BUG-132: EventCacheManager parameter removed
     );
 
     this.setupRequestHandlers();
@@ -359,7 +374,7 @@ export class MCPServer {
       }
 
       // Disconnect QRWC client
-      this.officialQrwcClient.disconnect();
+      await this.officialQrwcClient.disconnect();
 
       // Cleanup tool registry
       await this.toolRegistry.cleanup();

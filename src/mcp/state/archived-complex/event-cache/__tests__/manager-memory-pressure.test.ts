@@ -2,13 +2,11 @@
  * Tests for BUG-122: Memory pressure detection
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { EventCacheManager } from '../manager.js';
-import { MockQRWCAdapter } from '../test-helpers.js';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import type { ChangeGroupEvent } from '../types.js';
 
 // Mock the logger
-jest.mock('../../../../shared/utils/logger.js', () => ({
+jest.unstable_mockModule('../../../../shared/utils/logger', () => ({
   globalLogger: {
     info: jest.fn(),
     debug: jest.fn(),
@@ -17,11 +15,16 @@ jest.mock('../../../../shared/utils/logger.js', () => ({
   },
 }));
 
+// Import after mocking
+const { EventCacheManager } = await import('../manager.js');
+const { MockQRWCAdapter } = await import('../test-helpers.js');
+
 describe('EventCacheManager - Memory Pressure Detection (BUG-122)', () => {
   let eventCache: EventCacheManager;
   let adapter: MockQRWCAdapter;
 
   beforeEach(() => {
+    jest.resetModules();
     adapter = new MockQRWCAdapter();
   });
 

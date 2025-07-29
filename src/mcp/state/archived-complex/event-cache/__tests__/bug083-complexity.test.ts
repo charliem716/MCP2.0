@@ -4,12 +4,10 @@
  * Verifies that refactored methods maintain correct behavior
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { EventCacheManager } from '../manager.js';
-import { MockQRWCAdapter } from '../test-helpers.js';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 // Mock the logger
-jest.mock('../../../../shared/utils/logger.js', () => ({
+jest.unstable_mockModule('../../../../shared/utils/logger', () => ({
   globalLogger: {
     info: jest.fn(),
     debug: jest.fn(),
@@ -18,11 +16,16 @@ jest.mock('../../../../shared/utils/logger.js', () => ({
   },
 }));
 
+// Import after mocking
+const { EventCacheManager } = await import('../manager.js');
+const { MockQRWCAdapter } = await import('../test-helpers.js');
+
 describe('BUG-083: Refactored Methods', () => {
   let manager: EventCacheManager;
   let mockAdapter: MockQRWCAdapter;
 
   beforeEach(() => {
+    jest.resetModules();
     mockAdapter = new MockQRWCAdapter();
     manager = new EventCacheManager({
       maxEvents: 1000,
