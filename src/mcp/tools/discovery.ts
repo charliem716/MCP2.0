@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BaseQSysTool, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import { MCPError, MCPErrorCode, ValidationError } from '../../shared/types/errors.js';
 import type { QSysControl } from '../types/qsys-api-responses.js';
 
@@ -67,7 +67,7 @@ export type GetAllControlsParams = z.infer<typeof GetAllControlsParamsSchema>;
  * { includeValues: true, componentFilter: "APM" }
  */
 export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
       'qsys_get_all_controls',
@@ -92,7 +92,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
         );
       }
 
-      const response = await this.qrwcClient.sendCommand(
+      const response = await this.controlSystem.sendCommand(
         'Component.GetAllControls'
       );
 
@@ -301,7 +301,7 @@ export class GetAllControlsTool extends BaseQSysTool<GetAllControlsParams> {
 /**
  * Export the tool factory function for registration
  */
-export const createGetAllControlsTool = (qrwcClient: QRWCClientInterface) =>
+export const createGetAllControlsTool = (qrwcClient: IControlSystem) =>
   new GetAllControlsTool(qrwcClient);
 
 /**

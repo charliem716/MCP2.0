@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import { QSysError, QSysErrorCode, ValidationError } from '../../shared/types/errors.js';
 
@@ -45,7 +45,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
   protected readonly logger = logger;
 
   constructor(
-    protected readonly qrwcClient: QRWCClientInterface,
+    protected readonly controlSystem: IControlSystem,
     public readonly name: string,
     public readonly description: string,
     protected readonly paramsSchema: z.ZodSchema<TParams>
@@ -85,7 +85,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       const validatedParams = this.validateParams(rawParams);
 
       // Check QRWC connection
-      if (!this.qrwcClient.isConnected()) {
+      if (!this.controlSystem.isConnected()) {
         throw new QSysError('Q-SYS Core not connected', QSysErrorCode.CONNECTION_FAILED);
       }
 

@@ -29,16 +29,24 @@ import {
 } from './command-handlers.js';
 import type { CommandMap, CommandName, CommandParams, CommandResult } from './command-map.js';
 import { isQSysApiResponse, type QSysApiResponse } from '../types/qsys-api-responses.js';
+import type { IControlSystem, ControlSystemCommand } from '../interfaces/control-system.js';
 
 /**
  * Interface that MCP tools expect from a QRWC client
+ * Now extends the generic control system interface
  */
-export interface QRWCClientInterface {
-  isConnected(): boolean;
+export interface QRWCClientInterface extends IControlSystem {
+  // Override with more specific Q-SYS types
   sendCommand<T extends CommandName>(
     command: T,
     params?: CommandParams<T>
   ): Promise<QSysApiResponse<CommandResult<T>>>;
+
+  // Also support generic IControlSystem signature
+  sendCommand<T = unknown>(
+    command: ControlSystemCommand,
+    params?: Record<string, unknown>
+  ): Promise<QSysApiResponse<T>>;
 }
 
 /**

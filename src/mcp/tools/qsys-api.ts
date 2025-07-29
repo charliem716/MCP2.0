@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { BaseQSysTool, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import { QSysAPIReference } from './api-reference.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
@@ -57,7 +57,7 @@ export type QueryQSysAPIParams = z.infer<typeof QueryQSysAPIParamsSchema>;
 export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
   private apiReference: QSysAPIReference;
 
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
       'query_qsys_api',
@@ -1334,5 +1334,5 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
 /**
  * Export the tool factory function
  */
-export const createQueryQSysAPITool = (qrwcClient: QRWCClientInterface) =>
+export const createQueryQSysAPITool = (qrwcClient: IControlSystem) =>
   new QueryQSysAPITool(qrwcClient);

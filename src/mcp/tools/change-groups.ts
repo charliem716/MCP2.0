@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema } from './base.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type {
   EventCacheManager,
@@ -27,9 +27,9 @@ const CreateChangeGroupParamsSchema = BaseToolParamsSchema.extend({
 type CreateChangeGroupParams = z.infer<typeof CreateChangeGroupParamsSchema>;
 
 export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'create_change_group',
       "Create a new change group for monitoring control value changes. Groups allow efficient polling of multiple controls at once. Example: {groupId:'mixer-controls'} creates a group for monitoring mixer-related controls. Group IDs must be unique and non-empty. Errors: Throws if groupId is empty, if Q-SYS Core is not connected, or if communication fails. Returns warning if group already exists.",
       CreateChangeGroupParamsSchema
@@ -39,7 +39,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
   protected async executeInternal(
     params: CreateChangeGroupParams
   ): Promise<ToolCallResult> {
-    const result = (await this.qrwcClient.sendCommand(
+    const result = (await this.controlSystem.sendCommand(
       'ChangeGroup.AddControl',
       {
         Id: params.groupId,
@@ -88,9 +88,9 @@ type AddControlsToChangeGroupParams = z.infer<
 >;
 
 export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChangeGroupParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'add_controls_to_change_group',
       "Add Named Controls to a change group for monitoring. Controls must exist in Q-SYS (e.g., 'Gain1.gain', 'Mixer.level'). Invalid controls are skipped. Example: {groupId:'mixer-controls',controlNames:['MainMixer.gain','MainMixer.mute']} adds gain and mute controls to the mixer-controls group. Errors: Throws if groupId is empty, controlNames array is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       AddControlsToChangeGroupParamsSchema
@@ -100,7 +100,7 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
   protected async executeInternal(
     params: AddControlsToChangeGroupParams
   ): Promise<ToolCallResult> {
-    const result = await this.qrwcClient.sendCommand('ChangeGroup.AddControl', {
+    const result = await this.controlSystem.sendCommand('ChangeGroup.AddControl', {
       Id: params.groupId,
       Controls: params.controlNames.map(name => ({ Name: name })),
     });
@@ -137,9 +137,9 @@ const PollChangeGroupParamsSchema = BaseToolParamsSchema.extend({
 type PollChangeGroupParams = z.infer<typeof PollChangeGroupParamsSchema>;
 
 export class PollChangeGroupTool extends BaseQSysTool<PollChangeGroupParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'poll_change_group',
       "Poll a change group for control value changes since last poll. Returns only controls whose values changed. First poll returns all controls as changed. Example: {groupId:'mixer-controls'} returns array of changed controls with Name, Value, and String properties. Use for efficient UI updates or state monitoring. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       PollChangeGroupParamsSchema
@@ -149,7 +149,7 @@ export class PollChangeGroupTool extends BaseQSysTool<PollChangeGroupParams> {
   protected async executeInternal(
     params: PollChangeGroupParams
   ): Promise<ToolCallResult> {
-    const response = await this.qrwcClient.sendCommand('ChangeGroup.Poll', {
+    const response = await this.controlSystem.sendCommand('ChangeGroup.Poll', {
       Id: params.groupId,
     });
 
@@ -189,9 +189,9 @@ const DestroyChangeGroupParamsSchema = BaseToolParamsSchema.extend({
 type DestroyChangeGroupParams = z.infer<typeof DestroyChangeGroupParamsSchema>;
 
 export class DestroyChangeGroupTool extends BaseQSysTool<DestroyChangeGroupParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'destroy_change_group',
       "Destroy a change group and clean up all resources including auto-poll timers. Always destroy groups when no longer needed to prevent memory leaks. Example: {groupId:'mixer-controls'} destroys the group and stops any associated polling. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       DestroyChangeGroupParamsSchema
@@ -201,7 +201,7 @@ export class DestroyChangeGroupTool extends BaseQSysTool<DestroyChangeGroupParam
   protected async executeInternal(
     params: DestroyChangeGroupParams
   ): Promise<ToolCallResult> {
-    await this.qrwcClient.sendCommand('ChangeGroup.Destroy', {
+    await this.controlSystem.sendCommand('ChangeGroup.Destroy', {
       Id: params.groupId,
     });
 
@@ -235,9 +235,9 @@ type RemoveControlsFromChangeGroupParams = z.infer<
 >;
 
 export class RemoveControlsFromChangeGroupTool extends BaseQSysTool<RemoveControlsFromChangeGroupParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'remove_controls_from_change_group',
       "Remove specific controls from a change group without destroying the group. Example: {groupId:'mixer-controls',controlNames:['MainMixer.input_1_gain']} removes the specified control. Use when dynamically adjusting monitored controls. Errors: Throws if groupId is empty, controlNames array is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       RemoveControlsFromChangeGroupParamsSchema
@@ -247,7 +247,7 @@ export class RemoveControlsFromChangeGroupTool extends BaseQSysTool<RemoveContro
   protected async executeInternal(
     params: RemoveControlsFromChangeGroupParams
   ): Promise<ToolCallResult> {
-    await this.qrwcClient.sendCommand('ChangeGroup.Remove', {
+    await this.controlSystem.sendCommand('ChangeGroup.Remove', {
       Id: params.groupId,
       Controls: params.controlNames,
     });
@@ -277,9 +277,9 @@ const ClearChangeGroupParamsSchema = BaseToolParamsSchema.extend({
 type ClearChangeGroupParams = z.infer<typeof ClearChangeGroupParamsSchema>;
 
 export class ClearChangeGroupTool extends BaseQSysTool<ClearChangeGroupParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'clear_change_group',
       "Remove all controls from a change group while keeping it active. Useful for reconfiguring monitoring without destroying/recreating the group. Example: {groupId:'mixer-controls'} clears all controls but keeps the group ready for new additions. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
       ClearChangeGroupParamsSchema
@@ -289,7 +289,7 @@ export class ClearChangeGroupTool extends BaseQSysTool<ClearChangeGroupParams> {
   protected async executeInternal(
     params: ClearChangeGroupParams
   ): Promise<ToolCallResult> {
-    await this.qrwcClient.sendCommand('ChangeGroup.Clear', {
+    await this.controlSystem.sendCommand('ChangeGroup.Clear', {
       Id: params.groupId,
     });
 
@@ -326,9 +326,9 @@ type SetChangeGroupAutoPollParams = z.infer<
 >;
 
 export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoPollParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'set_change_group_auto_poll',
       "Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300 seconds). Auto-stops after 10 consecutive failures. Example: {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5} polls every 500ms. Set enabled:false to stop polling. Errors: Throws if groupId is empty, intervalSeconds is outside 0.1-300 range, Q-SYS Core is not connected, or if the change group doesn't exist.",
       SetChangeGroupAutoPollParamsSchema
@@ -340,7 +340,7 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
   ): Promise<ToolCallResult> {
     if (params.enabled) {
       // Enable auto polling
-      await this.qrwcClient.sendCommand('ChangeGroup.AutoPoll', {
+      await this.controlSystem.sendCommand('ChangeGroup.AutoPoll', {
         Id: params.groupId,
         Rate: params.intervalSeconds ?? 1.0,
       });
@@ -362,7 +362,7 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
     } else {
       // Disable auto polling by clearing the timer
       // Note: This requires internal adapter knowledge
-      const adapter = this.qrwcClient as { 
+      const adapter = this.controlSystem as { 
         autoPollTimers?: Map<string, NodeJS.Timeout>;
         autoPollFailureCounts?: Map<string, number>;
       };
@@ -403,9 +403,9 @@ const ListChangeGroupsParamsSchema = BaseToolParamsSchema;
 type ListChangeGroupsParams = z.infer<typeof ListChangeGroupsParamsSchema>;
 
 export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'list_change_groups',
       "List all active change groups (MCP-specific tool, not part of Q-SYS API). Shows ID, control count, and auto-poll status. No parameters needed. Example: {} returns [{id:'mixer-controls',controlCount:4,hasAutoPoll:true}]. Use to monitor MCP server state and verify cleanup. Errors: Throws if Q-SYS Core is not connected or if adapter doesn't support group listing.",
       ListChangeGroupsParamsSchema
@@ -416,7 +416,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     params: ListChangeGroupsParams
   ): Promise<ToolCallResult> {
     // Cast the client to access the listChangeGroups method
-    const adapter = this.qrwcClient as { 
+    const adapter = this.controlSystem as { 
       listChangeGroups?: () => Array<{
         id: string;
         controlCount: number;
@@ -517,9 +517,9 @@ type ReadChangeGroupEventsParams = z.infer<
 export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEventsParams> {
   private eventCache?: EventCacheManager | undefined;
 
-  constructor(qrwcClient: QRWCClientInterface, eventCache?: EventCacheManager) {
+  constructor(controlSystem: IControlSystem, eventCache?: EventCacheManager) {
     super(
-      qrwcClient,
+      controlSystem,
       'read_change_group_events',
       "Query historical change group events for time-based analysis. Retrieves control changes within time range (default: last minute). Filters by group, control names, or value changes. Example: {groupId:'mixer-controls',startTime:Date.now()-300000,controlNames:['Gain1.gain'],valueFilter:{operator:'changed_to',value:0}} finds when gain was muted in last 5 minutes. Requires event cache to be enabled. Errors: Returns empty array if no cache available or no events match criteria.",
       ReadChangeGroupEventsParamsSchema
@@ -695,9 +695,9 @@ type SubscribeToChangeEventsParams = z.infer<typeof SubscribeToChangeEventsParam
 export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeEventsParams> {
   private eventCache?: EventCacheManager | undefined;
 
-  constructor(qrwcClient: QRWCClientInterface, eventCache?: EventCacheManager) {
+  constructor(controlSystem: IControlSystem, eventCache?: EventCacheManager) {
     super(
-      qrwcClient,
+      controlSystem,
       'subscribe_to_change_events',
       `Subscribe to real-time change events from a change group. Events are automatically cached and can be queried later using read_change_group_events. Subscription enables both real-time monitoring and historical analysis. Note: You must call set_change_group_auto_poll to start receiving events. Example: 1. Subscribe: subscribe_to_change_events({ groupId: "my-group", enableCache: true }) 2. Start polling: set_change_group_auto_poll({ groupId: "my-group", rate: 100 }) 3. Query history: read_change_group_events({ groupId: "my-group", startTime: Date.now()-60000 })`,
       SubscribeToChangeEventsParamsSchema as z.ZodSchema<SubscribeToChangeEventsParams>
@@ -783,63 +783,63 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
 // ===== Factory Functions =====
 
 export function createCreateChangeGroupTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): CreateChangeGroupTool {
-  return new CreateChangeGroupTool(qrwcClient);
+  return new CreateChangeGroupTool(controlSystem);
 }
 
 export function createAddControlsToChangeGroupTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): AddControlsToChangeGroupTool {
-  return new AddControlsToChangeGroupTool(qrwcClient);
+  return new AddControlsToChangeGroupTool(controlSystem);
 }
 
 export function createPollChangeGroupTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): PollChangeGroupTool {
-  return new PollChangeGroupTool(qrwcClient);
+  return new PollChangeGroupTool(controlSystem);
 }
 
 export function createDestroyChangeGroupTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): DestroyChangeGroupTool {
-  return new DestroyChangeGroupTool(qrwcClient);
+  return new DestroyChangeGroupTool(controlSystem);
 }
 
 export function createRemoveControlsFromChangeGroupTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): RemoveControlsFromChangeGroupTool {
-  return new RemoveControlsFromChangeGroupTool(qrwcClient);
+  return new RemoveControlsFromChangeGroupTool(controlSystem);
 }
 
 export function createClearChangeGroupTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): ClearChangeGroupTool {
-  return new ClearChangeGroupTool(qrwcClient);
+  return new ClearChangeGroupTool(controlSystem);
 }
 
 export function createSetChangeGroupAutoPollTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): SetChangeGroupAutoPollTool {
-  return new SetChangeGroupAutoPollTool(qrwcClient);
+  return new SetChangeGroupAutoPollTool(controlSystem);
 }
 
 export function createListChangeGroupsTool(
-  qrwcClient: QRWCClientInterface
+  controlSystem: IControlSystem
 ): ListChangeGroupsTool {
-  return new ListChangeGroupsTool(qrwcClient);
+  return new ListChangeGroupsTool(controlSystem);
 }
 
 export function createReadChangeGroupEventsTool(
-  qrwcClient: QRWCClientInterface,
+  controlSystem: IControlSystem,
   eventCache?: EventCacheManager
 ): ReadChangeGroupEventsTool {
-  return new ReadChangeGroupEventsTool(qrwcClient, eventCache);
+  return new ReadChangeGroupEventsTool(controlSystem, eventCache);
 }
 
 export function createSubscribeToChangeEventsTool(
-  qrwcClient: QRWCClientInterface,
+  controlSystem: IControlSystem,
   eventCache?: EventCacheManager
 ): SubscribeToChangeEventsTool {
-  return new SubscribeToChangeEventsTool(qrwcClient, eventCache);
+  return new SubscribeToChangeEventsTool(controlSystem, eventCache);
 }

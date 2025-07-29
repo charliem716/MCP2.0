@@ -1,7 +1,7 @@
 import type { MCPTool } from '../../shared/types/mcp.js';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
 import { config as envConfig } from '../../shared/utils/env.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 // Import all Q-SYS tools
@@ -71,7 +71,7 @@ export class MCPToolRegistry {
   private initialized = false;
 
   constructor(
-    private qrwcClient: QRWCClientInterface,
+    private controlSystem: IControlSystem,
     private eventCacheManager?: EventCacheManager
   ) {
     logger.debug('MCPToolRegistry created');
@@ -110,30 +110,30 @@ export class MCPToolRegistry {
    */
   private registerQSysTools(): void {
     const qsysTools: Array<BaseQSysTool<unknown>> = [
-      createListComponentsTool(this.qrwcClient),
-      createGetComponentControlsTool(this.qrwcClient),
-      createListControlsTool(this.qrwcClient),
-      createGetControlValuesTool(this.qrwcClient),
-      createSetControlValuesTool(this.qrwcClient),
-      createQueryCoreStatusTool(this.qrwcClient),
-      createGetAllControlsTool(this.qrwcClient),
-      createQueryQSysAPITool(this.qrwcClient),
+      createListComponentsTool(this.controlSystem),
+      createGetComponentControlsTool(this.controlSystem),
+      createListControlsTool(this.controlSystem),
+      createGetControlValuesTool(this.controlSystem),
+      createSetControlValuesTool(this.controlSystem),
+      createQueryCoreStatusTool(this.controlSystem),
+      createGetAllControlsTool(this.controlSystem),
+      createQueryQSysAPITool(this.controlSystem),
       // Change Group tools
-      createCreateChangeGroupTool(this.qrwcClient),
-      createAddControlsToChangeGroupTool(this.qrwcClient),
-      createPollChangeGroupTool(this.qrwcClient),
-      createDestroyChangeGroupTool(this.qrwcClient),
-      createRemoveControlsFromChangeGroupTool(this.qrwcClient),
-      createClearChangeGroupTool(this.qrwcClient),
-      createSetChangeGroupAutoPollTool(this.qrwcClient),
-      createListChangeGroupsTool(this.qrwcClient),
+      createCreateChangeGroupTool(this.controlSystem),
+      createAddControlsToChangeGroupTool(this.controlSystem),
+      createPollChangeGroupTool(this.controlSystem),
+      createDestroyChangeGroupTool(this.controlSystem),
+      createRemoveControlsFromChangeGroupTool(this.controlSystem),
+      createClearChangeGroupTool(this.controlSystem),
+      createSetChangeGroupAutoPollTool(this.controlSystem),
+      createListChangeGroupsTool(this.controlSystem),
     ];
 
     // Add event cache tools if available
     if (this.eventCacheManager) {
       qsysTools.push(
-        createReadChangeGroupEventsTool(this.qrwcClient, this.eventCacheManager),
-        createSubscribeToChangeEventsTool(this.qrwcClient, this.eventCacheManager)
+        createReadChangeGroupEventsTool(this.controlSystem, this.eventCacheManager),
+        createSubscribeToChangeEventsTool(this.controlSystem, this.eventCacheManager)
       );
     }
 

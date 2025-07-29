@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import { isQSysApiResponse, type QSysStatusGetResponse, type QSysApiResponse, type QSysComponentInfo, type QSysControl } from '../types/qsys-api-responses.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
@@ -47,7 +47,7 @@ export type QueryCoreStatusParams = z.infer<typeof QueryCoreStatusParamsSchema>;
  *   - Network statistics and bitrates
  */
 export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
       'query_core_status',
@@ -62,7 +62,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
   ): Promise<ToolCallResult> {
     try {
       // Send command to get core status
-      const response = await this.qrwcClient.sendCommand('Status.Get');
+      const response = await this.controlSystem.sendCommand('Status.Get');
 
       if (!response.result) {
         throw new MCPError(
@@ -353,7 +353,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     params: QueryCoreStatusParams
   ): Promise<unknown> {
     // Get all components
-    const componentsResponse = await this.qrwcClient.sendCommand(
+    const componentsResponse = await this.controlSystem.sendCommand(
       'Component.GetComponents'
     );
     
@@ -380,7 +380,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
 
     for (const component of statusComponents) {
       try {
-        const controlsResponse = await this.qrwcClient.sendCommand(
+        const controlsResponse = await this.controlSystem.sendCommand(
           'Component.GetControls',
           {
             Name: component.Name,
@@ -641,5 +641,5 @@ interface QSysCoreStatus {
 /**
  * Factory function to create the tool
  */
-export const createQueryCoreStatusTool = (qrwcClient: QRWCClientInterface) =>
+export const createQueryCoreStatusTool = (qrwcClient: IControlSystem) =>
   new QueryCoreStatusTool(qrwcClient);

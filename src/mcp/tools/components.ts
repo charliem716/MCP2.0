@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema, type ToolExecutionContext } from './base.js';
 import type { ToolCallResult } from '../handlers/index.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import type {
   QSysComponentInfo,
   QSysComponentGetResponse,
@@ -32,9 +32,9 @@ export type ListComponentsParams = z.infer<typeof ListComponentsParamsSchema>;
  * and understanding the system architecture.
  */
 export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'list_components',
       "Discover Q-SYS components with regex filtering and optional property details. Filter by name/type patterns ('mixer', '^Main', 'gain|delay'). Set includeProperties=true for configuration data like channel counts, ranges, and specifications. Returns component array with names/types, plus detailed properties if requested. Examples: {filter:'gain'} for all gains, {filter:'mixer',includeProperties:true} for mixers with input/output counts.",
       ListComponentsParamsSchema
@@ -47,7 +47,7 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
   ): Promise<ToolCallResult> {
     try {
       // Send QRC command to get component list
-      const response = await this.qrwcClient.sendCommand(
+      const response = await this.controlSystem.sendCommand(
         'Component.GetComponents'
       );
 
@@ -174,8 +174,8 @@ interface QSysComponent {
 /**
  * Export the tool factory function for registration
  */
-export const createListComponentsTool = (qrwcClient: QRWCClientInterface) =>
-  new ListComponentsTool(qrwcClient);
+export const createListComponentsTool = (controlSystem: IControlSystem) =>
+  new ListComponentsTool(controlSystem);
 
 /**
  * Parameters for the qsys_component_get tool
@@ -196,9 +196,9 @@ export type GetComponentControlsParams = z.infer<
  * this allows getting specific controls from a component in a single request.
  */
 export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(controlSystem: IControlSystem) {
     super(
-      qrwcClient,
+      controlSystem,
       'qsys_component_get',
       "Get multiple control values from a single component efficiently. Returns control values with current state, position data (0-1), and formatted strings. Control names are relative to component. Example: {component:'Main Mixer',controls:['gain','mute']} returns values with UI-ready formatting like '-10dB' and position data for sliders.",
       GetComponentControlsParamsSchema
@@ -210,7 +210,7 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      const response = await this.qrwcClient.sendCommand('Component.GetControls', {
+      const response = await this.controlSystem.sendCommand('Component.GetControls', {
         Name: params.component,
       });
 
@@ -277,5 +277,5 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
  * Export the tool factory function for registration
  */
 export const createGetComponentControlsTool = (
-  qrwcClient: QRWCClientInterface
-) => new GetComponentControlsTool(qrwcClient);
+  controlSystem: IControlSystem
+) => new GetComponentControlsTool(controlSystem);

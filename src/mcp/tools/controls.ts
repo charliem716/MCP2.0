@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema, type ToolExecutionContext } from './base.js';
 import { config as envConfig } from '../../shared/utils/env.js';
 import type { ToolCallResult } from '../handlers/index.js';
-import type { QRWCClientInterface } from '../qrwc/adapter.js';
+import type { IControlSystem } from '../interfaces/control-system.js';
 import {
   type QSysComponentControlsResponse,
   type QSysControlGetResponse,
@@ -107,7 +107,7 @@ export type SetControlValuesParams = z.infer<
  * Tool to list all available controls in Q-SYS components
  */
 export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
       'list_controls',
@@ -126,8 +126,8 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         : `Component.GetAllControls`;
 
       const response = params.component
-        ? await this.qrwcClient.sendCommand(command, { Name: params.component })
-        : await this.qrwcClient.sendCommand(command);
+        ? await this.controlSystem.sendCommand(command, { Name: params.component })
+        : await this.controlSystem.sendCommand(command);
 
       const controls = this.parseControlsResponse(response, params);
 
@@ -389,7 +389,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
  * Tool to get current values of specific controls
  */
 export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
       'get_control_values',
@@ -403,7 +403,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      const response = await this.qrwcClient.sendCommand('Control.GetValues', {
+      const response = await this.controlSystem.sendCommand('Control.GetValues', {
         Names: params.controls,
       });
 
@@ -589,7 +589,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
   >();
   private readonly CACHE_TTL = envConfig.timeouts.validationCacheTtlMs;
 
-  constructor(qrwcClient: QRWCClientInterface) {
+  constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
       'set_control_values',
@@ -948,7 +948,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     }> = [];
 
     try {
-      const response = await this.qrwcClient.sendCommand('Component.GetControls', {
+      const response = await this.controlSystem.sendCommand('Component.GetControls', {
         Name: componentName,
       });
 
@@ -983,9 +983,9 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       }
 
       // Check which controls were returned
-      if (isQSysApiResponse(response) && !response.error && response.result && isComponentControlsResponse(response.result)) {
+      if (isComponentControlsResponse(response) && !response.error && response.result) {
         const returnedControlNames = new Set(
-          response.result.Controls.map((c) => c.Name)
+          response.result.Controls.map((c: { Name: string }) => c.Name)
         );
 
         for (const info of controlInfos) {
@@ -1041,7 +1041,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     // But we can do them in parallel within the batch
     const promises = batch.map(async control => {
       try {
-        const response = await this.qrwcClient.sendCommand('Control.Get', {
+        const response = await this.controlSystem.sendCommand('Control.Get', {
           Name: control.name,
         });
 
@@ -1108,9 +1108,9 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       commandParams.Ramp = control.ramp;
     }
 
-    return await this.qrwcClient.sendCommand(
+    return await this.controlSystem.sendCommand(
       'Control.Set',
-      commandParams
+      commandParams as unknown as Record<string, unknown>
     );
   }
 
@@ -1147,7 +1147,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       return controlParams;
     });
 
-    return await this.qrwcClient.sendCommand('Component.Set', {
+    return await this.controlSystem.sendCommand('Component.Set', {
       Name: componentName,
       Controls: controlsArray,
     });
@@ -1203,11 +1203,11 @@ interface ControlValueResult {
 /**
  * Export tool factory functions for registration
  */
-export const createListControlsTool = (qrwcClient: QRWCClientInterface) =>
+export const createListControlsTool = (qrwcClient: IControlSystem) =>
   new ListControlsTool(qrwcClient);
 
-export const createGetControlValuesTool = (qrwcClient: QRWCClientInterface) =>
+export const createGetControlValuesTool = (qrwcClient: IControlSystem) =>
   new GetControlValuesTool(qrwcClient);
 
-export const createSetControlValuesTool = (qrwcClient: QRWCClientInterface) =>
+export const createSetControlValuesTool = (qrwcClient: IControlSystem) =>
   new SetControlValuesTool(qrwcClient);
