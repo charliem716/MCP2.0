@@ -6,8 +6,8 @@ import {
   jest,
   afterEach,
 } from '@jest/globals';
-import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter.js';
-import type { OfficialQRWCClient } from '../../../../src/qrwc/officialClient.js';
+import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter';
+import type { OfficialQRWCClient } from '../../../../src/qrwc/officialClient';
 
 describe('QRWCClientAdapter - Change Groups', () => {
   let adapter: QRWCClientAdapter;

@@ -7,7 +7,7 @@ import {
   EventCacheManager,
   EventQuery,
   CachedEvent,
-} from '../src/mcp/state/event-cache/manager.js';
+} from '../src/mcp/state/event-cache/manager';
 
 describe('EventCacheManager - Pagination with offset', () => {
   let cacheManager: EventCacheManager;

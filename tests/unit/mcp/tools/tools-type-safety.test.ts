@@ -5,14 +5,14 @@ import {
   createListControlsTool,
   createGetControlValuesTool,
   createSetControlValuesTool,
-} from '../../../../src/mcp/tools/controls.js';
+} from '../../../../src/mcp/tools/controls';
 import {
   ListComponentsTool,
   GetComponentControlsTool,
   createListComponentsTool,
   createGetComponentControlsTool,
-} from '../../../../src/mcp/tools/components.js';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
+} from '../../../../src/mcp/tools/components';
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 
 // BUG-036 regression tests - ensure type safety for all Q-SYS tools
 describe('Tools Type Safety', () => {

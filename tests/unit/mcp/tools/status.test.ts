@@ -1,4 +1,4 @@
-import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status.js';
+import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status';
 
 describe('QueryCoreStatusTool', () => {
   let mockQrwcClient: any;

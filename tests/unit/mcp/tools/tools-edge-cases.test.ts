@@ -1,9 +1,9 @@
-import { ListComponentsTool } from '../../../../src/mcp/tools/components.js';
-import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status.js';
+import { ListComponentsTool } from '../../../../src/mcp/tools/components';
+import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status';
 import {
   SetControlValuesTool,
   ListControlsTool,
-} from '../../../../src/mcp/tools/controls.js';
+} from '../../../../src/mcp/tools/controls';
 
 describe('MCP Tools - Edge Cases for 100% Coverage', () => {
   let mockQrwcClient: any;

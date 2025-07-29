@@ -1,4 +1,4 @@
-import { ListComponentsTool } from '../../../../src/mcp/tools/components.js';
+import { ListComponentsTool } from '../../../../src/mcp/tools/components';
 
 describe('ListComponentsTool', () => {
   let mockQrwcClient: any;

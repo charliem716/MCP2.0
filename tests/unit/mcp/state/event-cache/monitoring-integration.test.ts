@@ -2,8 +2,8 @@
  * Tests for Event Cache Monitoring Integration (STEP-3.3)
  */
 
-import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager.js';
-import type { ChangeGroupEvent } from '../../../../../src/mcp/state/event-cache/types.js';
+import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager';
+import type { ChangeGroupEvent } from '../../../../../src/mcp/state/event-cache/types';
 import { EventEmitter } from 'events';
 
 describe('EventCacheManager - Monitoring Integration', () => {
@@ -193,7 +193,8 @@ describe('EventCacheManager - Monitoring Integration', () => {
       if (typeof stats === 'object' && stats !== null && 'resources' in stats) {
         expect(stats.resources.compressionEffectiveness).toBeDefined();
         expect(typeof stats.resources.compressionEffectiveness).toBe('number');
-        expect(stats.resources.compressionEffectiveness).toBeGreaterThanOrEqual(0);
+        // -1 indicates no compression has occurred yet, which is valid
+        expect(stats.resources.compressionEffectiveness).toBeGreaterThanOrEqual(-1);
         expect(stats.resources.compressionEffectiveness).toBeLessThanOrEqual(100);
       }
     });

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { z } from 'zod';
-import { BaseQSysTool } from '../../../../src/mcp/tools/base.js';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
+import { BaseQSysTool } from '../../../../src/mcp/tools/base';
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 import type {
   ToolCallResult,
   ToolExecutionContext,
-} from '../../../../src/mcp/tools/base.js';
+} from '../../../../src/mcp/tools/base';
 
 // Mock implementation of BaseQSysTool for testing
 class TestTool extends BaseQSysTool<{ value: string }> {

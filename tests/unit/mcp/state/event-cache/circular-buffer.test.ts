@@ -1,4 +1,4 @@
-import { CircularBuffer } from '../../../../../src/mcp/state/event-cache/circular-buffer.js';
+import { CircularBuffer } from '../../../../../src/mcp/state/event-cache/circular-buffer';
 
 describe('CircularBuffer', () => {
   describe('constructor', () => {

@@ -2,12 +2,15 @@
  * Integration tests for Event Cache Monitoring (STEP-3.3)
  */
 
-import { EventCacheManager } from '../../src/mcp/state/event-cache/manager.js';
-import type { ChangeGroupEvent } from '../../src/mcp/state/event-cache/types.js';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { EventCacheManager } from '../../src/mcp/state/event-cache/manager';
+import type { ChangeGroupEvent } from '../../src/mcp/state/event-cache/types';
 import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 
 describe('Event Cache Monitoring Integration', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
+  
   let manager: EventCacheManager;
   let mockAdapter: EventEmitter;
 

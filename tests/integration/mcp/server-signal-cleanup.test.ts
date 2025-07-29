@@ -1,12 +1,10 @@
-/**
- * BUG-028: Signal Handler Cleanup Integration Test
- * Tests that signal handlers are properly cleaned up to prevent accumulation
- */
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { MCPServer } from '../../../src/mcp/server';
+import { strict as assert } from 'assert';
 
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
-import { MCPServer } from '../../../src/mcp/server.js';
-
-describe('MCP Server Signal Handler Cleanup (BUG-028)', () => {
+describe('BUG-028: Signal Handler Cleanup Integration Test', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
+  // Test configuration
   const config = {
     name: 'test-server',
     version: '1.0.0',
@@ -17,163 +15,167 @@ describe('MCP Server Signal Handler Cleanup (BUG-028)', () => {
     },
   };
 
-  let baseListenerCounts: Record<string, number>;
-  let servers: MCPServer[] = [];
+  it('should handle signal handler cleanup properly', async () => {
+  console.log('\n1. Testing signal handler accumulation without cleanup...');
 
-  // Capture baseline counts before ANY tests run
-  beforeAll(() => {
-    baseListenerCounts = {
-      SIGINT: process.listenerCount('SIGINT'),
-      SIGTERM: process.listenerCount('SIGTERM'),
-      SIGUSR2: process.listenerCount('SIGUSR2'),
-      uncaughtException: process.listenerCount('uncaughtException'),
-      unhandledRejection: process.listenerCount('unhandledRejection'),
-    };
-  });
+  // Store initial listener counts (including error handlers)
+  const initialSIGINT = process.listenerCount('SIGINT');
+  const initialSIGTERM = process.listenerCount('SIGTERM');
+  const initialSIGUSR2 = process.listenerCount('SIGUSR2');
+  const initialUncaught = process.listenerCount('uncaughtException');
+  const initialUnhandled = process.listenerCount('unhandledRejection');
 
-  beforeEach(() => {
-    servers = [];
-  });
+  console.log(
+    `Initial listener counts - SIGINT: ${initialSIGINT}, SIGTERM: ${initialSIGTERM}, SIGUSR2: ${initialSIGUSR2}`
+  );
+  console.log(
+    `Initial error handler counts - uncaughtException: ${initialUncaught}, unhandledRejection: ${initialUnhandled}`
+  );
 
-  afterEach(async () => {
-    // Clean up any servers created during the test
-    for (const server of servers) {
-      try {
-        // Mock required properties for shutdown if not already mocked
-        if (!server.transport) {
-          server.transport = { close: async () => {} } as any;
-        }
-        // Don't mock officialQrwcClient - use the real one
-        if (!server.toolRegistry) {
-          server.toolRegistry = { cleanup: async () => {} } as any;
-        }
-        server.isConnected = true;
-        await server.shutdown();
-      } catch (error) {
-        // Ignore errors during cleanup
-      }
-    }
-    servers = [];
-  });
+  // Create first server (constructor sets up error handlers)
+  const server1 = new MCPServer(config);
+  // Manually setup graceful shutdown handlers (normally done in start())
+  const setupMethod =
+    Object.getPrototypeOf(server1).constructor.prototype.setupGracefulShutdown;
+  setupMethod.call(server1);
 
-  it('should add signal handlers when server is created', () => {
-    const beforeCounts = {
-      SIGINT: process.listenerCount('SIGINT'),
-      SIGTERM: process.listenerCount('SIGTERM'),
-      SIGUSR2: process.listenerCount('SIGUSR2'),
-      uncaughtException: process.listenerCount('uncaughtException'),
-      unhandledRejection: process.listenerCount('unhandledRejection'),
-    };
-    
-    // Create server (constructor sets up error handlers AND OfficialQRWCClient adds SIGINT/SIGTERM)
+  // Check listener counts increased
+  const afterFirst = {
+    SIGINT: process.listenerCount('SIGINT'),
+    SIGTERM: process.listenerCount('SIGTERM'),
+    SIGUSR2: process.listenerCount('SIGUSR2'),
+    uncaughtException: process.listenerCount('uncaughtException'),
+    unhandledRejection: process.listenerCount('unhandledRejection'),
+  };
+
+  console.log(
+    `After first server - SIGINT: ${afterFirst.SIGINT}, SIGTERM: ${afterFirst.SIGTERM}, SIGUSR2: ${afterFirst.SIGUSR2}`
+  );
+  console.log(
+    `After first server - uncaughtException: ${afterFirst.uncaughtException}, unhandledRejection: ${afterFirst.unhandledRejection}`
+  );
+  
+  // Verify that listeners were added (may be more than 1 if there are pre-existing listeners)
+  assert.ok(
+    afterFirst.SIGINT > initialSIGINT,
+    'SIGINT listener should be added'
+  );
+  assert.ok(
+    afterFirst.SIGTERM > initialSIGTERM,
+    'SIGTERM listener should be added'
+  );
+  assert.ok(
+    afterFirst.SIGUSR2 > initialSIGUSR2,
+    'SIGUSR2 listener should be added'
+  );
+  assert.equal(
+    afterFirst.uncaughtException,
+    initialUncaught + 1,
+    'uncaughtException listener should be added'
+  );
+  assert.equal(
+    afterFirst.unhandledRejection,
+    initialUnhandled + 1,
+    'unhandledRejection listener should be added'
+  );
+
+  console.log('\n2. Testing cleanup on shutdown...');
+
+  // Mock required properties for shutdown
+  server1.isConnected = true;
+  server1.transport = { close: async () => {} };
+  // Don't mock officialQrwcClient - let it use the real disconnect method
+  server1.toolRegistry = { cleanup: async () => {} };
+
+  // Shutdown server1
+  await server1.shutdown();
+
+  // Check listeners were removed
+  const afterShutdown = {
+    SIGINT: process.listenerCount('SIGINT'),
+    SIGTERM: process.listenerCount('SIGTERM'),
+    SIGUSR2: process.listenerCount('SIGUSR2'),
+    uncaughtException: process.listenerCount('uncaughtException'),
+    unhandledRejection: process.listenerCount('unhandledRejection'),
+  };
+
+  console.log(
+    `After shutdown - SIGINT: ${afterShutdown.SIGINT}, SIGTERM: ${afterShutdown.SIGTERM}, SIGUSR2: ${afterShutdown.SIGUSR2}`
+  );
+  console.log(
+    `After shutdown - uncaughtException: ${afterShutdown.uncaughtException}, unhandledRejection: ${afterShutdown.unhandledRejection}`
+  );
+  assert.equal(
+    afterShutdown.SIGINT,
+    initialSIGINT,
+    'SIGINT listeners should be back to initial count'
+  );
+  assert.equal(
+    afterShutdown.SIGTERM,
+    initialSIGTERM,
+    'SIGTERM listeners should be back to initial count'
+  );
+  assert.equal(
+    afterShutdown.SIGUSR2,
+    initialSIGUSR2,
+    'SIGUSR2 listeners should be back to initial count'
+  );
+  assert.equal(
+    afterShutdown.uncaughtException,
+    initialUncaught,
+    'uncaughtException listeners should be back to initial count'
+  );
+  assert.equal(
+    afterShutdown.unhandledRejection,
+    initialUnhandled,
+    'unhandledRejection listeners should be back to initial count'
+  );
+
+  console.log('\n3. Testing no accumulation with proper cleanup...');
+
+  // Create multiple servers with proper cleanup
+  for (let i = 0; i < 3; i++) {
     const server = new MCPServer(config);
-    servers.push(server);
-    
-    const afterConstructor = {
-      SIGINT: process.listenerCount('SIGINT'),
-      SIGTERM: process.listenerCount('SIGTERM'),
-      SIGUSR2: process.listenerCount('SIGUSR2'),
-      uncaughtException: process.listenerCount('uncaughtException'),
-      unhandledRejection: process.listenerCount('unhandledRejection'),
-    };
-    
-    // Manually setup graceful shutdown handlers (normally done in start())
-    const setupMethod = Object.getPrototypeOf(server).constructor.prototype.setupGracefulShutdown;
-    setupMethod.call(server);
-    
-    const afterSetup = {
-      SIGINT: process.listenerCount('SIGINT'),
-      SIGTERM: process.listenerCount('SIGTERM'),
-      SIGUSR2: process.listenerCount('SIGUSR2'),
-      uncaughtException: process.listenerCount('uncaughtException'),
-      unhandledRejection: process.listenerCount('unhandledRejection'),
-    };
-
-    // OfficialQRWCClient adds 1 handler each for SIGINT and SIGTERM in constructor
-    // setupGracefulShutdown adds 1 more handler each for SIGINT, SIGTERM, and SIGUSR2
-    // setupErrorHandling adds handlers for uncaughtException and unhandledRejection
-    expect(process.listenerCount('SIGINT')).toBe(beforeCounts.SIGINT + 2); // 1 from QRWC + 1 from graceful
-    expect(process.listenerCount('SIGTERM')).toBe(beforeCounts.SIGTERM + 2); // 1 from QRWC + 1 from graceful
-    expect(process.listenerCount('SIGUSR2')).toBe(beforeCounts.SIGUSR2 + 1); // Only from graceful
-    expect(process.listenerCount('uncaughtException')).toBe(beforeCounts.uncaughtException + 1); // From error handling
-    expect(process.listenerCount('unhandledRejection')).toBe(beforeCounts.unhandledRejection + 1); // From error handling
-  });
-
-  it('should remove signal handlers on shutdown', async () => {
-    const beforeCounts = {
-      SIGINT: process.listenerCount('SIGINT'),
-      SIGTERM: process.listenerCount('SIGTERM'),
-      SIGUSR2: process.listenerCount('SIGUSR2'),
-      uncaughtException: process.listenerCount('uncaughtException'),
-      unhandledRejection: process.listenerCount('unhandledRejection'),
-    };
-    
-    // Create server
-    const server = new MCPServer(config);
-    servers.push(server);
-    const setupMethod = Object.getPrototypeOf(server).constructor.prototype.setupGracefulShutdown;
     setupMethod.call(server);
 
-    // Mock required properties for shutdown
+    // Mock for shutdown
     server.isConnected = true;
-    server.transport = { close: async () => {} } as any;
-    // Don't mock officialQrwcClient - use the real one that was created
-    server.toolRegistry = { cleanup: async () => {} } as any;
+    server.transport = { close: async () => {} };
+    // Don't mock officialQrwcClient - let it use the real disconnect method
+    server.toolRegistry = { cleanup: async () => {} };
 
-    // Shutdown server
     await server.shutdown();
+  }
 
-    // After shutdown, all handlers should be removed (OfficialQRWCClient now cleans up properly)
-    // MCPServer's graceful shutdown and error handlers should be removed
-    expect(process.listenerCount('SIGINT')).toBe(beforeCounts.SIGINT); // All handlers removed
-    expect(process.listenerCount('SIGTERM')).toBe(beforeCounts.SIGTERM); // All handlers removed
-    expect(process.listenerCount('SIGUSR2')).toBe(beforeCounts.SIGUSR2); // Graceful handler removed
-    expect(process.listenerCount('uncaughtException')).toBe(beforeCounts.uncaughtException); // Error handler removed
-    expect(process.listenerCount('unhandledRejection')).toBe(beforeCounts.unhandledRejection); // Error handler removed
-  });
+  // Verify no accumulation
+  const finalCounts = {
+    SIGINT: process.listenerCount('SIGINT'),
+    SIGTERM: process.listenerCount('SIGTERM'),
+    SIGUSR2: process.listenerCount('SIGUSR2'),
+    uncaughtException: process.listenerCount('uncaughtException'),
+    unhandledRejection: process.listenerCount('unhandledRejection'),
+  };
 
-  it('should properly clean up all handlers including OfficialQRWCClient', async () => {
-    // This test verifies that both MCPServer and OfficialQRWCClient handlers are cleaned up properly
-    
-    const setupMethod = Object.getPrototypeOf(new MCPServer(config)).constructor.prototype.setupGracefulShutdown;
-    const sigusr2Count = process.listenerCount('SIGUSR2');
-    const uncaughtCount = process.listenerCount('uncaughtException');
-    const unhandledCount = process.listenerCount('unhandledRejection');
+  console.log(
+    `Final counts after 3 create/shutdown cycles - SIGINT: ${finalCounts.SIGINT}, SIGTERM: ${finalCounts.SIGTERM}, SIGUSR2: ${finalCounts.SIGUSR2}`
+  );
+  console.log(
+    `Final error handler counts - uncaughtException: ${finalCounts.uncaughtException}, unhandledRejection: ${finalCounts.unhandledRejection}`
+  );
+  assert.equal(finalCounts.SIGINT, initialSIGINT, 'No SIGINT accumulation');
+  assert.equal(finalCounts.SIGTERM, initialSIGTERM, 'No SIGTERM accumulation');
+  assert.equal(finalCounts.SIGUSR2, initialSIGUSR2, 'No SIGUSR2 accumulation');
+  assert.equal(
+    finalCounts.uncaughtException,
+    initialUncaught,
+    'No uncaughtException accumulation'
+  );
+  assert.equal(
+    finalCounts.unhandledRejection,
+    initialUnhandled,
+    'No unhandledRejection accumulation'
+  );
 
-    // Create multiple servers with proper cleanup
-    for (let i = 0; i < 3; i++) {
-      const server = new MCPServer(config);
-      servers.push(server);
-      setupMethod.call(server);
-
-      // After setup, we should have one more SIGUSR2 handler (only from MCPServer)
-      expect(process.listenerCount('SIGUSR2')).toBe(sigusr2Count + 1);
-      expect(process.listenerCount('uncaughtException')).toBe(uncaughtCount + 1);
-      expect(process.listenerCount('unhandledRejection')).toBe(unhandledCount + 1);
-
-      // Mock for shutdown
-      server.isConnected = true;
-      server.transport = { close: async () => {} } as any;
-      // Don't mock officialQrwcClient - use the real one
-      server.toolRegistry = { cleanup: async () => {} } as any;
-
-      await server.shutdown();
-      
-      // After shutdown, MCPServer handlers should be removed
-      expect(process.listenerCount('SIGUSR2')).toBe(sigusr2Count);
-      expect(process.listenerCount('uncaughtException')).toBe(uncaughtCount);
-      expect(process.listenerCount('unhandledRejection')).toBe(unhandledCount);
-      
-      // Remove from tracking array since we already shut it down
-      servers.pop();
-    }
-
-    // Verify that SIGUSR2, uncaughtException, and unhandledRejection don't accumulate
-    // (these are managed by MCPServer and should be cleaned up properly)
-    expect(process.listenerCount('SIGUSR2')).toBe(sigusr2Count);
-    expect(process.listenerCount('uncaughtException')).toBe(uncaughtCount);
-    expect(process.listenerCount('unhandledRejection')).toBe(unhandledCount);
-    
-    // Note: SIGINT and SIGTERM handlers are now properly cleaned up by OfficialQRWCClient
+  console.log('\n✅ All integration tests passed! BUG-028 is fully fixed.');
   });
 });

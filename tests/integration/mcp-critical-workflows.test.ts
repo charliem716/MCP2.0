@@ -1,11 +1,12 @@
-import { QSysCoreMock } from '../mocks/qsys-core-mock.js';
-import { OfficialQRWCClient } from '../../src/qrwc/officialClient.js';
-import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter.js';
-import { MCPToolRegistry } from '../../src/mcp/handlers/index.js';
-import { EventCacheManager } from '../../src/mcp/state/event-cache/manager.js';
-import { logger } from '../../src/shared/logger.js';
+import { QSysCoreMock } from '../mocks/qsys-core-mock';
+import { OfficialQRWCClient } from '../../src/qrwc/officialClient';
+import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter';
+import { MCPToolRegistry } from '../../src/mcp/handlers/index';
+import { EventCacheManager } from '../../src/mcp/state/event-cache/manager';
+import { logger } from '../../src/shared/logger';
 
 describe('MCP Critical Workflows Integration Tests', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
   let coreMock: QSysCoreMock;
   let qrwcClient: OfficialQRWCClient;
   let qrwcAdapter: QRWCClientAdapter;

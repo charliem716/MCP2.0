@@ -2,7 +2,7 @@
  * Test to verify OfficialQRWCClient properly cleans up signal handlers
  */
 
-import { OfficialQRWCClient } from '../../../src/qrwc/officialClient.js';
+import { OfficialQRWCClient } from '../../../src/qrwc/officialClient';
 
 describe('OfficialQRWCClient Signal Handler Cleanup', () => {
   const mockOptions = {

@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { createReadChangeGroupEventsTool } from '../../../../src/mcp/tools/change-groups.js';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
-import type { EventCacheManager } from '../../../../src/mcp/state/event-cache/manager.js';
+import { createReadChangeGroupEventsTool } from '../../../../src/mcp/tools/change-groups';
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
+import type { EventCacheManager } from '../../../../src/mcp/state/event-cache/manager';
 
 describe('BUG-105: read_change_group_events timeout protection', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;

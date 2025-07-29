@@ -3,6 +3,20 @@
  * Global test configuration and setup
  */
 
+// Import jest globals and make them available globally
+import { jest, beforeEach, afterEach, beforeAll, afterAll, describe, it, expect } from '@jest/globals';
+
+// Make jest available globally for all tests
+(globalThis as any).jest = jest;
+(globalThis as any).describe = describe;
+(globalThis as any).it = it;
+(globalThis as any).expect = expect;
+(globalThis as any).beforeEach = beforeEach;
+(globalThis as any).afterEach = afterEach;
+(globalThis as any).beforeAll = beforeAll;
+(globalThis as any).afterAll = afterAll;
+(globalThis as any).test = it;
+
 // Increase timeout for integration tests
 jest.setTimeout(30000);
 
@@ -62,6 +76,16 @@ declare global {
       debug: jest.Mock;
     };
   };
+  // Ensure jest types are available globally
+  const jest: typeof import('@jest/globals')['jest'];
+  const describe: typeof import('@jest/globals')['describe'];
+  const it: typeof import('@jest/globals')['it'];
+  const expect: typeof import('@jest/globals')['expect'];
+  const beforeEach: typeof import('@jest/globals')['beforeEach'];
+  const afterEach: typeof import('@jest/globals')['afterEach'];
+  const beforeAll: typeof import('@jest/globals')['beforeAll'];
+  const afterAll: typeof import('@jest/globals')['afterAll'];
+  const test: typeof import('@jest/globals')['test'];
 }
 
 // Make this an external module to allow global augmentation

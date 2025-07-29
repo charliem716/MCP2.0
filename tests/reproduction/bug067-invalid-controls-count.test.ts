@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter.js';
-import { AddControlsToChangeGroupTool } from '../../src/mcp/tools/change-groups.js';
+import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter';
+import { AddControlsToChangeGroupTool } from '../../src/mcp/tools/change-groups';
 
 describe('BUG-067: add_controls_to_change_group returns incorrect control count', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;

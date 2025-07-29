@@ -12,6 +12,22 @@ import {
   isControlsArrayResponse,
 } from '../types/qsys-api-responses.js';
 
+/**
+ * Safe JSON stringify that handles circular references
+ */
+function safeJsonStringify(obj: unknown): string {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular Reference]';
+      }
+      seen.add(value);
+    }
+    return value;
+  });
+}
+
 // Extract the control type from the existing interface
 type QSysControlInfo = QSysComponentControlsResponse['Controls'][0];
 
@@ -115,18 +131,65 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
 
       const controls = this.parseControlsResponse(response, params);
 
+      // Try to serialize the controls with proper error handling
+      let serializedControls: string;
+      try {
+        serializedControls = safeJsonStringify(controls);
+      } catch (jsonError) {
+        this.logger.error('Failed to serialize controls - circular reference detected', { 
+          error: jsonError, 
+          context,
+          controlsCount: controls.length 
+        });
+        
+        // Return a formatted error response instead of throwing
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: 'JSON_SERIALIZATION_ERROR',
+                message: 'Failed to serialize controls due to circular reference',
+                details: {
+                  controlsFound: controls.length,
+                  hint: 'The controls response contains circular references that cannot be serialized. This may be due to self-referencing objects in the Q-SYS API response.'
+                }
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(controls),
+            text: serializedControls,
           },
         ],
         isError: false,
       };
     } catch (error) {
       this.logger.error('Failed to list controls', { error, context });
-      throw error;
+      
+      // Return formatted error instead of throwing
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: 'CONTROLS_LIST_ERROR',
+              message: error instanceof Error ? error.message : 'Unknown error occurred',
+              details: {
+                component: params.component || 'all',
+                controlType: params.controlType || 'all'
+              }
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
   }
 
@@ -346,18 +409,64 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
 
       const values = this.parseControlValuesResponse(response, params.controls);
 
+      // Try to serialize the values with proper error handling
+      let serializedValues: string;
+      try {
+        serializedValues = safeJsonStringify(values);
+      } catch (jsonError) {
+        this.logger.error('Failed to serialize control values - circular reference detected', { 
+          error: jsonError, 
+          context,
+          controlsCount: values.length 
+        });
+        
+        // Return a formatted error response instead of throwing
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: 'JSON_SERIALIZATION_ERROR',
+                message: 'Failed to serialize control values due to circular reference',
+                details: {
+                  controlsRequested: params.controls.length,
+                  hint: 'The control values response contains circular references that cannot be serialized.'
+                }
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(values),
+            text: serializedValues,
           },
         ],
         isError: false,
       };
     } catch (error) {
       this.logger.error('Failed to get control values', { error, context });
-      throw error;
+      
+      // Return formatted error instead of throwing
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: 'CONTROL_VALUES_ERROR',
+              message: error instanceof Error ? error.message : 'Unknown error occurred',
+              details: {
+                controls: params.controls
+              }
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
   }
 
@@ -543,11 +652,24 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             error: error.message,
           }));
 
+          // Try to serialize error results with proper error handling
+          let serializedErrors: string;
+          try {
+            serializedErrors = safeJsonStringify(errorResults);
+          } catch (jsonError) {
+            this.logger.error('Failed to serialize validation errors', { error: jsonError, context });
+            serializedErrors = JSON.stringify({
+              error: 'VALIDATION_SERIALIZATION_ERROR',
+              message: 'Failed to serialize validation errors',
+              errorCount: errorResults.length
+            });
+          }
+
           return {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(errorResults),
+                text: serializedErrors,
               },
             ],
             isError: true,
@@ -642,18 +764,70 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         }
       });
 
+      // Try to serialize results with proper error handling
+      let serializedResults: string;
+      try {
+        serializedResults = safeJsonStringify(jsonResults);
+      } catch (jsonError) {
+        this.logger.error('Failed to serialize control set results - circular reference detected', { 
+          error: jsonError, 
+          context,
+          resultsCount: jsonResults.length 
+        });
+        
+        // Return a formatted error response with summary
+        const successCount = jsonResults.filter(r => r.success).length;
+        const failureCount = jsonResults.filter(r => !r.success).length;
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: 'JSON_SERIALIZATION_ERROR',
+                message: 'Failed to serialize control set results due to circular reference',
+                summary: {
+                  total: jsonResults.length,
+                  successful: successCount,
+                  failed: failureCount
+                },
+                hint: 'The control set response contains circular references that cannot be serialized.'
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(jsonResults),
+            text: serializedResults,
           },
         ],
         isError: allResults.some(r => r.result.status === 'rejected'),
       };
     } catch (error) {
       this.logger.error('Failed to set control values', { error, context });
-      throw error;
+      
+      // Return formatted error instead of throwing
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: 'SET_CONTROL_VALUES_ERROR',
+              message: error instanceof Error ? error.message : 'Unknown error occurred',
+              details: {
+                controlsCount: params.controls.length,
+                validate: params.validate !== false
+              }
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
   }
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { ChangeGroupManager } from '../../../../src/mcp/state/change-group-manager.js';
-import { ChangeGroupEvent } from '../../../../src/mcp/state/change-group/types.js';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
-import type { ChangeGroup } from '../../../../src/mcp/state/repository.js';
+import { ChangeGroupManager } from '../../../../src/mcp/state/change-group-manager';
+import { ChangeGroupEvent } from '../../../../src/mcp/state/change-group/types';
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
+import type { ChangeGroup } from '../../../../src/mcp/state/repository';
 import { v4 as uuidv4 } from 'uuid';
 
 // Mock the QRWCClientInterface

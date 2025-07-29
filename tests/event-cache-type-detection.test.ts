@@ -7,7 +7,7 @@ import {
   EventCacheManager,
   EventQuery,
   CachedEvent,
-} from '../src/mcp/state/event-cache/manager.js';
+} from '../src/mcp/state/event-cache/manager';
 
 describe('EventCacheManager - Event Type Detection', () => {
   let cacheManager: EventCacheManager;

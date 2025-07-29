@@ -1,11 +1,11 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter.js';
-import { OfficialQRWCClient } from '../../../../src/qrwc/officialClient.js';
-import { createLogger } from '../../../../src/shared/utils/logger.js';
-import type { QSysStatusGetResponse } from '../../../../src/mcp/types/qsys-api-responses.js';
+import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter';
+import { OfficialQRWCClient } from '../../../../src/qrwc/officialClient';
+import { createLogger } from '../../../../src/shared/utils/logger';
+import type { QSysStatusGetResponse } from '../../../../src/mcp/types/qsys-api-responses';
 
 // Mock the logger
-jest.mock('../../../../src/shared/utils/logger.js', () => ({
+jest.mock('../../../../src/shared/utils/logger', () => ({
   createLogger: jest.fn(() => ({
     info: jest.fn(),
     debug: jest.fn(),

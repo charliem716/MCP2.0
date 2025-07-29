@@ -2,10 +2,10 @@ import {
   ListControlsTool,
   GetControlValuesTool,
   SetControlValuesTool,
-} from '../../../../src/mcp/tools/controls.js';
-import { globalLogger } from '../../../../src/shared/utils/logger.js';
+} from '../../../../src/mcp/tools/controls';
+import { globalLogger } from '../../../../src/shared/utils/logger';
 
-jest.mock('../../../../src/shared/utils/logger.js', () => ({
+jest.mock('../../../../src/shared/utils/logger', () => ({
   globalLogger: {
     debug: jest.fn(),
     info: jest.fn(),

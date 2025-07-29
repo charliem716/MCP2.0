@@ -7,6 +7,8 @@ import { describe, it, expect, jest } from '@jest/globals';
 import { EventEmitter } from 'events';
 
 describe('MCP Server - Reconnection Handling (Verified)', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
+  
   it('should handle reconnection logic correctly', () => {
     // This test verifies the reconnection logic without complex mocking
     // The actual implementation is tested in server.ts:setupReconnectionHandlers()

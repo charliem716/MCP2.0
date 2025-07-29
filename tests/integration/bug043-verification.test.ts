@@ -2,12 +2,15 @@
  * BUG-043 Error Handling Consistency Verification
  */
 
-import { MCPError, MCPErrorCode, QSysError, QSysErrorCode, ValidationError } from '../../src/shared/types/errors.js';
+import { describe, it, expect, jest } from '@jest/globals';
+import { MCPError, MCPErrorCode, QSysError, QSysErrorCode, ValidationError } from '../../src/shared/types/errors';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
 describe('BUG-043: Error Handling Consistency Verification', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
+  
   describe('Generic Error Detection', () => {
     it('should have no generic throw new Error() in critical paths', () => {
       const criticalPaths = [

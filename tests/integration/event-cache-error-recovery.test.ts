@@ -2,8 +2,8 @@
  * Integration tests for EventCacheManager error recovery (STEP-3.1)
  */
 
-import { EventCacheManager } from '../../src/mcp/state/event-cache/manager.js';
-import type { ChangeGroupEvent } from '../../src/mcp/state/event-cache/types.js';
+import { EventCacheManager } from '../../src/mcp/state/event-cache/manager';
+import type { ChangeGroupEvent } from '../../src/mcp/state/event-cache/types';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { promisify } from 'util';
@@ -12,6 +12,7 @@ import { exec } from 'child_process';
 const execAsync = promisify(exec);
 
 describe('EventCacheManager - Error Recovery Integration', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
   let eventCache: EventCacheManager;
   const testSpilloverDir = './test-integration-spillover';
   const mockAdapter = {

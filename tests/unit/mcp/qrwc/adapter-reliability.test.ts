@@ -6,8 +6,8 @@ import {
   beforeEach,
   afterEach,
 } from '@jest/globals';
-import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter.js';
-import type { QRWCClientInterface } from '../../../../src/qrwc/types.js';
+import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter';
+import type { QRWCClientInterface } from '../../../../src/qrwc/types';
 
 /**
  * Minimal adapter reliability tests focused on testable behavior

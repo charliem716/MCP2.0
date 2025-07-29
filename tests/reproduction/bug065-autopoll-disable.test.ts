@@ -6,8 +6,8 @@ import {
   afterEach,
   jest,
 } from '@jest/globals';
-import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter.js';
-import { SetChangeGroupAutoPollTool } from '../../src/mcp/tools/change-groups.js';
+import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter';
+import { SetChangeGroupAutoPollTool } from '../../src/mcp/tools/change-groups';
 
 describe('BUG-065: Auto-poll disable functionality', () => {
   let mockAdapter: jest.Mocked<QRWCClientInterface>;

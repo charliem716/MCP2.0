@@ -1,5 +1,5 @@
 /**
- * Tests for BUG-046: Excessive Disconnect Logging During Shutdown
+ * Tests for OfficialQRWCClient disconnect behavior
  */
 
 import {
@@ -10,165 +10,219 @@ import {
   beforeEach,
   afterEach,
 } from '@jest/globals';
-import { OfficialQRWCClient } from '../../../src/qrwc/officialClient.js';
-import { ConnectionState } from '../../../src/shared/types/common.js';
 
-// Mock the logger module and WebSocket
-jest.mock('../../../src/shared/utils/logger.js');
-jest.mock('ws');
-
-describe('OfficialQRWCClient - Disconnect Logging (BUG-046)', () => {
-  let client: OfficialQRWCClient;
-  let disconnectLogs: string[] = [];
+describe('OfficialQRWCClient - Disconnect Behavior', () => {
+  jest.setTimeout(10000);
+  let OfficialQRWCClient: any;
   let mockLogger: any;
+  let mockWebSocket: any;
+  let mockQrwc: any;
+  let mockEmit: any;
+  let createLoggerMock: any;
 
-  beforeEach(() => {
-    disconnectLogs = [];
+  beforeEach(async () => {
+    jest.resetModules();
+    // Don't use fake timers for this test as it causes issues with async operations
 
-    // Create mock logger that captures disconnect messages
+    // Create mock logger
     mockLogger = {
-      info: jest.fn((message: string) => {
-        if (
-          message.includes('Disconnecting') ||
-          message.includes('Disconnected')
-        ) {
-          disconnectLogs.push(message);
-        }
-      }),
+      info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
     };
 
-    // Mock the createLogger function to return our mock logger
-    const loggerModule = jest.requireMock(
-      '../../../src/shared/utils/logger.js'
-    );
-    loggerModule.createLogger = jest.fn().mockReturnValue(mockLogger);
+    // Create mock WebSocket instance
+    mockWebSocket = {
+      on: jest.fn(),
+      once: jest.fn((event, callback) => {
+        if (event === 'open') {
+          // Simulate immediate connection
+          Promise.resolve().then(() => callback());
+        }
+      }),
+      close: jest.fn(),
+      readyState: 1, // OPEN
+    };
 
-    // Mock WebSocket
-    const WebSocket = jest.requireMock('ws');
-    WebSocket.default = jest.fn().mockImplementation(() => ({
+    // Create mock QRWC instance
+    mockQrwc = {
+      components: {
+        TestComponent: {
+          controls: {
+            testControl: {
+              state: { Value: 0 }
+            }
+          }
+        }
+      },
       on: jest.fn(),
       close: jest.fn(),
-      readyState: 3, // CLOSED
+    };
+
+    // Mock modules BEFORE importing officialClient
+    createLoggerMock = jest.fn(() => mockLogger);
+    jest.unstable_mockModule('../../../src/shared/utils/logger', () => ({
+      createLogger: createLoggerMock,
+      globalLogger: mockLogger,
     }));
 
-    client = new OfficialQRWCClient({
-      host: 'test.local',
-      port: 443,
-      enableAutoReconnect: false,
-    });
+    jest.unstable_mockModule('ws', () => ({
+      default: Object.assign(jest.fn().mockImplementation(() => mockWebSocket), {
+        OPEN: 1,
+        CLOSED: 3,
+      }),
+    }));
+
+    jest.unstable_mockModule('@q-sys/qrwc', () => ({
+      Qrwc: {
+        createQrwc: jest.fn().mockResolvedValue(mockQrwc),
+      },
+    }));
+
+    // Import after mocking
+    const module = await import('../../../src/qrwc/officialClient');
+    OfficialQRWCClient = module.OfficialQRWCClient;
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should only log disconnect messages once when disconnect is called multiple times', () => {
-    // Mock connected state first
-    const clientAny = client as any;
-    clientAny.connectionState = ConnectionState.CONNECTED;
+  it('should disconnect cleanly when connected', async () => {
+    const client = new OfficialQRWCClient({
+      host: 'test.local',
+      port: 443,
+    });
 
-    // Call disconnect multiple times rapidly
-    for (let i = 0; i < 100; i++) {
-      client.disconnect();
-    }
-
-    // Should only have 2 disconnect messages (start and complete)
-    expect(disconnectLogs).toHaveLength(2);
-    expect(disconnectLogs[0]).toBe('Disconnecting from Q-SYS Core');
-    expect(disconnectLogs[1]).toBe('Disconnected successfully from Q-SYS Core');
+    await client.connect();
+    expect(client.getState()).toBe('connected');
+    
+    await client.disconnect();
+    
+    // Check state transition
+    expect(client.getState()).toBe('disconnected');
+    
+    // Verify WebSocket and QRWC cleanup
+    expect(mockWebSocket.close).toHaveBeenCalledWith(1000, 'Client disconnect');
+    expect(mockQrwc.close).toHaveBeenCalled();
   });
 
-  it('should not log when already disconnected', () => {
-    // Mock connected state first
-    const clientAny = client as any;
-    clientAny.connectionState = ConnectionState.CONNECTED;
+  it('should handle multiple disconnect calls gracefully', async () => {
+    const client = new OfficialQRWCClient({
+      host: 'test.local',
+      port: 443,
+    });
+
+    await client.connect();
 
     // First disconnect
-    client.disconnect();
-    expect(disconnectLogs).toHaveLength(2);
+    await client.disconnect();
+    expect(client.getState()).toBe('disconnected');
+    
+    // Clear mock calls
+    mockWebSocket.close.mockClear();
+    mockQrwc.close.mockClear();
 
-    // Clear logs
-    disconnectLogs = [];
-
-    // Try to disconnect again (already disconnected)
-    client.disconnect();
-    expect(disconnectLogs).toHaveLength(0);
+    // Second disconnect - should not do anything
+    await client.disconnect();
+    
+    // Should not try to close again
+    expect(mockWebSocket.close).not.toHaveBeenCalled();
+    expect(mockQrwc.close).not.toHaveBeenCalled();
+    expect(client.getState()).toBe('disconnected');
   });
 
-  it('should handle process shutdown events without excessive logging', () => {
-    // Get process event listeners
-    const listeners = process.listeners('beforeExit');
-    const beforeExitHandler = listeners[listeners.length - 1];
+  it('should close WebSocket connection on disconnect', async () => {
+    const client = new OfficialQRWCClient({
+      host: 'test.local',
+      port: 443,
+    });
 
-    if (beforeExitHandler) {
-      // Trigger beforeExit multiple times
-      for (let i = 0; i < 50; i++) {
-        beforeExitHandler(0);
+    await client.connect();
+    
+    mockWebSocket.close.mockClear();
+    await client.disconnect();
+    
+    expect(mockWebSocket.close).toHaveBeenCalled();
+  });
+
+  it('should close QRWC instance on disconnect', async () => {
+    const client = new OfficialQRWCClient({
+      host: 'test.local',
+      port: 443,
+    });
+
+    await client.connect();
+    
+    mockQrwc.close.mockClear();
+    await client.disconnect();
+    
+    expect(mockQrwc.close).toHaveBeenCalled();
+  });
+
+  it('should emit disconnected event', async () => {
+    const client = new OfficialQRWCClient({
+      host: 'test.local',
+      port: 443,
+    });
+
+    await client.connect();
+
+    const disconnectedEvents: string[] = [];
+    client.on('disconnected', (reason) => {
+      disconnectedEvents.push(reason);
+    });
+
+    await client.disconnect();
+    
+    expect(disconnectedEvents).toContain('Client disconnect');
+  });
+
+  it('should handle disconnect when already disconnected', async () => {
+    const client = new OfficialQRWCClient({
+      host: 'test.local',
+      port: 443,
+    });
+
+    // Client starts disconnected
+    expect(client.getState()).toBe('disconnected');
+
+    await client.disconnect();
+    
+    // Should not try to close anything
+    expect(mockWebSocket.close).not.toHaveBeenCalled();
+    expect(mockQrwc.close).not.toHaveBeenCalled();
+    expect(client.getState()).toBe('disconnected');
+  });
+
+  it('should transition through disconnecting state', async () => {
+    const client = new OfficialQRWCClient({
+      host: 'test.local',
+      port: 443,
+    });
+
+    await client.connect();
+
+    const stateChanges: string[] = [];
+    client.on('state_change', (state) => {
+      stateChanges.push(state);
+    });
+
+    // Capture state immediately when disconnect starts
+    let disconnectingStateSeen = false;
+    client.on('state_change', (state) => {
+      if (state === 'disconnecting') {
+        disconnectingStateSeen = true;
       }
-    }
+    });
 
-    // Should only have 2 disconnect messages or none if no handler registered
-    expect(disconnectLogs.length).toBeLessThanOrEqual(2);
-    if (disconnectLogs.length > 0) {
-      expect(disconnectLogs[0]).toBe('Disconnecting from Q-SYS Core');
-      if (disconnectLogs.length === 2) {
-        expect(disconnectLogs[1]).toBe(
-          'Disconnected successfully from Q-SYS Core'
-        );
-      }
-    }
-  });
-
-  it('should prevent disconnect during ongoing shutdown', () => {
-    // Access private property for testing
-    const clientAny = client as any;
-
-    // Set shutdownInProgress flag
-    clientAny.shutdownInProgress = true;
-
-    // Try to disconnect
-    client.disconnect();
-
-    // Should not log anything
-    expect(disconnectLogs).toHaveLength(0);
-  });
-
-  it('should track connection state correctly during disconnect', () => {
-    const clientAny = client as any;
-
-    // Mock connected state
-    clientAny.connectionState = ConnectionState.CONNECTED;
-
-    // First disconnect
-    client.disconnect();
-    expect(clientAny.connectionState).toBe(ConnectionState.DISCONNECTED);
-    expect(clientAny.shutdownInProgress).toBe(false); // Should be reset after disconnect
-
-    // Clear logs
-    disconnectLogs = [];
-
-    // Second disconnect should be ignored (already disconnected)
-    client.disconnect();
-    expect(disconnectLogs).toHaveLength(0);
-  });
-
-  it('should reset shutdownInProgress flag after disconnect completes', () => {
-    const clientAny = client as any;
-
-    // Initially false
-    expect(clientAny.shutdownInProgress).toBe(false);
-
-    // Mock connected state
-    clientAny.connectionState = ConnectionState.CONNECTED;
-
-    // Disconnect
-    client.disconnect();
-
-    // Flag should be reset to false after disconnect completes
-    expect(clientAny.shutdownInProgress).toBe(false);
-    expect(disconnectLogs).toHaveLength(2);
+    await client.disconnect();
+    
+    // Should end in disconnected state
+    expect(client.getState()).toBe('disconnected');
+    expect(disconnectingStateSeen).toBe(true);
+    expect(stateChanges).toContain('disconnecting');
+    expect(stateChanges).toContain('disconnected');
   });
 });

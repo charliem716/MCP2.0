@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { StateRepositoryError } from '../../../../src/mcp/state/repository.js';
+import { StateRepositoryError } from '../../../../src/mcp/state/repository';
 
 describe('StateRepositoryError', () => {
   it('should create error with message and code', () => {

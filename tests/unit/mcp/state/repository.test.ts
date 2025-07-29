@@ -6,7 +6,7 @@ import {
   ChangeGroupSchema,
   type ControlState,
   type ChangeGroup,
-} from '../../../../src/mcp/state/repository.js';
+} from '../../../../src/mcp/state/repository';
 
 describe('StateRepositoryError', () => {
   it('should create error with message and code', () => {

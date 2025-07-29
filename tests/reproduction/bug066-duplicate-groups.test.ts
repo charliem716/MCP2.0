@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter.js';
-import { CreateChangeGroupTool } from '../../src/mcp/tools/change-groups.js';
+import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter';
+import { CreateChangeGroupTool } from '../../src/mcp/tools/change-groups';
 
 describe('BUG-066: create_change_group silently overwrites existing groups', () => {
   let mockAdapter: jest.Mocked<QRWCClientInterface>;

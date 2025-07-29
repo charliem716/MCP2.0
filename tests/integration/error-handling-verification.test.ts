@@ -2,13 +2,14 @@
  * BUG-043 Error Handling Verification Tests
  */
 
-import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter.js';
-import { DiscoveryTool } from '../../src/mcp/tools/discovery.js';
-import { ChangeGroupExecutor } from '../../src/mcp/state/change-group/change-group-executor.js';
-import { QSysError, MCPError, ValidationError, NetworkError } from '../../src/shared/types/errors.js';
+import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter';
+import { DiscoveryTool } from '../../src/mcp/tools/discovery';
+import { ChangeGroupExecutor } from '../../src/mcp/state/change-group/change-group-executor';
+import { QSysError, MCPError, ValidationError, NetworkError } from '../../src/shared/types/errors';
 import { EventEmitter } from 'events';
 
 describe('BUG-043: Error Handling Consistency', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
   describe('QRWCClientAdapter Error Handling', () => {
     it('should throw QSysError for connection failures', async () => {
       const mockClient = {

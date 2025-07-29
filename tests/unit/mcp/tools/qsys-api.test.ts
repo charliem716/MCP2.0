@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { QueryQSysAPITool } from '../../../../src/mcp/tools/qsys-api.js';
-import type { ToolExecutionContext } from '../../../../src/mcp/tools/base.js';
+import { QueryQSysAPITool } from '../../../../src/mcp/tools/qsys-api';
+import type { ToolExecutionContext } from '../../../../src/mcp/tools/base';
 
 describe('QueryQSysAPITool', () => {
   let tool: QueryQSysAPITool;

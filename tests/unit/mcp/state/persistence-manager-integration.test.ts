@@ -6,18 +6,18 @@ import {
   afterEach,
   jest,
 } from '@jest/globals';
-import { StatePersistenceManager } from '../../../../src/mcp/state/persistence/manager.js';
+import { StatePersistenceManager } from '../../../../src/mcp/state/persistence/manager';
 import {
   PersistenceFormat,
   CompressionType,
-} from '../../../../src/mcp/state/persistence/types.js';
-import type { ControlState } from '../../../../src/mcp/state/repository.js';
+} from '../../../../src/mcp/state/persistence/types';
+import type { ControlState } from '../../../../src/mcp/state/repository';
 import * as fs from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
 // Mock the logger to avoid console output during tests
-jest.mock('../../../../src/shared/utils/logger.js', () => ({
+jest.mock('../../../../src/shared/utils/logger', () => ({
   globalLogger: {
     info: jest.fn(),
     debug: jest.fn(),

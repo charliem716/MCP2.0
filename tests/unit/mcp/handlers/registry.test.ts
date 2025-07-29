@@ -1,15 +1,19 @@
-import { MCPToolRegistry } from '../../../../src/mcp/handlers/index.js';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
-import { globalLogger } from '../../../../src/shared/utils/logger.js';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
-jest.mock('../../../../src/shared/utils/logger.js', () => ({
+// Mock the logger module
+await jest.unstable_mockModule('../../../../src/shared/utils/logger', () => ({
   globalLogger: {
-    debug: jest.fn(),
     info: jest.fn(),
-    warn: jest.fn(),
     error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
   },
 }));
+
+// Import after mocking
+const { globalLogger } = await import('../../../../src/shared/utils/logger');
+const { MCPToolRegistry } = await import('../../../../src/mcp/handlers/index');
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 
 describe('MCPToolRegistry', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;
@@ -30,9 +34,17 @@ describe('MCPToolRegistry', () => {
     it('should initialize successfully with all Q-SYS tools', async () => {
       await registry.initialize();
 
-      expect(registry.getToolCount()).toBe(17); // 8 Q-SYS tools + 1 echo tool
+      expect(registry.getToolCount()).toBe(17); // 16 Q-SYS tools + 1 echo tool
+      
+      // Debug: Check all logger calls
+      const infoCalls = (globalLogger.info as jest.Mock).mock.calls;
+      console.log('Info calls:', infoCalls.length);
+      infoCalls.forEach((call, i) => {
+        console.log(`Call ${i}:`, call);
+      });
+      
       expect(globalLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Tool registry initialized'),
+        expect.stringContaining('Tool registry initialized with'),
         expect.any(Object)
       );
     });
@@ -65,7 +77,7 @@ describe('MCPToolRegistry', () => {
           throw error;
         });
 
-      expect(() => registry.initialize()).toThrow('Init failed');
+      await expect(registry.initialize()).rejects.toThrow('Init failed');
       expect(globalLogger.error).toHaveBeenCalledWith(
         'Failed to initialize tool registry',
         { error }
@@ -74,8 +86,11 @@ describe('MCPToolRegistry', () => {
   });
 
   describe('listTools', () => {
-    it('should list all registered tools', async () => {
+    beforeEach(async () => {
       await registry.initialize();
+    });
+
+    it('should list all registered tools', async () => {
       const tools = await registry.listTools();
 
       expect(tools).toHaveLength(17);
@@ -116,7 +131,8 @@ describe('MCPToolRegistry', () => {
     });
 
     it('should throw error if not initialized', async () => {
-      await expect(registry.listTools()).rejects.toThrow(
+      const newRegistry = new MCPToolRegistry(mockQrwcClient);
+      await expect(newRegistry.listTools()).rejects.toThrow(
         'Tool registry not initialized'
       );
     });

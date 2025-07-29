@@ -6,6 +6,7 @@ import { validateEventCacheConfig, sanitizeEventCacheConfig } from '../../src/mc
 import { MockQRWCAdapter } from '../../src/mcp/state/event-cache/test-helpers';
 
 describe('Event Cache Config Validation Integration', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
   let tempDir: string;
   let adapter: MockQRWCAdapter;
   let originalNodeEnv: string | undefined;

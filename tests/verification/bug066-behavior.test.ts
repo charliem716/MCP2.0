@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter.js';
+import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter';
 import {
   CreateChangeGroupTool,
   AddControlsToChangeGroupTool,
-} from '../../src/mcp/tools/change-groups.js';
+} from '../../src/mcp/tools/change-groups';
 
 describe('BUG-066 Expected Behavior Verification', () => {
   let adapter: QRWCClientAdapter;

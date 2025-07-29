@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter.js';
+import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter';
 import {
   CreateChangeGroupTool,
   AddControlsToChangeGroupTool,
@@ -9,7 +9,7 @@ import {
   ClearChangeGroupTool,
   SetChangeGroupAutoPollTool,
   ListChangeGroupsTool,
-} from '../../src/mcp/tools/change-groups.js';
+} from '../../src/mcp/tools/change-groups';
 
 describe('BUG-069: Change Group tools error scenarios', () => {
   let mockAdapter: jest.Mocked<QRWCClientInterface>;

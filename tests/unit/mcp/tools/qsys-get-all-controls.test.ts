@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { GetAllControlsTool } from '../../../../src/mcp/tools/discovery.js';
-import type { ToolExecutionContext } from '../../../../src/mcp/tools/base.js';
+import { GetAllControlsTool } from '../../../../src/mcp/tools/discovery';
+import type { ToolExecutionContext } from '../../../../src/mcp/tools/base';
 
 describe('GetAllControlsTool', () => {
   let tool: GetAllControlsTool;

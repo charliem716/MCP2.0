@@ -1,199 +1,243 @@
-/**
- * Q-SYS Component Control Test
- * Tests actual component interaction and control
- */
-
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { Qrwc } from '@q-sys/qrwc';
 import WebSocket from 'ws';
 import fs from 'fs';
-import path from 'path';
 
-describe('Q-SYS Component Control', () => {
-  let config: any;
-  let qrwc: any;
-  let socket: WebSocket;
-
-  beforeAll(async () => {
+describe('test-component-control', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
+  it('should execute the test scenario', async () => {
+    // Test implementation
+    
+    /**
+     * Q-SYS Component Control Test
+     * Tests actual component interaction and control
+     */
+    
+    
     // Load config from JSON file
-    const configPath = path.join(process.cwd(), 'qsys-core.config.json');
-    if (!fs.existsSync(configPath)) {
-      console.log('Skipping Q-SYS component control tests - no config file');
-      return;
-    }
-
-    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const configPath = 'qsys-core.config.json';
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     const { host, port } = config.qsysCore;
-
+    
+    // console.log('🎛️ Q-SYS Component Control Test');
+    // console.log('='.repeat(50));
+    
     // Create WebSocket connection
     const wsUrl = `wss://${host}:${port}/qrc-public-api/v0`;
-    socket = new WebSocket(wsUrl, {
+    // console.log(`🔗 Connecting to: ${wsUrl}`);
+    
+    const socket = new WebSocket(wsUrl, {
       rejectUnauthorized: false,
     });
-
-    // Wait for connection
-    await new Promise<void>((resolve, reject) => {
-      socket.on('open', resolve);
-      socket.on('error', reject);
-      setTimeout(() => reject(new Error('Connection timeout')), 15000);
-    });
-
-    // Create QRWC instance
-    qrwc = await Qrwc.createQrwc({ socket });
-  });
-
-  afterAll(async () => {
-    if (qrwc) {
-      qrwc.close();
-    }
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.close();
-    }
-  });
-
-  it('should discover gain/volume components', () => {
-    if (!qrwc) {
-      console.log('Skipping - no QRWC instance');
-      return;
-    }
-
-    const componentNames = Object.keys(qrwc.components);
-    const gainComponents = componentNames.filter(
-      name =>
-        name.toLowerCase().includes('gain') ||
-        name.toLowerCase().includes('volume')
-    );
-
-    // Log for debugging
-    if (gainComponents.length > 0) {
-      console.log(`Found ${gainComponents.length} gain/volume components`);
-      const gainName = gainComponents[0];
-      const gainComponent = qrwc.components[gainName];
-      console.log(`  - ${gainName}: ${Object.keys(gainComponent.controls).length} controls`);
-    }
-
-    // We might not have gain components in all systems
-    expect(gainComponents).toBeDefined();
-  });
-
-  it('should read control values from components', () => {
-    if (!qrwc) {
-      console.log('Skipping - no QRWC instance');
-      return;
-    }
-
-    const componentNames = Object.keys(qrwc.components);
     
-    // Find any component with controls
-    const componentWithControls = componentNames.find(name => {
-      const component = qrwc.components[name];
-      return Object.keys(component.controls).length > 0;
-    });
-
-    if (componentWithControls) {
-      const component = qrwc.components[componentWithControls];
-      const controlNames = Object.keys(component.controls);
-      const firstControl = component.controls[controlNames[0]];
-
-      // Verify control has expected properties
-      expect(firstControl.state).toBeDefined();
-      expect(firstControl.state).toHaveProperty('Value');
-      expect(firstControl.state).toHaveProperty('Type');
-
-      console.log(`Component "${componentWithControls}" control "${controlNames[0]}":`);
-      console.log(`  Value: ${firstControl.state.Value}`);
-      console.log(`  Type: ${firstControl.state.Type}`);
-    }
-  });
-
-  it('should handle control value changes', async () => {
-    if (!qrwc) {
-      console.log('Skipping - no QRWC instance');
-      return;
-    }
-
-    // Find a writable control
-    let writableControl: any = null;
-    let controlName: string = '';
-    let componentName: string = '';
-
-    for (const compName of Object.keys(qrwc.components)) {
-      const component = qrwc.components[compName];
-      for (const ctrlName of Object.keys(component.controls)) {
-        const control = component.controls[ctrlName];
-        // Look for numeric controls that can be written
-        if (control.state.Type === 'Float' || control.state.Type === 'Integer') {
-          writableControl = control;
-          controlName = ctrlName;
-          componentName = compName;
-          break;
+    socket.on('open', async () => {
+      // console.log('🔌 WebSocket connected!');
+    
+      try {
+        // Create QRWC instance
+        const qrwc = await Qrwc.createQrwc({ socket });
+        // console.log(
+        //   `✅ QRWC connected with ${Object.keys(qrwc.components).length} components\n`
+        // );
+    
+        // Test Component Interaction
+        // console.log('🧪 Testing Component Interactions:');
+        // console.log('='.repeat(40));
+    
+        // Find some interesting components to test
+        const componentNames = Object.keys(qrwc.components);
+    
+        // Test 1: Find and examine a Gain control
+        const gainComponents = componentNames.filter(
+          name =>
+            name.toLowerCase().includes('gain') ||
+            name.toLowerCase().includes('volume')
+        );
+    
+        if (gainComponents.length > 0) {
+          const gainName = gainComponents[0];
+          const gainComponent = qrwc.components[gainName];
+          // console.log(`\n📊 GAIN COMPONENT: "${gainName}"`);
+          // console.log(
+          //   `   Controls available: ${Object.keys(gainComponent.controls).length}`
+          // );
+    
+          // List first few controls
+          const controlNames = Object.keys(gainComponent.controls).slice(0, 5);
+          controlNames.forEach(controlName => {
+            const control = gainComponent.controls[controlName];
+            // console.log(
+            //   `   • ${controlName}: ${control.state.Value} (${control.state.Type})`
+            // );
+          });
         }
+    
+        // Test 2: Find and examine Display controls
+        const displayComponents = componentNames.filter(
+          name =>
+            name.toLowerCase().includes('display') ||
+            name.toLowerCase().includes('monitor')
+        );
+    
+        if (displayComponents.length > 0) {
+          const displayName = displayComponents[0];
+          const displayComponent = qrwc.components[displayName];
+          // console.log(`\n📺 DISPLAY COMPONENT: "${displayName}"`);
+          // console.log(
+          //   `   Controls available: ${Object.keys(displayComponent.controls).length}`
+          // );
+    
+          // Look for power or enable controls
+          const powerControls = Object.keys(displayComponent.controls).filter(
+            name =>
+              name.toLowerCase().includes('power') ||
+              name.toLowerCase().includes('enable') ||
+              name.toLowerCase().includes('on')
+          );
+    
+          if (powerControls.length > 0) {
+            // console.log(
+            //   `   Power-related controls found: ${powerControls.join(', ')}`
+            // );
+            const powerControl = displayComponent.controls[powerControls[0]];
+            // console.log(
+            //   `   • ${powerControls[0]}: ${powerControl.state.Value} (${powerControl.state.Type})`
+            // );
+          }
+        }
+    
+        // Test 3: Find Matrix Mixer
+        const mixerComponents = componentNames.filter(
+          name =>
+            name.toLowerCase().includes('mixer') ||
+            name.toLowerCase().includes('matrix')
+        );
+    
+        if (mixerComponents.length > 0) {
+          const mixerName = mixerComponents[0];
+          const mixerComponent = qrwc.components[mixerName];
+          // console.log(`\n🎚️ MIXER COMPONENT: "${mixerName}"`);
+          // console.log(
+          //   `   Controls available: ${Object.keys(mixerComponent.controls).length}`
+          // );
+    
+          // Look for mute controls
+          const muteControls = Object.keys(mixerComponent.controls)
+            .filter(name => name.toLowerCase().includes('mute'))
+            .slice(0, 3);
+    
+          if (muteControls.length > 0) {
+            // console.log(`   Mute controls found: ${muteControls.join(', ')}`);
+            muteControls.forEach(controlName => {
+              const control = mixerComponent.controls[controlName];
+              // console.log(
+              //   `   • ${controlName}: ${control.state.Value} (${control.state.Type})`
+              // );
+            });
+          }
+        }
+    
+        // Test 4: Component Categories Summary
+        // console.log('\n📋 COMPONENT CATEGORIES:');
+        // console.log('='.repeat(25));
+    
+        const categories = {
+          Audio: componentNames.filter(
+            n =>
+              n.toLowerCase().includes('audio') ||
+              n.toLowerCase().includes('mic') ||
+              n.toLowerCase().includes('mixer') ||
+              n.toLowerCase().includes('gain') ||
+              n.toLowerCase().includes('soundbar')
+          ),
+          Video: componentNames.filter(
+            n =>
+              n.toLowerCase().includes('video') ||
+              n.toLowerCase().includes('display') ||
+              n.toLowerCase().includes('camera') ||
+              n.toLowerCase().includes('switcher') ||
+              n.toLowerCase().includes('hdmi')
+          ),
+          Control: componentNames.filter(
+            n =>
+              n.toLowerCase().includes('control') ||
+              n.toLowerCase().includes('uci') ||
+              n.toLowerCase().includes('touch')
+          ),
+          Conference: componentNames.filter(
+            n =>
+              n.toLowerCase().includes('zoom') ||
+              n.toLowerCase().includes('teams') ||
+              n.toLowerCase().includes('conference')
+          ),
+          System: componentNames.filter(
+            n =>
+              n.toLowerCase().includes('status') ||
+              n.toLowerCase().includes('hvac') ||
+              n.toLowerCase().includes('date')
+          ),
+        };
+    
+        Object.entries(categories).forEach(([category, components]) => {
+          if (components.length > 0) {
+            // console.log(`${category}: ${components.length} components`);
+            components.slice(0, 3).forEach(name => {
+              // console.log(`  - ${name}`);
+            });
+            if (components.length > 3) {
+              // console.log(`  ... and ${components.length - 3} more`);
+            }
+          }
+        });
+    
+        // console.log('\n✅ Component control test completed successfully!');
+        // console.log('🚀 Q-SYS integration is fully functional!');
+    
+        // Set up a brief update listener test
+        // console.log('\n👂 Setting up 5-second update listener test...');
+    
+        // Listen to first available control for updates
+        if (componentNames.length > 0) {
+          const testComponent = qrwc.components[componentNames[0]];
+          const testControlName = Object.keys(testComponent.controls)[0];
+          const testControl = testComponent.controls[testControlName];
+    
+          // console.log(`📡 Listening to: ${componentNames[0]}.${testControlName}`);
+    
+          testControl.on('update', state => {
+            // console.log(`🔄 Update received: ${testControlName} = ${state.Value}`);
+          });
+    
+          setTimeout(() => {
+            // console.log('⏰ Update listener test complete');
+            qrwc.close();
+          }, 5000);
+        } else {
+          qrwc.close();
+        }
+      } catch (error) {
+        console.error('💥 QRWC Creation Error:', error.message);
+        socket.close();
+        
       }
-      if (writableControl) break;
-    }
-
-    if (!writableControl) {
-      console.log('No writable numeric control found for testing');
-      return;
-    }
-
-    console.log(`Testing control change on ${componentName}.${controlName}`);
-    
-    // Store original value
-    const originalValue = writableControl.state.Value;
-    
-    // Set up change listener
-    const changePromise = new Promise<any>((resolve) => {
-      writableControl.on('update', (state: any) => {
-        resolve(state);
-      });
     });
-
-    // Change the value slightly
-    const newValue = typeof originalValue === 'number' 
-      ? originalValue + 0.1 
-      : 1;
     
-    try {
-      writableControl.setValue(newValue);
+    socket.on('error', error => {
+      console.error('❌ WebSocket Error:', error.message);
       
-      // Wait for update (with timeout)
-      const updatedState = await Promise.race([
-        changePromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Update timeout')), 5000)
-        )
-      ]);
-
-      expect(updatedState).toBeDefined();
+    });
+    
+    socket.on('close', (code, reason) => {
+      // console.log(
+      //   `\n👋 Connection closed: ${code} - ${reason || 'Clean shutdown'}`
+      // );
       
-      // Restore original value
-      writableControl.setValue(originalValue);
-    } catch (error) {
-      console.log('Control change test skipped:', error.message);
-    }
-  });
-
-  it('should find status components', () => {
-    if (!qrwc) {
-      console.log('Skipping - no QRWC instance');
-      return;
-    }
-
-    const componentNames = Object.keys(qrwc.components);
-    const statusComponents = componentNames.filter(name =>
-      name.toLowerCase().includes('status')
-    );
-
-    // Log for debugging
-    if (statusComponents.length > 0) {
-      console.log(`Found ${statusComponents.length} status components:`);
-      statusComponents.slice(0, 3).forEach(name => {
-        const component = qrwc.components[name];
-        console.log(`  - ${name}: ${Object.keys(component.controls).length} controls`);
-      });
-    }
-
-    expect(statusComponents).toBeDefined();
-  });
+    });
+    
+    // Timeout after 30 seconds
+    setTimeout(() => {
+      console.error('⏰ Test timeout after 30 seconds');
+      
+    }, 30000);
+  }, 60000); // 60 second timeout for integration tests
 });

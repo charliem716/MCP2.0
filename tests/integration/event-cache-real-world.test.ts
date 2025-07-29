@@ -8,13 +8,14 @@
 import {
   EventCacheManager,
   type EventCacheConfig,
-} from '../../src/mcp/state/event-cache/manager.js';
-import { MockQRWCAdapter } from '../../src/mcp/state/event-cache/test-helpers.js';
-import type { ChangeData } from '../../src/mcp/state/event-cache/types.js';
+} from '../../src/mcp/state/event-cache/manager';
+import { MockQRWCAdapter } from '../../src/mcp/state/event-cache/test-helpers';
+import type { ChangeData } from '../../src/mcp/state/event-cache/types';
 import fs from 'fs/promises';
 import path from 'path';
 
 describe('Event Cache Real-World Scenarios', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
   let manager: EventCacheManager;
   let mockAdapter: MockQRWCAdapter;
 

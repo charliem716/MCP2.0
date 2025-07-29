@@ -1,8 +1,8 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter.js';
-import type { QRWCClientInterface } from '../../../../src/qrwc/types.js';
+import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter';
+import type { QRWCClientInterface } from '../../../../src/qrwc/types';
 import { z } from 'zod';
-import type { BaseQSysCommandParams } from '../../../../src/mcp/types/qsys-api-responses.js';
+import type { BaseQSysCommandParams } from '../../../../src/mcp/types/qsys-api-responses';
 
 /**
  * Core adapter functionality tests

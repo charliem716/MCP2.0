@@ -10,7 +10,7 @@ import {
   LRUCache,
   EvictionPolicy,
   CacheEvent,
-} from '../../../../src/mcp/state/lru-cache.js';
+} from '../../../../src/mcp/state/lru-cache';
 
 describe('LRUCache (Fixed)', () => {
   let cache: LRUCache<string, any>;

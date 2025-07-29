@@ -6,12 +6,12 @@ import {
   afterEach,
   jest,
 } from '@jest/globals';
-import { SimpleSynchronizer } from '../../../../src/mcp/state/simple-synchronizer.js';
+import { SimpleSynchronizer } from '../../../../src/mcp/state/simple-synchronizer';
 import type {
   IStateRepository,
   ControlState,
-} from '../../../../src/mcp/state/repository.js';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
+} from '../../../../src/mcp/state/repository';
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 import { EventEmitter } from 'events';
 
 // Create mock implementations

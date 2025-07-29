@@ -14,9 +14,9 @@ import {
   type InvalidationRule,
   type InvalidationEvent,
   type InvalidationResult,
-} from '../../../../src/mcp/state/invalidation.js';
+} from '../../../../src/mcp/state/invalidation';
 import { EventEmitter } from 'events';
-import type { IStateRepository } from '../../../../src/mcp/state/repository.js';
+import type { IStateRepository } from '../../../../src/mcp/state/repository';
 
 // Mock IStateRepository
 class MockStateRepository extends EventEmitter implements IStateRepository {

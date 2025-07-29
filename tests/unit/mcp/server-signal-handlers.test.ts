@@ -1,67 +1,108 @@
-import { jest } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { EventEmitter } from 'events';
-import { MCPServer } from '../../../src/mcp/server.js';
-import type { MCPServerConfig } from '../../../src/shared/types/mcp.js';
+import type { MCPServerConfig } from '@/shared/types/mcp';
 
-// Mock dependencies
-jest.mock('../../../src/shared/utils/logger.js', () => ({
-  globalLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-  },
+// Create mock instances that can be reused
+const mockOfficialClient = {
+  connect: jest.fn(),
+  disconnect: jest.fn(),
+  isConnected: jest.fn().mockReturnValue(true),
+  on: jest.fn(),
+  removeListener: jest.fn(),
+};
+
+const mockAdapter = {
+  on: jest.fn(),
+  removeListener: jest.fn(),
+  isConnected: jest.fn().mockReturnValue(true),
+  sendCommand: jest.fn(),
+};
+
+const mockToolRegistry = {
+  initialize: jest.fn(),
+  cleanup: jest.fn(),
+};
+
+const mockServer = {
+  start: jest.fn(),
+  stop: jest.fn(),
+  setRequestHandler: jest.fn(),
+};
+
+const mockTransport = {
+  close: jest.fn(),
+};
+
+// Mock dependencies using unstable_mockModule
+await jest.unstable_mockModule('@/qrwc/officialClient', () => ({
+  OfficialQRWCClient: jest.fn().mockImplementation(() => mockOfficialClient),
 }));
 
-jest.mock('../../../src/qrwc/officialClient.js');
-jest.mock('../../../src/mcp/qrwc/adapter.js');
-jest.mock('../../../src/mcp/handlers/index.js');
-jest.mock('@modelcontextprotocol/sdk/server/index.js');
-jest.mock('@modelcontextprotocol/sdk/server/stdio.js');
+await jest.unstable_mockModule('@/mcp/qrwc/adapter', () => ({
+  QRWCClientAdapter: jest.fn().mockImplementation(() => mockAdapter),
+}));
+
+await jest.unstable_mockModule('@/mcp/handlers/index', () => ({
+  MCPToolRegistry: jest.fn().mockImplementation(() => mockToolRegistry),
+}));
+
+await jest.unstable_mockModule('@modelcontextprotocol/sdk/server/index', () => ({
+  Server: jest.fn().mockImplementation(() => mockServer),
+}));
+
+await jest.unstable_mockModule('@modelcontextprotocol/sdk/server/stdio', () => ({
+  StdioServerTransport: jest.fn().mockImplementation(() => mockTransport),
+}));
+
+// Import after mocking
+const { MCPServer } = await import('@/mcp/server');
+const { globalLogger } = await import('@/shared/utils/logger');
 
 describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
-  let originalProcess: NodeJS.Process;
-  let mockProcess: NodeJS.Process & EventEmitter;
+  let originalOn: any;
+  let originalRemoveListener: any;
+  let signalHandlers: Map<string, Function[]>;
 
   beforeEach(() => {
-    // Store original process
-    originalProcess = global.process;
-
-    // Create a mock process that extends EventEmitter
-    mockProcess = new EventEmitter() as any;
-    mockProcess.exit = jest.fn();
-    mockProcess.on = jest.fn(EventEmitter.prototype.on.bind(mockProcess));
-    mockProcess.removeListener = jest.fn(
-      EventEmitter.prototype.removeListener.bind(mockProcess)
-    );
-    mockProcess.listenerCount =
-      EventEmitter.prototype.listenerCount.bind(mockProcess);
+    // Track signal handlers
+    signalHandlers = new Map();
     
-    // Add mock env
-    mockProcess.env = { NODE_ENV: 'test' };
-    
-    // Add mock stdin/stdout/stderr
-    mockProcess.stdin = { 
-      on: jest.fn(),
-      read: jest.fn(),
-      write: jest.fn()
-    } as any;
-    mockProcess.stdout = {
-      on: jest.fn(),
-      write: jest.fn()
-    } as any;
-    mockProcess.stderr = {
-      on: jest.fn(),
-      write: jest.fn()
-    } as any;
+    // Store original methods
+    originalOn = process.on;
+    originalRemoveListener = process.removeListener;
 
-    // Replace global process
-    global.process = mockProcess;
+    // Mock process.on to track handlers
+    process.on = jest.fn((event: string, handler: Function) => {
+      if (!signalHandlers.has(event)) {
+        signalHandlers.set(event, []);
+      }
+      signalHandlers.get(event)!.push(handler);
+      return process;
+    }) as any;
+
+    // Mock process.removeListener to track removal
+    process.removeListener = jest.fn((event: string, handler: Function) => {
+      const handlers = signalHandlers.get(event);
+      if (handlers) {
+        const index = handlers.indexOf(handler);
+        if (index !== -1) {
+          handlers.splice(index, 1);
+        }
+      }
+      return process;
+    }) as any;
+
+    // Override listenerCount to use our tracking
+    process.listenerCount = jest.fn((event: string) => {
+      return signalHandlers.get(event)?.length || 0;
+    }) as any;
   });
 
   afterEach(() => {
-    // Restore original process
-    global.process = originalProcess;
+    // Restore original methods
+    process.on = originalOn;
+    process.removeListener = originalRemoveListener;
+    delete (process as any).listenerCount;
     jest.clearAllMocks();
   });
 
@@ -80,8 +121,8 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     const server1 = new MCPServer(config);
 
     // Check initial listener counts
-    expect(mockProcess.listenerCount('SIGINT')).toBe(0);
-    expect(mockProcess.listenerCount('SIGTERM')).toBe(0);
+    expect(process.listenerCount('SIGINT')).toBe(0);
+    expect(process.listenerCount('SIGTERM')).toBe(0);
 
     // Mock the start method to only call setupGracefulShutdown
     const setupGracefulShutdown = (server1 as any).setupGracefulShutdown.bind(
@@ -90,9 +131,9 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     setupGracefulShutdown();
 
     // Should have 1 listener for each signal
-    expect(mockProcess.listenerCount('SIGINT')).toBe(1);
-    expect(mockProcess.listenerCount('SIGTERM')).toBe(1);
-    expect(mockProcess.listenerCount('SIGUSR2')).toBe(1);
+    expect(process.listenerCount('SIGINT')).toBe(1);
+    expect(process.listenerCount('SIGTERM')).toBe(1);
+    expect(process.listenerCount('SIGUSR2')).toBe(1);
 
     // Create second server
     const server2 = new MCPServer(config);
@@ -102,9 +143,9 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     setupGracefulShutdown2();
 
     // Should now have 2 listeners for each signal - THIS IS THE BUG
-    expect(mockProcess.listenerCount('SIGINT')).toBe(2);
-    expect(mockProcess.listenerCount('SIGTERM')).toBe(2);
-    expect(mockProcess.listenerCount('SIGUSR2')).toBe(2);
+    expect(process.listenerCount('SIGINT')).toBe(2);
+    expect(process.listenerCount('SIGTERM')).toBe(2);
+    expect(process.listenerCount('SIGUSR2')).toBe(2);
   });
 
   it('should remove signal handlers on shutdown', async () => {
@@ -133,17 +174,17 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     setupGracefulShutdown();
 
     // Verify handlers are added
-    expect(mockProcess.listenerCount('SIGINT')).toBe(1);
-    expect(mockProcess.listenerCount('SIGTERM')).toBe(1);
-    expect(mockProcess.listenerCount('SIGUSR2')).toBe(1);
+    expect(process.listenerCount('SIGINT')).toBe(1);
+    expect(process.listenerCount('SIGTERM')).toBe(1);
+    expect(process.listenerCount('SIGUSR2')).toBe(1);
 
     // Shutdown should remove handlers
     await server.shutdown();
 
     // THIS WILL FAIL WITH THE CURRENT CODE - handlers are not removed
-    expect(mockProcess.listenerCount('SIGINT')).toBe(0);
-    expect(mockProcess.listenerCount('SIGTERM')).toBe(0);
-    expect(mockProcess.listenerCount('SIGUSR2')).toBe(0);
+    expect(process.listenerCount('SIGINT')).toBe(0);
+    expect(process.listenerCount('SIGTERM')).toBe(0);
+    expect(process.listenerCount('SIGUSR2')).toBe(0);
   });
 
   it('should handle multiple shutdown calls safely', async () => {
@@ -173,13 +214,13 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
 
     // First shutdown
     await server.shutdown();
-    expect(mockProcess.listenerCount('SIGINT')).toBe(0);
+    expect(process.listenerCount('SIGINT')).toBe(0);
 
     // Second shutdown should not throw
     await expect(server.shutdown()).resolves.not.toThrow();
 
     // Handlers should still be 0
-    expect(mockProcess.listenerCount('SIGINT')).toBe(0);
+    expect(process.listenerCount('SIGINT')).toBe(0);
   });
 
   it('should remove error handlers on shutdown', async () => {
@@ -197,8 +238,8 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     const server = new MCPServer(config);
 
     // Should have 1 listener for each error event (set up in constructor)
-    expect(mockProcess.listenerCount('uncaughtException')).toBe(1);
-    expect(mockProcess.listenerCount('unhandledRejection')).toBe(1);
+    expect(process.listenerCount('uncaughtException')).toBe(1);
+    expect(process.listenerCount('unhandledRejection')).toBe(1);
 
     // Mock dependencies for shutdown
     (server as any).isConnected = true;
@@ -209,8 +250,8 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     // Shutdown should remove error handlers
     await server.shutdown();
 
-    expect(mockProcess.listenerCount('uncaughtException')).toBe(0);
-    expect(mockProcess.listenerCount('unhandledRejection')).toBe(0);
+    expect(process.listenerCount('uncaughtException')).toBe(0);
+    expect(process.listenerCount('unhandledRejection')).toBe(0);
   });
 
   it('should prevent accumulation of all event listeners', async () => {
@@ -234,10 +275,10 @@ describe('MCPServer Event Listener Cleanup (BUG-028)', () => {
     }
 
     // Should accumulate listeners (demonstrating the bug if not fixed)
-    expect(mockProcess.listenerCount('SIGINT')).toBe(3);
-    expect(mockProcess.listenerCount('SIGTERM')).toBe(3);
-    expect(mockProcess.listenerCount('SIGUSR2')).toBe(3);
-    expect(mockProcess.listenerCount('uncaughtException')).toBe(3);
-    expect(mockProcess.listenerCount('unhandledRejection')).toBe(3);
+    expect(process.listenerCount('SIGINT')).toBe(3);
+    expect(process.listenerCount('SIGTERM')).toBe(3);
+    expect(process.listenerCount('SIGUSR2')).toBe(3);
+    expect(process.listenerCount('uncaughtException')).toBe(3);
+    expect(process.listenerCount('unhandledRejection')).toBe(3);
   });
 });

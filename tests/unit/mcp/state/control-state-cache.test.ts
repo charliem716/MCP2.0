@@ -6,13 +6,13 @@ import {
   afterEach,
   jest,
 } from '@jest/globals';
-import { ControlStateCache } from '../../../../src/mcp/state/cache/control-state-cache.js';
-import { StateRepositoryEvent } from '../../../../src/mcp/state/repository.js';
+import { ControlStateCache } from '../../../../src/mcp/state/cache/control-state-cache';
+import { StateRepositoryEvent } from '../../../../src/mcp/state/repository';
 import type {
   ControlState,
   CacheConfig,
   ChangeGroup,
-} from '../../../../src/mcp/state/repository.js';
+} from '../../../../src/mcp/state/repository';
 import { v4 as uuidv4 } from 'uuid';
 
 // Helper to create test control state

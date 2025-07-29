@@ -1,5 +1,6 @@
+import { describe, it, expect, jest } from '@jest/globals';
 import { SubscribeToChangeEventsTool } from '../../../../src/mcp/tools/change-groups';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/types';
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 
 describe('BUG-109: ESLint fix verification', () => {
   it('should still access private properties for cache configuration', async () => {

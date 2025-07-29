@@ -2,7 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import {
   StateUtils,
   ControlState,
-} from '../../../../src/mcp/state/repository.js';
+} from '../../../../src/mcp/state/repository';
 
 describe('StateUtils', () => {
   describe('createState', () => {

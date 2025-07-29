@@ -2,8 +2,8 @@
  * Unit tests for EventCacheManager error recovery (STEP-3.1)
  */
 
-import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager.js';
-import type { ChangeGroupEvent } from '../../../../../src/mcp/state/event-cache/types.js';
+import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager';
+import type { ChangeGroupEvent } from '../../../../../src/mcp/state/event-cache/types';
 import * as fs from 'fs/promises';
 
 // Mock fs module

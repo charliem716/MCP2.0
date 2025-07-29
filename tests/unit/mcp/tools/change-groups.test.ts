@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter.js';
+import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 import {
   CreateChangeGroupTool,
   AddControlsToChangeGroupTool,
@@ -10,8 +10,8 @@ import {
   SetChangeGroupAutoPollTool,
   ListChangeGroupsTool,
   SubscribeToChangeEventsTool,
-} from '../../../../src/mcp/tools/change-groups.js';
-import type { EventCacheManager } from '../../../../src/mcp/state/event-cache/manager.js';
+} from '../../../../src/mcp/tools/change-groups';
+import type { EventCacheManager } from '../../../../src/mcp/state/event-cache/manager';
 
 describe('Change Group Tools', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;

@@ -1,12 +1,12 @@
 import { describe, it, expect } from '@jest/globals';
-import { GetComponentControlsTool, ListComponentsTool } from '../../../../src/mcp/tools/components.js';
+import { GetComponentControlsTool, ListComponentsTool } from '../../../../src/mcp/tools/components';
 import {
   ListControlsTool,
   GetControlValuesTool,
   SetControlValuesTool,
-} from '../../../../src/mcp/tools/controls.js';
-import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status.js';
-import { GetAllControlsTool } from '../../../../src/mcp/tools/discovery.js';
+} from '../../../../src/mcp/tools/controls';
+import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status';
+import { GetAllControlsTool } from '../../../../src/mcp/tools/discovery';
 
 // BUG-048 regression tests - ensure all MCP tools have detailed, helpful descriptions
 describe('Tool Descriptions Validation', () => {

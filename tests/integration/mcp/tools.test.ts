@@ -1,8 +1,8 @@
-import { MCPToolRegistry } from '../../../src/mcp/handlers/index.js';
-import type { QRWCClientInterface } from '../../../src/mcp/qrwc/adapter.js';
-import { globalLogger } from '../../../src/shared/utils/logger.js';
+import { MCPToolRegistry } from '../../../src/mcp/handlers/index';
+import type { QRWCClientInterface } from '../../../src/mcp/qrwc/adapter';
+import { globalLogger } from '../../../src/shared/utils/logger';
 
-jest.mock('../../../src/shared/utils/logger.js', () => ({
+jest.mock('../../../src/shared/utils/logger', () => ({
   globalLogger: {
     debug: jest.fn(),
     info: jest.fn(),
@@ -12,6 +12,7 @@ jest.mock('../../../src/shared/utils/logger.js', () => ({
 }));
 
 describe('MCP Tools Integration Tests', () => {
+  jest.setTimeout(30000); // 30 second timeout for integration tests
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;
   let registry: MCPToolRegistry;
 

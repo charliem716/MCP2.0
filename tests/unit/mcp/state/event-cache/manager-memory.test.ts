@@ -1,10 +1,10 @@
-import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager.js';
-import { QRWCClientAdapter } from '../../../../../src/mcp/qrwc/adapter.js';
+import { EventCacheManager } from '../../../../../src/mcp/state/event-cache/manager';
+import { QRWCClientAdapter } from '../../../../../src/mcp/qrwc/adapter';
 import { EventEmitter } from 'events';
-import { CircularBuffer } from '../../../../../src/mcp/state/event-cache/circular-buffer.js';
+import { CircularBuffer } from '../../../../../src/mcp/state/event-cache/circular-buffer';
 
 // Mock the logger
-jest.mock('../../../../../src/shared/utils/logger.js', () => ({
+jest.mock('../../../../../src/shared/utils/logger', () => ({
   globalLogger: {
     info: jest.fn(),
     debug: jest.fn(),
