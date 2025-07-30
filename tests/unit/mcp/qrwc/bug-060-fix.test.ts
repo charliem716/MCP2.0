@@ -12,6 +12,18 @@ await jest.unstable_mockModule('../../../../src/shared/utils/logger', () => ({
     warn: jest.fn(),
     debug: jest.fn(),
   },
+  createLogger: jest.fn(() => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    })),
+  })),
 }));
 
 // Import after mocking

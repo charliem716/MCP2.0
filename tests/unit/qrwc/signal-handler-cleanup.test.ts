@@ -3,12 +3,14 @@
  */
 
 import { OfficialQRWCClient } from '../../../src/qrwc/officialClient';
+import { createLogger } from '../../../src/shared/utils/logger';
 
 describe('OfficialQRWCClient Signal Handler Cleanup', () => {
   const mockOptions = {
     host: 'test.local',
     port: 443,
     enableAutoReconnect: false, // Disable auto-reconnect for testing
+    logger: createLogger('test-signal-cleanup'),
   };
 
   it('should not leak signal handlers after disconnect', () => {

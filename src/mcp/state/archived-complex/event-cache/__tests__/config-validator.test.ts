@@ -3,8 +3,8 @@ import * as path from 'path';
 import type { EventCacheConfig } from '../manager.js';
 
 // Mock fs module before importing config-validator
-let mockExistsSync = jest.fn();
-let mockAccessSync = jest.fn();
+const mockExistsSync = jest.fn();
+const mockAccessSync = jest.fn();
 
 jest.unstable_mockModule('fs', () => ({
   existsSync: mockExistsSync,

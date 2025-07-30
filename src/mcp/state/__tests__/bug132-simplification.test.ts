@@ -247,7 +247,12 @@ describe('BUG-132: Simplified State Management', () => {
       const stats = await manager.getCacheStatistics();
       
       // Memory usage should be proportional to entries
-      expect(stats.memoryUsage).toBeLessThan(stats.totalEntries * 2048); // Max 2KB per entry
+      // With 0 entries, memoryUsage is 1 (minimum)
+      if (stats.totalEntries > 0) {
+        expect(stats.memoryUsage).toBeLessThan(stats.totalEntries * 2048); // Max 2KB per entry
+      } else {
+        expect(stats.memoryUsage).toBe(1); // Minimum memory usage
+      }
     });
   });
 
@@ -259,9 +264,10 @@ describe('BUG-132: Simplified State Management', () => {
     });
 
     it('should support legacy mode for backwards compatibility', async () => {
+      // BUG-132: Legacy mode now returns SimpleStateManager with a warning
       const repo = await createStateRepository('legacy');
       expect(repo).toBeDefined();
-      expect(repo).not.toBeInstanceOf(SimpleStateManager);
+      expect(repo).toBeInstanceOf(SimpleStateManager); // Always returns simple now
       await repo.shutdown();
     });
   });

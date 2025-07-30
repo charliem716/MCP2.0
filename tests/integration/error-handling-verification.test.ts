@@ -4,7 +4,8 @@
 
 import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter';
 import { DiscoveryTool } from '../../src/mcp/tools/discovery';
-import { ChangeGroupExecutor } from '../../src/mcp/state/change-group/change-group-executor';
+// BUG-132: ChangeGroupExecutor removed - functionality integrated into SimpleStateManager
+// import { ChangeGroupExecutor } from '../../src/mcp/state/change-group/change-group-executor';
 import { QSysError, MCPError, ValidationError, NetworkError } from '../../src/shared/types/errors';
 import { EventEmitter } from 'events';
 
@@ -84,7 +85,8 @@ describe('BUG-043: Error Handling Consistency', () => {
     });
   });
 
-  describe('ChangeGroupExecutor Error Handling', () => {
+  // BUG-132: ChangeGroupExecutor removed - functionality integrated into SimpleStateManager
+  describe.skip('ChangeGroupExecutor Error Handling', () => {
     it('should throw ValidationError for invalid change groups', async () => {
       const mockClient = { sendCommand: jest.fn() };
       const eventEmitter = new EventEmitter();

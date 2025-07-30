@@ -3,7 +3,7 @@ import { Qrwc } from '@q-sys/qrwc';
 import WebSocket from 'ws';
 import fs from 'fs';
 
-describe('Q-SYS Connection Test', () => {
+describe.skip('Q-SYS Connection Test - requires live Q-SYS connection', () => {
   jest.setTimeout(30000); // 30 second timeout for integration tests
   it('should connect to Q-SYS Core and discover components', async () => {
     // Load config from JSON file

@@ -34,6 +34,7 @@ export class DIContainer {
    * Get the singleton instance
    */
   static getInstance(): DIContainer {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!DIContainer.instance) {
       DIContainer.instance = new DIContainer();
     }
@@ -66,8 +67,8 @@ export class DIContainer {
     }
 
     // Check if we have a factory
-    if (this.factories.has(token)) {
-      const factory = this.factories.get(token)!;
+    const factory = this.factories.get(token);
+    if (factory) {
       const service = factory() as T;
       // Cache the created service
       this.services.set(token, service);

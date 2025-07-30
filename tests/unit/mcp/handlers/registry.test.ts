@@ -1,18 +1,6 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-
-// Mock the logger module
-await jest.unstable_mockModule('../../../../src/shared/utils/logger', () => ({
-  globalLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  },
-}));
-
-// Import after mocking
-const { globalLogger } = await import('../../../../src/shared/utils/logger');
-const { MCPToolRegistry } = await import('../../../../src/mcp/handlers/index');
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { MCPToolRegistry } from '../../../../src/mcp/handlers/index';
+import { globalLogger as logger } from '../../../../src/shared/utils/logger';
 import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 
 describe('MCPToolRegistry', () => {
@@ -25,25 +13,24 @@ describe('MCPToolRegistry', () => {
     mockQrwcClient = {
       isConnected: jest.fn().mockReturnValue(true),
       sendCommand: jest.fn(),
-    };
+    } as any;
 
+    // BUG-132: MCPToolRegistry now takes IControlSystem interface
     registry = new MCPToolRegistry(mockQrwcClient);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('initialization', () => {
     it('should initialize successfully with all Q-SYS tools', async () => {
       await registry.initialize();
 
-      expect(registry.getToolCount()).toBe(17); // 16 Q-SYS tools + 1 echo tool
+      // 16 Q-SYS tools + 1 echo tool = 17 total
+      expect(registry.getToolCount()).toBe(17);
       
-      // Debug: Check all logger calls
-      const infoCalls = (globalLogger.info as jest.Mock).mock.calls;
-      console.log('Info calls:', infoCalls.length);
-      infoCalls.forEach((call, i) => {
-        console.log(`Call ${i}:`, call);
-      });
-      
-      expect(globalLogger.info).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Tool registry initialized with'),
         expect.any(Object)
       );
@@ -51,9 +38,13 @@ describe('MCPToolRegistry', () => {
 
     it('should prevent double initialization', async () => {
       await registry.initialize();
+      
+      // Clear previous calls to focus on the second initialize
+      jest.clearAllMocks();
+      
       await registry.initialize();
 
-      expect(globalLogger.warn).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         'MCPToolRegistry already initialized'
       );
     });
@@ -77,8 +68,10 @@ describe('MCPToolRegistry', () => {
           throw error;
         });
 
-      await expect(registry.initialize()).rejects.toThrow('Init failed');
-      expect(globalLogger.error).toHaveBeenCalledWith(
+      // initialize() logs the error and then throws it
+      expect(() => registry.initialize()).toThrow('Init failed');
+      
+      expect(logger.error).toHaveBeenCalledWith(
         'Failed to initialize tool registry',
         { error }
       );
@@ -212,10 +205,11 @@ describe('MCPToolRegistry', () => {
 
       await registry.callTool('list_components', {});
 
-      expect(globalLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Slow tool execution'),
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Slow tool execution: list_components',
         expect.objectContaining({
           executionTimeMs: expect.any(Number),
+          context: expect.any(Object),
         })
       );
     });
@@ -254,10 +248,13 @@ describe('MCPToolRegistry', () => {
       await registry.initialize();
       expect(registry.getToolCount()).toBe(17);
 
+      // Clear previous logs to focus on cleanup
+      jest.clearAllMocks();
+      
       await registry.cleanup();
 
       expect(registry.getToolCount()).toBe(0);
-      expect(globalLogger.info).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         'Tool registry cleanup completed'
       );
     });
@@ -349,7 +346,7 @@ describe('MCPToolRegistry', () => {
       await registry.callTool('query_core_status', {});
 
       // Verify that the logger was called with metadata
-      expect(globalLogger.debug).toHaveBeenCalledWith(
+      expect(logger.debug).toHaveBeenCalledWith(
         'Tool execution completed: query_core_status',
         expect.objectContaining({
           executionTimeMs: expect.any(Number),
@@ -424,7 +421,7 @@ describe('MCPToolRegistry', () => {
         // Access private method through any type
         (testRegistry as any).registerTool(duplicateTool);
 
-        expect(globalLogger.warn).toHaveBeenCalledWith(
+        expect(logger.warn).toHaveBeenCalledWith(
           "Tool 'echo' already registered, skipping"
         );
       });
@@ -454,7 +451,7 @@ describe('MCPToolRegistry', () => {
         expect(result.content[0].text).toContain(
           'Tool execution failed: String error'
         );
-        expect(globalLogger.error).toHaveBeenCalledWith(
+        expect(logger.error).toHaveBeenCalledWith(
           'Tool execution failed: echo',
           expect.objectContaining({ error: 'String error' })
         );

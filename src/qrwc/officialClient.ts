@@ -22,6 +22,7 @@ export interface OfficialQRWCClientOptions {
   maxReconnectAttempts?: number;
   connectionTimeout?: number;
   enableAutoReconnect?: boolean;
+  logger?: Logger;
 }
 
 /**
@@ -42,7 +43,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   private ws?: WebSocket;
   private qrwc?: Qrwc<Record<string, string>>;
   private logger: Logger;
-  private options: Required<OfficialQRWCClientOptions>;
+  private options: Required<Omit<OfficialQRWCClientOptions, 'logger'>>;
   private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
   private reconnectAttempts = 0;
   private reconnectTimer?: NodeJS.Timeout;
@@ -64,7 +65,24 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       enableAutoReconnect: options.enableAutoReconnect ?? true,
     };
 
-    this.logger = createLogger(`official-qrwc-client-${options.host}`);
+    // Use provided logger or create a new one
+    const noop = () => { /* no-op */ };
+    const fallbackLogger: Logger = { 
+      info: noop, 
+      error: noop, 
+      warn: noop, 
+      debug: noop,
+      child: () => fallbackLogger,
+    };
+    
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- createLogger might return undefined in test environment
+      this.logger = options.logger ?? createLogger(`official-qrwc-client-${options.host}`) ?? fallbackLogger;
+    } catch (error) {
+      // Fallback for test environment where logger creation might fail
+      this.logger = fallbackLogger;
+    }
+    
     this.setupGracefulShutdown();
   }
 

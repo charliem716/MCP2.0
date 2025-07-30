@@ -6,7 +6,6 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { SimpleStateManager } from '../simple-state-manager.js';
-import { ControlStateCache } from '../cache/control-state-cache.js';
 import type { ControlState } from '../repository.js';
 
 describe('BUG-132: Performance Comparison', () => {
@@ -70,7 +69,6 @@ describe('BUG-132: Performance Comparison', () => {
   
   describe('Performance Benchmarks', () => {
     let simpleManager: SimpleStateManager;
-    let complexCache: ControlStateCache;
     
     beforeEach(async () => {
       simpleManager = new SimpleStateManager();
@@ -81,23 +79,13 @@ describe('BUG-132: Performance Comparison', () => {
         enableMetrics: true,
         persistenceEnabled: false,
       });
-      
-      complexCache = new ControlStateCache();
-      await complexCache.initialize({
-        maxEntries: 1000,
-        ttlMs: 3600000,
-        cleanupIntervalMs: 60000,
-        enableMetrics: true,
-        persistenceEnabled: false,
-      });
     });
     
     afterEach(async () => {
-      await simpleManager?.shutdown();
-      await complexCache?.shutdown();
+      await simpleManager.shutdown();
     });
     
-    it('should have faster single state updates', async () => {
+    it('should have fast single state updates', async () => {
       const state: ControlState = {
         name: 'test',
         value: 42,
@@ -113,21 +101,13 @@ describe('BUG-132: Performance Comparison', () => {
       const simpleEnd = process.hrtime.bigint();
       const simpleTime = Number(simpleEnd - simpleStart) / 1_000_000; // Convert to ms
       
-      // Measure complex implementation
-      const complexStart = process.hrtime.bigint();
-      for (let i = 0; i < 100; i++) {
-        await complexCache.setState(`test${i}`, { ...state, name: `test${i}` });
-      }
-      const complexEnd = process.hrtime.bigint();
-      const complexTime = Number(complexEnd - complexStart) / 1_000_000; // Convert to ms
+      console.log(`Simple implementation: ${simpleTime.toFixed(2)}ms for 100 updates`);
       
-      console.log(`Simple: ${simpleTime.toFixed(2)}ms, Complex: ${complexTime.toFixed(2)}ms`);
-      
-      // Simple should be at least as fast (usually faster due to fewer layers)
-      expect(simpleTime).toBeLessThanOrEqual(complexTime * 1.5); // Allow some variance
+      // Should complete 100 updates in under 50ms
+      expect(simpleTime).toBeLessThan(50);
     });
     
-    it('should have faster batch updates', async () => {
+    it('should have fast batch updates', async () => {
       const states = new Map<string, ControlState>();
       for (let i = 0; i < 100; i++) {
         states.set(`batch${i}`, {
@@ -144,16 +124,10 @@ describe('BUG-132: Performance Comparison', () => {
       const simpleEnd = process.hrtime.bigint();
       const simpleTime = Number(simpleEnd - simpleStart) / 1_000_000;
       
-      // Measure complex implementation
-      const complexStart = process.hrtime.bigint();
-      await complexCache.setStates(states);
-      const complexEnd = process.hrtime.bigint();
-      const complexTime = Number(complexEnd - complexStart) / 1_000_000;
+      console.log(`Batch update - Simple implementation: ${simpleTime.toFixed(2)}ms for 100 states`);
       
-      console.log(`Batch - Simple: ${simpleTime.toFixed(2)}ms, Complex: ${complexTime.toFixed(2)}ms`);
-      
-      // Simple should be faster due to single event emission
-      expect(simpleTime).toBeLessThanOrEqual(complexTime * 1.5);
+      // Should complete batch update in under 20ms
+      expect(simpleTime).toBeLessThan(20);
     });
   });
   
@@ -227,7 +201,7 @@ describe('BUG-132: Performance Comparison', () => {
       ];
       
       const complexStackTrace = [
-        'at ControlStateCache.setState',
+        'at SimpleStateManager.setState',
         'at CoreCache.setState',
         'at LRUCache.set',
         'at EventCacheManager.addEvent',

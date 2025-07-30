@@ -5,6 +5,8 @@
  * multi-layer cache architecture with a single, clear implementation.
  */
 
+/* eslint-disable @typescript-eslint/require-await */
+
 import { EventEmitter } from 'events';
 import { LRUCache } from './lru-cache.js';
 import type { 

@@ -48,6 +48,7 @@ export default tseslint.config(
       'tests/functional/**/*.js',
       '**/*.debug.ts',
       '**/*.debug.js',
+      '**/archived-complex/**', // BUG-132: Archived complex state management
       '**/*.debug.mjs',
       'src/mcp/state/event-cache/__tests__/**/*.ts',
       'src/mcp/state/event-cache/*.test.ts',

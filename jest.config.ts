@@ -38,8 +38,8 @@ const config: Config = {
   
   // Module name mapping for imports
   moduleNameMapper: {
-    // Mock the logger module globally
-    '^.*/shared/utils/logger$': '<rootDir>/tests/__mocks__/shared/utils/logger.ts',
+    // Mock the logger module globally (handle both with and without .js extension)
+    '^.*/shared/utils/logger(\\.js)?$': '<rootDir>/tests/__mocks__/shared/utils/logger.ts',
     
     // Handle path aliases first (before .js stripping)
     '^@/shared/(.*)$': '<rootDir>/src/shared/$1',
@@ -106,6 +106,7 @@ const config: Config = {
     '/dist/', 
     '/coverage/',
     '/tests/manual/',  // Exclude manual integration tests
+    '/archived-complex/', // BUG-132: Exclude archived complex state management tests
   ],
   watchPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
   modulePathIgnorePatterns: ['<rootDir>/dist/'],

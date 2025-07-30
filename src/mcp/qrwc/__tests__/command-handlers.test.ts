@@ -1,22 +1,27 @@
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 // Mock logger must be before imports
-jest.mock('../../../shared/utils/logger', () => ({
-  globalLogger: {
-    error: jest.fn(),
-    warn: jest.fn(),
-    info: jest.fn(),
-    debug: jest.fn(),
-  },
+const mockLogger = {
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+};
+
+jest.unstable_mockModule('@/shared/utils/logger', () => ({
+  globalLogger: mockLogger,
 }));
 
 // Mock validators must be before imports
 const mockValidateControlValue = jest.fn();
-jest.mock('../validators.js', () => ({
+jest.unstable_mockModule('@/mcp/qrwc/validators', () => ({
   validateControlValue: mockValidateControlValue,
 }));
 
-import { handleControlSet } from '../command-handlers.js';
-import type { OfficialQRWCClient } from '../officialClient.js';
-import { ValidationError, QSysError, QSysErrorCode } from '../../../shared/types/errors.js';
+// Import after mocking
+const { handleControlSet } = await import('@/mcp/qrwc/command-handlers');
+const { ValidationError, QSysError } = await import('@/shared/types/errors');
+import type { OfficialQRWCClient } from '@/qrwc/officialClient';
 
 describe('command-handlers', () => {
   describe('handleControlSet', () => {
@@ -25,6 +30,7 @@ describe('command-handlers', () => {
 
     beforeEach(() => {
       // Reset mocks
+      jest.resetModules();
       jest.clearAllMocks();
       
       // Setup default mock behavior for validateControlValue

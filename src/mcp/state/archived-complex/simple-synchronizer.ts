@@ -111,7 +111,7 @@ export class SimpleSynchronizer {
         }
         
         const controlsData = controlsResponse.result;
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety check
+         
         if (!controlsData || !controlsData.Controls) {
           continue;
         }

@@ -74,7 +74,7 @@ export class MCPServer {
     // Initialize components with dependency injection
     const container = DIContainer.getInstance();
     
-    // Create Q-SYS client
+    // Create Q-SYS client with logger
     this.officialQrwcClient = new OfficialQRWCClient({
       host: config.qrwc.host,
       port: config.qrwc.port ?? 443,
@@ -83,6 +83,7 @@ export class MCPServer {
       maxReconnectAttempts: 5,
       connectionTimeout: 10000,
       enableAutoReconnect: true,
+      logger: logger.child({ component: 'OfficialQRWCClient' }),
     });
     this.qrwcClientAdapter = new QRWCClientAdapter(this.officialQrwcClient);
 

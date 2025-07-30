@@ -3,8 +3,6 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { validateControlValue } from '../../src/mcp/qrwc/command-handlers';
-import { ChangeGroupExecutor } from '../../src/mcp/state/change-group/change-group-executor';
-import { ChangeGroupEvent } from '../../src/mcp/state/change-group/types';
 import { OfficialQRWCClient } from '../../src/qrwc/officialClient';
 
 describe('BUG-106: TypeScript Compilation Fixes', () => {
@@ -84,29 +82,12 @@ describe('BUG-106: TypeScript Compilation Fixes', () => {
     });
   });
 
-  describe('rollback-handler.ts event emission', () => {
-    it('should use valid ChangeGroupEvent values', () => {
-      // Verify all ChangeGroupEvent values are valid
-      const validEvents = Object.values(ChangeGroupEvent);
-      
-      expect(validEvents).toContain(ChangeGroupEvent.Error);
-      expect(validEvents).not.toContain('RollbackError');
-      
-      // Verify Error event can be used for rollback errors
-      const eventData = {
-        changeGroupId: 'test-id',
-        controlName: 'test.control',
-        error: 'Rollback failed',
-        context: 'rollback',
-      };
-      
-      // This should not throw any TypeScript errors
-      expect(() => {
-        const event = ChangeGroupEvent.Error;
-        expect(event).toBe('changeGroupError');
-      }).not.toThrow();
-    });
-  });
+  // BUG-132: Removed test for ChangeGroupEvent which was part of removed complex state management
+  // describe('rollback-handler.ts event emission', () => {
+  //   it('should use valid ChangeGroupEvent values', () => {
+  //     // Test removed - ChangeGroupEvent was part of the complex state management removed in BUG-132
+  //   });
+  // });
 
   describe('status.ts type safety', () => {
     it('should access correct Status properties', () => {

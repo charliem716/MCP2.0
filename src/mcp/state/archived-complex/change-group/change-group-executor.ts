@@ -51,7 +51,7 @@ export class ChangeGroupExecutor {
           [{ field: 'name', message: 'Control name is required', code: 'REQUIRED_FIELD' }]);
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime validation
+       
       if (control.value === undefined || control.value === null) {
         throw new ValidationError(`Control ${control.name} value is required`,
           [{ field: control.name, message: 'Value is required', code: 'REQUIRED_FIELD' }]);

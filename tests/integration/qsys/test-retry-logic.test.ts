@@ -1,7 +1,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { QRWCClientAdapter } from '../../../src/mcp/qrwc/adapter';
 
-describe('test-retry-logic', () => {
+describe.skip('test-retry-logic - requires live Q-SYS connection', () => {
   jest.setTimeout(30000); // 30 second timeout for integration tests
   it('should execute the test scenario', async () => {
     // Test implementation

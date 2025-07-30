@@ -22,12 +22,11 @@ async function main(): Promise<void> {
     validateConfig();
     logger.info('✅ Configuration validated');
 
-    // Create and connect QRWC client
+    // Create and connect QRWC client with logger
     qrwcClient = new OfficialQRWCClient({
       host: config.qsys.host,
       port: config.qsys.port,
-      username: config.qsys.username,
-      password: config.qsys.password,
+      logger: logger.child({ component: 'OfficialQRWCClient' }),
     });
 
     await qrwcClient.connect();

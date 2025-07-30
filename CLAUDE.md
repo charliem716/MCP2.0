@@ -122,6 +122,7 @@ The system uses multiple configuration sources:
 
 1. **Complete phases fully**: Follow the rule in `CURSOR.md` - complete each phase to 100% before
    moving to the next
+   **Never provide a workaround when fixing code** Fix the actual problem.
 2. **Q-SYS requires WSS**: Always use secure WebSocket connections with `rejectUnauthorized: false`
    for self-signed certificates
 3. **Test connections first**: Use `npm run test:connection` before running the main application

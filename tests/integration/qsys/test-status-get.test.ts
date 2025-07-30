@@ -6,7 +6,7 @@ import { OfficialQRWCClient } from '../../../src/qrwc/officialClient';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-describe('Q-SYS Status.Get Test', () => {
+describe.skip('Q-SYS Status.Get Test - requires live Q-SYS connection', () => {
   jest.setTimeout(60000); // 60 second timeout for integration tests
   let client: OfficialQRWCClient;
   let config: any;

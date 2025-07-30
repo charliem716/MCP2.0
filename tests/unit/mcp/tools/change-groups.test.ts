@@ -9,9 +9,8 @@ import {
   ClearChangeGroupTool,
   SetChangeGroupAutoPollTool,
   ListChangeGroupsTool,
-  SubscribeToChangeEventsTool,
 } from '../../../../src/mcp/tools/change-groups';
-import type { EventCacheManager } from '../../../../src/mcp/state/event-cache/manager';
+// BUG-132: EventCacheManager removed - simplified architecture
 
 describe('Change Group Tools', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;
@@ -590,7 +589,8 @@ describe('Change Group Tools', () => {
     });
   });
 
-  describe('SubscribeToChangeEventsTool', () => {
+  // BUG-132: SubscribeToChangeEventsTool removed with EventCacheManager
+  describe.skip('SubscribeToChangeEventsTool', () => {
     let tool: SubscribeToChangeEventsTool;
     let mockEventCache: jest.Mocked<EventCacheManager>;
 
