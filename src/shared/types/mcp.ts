@@ -431,6 +431,11 @@ export interface MCPServerConfig {
     compressOldEvents?: boolean;
     persistToDisk?: boolean;
   };
+  rateLimiting?: {
+    requestsPerMinute?: number;
+    burstSize?: number;
+    perClient?: boolean;
+  };
 }
 
 /**

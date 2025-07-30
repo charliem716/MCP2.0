@@ -26,6 +26,13 @@ import type { MCPServerConfig } from '../shared/types/mcp.js';
 import { DIContainer, ServiceTokens } from './infrastructure/container.js';
 import type { IControlSystem } from './interfaces/control-system.js';
 
+// Production readiness imports
+import { MCPRateLimiter, createRateLimitError } from './middleware/rate-limit.js';
+import { InputValidator } from './middleware/validation.js';
+import { HealthChecker } from './health/health-check.js';
+import { createQSysCircuitBreaker, type CircuitBreaker } from './infrastructure/circuit-breaker.js';
+import { getMetrics } from './monitoring/metrics.js';
+
 /**
  * MCP Server for Q-SYS Control
  *
@@ -47,6 +54,20 @@ export class MCPServer {
     string,
     NodeJS.UncaughtExceptionListener | NodeJS.UnhandledRejectionListener
   >();
+  
+  // Production readiness components
+  private rateLimiter?: MCPRateLimiter;
+  private inputValidator?: InputValidator;
+  private healthChecker?: HealthChecker;
+  private circuitBreaker?: CircuitBreaker;
+  private metrics = getMetrics();
+  private auditLog: Array<{
+    timestamp: Date;
+    tool: string;
+    clientId?: string;
+    success: boolean;
+    duration: number;
+  }> = [];
 
   constructor(private config: MCPServerConfig) {
     debugLog('MCPServer constructor called', config);
@@ -113,6 +134,7 @@ export class MCPServer {
 
     this.setupRequestHandlers();
     this.setupErrorHandling();
+    this.initializeProductionFeatures();
 
     logger.info('MCP Server initialized', {
       name: this.serverName,
@@ -143,17 +165,82 @@ export class MCPServer {
 
     this.server.setRequestHandler(CallToolRequestSchema, async request => {
       const { name, arguments: args } = request.params;
-      logger.info('Received call_tool request', { tool: name, args });
+      const startTime = Date.now();
+      
+      // Extract client ID from request context if available
+      const clientId = this.extractClientId(request);
+      
+      logger.info('Received call_tool request', { tool: name, clientId });
 
       try {
-        const result = await this.toolRegistry.callTool(name, args);
-        logger.info('Tool execution completed', { tool: name, success: true });
+        // Rate limiting
+        if (this.rateLimiter) {
+          const allowed = this.rateLimiter.checkLimit(clientId);
+          if (!allowed) {
+            logger.warn('Rate limit exceeded', { tool: name, clientId });
+            throw createRateLimitError(clientId);
+          }
+        }
+
+        // Input validation
+        if (this.inputValidator) {
+          const validation = this.inputValidator.validate(name, args);
+          if (!validation.valid) {
+            logger.warn('Input validation failed', { tool: name, errors: validation.error });
+            throw validation.error;
+          }
+        }
+
+        // Execute tool with circuit breaker if Q-SYS related
+        let result;
+        if (name.startsWith('qsys.') && this.circuitBreaker) {
+          result = await this.circuitBreaker.execute(async () => 
+            this.toolRegistry.callTool(name, args)
+          );
+        } else {
+          result = await this.toolRegistry.callTool(name, args);
+        }
+        
+        // Collect metrics
+        const duration = Date.now() - startTime;
+        this.metrics.toolCalls.inc({ tool: name, status: 'success' });
+        this.metrics.toolDuration.observe(duration / 1000); // Convert to seconds
+        this.metrics.requestCount.inc({ method: 'tools/call', status: 'success' });
+        this.metrics.requestDuration.observe(duration / 1000);
+        
+        // Audit logging
+        this.addAuditLog(name, clientId, true, duration);
+        
+        logger.info('Tool execution completed', { 
+          tool: name, 
+          success: true,
+          duration,
+          clientId,
+        });
+        
         return {
           content: result.content,
           isError: result.isError,
         };
       } catch (error) {
-        logger.error('Error executing tool', { tool: name, error });
+        const duration = Date.now() - startTime;
+        
+        // Collect error metrics
+        const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+        this.metrics.toolCalls.inc({ tool: name, status: 'error' });
+        this.metrics.toolErrors.inc({ tool: name, error_type: errorType });
+        this.metrics.requestCount.inc({ method: 'tools/call', status: 'error' });
+        this.metrics.requestErrors.inc({ method: 'tools/call', error_type: errorType });
+        
+        this.addAuditLog(name, clientId, false, duration);
+        
+        logger.error('Error executing tool', { tool: name, error, clientId });
+        
+        // Re-throw if already formatted MCP error
+        if (typeof error === 'object' && error !== null && 'code' in error) {
+          throw error;
+        }
+        
         throw this.createMCPError(
           -32603,
           `Tool execution failed: ${name}`,
@@ -380,6 +467,21 @@ export class MCPServer {
       // Cleanup tool registry
       await this.toolRegistry.cleanup();
 
+      // Stop production features
+      if (this.rateLimiter) {
+        this.rateLimiter.stop();
+      }
+      
+      if (this.healthChecker) {
+        this.healthChecker.stopPeriodicChecks();
+      }
+      
+      if (this.circuitBreaker) {
+        this.circuitBreaker.stop();
+      }
+      
+      this.metrics.stop();
+
       // Persist state if available
       try {
         // Log state persistence check
@@ -420,6 +522,142 @@ export class MCPServer {
       toolsCount: this.toolRegistry.getToolCount(),
       name: this.serverName,
       version: this.serverVersion,
+      production: {
+        rateLimiting: !!this.rateLimiter,
+        inputValidation: !!this.inputValidator,
+        healthCheck: !!this.healthChecker,
+      },
     };
+  }
+
+  /**
+   * Initialize production readiness features
+   */
+  private initializeProductionFeatures(): void {
+    try {
+      // Initialize rate limiter
+      this.rateLimiter = new MCPRateLimiter({
+        requestsPerMinute: this.config.rateLimiting?.requestsPerMinute ?? 60,
+        burstSize: this.config.rateLimiting?.burstSize ?? 10,
+        perClient: this.config.rateLimiting?.perClient ?? false,
+      });
+      logger.info('Rate limiter initialized');
+
+      // Initialize input validator
+      this.inputValidator = new InputValidator();
+      logger.info('Input validator initialized');
+
+      // Initialize health checker
+      this.healthChecker = new HealthChecker(
+        DIContainer.getInstance(),
+        this.officialQrwcClient,
+        this.serverVersion
+      );
+      // Start periodic health checks
+      this.healthChecker.startPeriodicChecks(60000); // Every minute
+      logger.info('Health checker initialized');
+
+      // Initialize circuit breaker for Q-SYS connections
+      this.circuitBreaker = createQSysCircuitBreaker();
+      
+      // Monitor circuit breaker state changes
+      this.circuitBreaker.on('state-change', (oldState, newState) => {
+        logger.warn('Circuit breaker state changed', { oldState, newState });
+        this.metrics.connectionErrors.inc({ error_type: 'circuit_breaker_open' });
+      });
+      
+      logger.info('Circuit breaker initialized');
+
+      // Track connection metrics
+      this.officialQrwcClient.on('connected', () => {
+        this.metrics.activeConnections.set(1);
+      });
+      
+      this.officialQrwcClient.on('disconnected', () => {
+        this.metrics.activeConnections.set(0);
+        this.metrics.connectionErrors.inc({ error_type: 'disconnected' });
+      });
+      
+      this.officialQrwcClient.on('reconnecting', () => {
+        this.metrics.reconnects.inc();
+      });
+
+      logger.info('Production features initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize production features', { error });
+      // Continue without production features rather than failing startup
+    }
+  }
+
+  /**
+   * Extract client ID from request
+   */
+  private extractClientId(request: unknown): string | undefined {
+    // In MCP, client identification might come from:
+    // 1. Request metadata
+    // 2. Connection context
+    // 3. Custom headers
+    
+    // For now, return undefined as MCP doesn't have built-in client ID
+    // This would need to be implemented based on specific MCP server setup
+    return undefined;
+  }
+
+  /**
+   * Add audit log entry
+   */
+  private addAuditLog(
+    tool: string,
+    clientId: string | undefined,
+    success: boolean,
+    duration: number
+  ): void {
+    this.auditLog.push({
+      timestamp: new Date(),
+      tool,
+      clientId,
+      success,
+      duration,
+    });
+
+    // Keep only last 1000 entries to prevent memory growth
+    if (this.auditLog.length > 1000) {
+      this.auditLog.shift();
+    }
+  }
+
+  /**
+   * Get audit log entries
+   */
+  getAuditLog(limit = 100): typeof this.auditLog {
+    return this.auditLog.slice(-limit);
+  }
+
+  /**
+   * Get health status
+   */
+  async getHealth(verbose = false) {
+    if (!this.healthChecker) {
+      return {
+        status: 'unknown',
+        message: 'Health checker not initialized',
+      };
+    }
+
+    return this.healthChecker.getHealthEndpointResponse(verbose);
+  }
+
+  /**
+   * Get metrics in Prometheus format
+   */
+  getMetrics(): string {
+    return this.metrics.export();
+  }
+
+  /**
+   * Get metrics as JSON
+   */
+  getMetricsJSON(): Record<string, unknown> {
+    return this.metrics.toJSON();
   }
 }
