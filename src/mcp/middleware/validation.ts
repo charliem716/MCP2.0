@@ -150,7 +150,19 @@ export class InputValidator {
   };
 
   constructor() {
-    this.logger = createLogger('mcp-input-validator');
+    try {
+      this.logger = createLogger('mcp-input-validator');
+    } catch {
+      // Fallback for test environment
+      const fallbackLogger: Logger = {
+        info: () => {},
+        error: () => {},
+        warn: () => {},
+        debug: () => {},
+        child: () => fallbackLogger,
+      } as Logger;
+      this.logger = fallbackLogger;
+    }
     this.schemas = ToolSchemas;
     
     this.logger.info('Input validator initialized', {
@@ -209,7 +221,10 @@ export class InputValidator {
         error: {
           code: -32603,
           message: 'Internal validation error',
-          data: { type: 'internal_error' },
+          data: { 
+            type: 'internal_error',
+            errors: []
+          },
         },
       };
     }

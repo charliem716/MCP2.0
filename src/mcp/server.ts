@@ -32,6 +32,7 @@ import { InputValidator } from './middleware/validation.js';
 import { HealthChecker } from './health/health-check.js';
 import { createQSysCircuitBreaker, type CircuitBreaker } from './infrastructure/circuit-breaker.js';
 import { getMetrics } from './monitoring/metrics.js';
+import { MCPAuthenticator, createAuthError } from './middleware/auth.js';
 
 /**
  * MCP Server for Q-SYS Control
@@ -60,11 +61,12 @@ export class MCPServer {
   private inputValidator?: InputValidator;
   private healthChecker?: HealthChecker;
   private circuitBreaker?: CircuitBreaker;
+  private authenticator?: MCPAuthenticator;
   private metrics = getMetrics();
   private auditLog: Array<{
     timestamp: Date;
     tool: string;
-    clientId?: string;
+    clientId?: string | undefined;
     success: boolean;
     duration: number;
   }> = [];
@@ -168,11 +170,31 @@ export class MCPServer {
       const startTime = Date.now();
       
       // Extract client ID from request context if available
-      const clientId = this.extractClientId(request);
+      let clientId = this.extractClientId(request);
       
       logger.info('Received call_tool request', { tool: name, clientId });
 
       try {
+        // Authentication
+        if (this.authenticator) {
+          const authResult = this.authenticator.authenticate(
+            `tools/${name}`,
+            this.extractHeaders(request),
+            { tool: name }
+          );
+          
+          if (!authResult.authenticated) {
+            logger.warn('Authentication failed', { 
+              tool: name, 
+              error: authResult.error,
+            });
+            throw createAuthError(authResult.error || 'Authentication required');
+          }
+          
+          // Use authenticated client ID
+          clientId = authResult.clientId || clientId;
+        }
+
         // Rate limiting
         if (this.rateLimiter) {
           const allowed = this.rateLimiter.checkLimit(clientId);
@@ -568,6 +590,17 @@ export class MCPServer {
       
       logger.info('Circuit breaker initialized');
 
+      // Initialize authentication
+      if (this.config.authentication?.enabled) {
+        this.authenticator = new MCPAuthenticator({
+          enabled: true,
+          apiKeys: this.config.authentication.apiKeys ?? [],
+          tokenExpiration: this.config.authentication.tokenExpiration ?? 3600,
+          allowAnonymous: this.config.authentication.allowAnonymous ?? [],
+        });
+        logger.info('Authentication initialized');
+      }
+
       // Track connection metrics
       this.officialQrwcClient.on('connected', () => {
         this.metrics.activeConnections.set(1);
@@ -600,6 +633,19 @@ export class MCPServer {
     
     // For now, return undefined as MCP doesn't have built-in client ID
     // This would need to be implemented based on specific MCP server setup
+    return undefined;
+  }
+
+  /**
+   * Extract headers from request
+   */
+  private extractHeaders(request: unknown): Record<string, string | string[]> | undefined {
+    // MCP doesn't have standard headers in stdio transport
+    // This would be implemented for HTTP/WebSocket transports
+    // For now, check if request has headers property
+    if (typeof request === 'object' && request !== null && 'headers' in request) {
+      return (request as any).headers;
+    }
     return undefined;
   }
 

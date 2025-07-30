@@ -44,8 +44,8 @@ export interface CircuitBreakerStats {
   successes: number;
   consecutiveFailures: number;
   consecutiveSuccesses: number;
-  lastFailureTime?: Date;
-  lastSuccessTime?: Date;
+  lastFailureTime?: Date | undefined;
+  lastSuccessTime?: Date | undefined;
   totalCalls: number;
   rejectedCalls: number;
 }
@@ -80,12 +80,24 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
   private nextAttempt?: Date;
   private totalCalls = 0;
   private rejectedCalls = 0;
-  private resetTimer?: NodeJS.Timeout;
-  private monitorInterval?: NodeJS.Timeout;
+  private resetTimer: NodeJS.Timeout | undefined;
+  private monitorInterval: NodeJS.Timeout | undefined;
 
   constructor(private readonly config: CircuitBreakerConfig) {
     super();
-    this.logger = createLogger(`circuit-breaker-${config.name}`);
+    try {
+      this.logger = createLogger(`circuit-breaker-${config.name}`);
+    } catch {
+      // Fallback for test environment
+      const fallbackLogger: Logger = {
+        info: () => {},
+        error: () => {},
+        warn: () => {},
+        debug: () => {},
+        child: () => fallbackLogger,
+      } as Logger;
+      this.logger = fallbackLogger;
+    }
     
     // Start monitoring if configured
     if (config.monitor) {

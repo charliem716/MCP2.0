@@ -436,6 +436,12 @@ export interface MCPServerConfig {
     burstSize?: number;
     perClient?: boolean;
   };
+  authentication?: {
+    enabled?: boolean;
+    apiKeys?: string[];
+    tokenExpiration?: number;
+    allowAnonymous?: string[];
+  };
 }
 
 /**

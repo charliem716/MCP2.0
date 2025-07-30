@@ -9,6 +9,7 @@ import { createLogger, type Logger } from '../../shared/utils/logger.js';
 import type { OfficialQRWCClient } from '../../qrwc/officialClient.js';
 import type { DIContainer } from '../infrastructure/container.js';
 import { ServiceTokens } from '../infrastructure/container.js';
+import type { IStateRepository } from '../state/repository.js';
 import os from 'os';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -67,14 +68,26 @@ export class HealthChecker {
   private readonly logger: Logger;
   private readonly startTime: Date;
   private lastHealthReport?: HealthReport;
-  private healthCheckInterval?: NodeJS.Timeout;
+  private healthCheckInterval: NodeJS.Timeout | undefined;
 
   constructor(
     private readonly container: DIContainer,
     private readonly qsysClient: OfficialQRWCClient,
     private readonly serverVersion: string
   ) {
-    this.logger = createLogger('mcp-health-checker');
+    try {
+      this.logger = createLogger('mcp-health-checker');
+    } catch {
+      // Fallback for test environment
+      const fallbackLogger: Logger = {
+        info: () => {},
+        error: () => {},
+        warn: () => {},
+        debug: () => {},
+        child: () => fallbackLogger,
+      } as Logger;
+      this.logger = fallbackLogger;
+    }
     this.startTime = new Date();
     
     this.logger.info('Health checker initialized');
@@ -318,7 +331,7 @@ export class HealthChecker {
    */
   private async checkStateRepository(): Promise<HealthCheckResult> {
     try {
-      const stateRepo = await this.container.resolve(ServiceTokens.STATE_REPOSITORY);
+      const stateRepo = await this.container.resolve<IStateRepository>(ServiceTokens.STATE_REPOSITORY);
       
       if (!stateRepo) {
         return {
@@ -329,13 +342,13 @@ export class HealthChecker {
       }
 
       // Get state repository metrics
-      const metrics = stateRepo.getMetrics();
+      const metrics = await stateRepo.getStatistics();
       
       return {
         name: 'State Repository',
         status: HealthStatus.HEALTHY,
         message: 'State repository operational',
-        metadata: metrics,
+        metadata: { ...metrics },
       };
     } catch (error) {
       return {
@@ -489,8 +502,8 @@ export class HealthChecker {
     const report = await this.check();
     
     const response = {
-      status: report.status === HealthStatus.HEALTHY ? 'ok' : 
-              report.status === HealthStatus.DEGRADED ? 'degraded' : 'error',
+      status: (report.status === HealthStatus.HEALTHY ? 'ok' : 
+              report.status === HealthStatus.DEGRADED ? 'degraded' : 'error') as 'ok' | 'degraded' | 'error',
       timestamp: report.timestamp.toISOString(),
       version: report.version,
       uptime: report.uptime,

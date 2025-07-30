@@ -56,7 +56,19 @@ export class MCPAuthenticator {
   private readonly tokenCache = new Map<string, TokenPayload>();
 
   constructor(config: AuthConfig) {
-    this.logger = createLogger('mcp-authenticator');
+    try {
+      this.logger = createLogger('mcp-authenticator');
+    } catch {
+      // Fallback for test environment
+      const fallbackLogger: Logger = {
+        info: () => {},
+        error: () => {},
+        warn: () => {},
+        debug: () => {},
+        child: () => fallbackLogger,
+      } as Logger;
+      this.logger = fallbackLogger;
+    }
     
     this.config = {
       enabled: config.enabled,

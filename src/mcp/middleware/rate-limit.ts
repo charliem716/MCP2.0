@@ -85,7 +85,19 @@ export class MCPRateLimiter<T = string> {
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor(config: RateLimitConfig) {
-    this.logger = createLogger('mcp-rate-limiter');
+    try {
+      this.logger = createLogger('mcp-rate-limiter');
+    } catch {
+      // Fallback for test environment
+      const fallbackLogger: Logger = {
+        info: () => {},
+        error: () => {},
+        warn: () => {},
+        debug: () => {},
+        child: () => fallbackLogger,
+      } as Logger;
+      this.logger = fallbackLogger;
+    }
     
     this.config = {
       ...config,

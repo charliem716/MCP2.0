@@ -259,10 +259,22 @@ export class MCPMetrics {
   public readonly cacheMisses: Counter;
   public readonly cacheSize: Gauge;
 
-  private metricsInterval?: NodeJS.Timeout;
+  private metricsInterval: NodeJS.Timeout | undefined;
 
   constructor() {
-    this.logger = createLogger('mcp-metrics');
+    try {
+      this.logger = createLogger('mcp-metrics');
+    } catch {
+      // Fallback for test environment
+      const fallbackLogger: Logger = {
+        info: () => {},
+        error: () => {},
+        warn: () => {},
+        debug: () => {},
+        child: () => fallbackLogger,
+      } as Logger;
+      this.logger = fallbackLogger;
+    }
 
     // Initialize request metrics
     this.requestCount = new Counter(
