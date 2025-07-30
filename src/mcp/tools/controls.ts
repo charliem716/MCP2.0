@@ -290,6 +290,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
 
   private inferControlType(control: QSysControlInfo): string {
     const name = control.Name;
+    if (!name) return 'unknown';
     const lowerName = name.toLowerCase();
 
     // Infer type from control name patterns
@@ -742,6 +743,18 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       // Convert results to the expected JSON format
       const jsonResults = allResults.map(({ control, result }) => {
         if (result.status === 'fulfilled') {
+          // Check if the Q-SYS response contains an error
+          const qsysResponse = result.value as { error?: { code: number; message: string } };
+          if (qsysResponse?.error) {
+            const errorResponse: ControlSetResponse = {
+              name: control.name,
+              value: control.value,
+              success: false,
+              error: qsysResponse.error.message || 'Q-SYS error',
+            };
+            return errorResponse;
+          }
+          
           const response: ControlSetResponse = {
             name: control.name,
             value: control.value,
@@ -799,6 +812,9 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         };
       }
 
+      // Check if any results failed
+      const hasErrors = jsonResults.some(r => !r.success);
+      
       return {
         content: [
           {
@@ -806,7 +822,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             text: serializedResults,
           },
         ],
-        isError: allResults.some(r => r.result.status === 'rejected'),
+        isError: hasErrors,
       };
     } catch (error) {
       this.logger.error('Failed to set control values', { error, context });
@@ -1055,9 +1071,29 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
               response.error.message ??
               `Control '${control.name}' not found`,
           };
+        } else if (isQSysApiResponse(response) && response.result) {
+          // For Control.Get, result should be an object with Name property
+          if (typeof response.result === 'object' && response.result !== null && 'Name' in response.result) {
+            // Control exists - validation passed
+            this.cacheResult(control.name, true);
+            return null;
+          } else {
+            // Invalid result format
+            this.cacheResult(control.name, false);
+            return {
+              controlName: control.name,
+              value: control.value,
+              message: `Control '${control.name}' not found`,
+            };
+          }
         } else {
-          this.cacheResult(control.name, true);
-          return null;
+          // No result means control not found
+          this.cacheResult(control.name, false);
+          return {
+            controlName: control.name,
+            value: control.value,
+            message: `Control '${control.name}' not found`,
+          };
         }
       } catch (error) {
         this.cacheResult(control.name, false);
@@ -1091,6 +1127,21 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     let value = control.value;
     if (typeof value === 'boolean') {
       value = value ? 1 : 0;
+    } else if (typeof value === 'string') {
+      // Convert string boolean values
+      const lowerValue = value.toLowerCase();
+      if (lowerValue === 'true' || lowerValue === 'yes' || lowerValue === 'on') {
+        value = 1;
+      } else if (lowerValue === 'false' || lowerValue === 'no' || lowerValue === 'off') {
+        value = 0;
+      } else {
+        // Try to parse as number
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue)) {
+          value = numValue;
+        }
+        // Otherwise keep as string
+      }
     }
 
     interface ControlSetParams {
@@ -1127,6 +1178,21 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       let value = control.value;
       if (typeof value === 'boolean') {
         value = value ? 1 : 0;
+      } else if (typeof value === 'string') {
+        // Convert string boolean values
+        const lowerValue = value.toLowerCase();
+        if (lowerValue === 'true' || lowerValue === 'yes' || lowerValue === 'on') {
+          value = 1;
+        } else if (lowerValue === 'false' || lowerValue === 'no' || lowerValue === 'off') {
+          value = 0;
+        } else {
+          // Try to parse as number
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            value = numValue;
+          }
+          // Otherwise keep as string
+        }
       }
 
       interface ComponentControlParams {

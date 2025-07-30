@@ -443,7 +443,11 @@ describe('SetControlValuesTool', () => {
   });
 
   it('should set named control values successfully', async () => {
-    mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+    // Mock validation responses first, then set responses
+    mockQrwcClient.sendCommand
+      .mockResolvedValueOnce({ result: { Name: 'MainGain', Value: 0 } }) // Validation for MainGain
+      .mockResolvedValueOnce({ result: { Name: 'MainMute', Value: 0 } }) // Validation for MainMute
+      .mockResolvedValue({ success: true }); // All subsequent set operations
 
     const result = await tool.execute({
       controls: [
@@ -454,7 +458,7 @@ describe('SetControlValuesTool', () => {
 
     // When validation is enabled (default), it makes additional calls
     // 2 calls for validation + 2 calls for setting = 4 total
-    expect(mockQrwcClient.sendCommand).toHaveBeenCalled();
+    expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(4);
     expect(result.isError).toBe(false);
     const results = JSON.parse(result.content[0].text);
     expect(results).toHaveLength(2);
@@ -533,7 +537,19 @@ describe('SetControlValuesTool', () => {
   });
 
   it('should handle mixed named and component controls', async () => {
-    mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+    // Mock validation responses for named control and component controls
+    mockQrwcClient.sendCommand
+      .mockResolvedValueOnce({ result: { Name: 'MainGain', Value: 0 } }) // Validation for MainGain
+      .mockResolvedValueOnce({ 
+        result: { 
+          Name: 'Main Output Gain',
+          Controls: [
+            { Name: 'gain', Value: 0 },
+            { Name: 'mute', Value: 0 }
+          ]
+        } 
+      }) // Validation for component
+      .mockResolvedValue({ success: true }); // All subsequent set operations
 
     const result = await tool.execute({
       controls: [
@@ -546,8 +562,12 @@ describe('SetControlValuesTool', () => {
     // With validation enabled, there are additional calls
     expect(mockQrwcClient.sendCommand).toHaveBeenCalled();
 
-    // Named control call
-    expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
+    // Find the Control.Set call for named control
+    const controlSetCalls = mockQrwcClient.sendCommand.mock.calls.filter(
+      (call: any[]) => call[0] === 'Control.Set'
+    );
+    expect(controlSetCalls.length).toBeGreaterThan(0);
+    expect(controlSetCalls[0][1]).toEqual({
       Name: 'MainGain',
       Value: -10,
     });
@@ -603,6 +623,7 @@ describe('SetControlValuesTool', () => {
 
       await tool.execute({
         controls: [{ name: 'TestControl', value: 50 }],
+        validate: false, // Skip validation to test the actual set command
       });
 
       // Verify the correct command for named controls
@@ -621,6 +642,7 @@ describe('SetControlValuesTool', () => {
           { name: 'FaderControl', value: -6, ramp: 1.5 },
           { name: 'Mixer.fader', value: -3, ramp: 2.0 },
         ],
+        validate: false, // Skip validation to test the actual set commands
       });
 
       // Named control with ramp
