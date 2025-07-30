@@ -31,8 +31,12 @@ import { MCPRateLimiter, createRateLimitError } from './middleware/rate-limit.js
 import { InputValidator } from './middleware/validation.js';
 import { HealthChecker } from './health/health-check.js';
 import { createQSysCircuitBreaker, type CircuitBreaker } from './infrastructure/circuit-breaker.js';
-import { getMetrics } from './monitoring/metrics.js';
+import { getMetrics, type MCPMetrics } from './monitoring/metrics.js';
 import { MCPAuthenticator, createAuthError } from './middleware/auth.js';
+
+// Dependency injection imports
+import type { MCPServerDependencies, PartialMCPServerDependencies } from './interfaces/dependencies.js';
+import { DefaultMCPServerFactory } from './factories/default-factory.js';
 
 /**
  * MCP Server for Q-SYS Control
@@ -42,7 +46,7 @@ import { MCPAuthenticator, createAuthError } from './middleware/auth.js';
  */
 export class MCPServer {
   private server: Server;
-  private transport?: StdioServerTransport;
+  private transport: StdioServerTransport;
   private toolRegistry: MCPToolRegistry;
   private officialQrwcClient: OfficialQRWCClient;
   private qrwcClientAdapter: QRWCClientAdapter;
@@ -58,11 +62,11 @@ export class MCPServer {
   
   // Production readiness components
   private rateLimiter?: MCPRateLimiter;
-  private inputValidator?: InputValidator;
-  private healthChecker?: HealthChecker;
-  private circuitBreaker?: CircuitBreaker;
+  private inputValidator: InputValidator;
+  private healthChecker: HealthChecker;
+  private circuitBreaker: CircuitBreaker;
   private authenticator?: MCPAuthenticator;
-  private metrics = getMetrics();
+  private metrics: MCPMetrics;
   private auditLog: Array<{
     timestamp: Date;
     tool: string;
@@ -71,72 +75,53 @@ export class MCPServer {
     duration: number;
   }> = [];
 
-  constructor(private config: MCPServerConfig) {
+  constructor(
+    private config: MCPServerConfig,
+    dependencies?: PartialMCPServerDependencies
+  ) {
     debugLog('MCPServer constructor called', config);
     this.serverName = config.name;
     this.serverVersion = config.version;
 
-    // Initialize the MCP server with capabilities
-    debugLog('Creating MCP Server instance');
-    this.server = new Server(
-      {
-        name: this.serverName,
-        version: this.serverVersion,
-      },
-      {
-        capabilities: {
-          tools: {},
-          resources: {},
-          prompts: {},
-          logging: {},
-        },
-      }
-    );
-    debugLog('MCP Server instance created');
-
-    // Initialize components with dependency injection
-    const container = DIContainer.getInstance();
+    // Use provided logger or global logger
+    const effectiveLogger = dependencies?.logger ?? logger;
     
-    // Create Q-SYS client with logger
-    this.officialQrwcClient = new OfficialQRWCClient({
-      host: config.qrwc.host,
-      port: config.qrwc.port ?? 443,
-      pollingInterval: 350,
-      reconnectInterval: config.qrwc.reconnectInterval ?? 5000,
-      maxReconnectAttempts: 5,
-      connectionTimeout: 10000,
-      enableAutoReconnect: true,
-      logger: logger.child({ component: 'OfficialQRWCClient' }),
-    });
-    this.qrwcClientAdapter = new QRWCClientAdapter(this.officialQrwcClient);
+    // Use factory to create dependencies if not provided
+    const factory = new DefaultMCPServerFactory(effectiveLogger);
+    
+    // Initialize all dependencies, using provided ones or creating defaults
+    this.server = dependencies?.server ?? factory.createServer(config);
+    this.transport = dependencies?.transport ?? factory.createTransport();
+    this.officialQrwcClient = dependencies?.officialQrwcClient ?? factory.createQRWCClient(config);
+    this.qrwcClientAdapter = dependencies?.qrwcClientAdapter ?? factory.createQRWCAdapter(this.officialQrwcClient);
+    this.toolRegistry = dependencies?.toolRegistry ?? factory.createToolRegistry(this.qrwcClientAdapter);
+    
+    // Production features - handle undefined values from factory
+    const rateLimiterResult = dependencies?.rateLimiter !== undefined 
+      ? dependencies.rateLimiter 
+      : factory.createRateLimiter(config);
+    if (rateLimiterResult !== undefined) {
+      this.rateLimiter = rateLimiterResult;
+    }
+    
+    this.inputValidator = dependencies?.inputValidator ?? factory.createInputValidator();
+    this.healthChecker = dependencies?.healthChecker ?? factory.createHealthChecker(this.officialQrwcClient, this.serverVersion);
+    this.circuitBreaker = dependencies?.circuitBreaker ?? factory.createCircuitBreaker();
+    
+    const authenticatorResult = dependencies?.authenticator !== undefined
+      ? dependencies.authenticator
+      : factory.createAuthenticator(config);
+    if (authenticatorResult !== undefined) {
+      this.authenticator = authenticatorResult;
+    }
+    
+    this.metrics = dependencies?.metrics ?? factory.createMetrics();
 
-    // Register services in the container
-    container.register(ServiceTokens.CONTROL_SYSTEM, this.qrwcClientAdapter);
-
-    // Initialize State Repository using the factory (BUG-132 fix)
-    container.registerFactory(ServiceTokens.STATE_REPOSITORY, async () => {
-      const { createStateRepository } = await import('./state/factory.js');
-      return await createStateRepository('simple', {
-        maxEntries: 1000,
-        ttlMs: 3600000,
-        cleanupIntervalMs: 60000,
-        enableMetrics: true,
-        persistenceEnabled: false,
-      });
-    });
-
-    // BUG-132: Simplified architecture - EventCacheManager removed
-    // Event caching functionality is now integrated into SimpleStateManager if needed
-    // container.register(ServiceTokens.EVENT_CACHE, null); // Deprecated
-
-    this.toolRegistry = new MCPToolRegistry(
-      container.resolve<IControlSystem>(ServiceTokens.CONTROL_SYSTEM)
-      // BUG-132: EventCacheManager parameter removed
-    );
+    debugLog('MCP Server instance created with dependencies');
 
     this.setupRequestHandlers();
     this.setupErrorHandling();
-    this.initializeProductionFeatures();
+    this.setupProductionFeatures();
 
     logger.info('MCP Server initialized', {
       name: this.serverName,
@@ -364,10 +349,7 @@ export class MCPServer {
       logger.info('Tool registry initialized');
       debugLog('Tool registry initialized');
 
-      // Create and connect stdio transport
-      debugLog('Creating stdio transport');
-      this.transport = new StdioServerTransport();
-
+      // Connect to transport
       debugLog('Connecting server to transport');
       await this.server.connect(this.transport);
       debugLog('Server connected to transport');
@@ -553,53 +535,19 @@ export class MCPServer {
   }
 
   /**
-   * Initialize production readiness features
+   * Set up production readiness features
    */
-  private initializeProductionFeatures(): void {
+  private setupProductionFeatures(): void {
     try {
-      // Initialize rate limiter
-      this.rateLimiter = new MCPRateLimiter({
-        requestsPerMinute: this.config.rateLimiting?.requestsPerMinute ?? 60,
-        burstSize: this.config.rateLimiting?.burstSize ?? 10,
-        perClient: this.config.rateLimiting?.perClient ?? false,
-      });
-      logger.info('Rate limiter initialized');
-
-      // Initialize input validator
-      this.inputValidator = new InputValidator();
-      logger.info('Input validator initialized');
-
-      // Initialize health checker
-      this.healthChecker = new HealthChecker(
-        DIContainer.getInstance(),
-        this.officialQrwcClient,
-        this.serverVersion
-      );
       // Start periodic health checks
       this.healthChecker.startPeriodicChecks(60000); // Every minute
-      logger.info('Health checker initialized');
+      logger.info('Health checker periodic checks started');
 
-      // Initialize circuit breaker for Q-SYS connections
-      this.circuitBreaker = createQSysCircuitBreaker();
-      
       // Monitor circuit breaker state changes
       this.circuitBreaker.on('state-change', (oldState, newState) => {
         logger.warn('Circuit breaker state changed', { oldState, newState });
         this.metrics.connectionErrors.inc({ error_type: 'circuit_breaker_open' });
       });
-      
-      logger.info('Circuit breaker initialized');
-
-      // Initialize authentication
-      if (this.config.authentication?.enabled) {
-        this.authenticator = new MCPAuthenticator({
-          enabled: true,
-          apiKeys: this.config.authentication.apiKeys ?? [],
-          tokenExpiration: this.config.authentication.tokenExpiration ?? 3600,
-          allowAnonymous: this.config.authentication.allowAnonymous ?? [],
-        });
-        logger.info('Authentication initialized');
-      }
 
       // Track connection metrics
       this.officialQrwcClient.on('connected', () => {
@@ -615,9 +563,9 @@ export class MCPServer {
         this.metrics.reconnects.inc();
       });
 
-      logger.info('Production features initialized successfully');
+      logger.info('Production features set up successfully');
     } catch (error) {
-      logger.error('Failed to initialize production features', { error });
+      logger.error('Failed to set up production features', { error });
       // Continue without production features rather than failing startup
     }
   }

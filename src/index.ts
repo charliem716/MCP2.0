@@ -8,6 +8,8 @@ import { createLogger, type Logger } from './shared/utils/logger.js';
 import { validateConfig, config } from './shared/utils/env.js';
 import { MCPServer } from './mcp/server.js';
 import type { MCPServerConfig } from './shared/types/mcp.js';
+import { DefaultMCPServerFactory } from './mcp/factories/default-factory.js';
+import type { PartialMCPServerDependencies } from './mcp/interfaces/dependencies.js';
 
 const logger: Logger = createLogger('Main');
 
@@ -27,6 +29,7 @@ let loggerClosed = false;
 
 /**
  * Initialize and return MCP server
+ * This is the composition root where all dependencies are wired together
  */
 function initializeMCPServer(): MCPServer {
   const mcpConfig: MCPServerConfig = {
@@ -41,7 +44,48 @@ function initializeMCPServer(): MCPServer {
     },
   };
   debugLog('MCP config created', mcpConfig);
-  return new MCPServer(mcpConfig);
+  
+  // Create factory for dependency creation
+  const factory = new DefaultMCPServerFactory(logger);
+  
+  // Create all dependencies explicitly (composition root pattern)
+  const server = factory.createServer(mcpConfig);
+  const transport = factory.createTransport();
+  const qrwcClient = factory.createQRWCClient(mcpConfig);
+  const qrwcAdapter = factory.createQRWCAdapter(qrwcClient);
+  const toolRegistry = factory.createToolRegistry(qrwcAdapter);
+  
+  // Create production features
+  const rateLimiter = factory.createRateLimiter(mcpConfig);
+  const inputValidator = factory.createInputValidator();
+  const healthChecker = factory.createHealthChecker(qrwcClient, mcpConfig.version);
+  const circuitBreaker = factory.createCircuitBreaker();
+  const authenticator = factory.createAuthenticator(mcpConfig);
+  const metrics = factory.createMetrics();
+  
+  // Inject all dependencies into MCP server
+  // Handle optional dependencies that may be undefined
+  const dependencies: PartialMCPServerDependencies = {
+    server,
+    transport,
+    officialQrwcClient: qrwcClient,
+    qrwcClientAdapter: qrwcAdapter,
+    toolRegistry,
+    inputValidator,
+    healthChecker,
+    circuitBreaker,
+    metrics,
+  };
+  
+  // Only add optional dependencies if they exist
+  if (rateLimiter) {
+    dependencies.rateLimiter = rateLimiter;
+  }
+  if (authenticator) {
+    dependencies.authenticator = authenticator;
+  }
+  
+  return new MCPServer(mcpConfig, dependencies);
 }
 
 async function main(): Promise<void> {

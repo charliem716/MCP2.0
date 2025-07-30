@@ -6,7 +6,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger, type Logger } from '../../shared/utils/logger.js';
+import type { ILogger } from '../interfaces/logger.js';
 
 /**
  * Metric types
@@ -228,7 +228,7 @@ export class Histogram implements Metric {
  * MCP Server Metrics
  */
 export class MCPMetrics {
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
   
   // Request metrics
   public readonly requestCount: Counter;
@@ -261,20 +261,8 @@ export class MCPMetrics {
 
   private metricsInterval: NodeJS.Timeout | undefined;
 
-  constructor() {
-    try {
-      this.logger = createLogger('mcp-metrics');
-    } catch {
-      // Fallback for test environment
-      const fallbackLogger: Logger = {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-        child: () => fallbackLogger,
-      } as Logger;
-      this.logger = fallbackLogger;
-    }
+  constructor(logger: ILogger) {
+    this.logger = logger;
 
     // Initialize request metrics
     this.requestCount = new Counter(
@@ -493,7 +481,26 @@ let metricsInstance: MCPMetrics | undefined;
 /**
  * Get metrics instance
  */
-export function getMetrics(): MCPMetrics {
-  metricsInstance ??= new MCPMetrics();
+export function getMetrics(logger?: ILogger): MCPMetrics {
+  if (!metricsInstance && logger) {
+    metricsInstance = new MCPMetrics(logger);
+  } else if (!metricsInstance) {
+    throw new Error('Metrics instance not initialized. Call getMetrics with a logger first.');
+  }
   return metricsInstance;
+}
+
+/**
+ * Initialize metrics with logger
+ */
+export function initializeMetrics(logger: ILogger): MCPMetrics {
+  metricsInstance = new MCPMetrics(logger);
+  return metricsInstance;
+}
+
+/**
+ * Reset metrics instance (for testing)
+ */
+export function resetMetrics(): void {
+  metricsInstance = undefined;
 }

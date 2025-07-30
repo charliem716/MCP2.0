@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { createLogger, type Logger } from '../../shared/utils/logger.js';
+import type { ILogger } from '../interfaces/logger.js';
 
 /**
  * Common validation patterns
@@ -141,7 +141,7 @@ export function formatValidationError(error: z.ZodError): {
  * Validates MCP tool inputs against predefined schemas
  */
 export class InputValidator {
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
   private readonly schemas: typeof ToolSchemas;
   private validationStats = {
     total: 0,
@@ -149,20 +149,8 @@ export class InputValidator {
     failed: 0,
   };
 
-  constructor() {
-    try {
-      this.logger = createLogger('mcp-input-validator');
-    } catch {
-      // Fallback for test environment
-      const fallbackLogger: Logger = {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-        child: () => fallbackLogger,
-      } as Logger;
-      this.logger = fallbackLogger;
-    }
+  constructor(logger: ILogger) {
+    this.logger = logger;
     this.schemas = ToolSchemas;
     
     this.logger.info('Input validator initialized', {

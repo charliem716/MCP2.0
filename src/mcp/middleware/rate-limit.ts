@@ -5,7 +5,7 @@
  * to prevent abuse and ensure stable performance.
  */
 
-import { createLogger, type Logger } from '../../shared/utils/logger.js';
+import type { ILogger } from '../interfaces/logger.js';
 
 /**
  * Rate limiter configuration
@@ -78,26 +78,14 @@ class TokenBucket {
  * Manages rate limiting for MCP server requests using token bucket algorithm
  */
 export class MCPRateLimiter<T = string> {
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
   private readonly globalBucket?: TokenBucket;
   private readonly clientBuckets = new Map<string, TokenBucket>();
   private readonly config: Required<RateLimitConfig>;
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(config: RateLimitConfig) {
-    try {
-      this.logger = createLogger('mcp-rate-limiter');
-    } catch {
-      // Fallback for test environment
-      const fallbackLogger: Logger = {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-        child: () => fallbackLogger,
-      } as Logger;
-      this.logger = fallbackLogger;
-    }
+  constructor(config: RateLimitConfig, logger: ILogger) {
+    this.logger = logger;
     
     this.config = {
       ...config,

@@ -6,7 +6,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger, type Logger } from '../../shared/utils/logger.js';
+import type { ILogger } from '../interfaces/logger.js';
 
 /**
  * Circuit breaker states
@@ -69,7 +69,7 @@ export interface CircuitBreakerEvents {
  * Implements the circuit breaker pattern to protect against cascading failures
  */
 export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
   private state: CircuitState = CircuitState.CLOSED;
   private failures = 0;
   private successes = 0;
@@ -83,21 +83,12 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
   private resetTimer: NodeJS.Timeout | undefined;
   private monitorInterval: NodeJS.Timeout | undefined;
 
-  constructor(private readonly config: CircuitBreakerConfig) {
+  constructor(
+    private readonly config: CircuitBreakerConfig,
+    logger: ILogger
+  ) {
     super();
-    try {
-      this.logger = createLogger(`circuit-breaker-${config.name}`);
-    } catch {
-      // Fallback for test environment
-      const fallbackLogger: Logger = {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-        child: () => fallbackLogger,
-      } as Logger;
-      this.logger = fallbackLogger;
-    }
+    this.logger = logger;
     
     // Start monitoring if configured
     if (config.monitor) {
@@ -370,7 +361,8 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
  * Create a circuit breaker for Q-SYS connections
  */
 export function createQSysCircuitBreaker(
-  name = 'qsys-connection'
+  name = 'qsys-connection',
+  logger: ILogger
 ): CircuitBreaker {
   return new CircuitBreaker({
     name,
@@ -389,5 +381,5 @@ export function createQSysCircuitBreaker(
       }
       return true;
     },
-  });
+  }, logger);
 }

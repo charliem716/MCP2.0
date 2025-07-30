@@ -5,7 +5,7 @@
  * including Q-SYS connection, memory usage, and internal state.
  */
 
-import { createLogger, type Logger } from '../../shared/utils/logger.js';
+import type { ILogger } from '../interfaces/logger.js';
 import type { OfficialQRWCClient } from '../../qrwc/officialClient.js';
 import type { DIContainer } from '../infrastructure/container.js';
 import { ServiceTokens } from '../infrastructure/container.js';
@@ -65,7 +65,7 @@ export interface HealthReport {
  * Performs comprehensive health checks on all system components
  */
 export class HealthChecker {
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
   private readonly startTime: Date;
   private lastHealthReport?: HealthReport;
   private healthCheckInterval: NodeJS.Timeout | undefined;
@@ -73,21 +73,10 @@ export class HealthChecker {
   constructor(
     private readonly container: DIContainer,
     private readonly qsysClient: OfficialQRWCClient,
-    private readonly serverVersion: string
+    private readonly serverVersion: string,
+    logger: ILogger
   ) {
-    try {
-      this.logger = createLogger('mcp-health-checker');
-    } catch {
-      // Fallback for test environment
-      const fallbackLogger: Logger = {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-        child: () => fallbackLogger,
-      } as Logger;
-      this.logger = fallbackLogger;
-    }
+    this.logger = logger;
     this.startTime = new Date();
     
     this.logger.info('Health checker initialized');

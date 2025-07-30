@@ -49,6 +49,7 @@ afterEach(() => {
     error: jest.fn(),
     warn: jest.fn(),
     debug: jest.fn(),
+    child: jest.fn(function() { return this; }),
   },
 };
 
@@ -74,6 +75,7 @@ declare global {
       error: jest.Mock;
       warn: jest.Mock;
       debug: jest.Mock;
+      child: jest.Mock;
     };
   };
   // Ensure jest types are available globally

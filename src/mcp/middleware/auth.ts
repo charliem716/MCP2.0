@@ -6,7 +6,7 @@
  * that would work with a custom MCP client or proxy.
  */
 
-import { createLogger, type Logger } from '../../shared/utils/logger.js';
+import type { ILogger } from '../interfaces/logger.js';
 import crypto from 'crypto';
 
 /**
@@ -50,25 +50,13 @@ interface TokenPayload {
  * Handles authentication for MCP requests using API keys or tokens
  */
 export class MCPAuthenticator {
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
   private readonly config: Required<AuthConfig>;
   private readonly validApiKeys: Set<string>;
   private readonly tokenCache = new Map<string, TokenPayload>();
 
-  constructor(config: AuthConfig) {
-    try {
-      this.logger = createLogger('mcp-authenticator');
-    } catch {
-      // Fallback for test environment
-      const fallbackLogger: Logger = {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-        child: () => fallbackLogger,
-      } as Logger;
-      this.logger = fallbackLogger;
-    }
+  constructor(config: AuthConfig, logger: ILogger) {
+    this.logger = logger;
     
     this.config = {
       enabled: config.enabled,
