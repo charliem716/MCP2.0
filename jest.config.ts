@@ -24,6 +24,7 @@ const config: Config = {
     '!src/**/*.config.ts',
     '!src/**/index.ts',
     '!src/**/*.types.ts',
+    '!src/**/archived-complex/**',  // Exclude archived complex implementations
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
