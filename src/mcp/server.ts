@@ -160,88 +160,28 @@ export class MCPServer {
       logger.info('Received call_tool request', { tool: name, clientId });
 
       try {
-        // Authentication
-        if (this.authenticator) {
-          const authResult = this.authenticator.authenticate(
-            `tools/${name}`,
-            this.extractHeaders(request),
-            { tool: name }
-          );
-          
-          if (!authResult.authenticated) {
-            logger.warn('Authentication failed', { 
-              tool: name, 
-              error: authResult.error,
-            });
-            throw createAuthError(authResult.error || 'Authentication required');
-          }
-          
-          // Use authenticated client ID
-          clientId = authResult.clientId || clientId;
-        }
+        // Authenticate request
+        clientId = this.authenticateToolRequest(name, request, clientId);
 
-        // Rate limiting
-        if (this.rateLimiter) {
-          const allowed = this.rateLimiter.checkLimit(clientId);
-          if (!allowed) {
-            logger.warn('Rate limit exceeded', { tool: name, clientId });
-            throw createRateLimitError(clientId);
-          }
-        }
+        // Check rate limits
+        this.checkRateLimits(name, clientId);
 
-        // Input validation
-        if (this.inputValidator) {
-          const validation = this.inputValidator.validate(name, args);
-          if (!validation.valid) {
-            logger.warn('Input validation failed', { tool: name, errors: validation.error });
-            throw validation.error;
-          }
-        }
+        // Validate input
+        this.validateToolInput(name, args);
 
-        // Execute tool with circuit breaker if Q-SYS related
-        let result;
-        if (name.startsWith('qsys.') && this.circuitBreaker) {
-          result = await this.circuitBreaker.execute(async () => 
-            this.toolRegistry.callTool(name, args)
-          );
-        } else {
-          result = await this.toolRegistry.callTool(name, args);
-        }
+        // Execute tool
+        const result = await this.executeToolWithProtection(name, args);
         
-        // Collect metrics
-        const duration = Date.now() - startTime;
-        this.metrics.toolCalls.inc({ tool: name, status: 'success' });
-        this.metrics.toolDuration.observe(duration / 1000); // Convert to seconds
-        this.metrics.requestCount.inc({ method: 'tools/call', status: 'success' });
-        this.metrics.requestDuration.observe(duration / 1000);
-        
-        // Audit logging
-        this.addAuditLog(name, clientId, true, duration);
-        
-        logger.info('Tool execution completed', { 
-          tool: name, 
-          success: true,
-          duration,
-          clientId,
-        });
+        // Record success metrics
+        this.recordSuccessMetrics(name, startTime, clientId);
         
         return {
           content: result.content,
           isError: result.isError,
         };
       } catch (error) {
-        const duration = Date.now() - startTime;
-        
-        // Collect error metrics
-        const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
-        this.metrics.toolCalls.inc({ tool: name, status: 'error' });
-        this.metrics.toolErrors.inc({ tool: name, error_type: errorType });
-        this.metrics.requestCount.inc({ method: 'tools/call', status: 'error' });
-        this.metrics.requestErrors.inc({ method: 'tools/call', error_type: errorType });
-        
-        this.addAuditLog(name, clientId, false, duration);
-        
-        logger.error('Error executing tool', { tool: name, error, clientId });
+        // Record error metrics
+        this.recordErrorMetrics(name, error, startTime, clientId);
         
         // Re-throw if already formatted MCP error
         if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -653,5 +593,127 @@ export class MCPServer {
    */
   getMetricsJSON(): Record<string, unknown> {
     return this.metrics.toJSON();
+  }
+
+  /**
+   * Authenticate a tool request
+   * @returns The authenticated client ID
+   * @throws MCPError if authentication fails
+   */
+  private authenticateToolRequest(
+    toolName: string,
+    request: any,
+    clientId: string | undefined
+  ): string | undefined {
+    if (!this.authenticator) {
+      return clientId;
+    }
+
+    const authResult = this.authenticator.authenticate(
+      `tools/${toolName}`,
+      this.extractHeaders(request),
+      { tool: toolName }
+    );
+    
+    if (!authResult.authenticated) {
+      logger.warn('Authentication failed', { 
+        tool: toolName, 
+        error: authResult.error,
+      });
+      throw createAuthError(authResult.error || 'Authentication required');
+    }
+    
+    return authResult.clientId || clientId;
+  }
+
+  /**
+   * Check rate limits for a tool request
+   * @throws MCPError if rate limit exceeded
+   */
+  private checkRateLimits(toolName: string, clientId: string | undefined): void {
+    if (!this.rateLimiter || !clientId) {
+      return;
+    }
+
+    const allowed = this.rateLimiter.checkLimit(clientId);
+    if (!allowed) {
+      logger.warn('Rate limit exceeded', { tool: toolName, clientId });
+      throw createRateLimitError(clientId);
+    }
+  }
+
+  /**
+   * Validate tool input arguments
+   * @throws MCPError if validation fails
+   */
+  private validateToolInput(toolName: string, args: unknown): void {
+    if (!this.inputValidator) {
+      return;
+    }
+
+    const validation = this.inputValidator.validate(toolName, args);
+    if (!validation.valid) {
+      logger.warn('Input validation failed', { tool: toolName, errors: validation.error });
+      throw validation.error;
+    }
+  }
+
+  /**
+   * Execute a tool with appropriate circuit breaker protection
+   */
+  private async executeToolWithProtection(
+    toolName: string,
+    args: unknown
+  ): Promise<ToolResult> {
+    if (toolName.startsWith('qsys.') && this.circuitBreaker) {
+      return this.circuitBreaker.execute(async () => 
+        this.toolRegistry.callTool(toolName, args)
+      );
+    }
+    return this.toolRegistry.callTool(toolName, args);
+  }
+
+  /**
+   * Record metrics for a successful tool execution
+   */
+  private recordSuccessMetrics(
+    toolName: string,
+    startTime: number,
+    clientId: string | undefined
+  ): void {
+    const duration = Date.now() - startTime;
+    this.metrics.toolCalls.inc({ tool: toolName, status: 'success' });
+    this.metrics.toolDuration.observe(duration / 1000);
+    this.metrics.requestCount.inc({ method: 'tools/call', status: 'success' });
+    this.metrics.requestDuration.observe(duration / 1000);
+    this.addAuditLog(toolName, clientId, true, duration);
+    
+    logger.info('Tool execution completed', { 
+      tool: toolName, 
+      success: true,
+      duration,
+      clientId,
+    });
+  }
+
+  /**
+   * Record metrics for a failed tool execution
+   */
+  private recordErrorMetrics(
+    toolName: string,
+    error: unknown,
+    startTime: number,
+    clientId: string | undefined
+  ): void {
+    const duration = Date.now() - startTime;
+    const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+    
+    this.metrics.toolCalls.inc({ tool: toolName, status: 'error' });
+    this.metrics.toolErrors.inc({ tool: toolName, error_type: errorType });
+    this.metrics.requestCount.inc({ method: 'tools/call', status: 'error' });
+    this.metrics.requestErrors.inc({ method: 'tools/call', error_type: errorType });
+    this.addAuditLog(toolName, clientId, false, duration);
+    
+    logger.error('Error executing tool', { tool: toolName, error, clientId });
   }
 }
