@@ -161,7 +161,7 @@ export class MCPAuthenticator {
   private isAnonymousAllowed(method: string): boolean {
     return this.config.allowAnonymous.some(pattern => {
       if (pattern.includes('*')) {
-        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
         return regex.test(method);
       }
       return pattern === method;

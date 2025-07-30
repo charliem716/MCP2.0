@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import { createLogger, type Logger } from './shared/utils/logger.js';
 import { validateConfig, config } from './shared/utils/env.js';
+import { configManager } from './config/index.js';
 import { MCPServer } from './mcp/server.js';
 import type { MCPServerConfig } from './shared/types/mcp.js';
 import { DefaultMCPServerFactory } from './mcp/factories/default-factory.js';
@@ -32,15 +33,17 @@ let loggerClosed = false;
  * This is the composition root where all dependencies are wired together
  */
 function initializeMCPServer(): MCPServer {
+  const appConfig = configManager.getConfig();
+  
   const mcpConfig: MCPServerConfig = {
     name: 'qsys-mcp-server',
     version: '1.0.0',
     transport: 'stdio',
     qrwc: {
-      host: config.qsys.host,
-      port: config.qsys.port,
-      reconnectInterval: config.qsys.reconnectInterval,
-      heartbeatInterval: config.qsys.heartbeatInterval,
+      host: appConfig.qsys.host,
+      port: appConfig.qsys.port,
+      reconnectInterval: appConfig.qsys.reconnectInterval,
+      heartbeatInterval: appConfig.qsys.heartbeatInterval,
     },
   };
   debugLog('MCP config created', mcpConfig);

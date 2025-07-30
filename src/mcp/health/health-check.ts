@@ -320,7 +320,7 @@ export class HealthChecker {
    */
   private async checkStateRepository(): Promise<HealthCheckResult> {
     try {
-      const stateRepo = await this.container.resolve<IStateRepository>(ServiceTokens.STATE_REPOSITORY);
+      const stateRepo = this.container.resolve<IStateRepository>(ServiceTokens.STATE_REPOSITORY);
       
       if (!stateRepo) {
         return {
@@ -490,9 +490,11 @@ export class HealthChecker {
   }> {
     const report = await this.check();
     
+    const status = report.status === HealthStatus.HEALTHY ? 'ok' as const : 
+                   report.status === HealthStatus.DEGRADED ? 'degraded' as const : 'error' as const;
+    
     const response = {
-      status: (report.status === HealthStatus.HEALTHY ? 'ok' : 
-              report.status === HealthStatus.DEGRADED ? 'degraded' : 'error') as 'ok' | 'degraded' | 'error',
+      status,
       timestamp: report.timestamp.toISOString(),
       version: report.version,
       uptime: report.uptime,

@@ -18,7 +18,7 @@ const debugLog = (message: string, data?: unknown) => {
     : `${timestamp} [MCP-DEBUG] ${message}\n`;
   process.stderr.write(logEntry);
 };
-import { MCPToolRegistry } from './handlers/index.js';
+import { MCPToolRegistry, type ToolCallResult } from './handlers/index.js';
 import { OfficialQRWCClient } from '../qrwc/officialClient.js';
 import { QRWCClientAdapter } from './qrwc/adapter.js';
 // BUG-132: EventCacheManager removed - using simplified state management
@@ -664,13 +664,13 @@ export class MCPServer {
   private async executeToolWithProtection(
     toolName: string,
     args: unknown
-  ): Promise<ToolResult> {
+  ): Promise<ToolCallResult> {
     if (toolName.startsWith('qsys.') && this.circuitBreaker) {
       return this.circuitBreaker.execute(async () => 
-        this.toolRegistry.callTool(toolName, args)
+        this.toolRegistry.callTool(toolName, args as Record<string, unknown>)
       );
     }
-    return this.toolRegistry.callTool(toolName, args);
+    return this.toolRegistry.callTool(toolName, args as Record<string, unknown>);
   }
 
   /**
