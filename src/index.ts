@@ -97,10 +97,9 @@ async function main(): Promise<void> {
     });
     logger.info('🚀 Starting MCP Voice/Text-Controlled Q-SYS Demo...');
 
-    // Validate configuration
-    await validateConfig();
-    logger.info('✅ Configuration validated');
-    debugLog('Configuration validated');
+    // Configuration is validated by ConfigManager on initialization
+    logger.info('✅ Configuration loaded');
+    debugLog('Configuration loaded');
 
     // Initialize and start MCP server
     mcpServer = initializeMCPServer();

@@ -14,6 +14,8 @@ interface QSysConfig {
   password?: string;
   secure: boolean;
   rejectUnauthorized: boolean;
+  reconnectInterval: number;
+  heartbeatInterval: number;
 }
 
 interface MCPConfig {
@@ -22,6 +24,8 @@ interface MCPConfig {
   eventCacheEnabled: boolean;
   maxEventsPerGroup: number;
   groupExpirationMinutes: number;
+  mcpMode: boolean;
+  debugTests: boolean;
 }
 
 interface APIConfig {
@@ -94,19 +98,22 @@ class ConfigManager {
       // Fallback to env config
     }
 
+    // BUG-138 FIX: ConfigManager is now the sole source of Q-SYS configuration
     // Merge with environment variables (env takes precedence)
-    const host = process.env['QSYS_HOST'] ?? fileConfig.host ?? existingEnvConfig.qsys.host;
-    const port = parseInt(process.env['QSYS_PORT'] ?? String(fileConfig.port ?? existingEnvConfig.qsys.port), 10);
-    const username = process.env['QSYS_USERNAME'] ?? fileConfig.username ?? existingEnvConfig.qsys.username;
-    const password = process.env['QSYS_PASSWORD'] ?? fileConfig.password ?? existingEnvConfig.qsys.password;
+    const host = process.env['QSYS_HOST'] ?? fileConfig.host ?? 'localhost';
+    const port = parseInt(process.env['QSYS_PORT'] ?? String(fileConfig.port ?? 443), 10);
+    const username = process.env['QSYS_USERNAME'] ?? fileConfig.username ?? '';
+    const password = process.env['QSYS_PASSWORD'] ?? fileConfig.password ?? '';
     
     return {
       host,
       port,
       username,
       password,
-      secure: process.env['QSYS_SECURE'] !== 'false' && fileConfig.secure !== false,
-      rejectUnauthorized: process.env['QSYS_REJECT_UNAUTHORIZED'] !== 'false' && fileConfig.rejectUnauthorized !== false
+      secure: process.env['QSYS_SECURE'] !== 'false' && (fileConfig.secure ?? true),
+      rejectUnauthorized: process.env['QSYS_REJECT_UNAUTHORIZED'] !== 'false' && (fileConfig.rejectUnauthorized ?? false),
+      reconnectInterval: parseInt(process.env['QSYS_RECONNECT_INTERVAL'] ?? '5000', 10),
+      heartbeatInterval: parseInt(process.env['QSYS_HEARTBEAT_INTERVAL'] ?? '30000', 10)
     };
   }
 
@@ -116,7 +123,9 @@ class ConfigManager {
       cacheSize: parseInt(process.env['MCP_CACHE_SIZE'] ?? '1000', 10),
       eventCacheEnabled: process.env['EVENT_CACHE_ENABLED'] !== 'false',
       maxEventsPerGroup: parseInt(process.env['EVENT_CACHE_MAX_EVENTS'] ?? '10000', 10),
-      groupExpirationMinutes: parseInt(process.env['EVENT_CACHE_EXPIRATION_MINUTES'] ?? '60', 10)
+      groupExpirationMinutes: parseInt(process.env['EVENT_CACHE_EXPIRATION_MINUTES'] ?? '60', 10),
+      mcpMode: process.env['MCP_MODE'] === 'true',
+      debugTests: process.env['DEBUG_TESTS'] === 'true'
     };
   }
 

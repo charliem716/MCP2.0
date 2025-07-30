@@ -1,7 +1,7 @@
 import { MCPServer } from './server.js';
 import type { MCPServerConfig } from '../shared/types/mcp.js';
 import { createLogger } from '../shared/utils/logger.js';
-import { config as envConfig } from '../shared/utils/env.js';
+import { getQSysConfig } from '../config/index.js';
 
 const logger = createLogger('MCP-Index');
 
@@ -9,24 +9,24 @@ const logger = createLogger('MCP-Index');
  * Entry point for MCP Server
  */
 async function main() {
+  const qsysConfig = getQSysConfig();
+  
   const config: MCPServerConfig = {
     name: 'qsys-mcp-server',
     version: '1.0.0',
     transport: 'stdio',
     qrwc: {
-      host: process.env['QSYS_HOST'] ?? 'localhost',
-      port: parseInt(process.env['QSYS_PORT'] ?? '443'),
-      ...(process.env['QSYS_USERNAME'] && {
-        username: process.env['QSYS_USERNAME'],
+      host: qsysConfig.host,
+      port: qsysConfig.port,
+      ...(qsysConfig.username && {
+        username: qsysConfig.username,
       }),
-      ...(process.env['QSYS_PASSWORD'] && {
-        password: process.env['QSYS_PASSWORD'],
+      ...(qsysConfig.password && {
+        password: qsysConfig.password,
       }),
-      ...(process.env['QSYS_SECURE'] && {
-        secure: process.env['QSYS_SECURE'] === 'true',
-      }),
-      reconnectInterval: envConfig.qsys.reconnectInterval,
-      heartbeatInterval: envConfig.qsys.heartbeatInterval,
+      secure: qsysConfig.secure,
+      reconnectInterval: qsysConfig.reconnectInterval,
+      heartbeatInterval: qsysConfig.heartbeatInterval
     },
   };
 

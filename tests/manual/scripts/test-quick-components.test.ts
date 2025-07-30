@@ -1,12 +1,13 @@
 import { describe, it, expect } from '@jest/globals';
 import { OfficialQRWCClient } from '../../../src/qrwc/officialClient';
 import { QRWCClientAdapter } from '../../../src/mcp/qrwc/adapter';
-import fs from 'fs';
+import { getQSysConfig } from '../../../src/config/index';
 
 console.log('🧪 Quick component name test\n');
 
-const config = JSON.parse(fs.readFileSync('qsys-core.config.json', 'utf-8'));
-const client = new OfficialQRWCClient(config.qsysCore);
+// BUG-138 FIX: Use ConfigManager instead of direct file read
+const qsysConfig = getQSysConfig();
+const client = new OfficialQRWCClient(qsysConfig);
 
 try {
   await client.connect();

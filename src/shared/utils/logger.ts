@@ -5,6 +5,7 @@
 
 import winston from 'winston';
 import path from 'path';
+import { getConfig, getMCPConfig } from '../../config/index.js';
 
 // Ensure winston format is available
 const { format } = winston;
@@ -37,14 +38,14 @@ export interface LoggerConfig {
  * Create environment-specific logger configuration
  */
 function createLoggerConfig(serviceName: string): LoggerConfig {
-  const isDevelopment = process.env['NODE_ENV'] === 'development';
-  const isProduction = process.env['NODE_ENV'] === 'production';
-  const isTest = process.env['NODE_ENV'] === 'test';
-  const isMCPMode = process.env['MCP_MODE'] === 'true';
+  const config = getConfig();
+  const mcpConfig = getMCPConfig();
+  const isDevelopment = config.isDevelopment;
+  const isProduction = config.isProduction;
+  const isTest = config.isTest;
+  const isMCPMode = mcpConfig.mcpMode;
 
-  const level =
-    (process.env['LOG_LEVEL'] as LogLevel | undefined) ??
-    (isDevelopment ? 'debug' : isProduction ? 'info' : 'error');
+  const level = mcpConfig.logLevel as LogLevel;
 
   // Base format for all environments
   const baseFormat = format.combine(
@@ -107,7 +108,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
       new winston.transports.Console({
         level: 'error',
         silent:
-          process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS'],
+          config.isTest && !mcpConfig.debugTests,
       })
     );
   } else if (isDevelopment) {
@@ -135,15 +136,17 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
  * Create a logger instance for a specific service
  */
 export function createLogger(serviceName: string): Logger {
-  const config = createLoggerConfig(serviceName);
+  const loggerConfig = createLoggerConfig(serviceName);
+  const appConfig = getConfig();
+  const mcpConfig = getMCPConfig();
 
   const logger = winston.createLogger({
-    level: config.level,
-    format: config.format,
-    defaultMeta: config.defaultMeta,
-    transports: config.transports,
+    level: loggerConfig.level,
+    format: loggerConfig.format,
+    defaultMeta: loggerConfig.defaultMeta,
+    transports: loggerConfig.transports,
     exitOnError: false,
-    silent: process.env['NODE_ENV'] === 'test' && !process.env['DEBUG_TESTS'],
+    silent: appConfig.isTest && !mcpConfig.debugTests,
   });
 
   // Handle unhandled promise rejections in production

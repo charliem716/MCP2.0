@@ -6,13 +6,13 @@ import { describe, it, expect } from '@jest/globals';
 
 import { OfficialQRWCClient } from '../../../src/qrwc/officialClient';
 import { QRWCClientAdapter } from '../../../src/mcp/qrwc/adapter';
-import fs from 'fs';
+import { getQSysConfig } from '../../../src/config/index';
 
 console.log('🧪 Testing QRWC Adapter Component.GetAllControls\n');
 
-// Load config
-const config = JSON.parse(fs.readFileSync('qsys-core.config.json', 'utf-8'));
-const { host, port } = config.qsysCore;
+// BUG-138 FIX: Use ConfigManager instead of direct file read
+const qsysConfig = getQSysConfig();
+const { host, port } = qsysConfig;
 
 // Create official client
 const officialClient = new OfficialQRWCClient({ host, port });

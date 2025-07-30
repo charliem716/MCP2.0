@@ -11,10 +11,11 @@ describe('test control structure', () => {
        */
       
       import { OfficialQRWCClient } from './dist/qrwc/officialClient';
-      import fs from 'fs';
+      import { getQSysConfig } from './dist/config/index';
       
-      const config = JSON.parse(fs.readFileSync('qsys-core.config.json', 'utf-8'));
-      const { host, port, username, password } = config.qsysCore;
+      // BUG-138 FIX: Use ConfigManager instead of direct file read
+      const qsysConfig = getQSysConfig();
+      const { host, port, username, password } = qsysConfig;
       
       async function inspectControls() {
         const client = new OfficialQRWCClient({

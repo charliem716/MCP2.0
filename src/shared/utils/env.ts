@@ -25,80 +25,9 @@ dotenv.config({
     process.env['MCP_MODE'] !== 'true',
 });
 
-/**
- * Load Q-SYS Core configuration from JSON file if available
- * This allows users to configure their Core connection easily
- */
-interface QSysConfigJSON {
-  qsysCore: {
-    host: string;
-    port: number;
-    username?: string;
-    password?: string;
-    connectionSettings?: {
-      timeout?: number;
-      reconnectInterval?: number;
-      maxReconnectAttempts?: number;
-      heartbeatInterval?: number;
-      pollingInterval?: number;
-      enableAutoReconnect?: boolean;
-    };
-  };
-}
-
-/**
- * Type guard for QSysConfigJSON
- */
-function isQSysConfigJSON(value: unknown): value is QSysConfigJSON {
-  if (!value || typeof value !== 'object') return false;
-  const config = value as Record<string, unknown>;
-  
-  if (!config['qsysCore'] || typeof config['qsysCore'] !== 'object') return false;
-  
-  const qsysCore = config['qsysCore'] as Record<string, unknown>;
-  
-  // Check required fields
-  return (
-    typeof qsysCore['host'] === 'string' &&
-    typeof qsysCore['port'] === 'number' &&
-    (qsysCore['username'] === undefined || typeof qsysCore['username'] === 'string') &&
-    (qsysCore['password'] === undefined || typeof qsysCore['password'] === 'string')
-  );
-}
-
-function loadQSysConfigFromJSON(): Partial<QSysConfigJSON['qsysCore']> | null {
-  // Use absolute path to ensure config is found regardless of cwd
-  const configPath =
-    '/Users/charliemccarrel/Desktop/Builds/MCP2.0/qsys-core.config.json';
-
-  if (!existsSync(configPath)) {
-    return null;
-  }
-
-  try {
-    const configContent = readFileSync(configPath, 'utf-8');
-    const parsed = JSON.parse(configContent) as unknown;
-    
-    if (!isQSysConfigJSON(parsed)) {
-      throw new Error('Invalid Q-SYS configuration format');
-    }
-    
-    if (process.env['MCP_MODE'] !== 'true') {
-      // Use console during initialization
-      console.info('Loaded Q-SYS Core configuration from qsys-core.config.json');
-    }
-    return parsed.qsysCore;
-  } catch (error) {
-    if (process.env['MCP_MODE'] !== 'true') {
-      // Use console during initialization
-      console.warn('Failed to load qsys-core.config.json:', error);
-    }
-    return null;
-  }
-}
-
-// Load Q-SYS config from JSON if available
-const qsysConfig = loadQSysConfigFromJSON();
+// BUG-138 FIX: Removed direct qsys-core.config.json loading
+// All configuration must go through ConfigManager in src/config/index.ts
+// This ensures single source of truth for configuration
 
 /**
  * Environment schema using Zod for validation
@@ -114,7 +43,7 @@ const envSchema = z.object({
     .default('info'),
 
   // Q-SYS Core Configuration - REMOVED FROM ENVIRONMENT
-  // Q-SYS settings are now ONLY in qsys-core.config.json (no duplication!)
+  // Q-SYS settings must be accessed through ConfigManager
   // This eliminates confusion and ensures single source of truth
 
   // OpenAI Configuration (Phase 3 - Optional for now)
@@ -250,16 +179,8 @@ export const config = {
     root: appRoot,
   },
 
-  qsys: {
-    host: qsysConfig?.host ?? 'localhost',
-    port: qsysConfig?.port ?? 443,
-    username: qsysConfig?.username ?? '',
-    password: qsysConfig?.password ?? '',
-    reconnectInterval:
-      qsysConfig?.connectionSettings?.reconnectInterval ?? 5000,
-    heartbeatInterval:
-      qsysConfig?.connectionSettings?.heartbeatInterval ?? 30000,
-  },
+  // BUG-138 FIX: Q-SYS config removed - access via ConfigManager
+  // qsys: { ... } - REMOVED
 
   openai: {
     apiKey: env.OPENAI_API_KEY,
@@ -335,9 +256,7 @@ export async function validateConfig(): Promise<void> {
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Port: ${env.PORT}`);
   logger.info(`Log Level: ${env.LOG_LEVEL}`);
-  logger.info(
-    `Q-SYS Core: ${qsysConfig?.host ?? 'localhost'}:${qsysConfig?.port ?? 443} (from JSON config)`
-  );
+  // BUG-138 FIX: Q-SYS config logging removed - ConfigManager handles this
   logger.info(`OpenAI Model: ${env.OPENAI_MODEL}`);
   logger.info(`Security: ${env.JWT_SECRET.length} char JWT secret`);
 
