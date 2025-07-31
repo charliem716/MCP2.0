@@ -2,8 +2,16 @@
  * Error recovery utilities
  */
 
-import { globalLogger as logger } from './logger.js';
+import { globalLogger as defaultLogger } from './logger.js';
 import type { ErrorContext, BaseError } from '../types/errors.js';
+
+/**
+ * Logger interface for error recovery
+ */
+export interface ErrorRecoveryLogger {
+  error: (message: string, meta?: any) => void;
+  warn: (message: string, meta?: any) => void;
+}
 
 /**
  * Options for error recovery
@@ -25,6 +33,10 @@ export interface ErrorRecoveryOptions<T> {
    * Additional context data
    */
   contextData?: ErrorContext;
+  /**
+   * Optional logger instance (defaults to globalLogger)
+   */
+  logger?: ErrorRecoveryLogger;
 }
 
 /**
@@ -38,7 +50,7 @@ export async function withErrorRecovery<T>(
   operation: () => Promise<T>,
   options: ErrorRecoveryOptions<T>
 ): Promise<T> {
-  const { context, fallback, logError = true, contextData } = options;
+  const { context, fallback, logError = true, contextData, logger = defaultLogger } = options;
   
   try {
     return await operation();
@@ -82,6 +94,10 @@ export interface RetryOptions {
    * Context for logging
    */
   context?: string;
+  /**
+   * Optional logger instance (defaults to globalLogger)
+   */
+  logger?: ErrorRecoveryLogger;
 }
 
 /**
@@ -103,6 +119,7 @@ export async function withRetry<T>(
     maxDelay = 30000,
     isRetryable = () => true,
     context = 'Operation',
+    logger = defaultLogger,
   } = options;
   
   let lastError: Error = new Error('No attempts made');

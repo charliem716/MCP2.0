@@ -22,7 +22,8 @@ describe('OfficialQRWCClient - Reconnection with Long-term Mode (BUG-050)', () =
 
   beforeEach(async () => {
     jest.resetModules();
-    // Don't use fake timers as they cause issues with async operations
+    jest.clearAllMocks();
+    // Don't use fake timers - they cause issues with async module loading
 
     // Create mock logger
     mockLogger = {
@@ -38,7 +39,7 @@ describe('OfficialQRWCClient - Reconnection with Long-term Mode (BUG-050)', () =
       once: jest.fn((event, callback) => {
         if (event === 'open') {
           // Simulate immediate connection
-          Promise.resolve().then(() => callback());
+          setImmediate(() => callback());
         }
       }),
       close: jest.fn(),
@@ -87,12 +88,22 @@ describe('OfficialQRWCClient - Reconnection with Long-term Mode (BUG-050)', () =
   afterEach(async () => {
     // Clean up all clients to prevent open handles
     for (const client of clients) {
-      if (client.getState() !== 'disconnected') {
-        await client.disconnect();
+      try {
+        // Remove all listeners first
+        client.removeAllListeners();
+        // Force disconnect
+        if (client.getState() !== 'disconnected') {
+          client.disconnect();
+        }
+      } catch (error) {
+        // Ignore errors during cleanup
       }
     }
     clients = [];
     jest.clearAllMocks();
+    
+    // Clear any pending timers
+    jest.clearAllTimers();
   });
 
   it('should attempt reconnection on connection failure', async () => {

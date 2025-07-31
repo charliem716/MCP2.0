@@ -1,3 +1,4 @@
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { ListComponentsTool } from '../../../../src/mcp/tools/components';
 import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status';
 import {
@@ -108,6 +109,11 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
   describe('SetControlValuesTool - branch coverage', () => {
     it('should handle controls without ramp parameter', async () => {
       const tool = new SetControlValuesTool(mockQrwcClient);
+      // First mock the validation call to Control.Get
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
+        result: { Name: 'TestControl', Value: 0 }
+      });
+      // Then mock the actual Control.Set call
       mockQrwcClient.sendCommand.mockResolvedValueOnce({ id: '123' });
 
       const result = await tool.execute({
@@ -116,7 +122,9 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
         ],
       });
 
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
+      // Check that Control.Set was called without Ramp parameter
+      expect(mockQrwcClient.sendCommand).toHaveBeenNthCalledWith(
+        2, // Second call should be Control.Set
         'Control.Set',
         expect.not.objectContaining({ Ramp: expect.anything() })
       );

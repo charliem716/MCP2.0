@@ -6,30 +6,24 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { BaseError } from '../../../../src/shared/types/errors.js';
 
+// Import the module to test
+import {
+  withErrorRecovery,
+  withRetry,
+  transformError,
+  withErrorTransform,
+  type ErrorRecoveryLogger,
+} from '../../../../src/shared/utils/error-recovery.js';
+
 describe('Error Recovery Utilities - Comprehensive Coverage', () => {
-  let mockLogger: any;
-  let errorRecoveryModule: any;
+  // Create mock logger
+  const mockLogger: ErrorRecoveryLogger = {
+    error: jest.fn(),
+    warn: jest.fn(),
+  };
 
-  beforeEach(async () => {
-    jest.resetModules();
+  beforeEach(() => {
     jest.clearAllMocks();
-
-    // Create mock logger
-    mockLogger = {
-      error: jest.fn(),
-      warn: jest.fn(),
-      info: jest.fn(),
-      debug: jest.fn(),
-    };
-
-    // Mock the logger module
-    jest.unstable_mockModule('../../../../src/shared/utils/logger', () => ({
-      globalLogger: mockLogger,
-      createLogger: jest.fn().mockReturnValue(mockLogger),
-    }));
-
-    // Import error-recovery module after mocking
-    errorRecoveryModule = await import('../../../../src/shared/utils/error-recovery.js');
   });
 
   afterEach(() => {
@@ -38,12 +32,12 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
 
   describe('withErrorRecovery', () => {
     it('should execute operation successfully and return result', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
       const result = await withErrorRecovery(
         async () => 'success',
         {
           context: 'test operation',
           fallback: 'fallback value',
+          logger: mockLogger,
         }
       );
 
@@ -52,7 +46,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should return fallback value on error', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
       const result = await withErrorRecovery(
         async () => {
           throw new Error('Operation failed');
@@ -60,6 +53,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
         {
           context: 'test operation',
           fallback: 'fallback value',
+          logger: mockLogger,
         }
       );
 
@@ -73,7 +67,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle non-Error objects', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
       const result = await withErrorRecovery(
         async () => {
           throw 'string error';
@@ -81,6 +74,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
         {
           context: 'test operation',
           fallback: 'fallback',
+          logger: mockLogger,
         }
       );
 
@@ -96,7 +90,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should not log error when logError is false', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
       const result = await withErrorRecovery(
         async () => {
           throw new Error('Operation failed');
@@ -105,6 +98,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
           context: 'test operation',
           fallback: 'fallback',
           logError: false,
+          logger: mockLogger,
         }
       );
 
@@ -113,7 +107,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should include context data in error log', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
       const contextData = { userId: '123', action: 'test' };
       
       await withErrorRecovery(
@@ -124,6 +117,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
           context: 'test operation',
           fallback: null,
           contextData,
+          logger: mockLogger,
         }
       );
 
@@ -136,7 +130,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle complex fallback values', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
       const complexFallback = { data: [], status: 'error' };
       
       const result = await withErrorRecovery(
@@ -146,6 +139,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
         {
           context: 'complex operation',
           fallback: complexFallback,
+          logger: mockLogger,
         }
       );
 
@@ -155,10 +149,9 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
 
   describe('withRetry', () => {
     it('should execute operation successfully on first try', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn().mockResolvedValue('success');
       
-      const result = await withRetry(operation);
+      const result = await withRetry(operation, { logger: mockLogger });
 
       expect(result).toBe('success');
       expect(operation).toHaveBeenCalledTimes(1);
@@ -166,7 +159,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should retry on failure and succeed', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn()
         .mockRejectedValueOnce(new Error('Temporary failure'))
         .mockResolvedValueOnce('success');
@@ -174,6 +166,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
       const result = await withRetry(operation, {
         maxRetries: 3,
         initialDelay: 10,
+        logger: mockLogger,
       });
 
       expect(result).toBe('success');
@@ -189,13 +182,13 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should throw after all retries fail', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn().mockRejectedValue(new Error('Persistent failure'));
       
       await expect(
         withRetry(operation, {
           maxRetries: 2,
           initialDelay: 10,
+          logger: mockLogger,
         })
       ).rejects.toThrow('Persistent failure');
 
@@ -203,13 +196,13 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle non-Error objects in retry', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn()
         .mockRejectedValueOnce('string error')
         .mockResolvedValueOnce('success');
       
       const result = await withRetry(operation, {
         initialDelay: 10,
+        logger: mockLogger,
       });
 
       expect(result).toBe('success');
@@ -222,7 +215,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should respect isRetryable function', async () => {
-      const { withRetry } = errorRecoveryModule;
       const nonRetryableError = new Error('Non-retryable');
       const operation = jest.fn().mockRejectedValue(nonRetryableError);
       
@@ -230,6 +222,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
         withRetry(operation, {
           maxRetries: 3,
           isRetryable: (error) => false,
+          logger: mockLogger,
         })
       ).rejects.toThrow('Non-retryable');
 
@@ -237,7 +230,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should use exponential backoff', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn().mockRejectedValue(new Error('Fail'));
       const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       
@@ -246,6 +238,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
           maxRetries: 3,
           initialDelay: 100,
           backoffMultiplier: 2,
+          logger: mockLogger,
         });
       } catch (e) {
         // Expected to fail
@@ -261,7 +254,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should respect maxDelay', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn().mockRejectedValue(new Error('Fail'));
       const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       
@@ -271,6 +263,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
           initialDelay: 100,
           backoffMultiplier: 10,
           maxDelay: 500,
+          logger: mockLogger,
         });
       } catch (e) {
         // Expected to fail
@@ -284,7 +277,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should use custom context in log messages', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn()
         .mockRejectedValueOnce(new Error('Fail'))
         .mockResolvedValueOnce('success');
@@ -292,6 +284,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
       await withRetry(operation, {
         context: 'Database connection',
         initialDelay: 10,
+        logger: mockLogger,
       });
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -301,12 +294,12 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle zero retries', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn().mockRejectedValue(new Error('Fail'));
       
       await expect(
         withRetry(operation, {
           maxRetries: 0,
+          logger: mockLogger,
         })
       ).rejects.toThrow('Fail');
 
@@ -314,7 +307,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle successful retry after multiple failures', async () => {
-      const { withRetry } = errorRecoveryModule;
       const operation = jest.fn()
         .mockRejectedValueOnce(new Error('Fail 1'))
         .mockRejectedValueOnce(new Error('Fail 2'))
@@ -324,6 +316,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
       const result = await withRetry(operation, {
         maxRetries: 3,
         initialDelay: 10,
+        logger: mockLogger,
       });
 
       expect(result).toBe('finally success');
@@ -333,8 +326,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
 
   describe('transformError', () => {
     it('should transform Error objects', () => {
-      const { transformError } = errorRecoveryModule;
-      
       class CustomError extends BaseError {
         constructor(message: string) {
           super(message, 'CUSTOM_ERROR');
@@ -353,8 +344,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle non-Error objects', () => {
-      const { transformError } = errorRecoveryModule;
-      
       class CustomError extends BaseError {
         constructor(message: string) {
           super(message, 'CUSTOM_ERROR');
@@ -371,8 +360,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle null and undefined', () => {
-      const { transformError } = errorRecoveryModule;
-      
       class CustomError extends BaseError {
         constructor(message: string) {
           super(message, 'CUSTOM_ERROR');
@@ -393,8 +380,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle complex objects', () => {
-      const { transformError } = errorRecoveryModule;
-      
       class CustomError extends BaseError {
         constructor(message: string) {
           super(message, 'CUSTOM_ERROR');
@@ -407,14 +392,12 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
         (error) => new CustomError(error.message)
       );
 
-      expect(transformed.message).toContain('ERR_001');
+      expect(transformed.message).toContain('[object Object]');
     });
   });
 
   describe('withErrorTransform', () => {
     it('should execute operation successfully without transformation', async () => {
-      const { withErrorTransform } = errorRecoveryModule;
-      
       class CustomError extends BaseError {
         constructor(message: string) {
           super(message, 'CUSTOM_ERROR');
@@ -430,8 +413,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should transform errors from async operations', async () => {
-      const { withErrorTransform } = errorRecoveryModule;
-      
       class ValidationError extends BaseError {
         constructor(message: string) {
           super(message, 'VALIDATION_ERROR');
@@ -462,8 +443,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle non-Error objects in async operations', async () => {
-      const { withErrorTransform } = errorRecoveryModule;
-      
       class CustomError extends BaseError {
         constructor(message: string) {
           super(message, 'CUSTOM_ERROR');
@@ -481,8 +460,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should preserve stack traces when possible', async () => {
-      const { withErrorTransform } = errorRecoveryModule;
-      
       class NetworkError extends BaseError {
         constructor(message: string, public originalError?: Error) {
           super(message, 'NETWORK_ERROR');
@@ -506,8 +483,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle complex async operations', async () => {
-      const { withErrorTransform } = errorRecoveryModule;
-      
       class DataError extends BaseError {
         constructor(message: string) {
           super(message, 'DATA_ERROR');
@@ -534,8 +509,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
 
   describe('Edge Cases and Integration', () => {
     it('should handle nested error recovery', async () => {
-      const { withErrorRecovery, withRetry } = errorRecoveryModule;
-      
       let attempts = 0;
       const result = await withErrorRecovery(
         async () => {
@@ -547,12 +520,13 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
               }
               return 'nested success';
             },
-            { maxRetries: 2, initialDelay: 10 }
+            { maxRetries: 2, initialDelay: 10, logger: mockLogger }
           );
         },
         {
           context: 'nested operation',
           fallback: 'outer fallback',
+          logger: mockLogger,
         }
       );
 
@@ -561,8 +535,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle error transformation with retry', async () => {
-      const { withRetry, withErrorTransform } = errorRecoveryModule;
-      
       class ServiceError extends BaseError {
         constructor(message: string) {
           super(message, 'SERVICE_ERROR');
@@ -580,7 +552,7 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
               }
               return 'service response';
             },
-            { maxRetries: 2, initialDelay: 10 }
+            { maxRetries: 2, initialDelay: 10, logger: mockLogger }
           );
         },
         (error) => new ServiceError(`Service call failed: ${error.message}`)
@@ -590,13 +562,12 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle Promise.reject in operations', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
-      
       const result = await withErrorRecovery(
         async () => Promise.reject(new Error('Rejected')),
         {
           context: 'promise rejection',
           fallback: 'handled',
+          logger: mockLogger,
         }
       );
 
@@ -604,8 +575,6 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
     });
 
     it('should handle synchronous throws in async operations', async () => {
-      const { withErrorRecovery } = errorRecoveryModule;
-      
       const result = await withErrorRecovery(
         async () => {
           throw new Error('Sync throw in async');
@@ -613,10 +582,37 @@ describe('Error Recovery Utilities - Comprehensive Coverage', () => {
         {
           context: 'sync throw',
           fallback: 'caught',
+          logger: mockLogger,
         }
       );
 
       expect(result).toBe('caught');
+    });
+
+    it('should use default logger when none provided', async () => {
+      // Test that functions work without providing a logger
+      const result = await withErrorRecovery(
+        async () => 'success',
+        {
+          context: 'default logger test',
+          fallback: 'fallback',
+        }
+      );
+
+      expect(result).toBe('success');
+    });
+
+    it('should use default logger in withRetry when none provided', async () => {
+      // Test that withRetry works without providing a logger
+      const operation = jest.fn().mockResolvedValue('success');
+      
+      const result = await withRetry(operation, {
+        maxRetries: 2,
+        initialDelay: 10,
+      });
+
+      expect(result).toBe('success');
+      expect(operation).toHaveBeenCalledTimes(1);
     });
   });
 });

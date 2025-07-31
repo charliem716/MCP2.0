@@ -1,0 +1,1214 @@
+/**
+ * Comprehensive tests for OfficialQRWCClient to achieve 80%+ coverage
+ * Addresses BUG-142: Critical Low Coverage Files Risk Production Stability
+ */
+
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
+import WebSocket from 'ws';
+import { ConnectionState } from '../../../src/shared/types/common.js';
+import { QSysError, QSysErrorCode } from '../../../src/shared/types/errors.js';
+
+describe('OfficialQRWCClient - Comprehensive Coverage Tests', () => {
+  jest.setTimeout(30000); // Increase timeout
+  let OfficialQRWCClient: any;
+  let mockLogger: any;
+  let mockWebSocket: any;
+  let mockQrwc: any;
+  let mockWsConstructor: jest.Mock;
+  let clients: any[] = [];
+  let timers: NodeJS.Timeout[] = [];
+
+  beforeEach(async () => {
+    jest.resetModules();
+    jest.clearAllMocks();
+    jest.useRealTimers(); // Use real timers to avoid hanging
+
+    // Create mock logger
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
+    };
+
+    // Create mock WebSocket instance
+    mockWebSocket = {
+      on: jest.fn(),
+      off: jest.fn(),
+      once: jest.fn(),
+      send: jest.fn(),
+      close: jest.fn(),
+      removeListener: jest.fn(),
+      readyState: WebSocket.OPEN,
+    };
+
+    // Create mock QRWC instance
+    mockQrwc = {
+      components: {
+        TestComponent: {
+          controls: {
+            testControl: {
+              state: { Value: 50, Position: 0.5 },
+              update: jest.fn().mockResolvedValue(undefined),
+              on: jest.fn(),
+              removeListener: jest.fn(),
+            },
+            missingControl: undefined,
+          },
+        },
+        MissingComponent: undefined,
+      },
+      on: jest.fn(),
+      close: jest.fn(),
+    };
+
+    // Mock WebSocket constructor
+    mockWsConstructor = jest.fn().mockImplementation(() => mockWebSocket);
+    Object.assign(mockWsConstructor, {
+      OPEN: 1,
+      CLOSED: 3,
+      CONNECTING: 0,
+      CLOSING: 2,
+    });
+
+    // Mock modules
+    jest.unstable_mockModule('../../../src/shared/utils/logger', () => ({
+      createLogger: jest.fn().mockReturnValue(mockLogger),
+      globalLogger: mockLogger,
+    }));
+
+    jest.unstable_mockModule('ws', () => ({
+      default: mockWsConstructor,
+    }));
+
+    jest.unstable_mockModule('@q-sys/qrwc', () => ({
+      Qrwc: {
+        createQrwc: jest.fn().mockResolvedValue(mockQrwc),
+      },
+    }));
+
+    // Import after mocking
+    const module = await import('../../../src/qrwc/officialClient.js');
+    OfficialQRWCClient = module.OfficialQRWCClient;
+  });
+
+  afterEach(async () => {
+    // Clean up all timers
+    for (const timer of timers) {
+      clearTimeout(timer);
+    }
+    timers = [];
+    
+    // Clean up all clients
+    for (const client of clients) {
+      try {
+        // Remove all listeners to prevent memory leaks
+        client.removeAllListeners();
+        client.disconnect();
+      } catch (error) {
+        // Ignore errors during cleanup
+      }
+    }
+    clients = [];
+    
+    // Clear all mocks
+    jest.clearAllMocks();
+    jest.clearAllTimers();
+    
+    // Allow event loop to clear
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
+  describe('Constructor and Initialization', () => {
+    it('should initialize with default options', () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      expect(client.getConnectionOptions()).toEqual({
+        host: 'test.local',
+        port: 443,
+      });
+      expect(client.getState()).toBe(ConnectionState.DISCONNECTED);
+    });
+
+    it('should initialize with custom options', () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        port: 8443,
+        pollingInterval: 500,
+        reconnectInterval: 10000,
+        maxReconnectAttempts: 10,
+        connectionTimeout: 30000,
+        enableAutoReconnect: false,
+        logger: mockLogger,
+      });
+      clients.push(client);
+
+      const options = client.getConnectionOptions();
+      expect(options.port).toBe(8443);
+    });
+
+    it('should handle logger creation failure gracefully', async () => {
+      // Mock logger creation to throw
+      jest.resetModules();
+      jest.unstable_mockModule('../../../src/shared/utils/logger', () => ({
+        createLogger: jest.fn().mockImplementation(() => {
+          throw new Error('Logger creation failed');
+        }),
+      }));
+
+      const module = await import('../../../src/qrwc/officialClient.js');
+      const client = new module.OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      // Should not throw and should have fallback logger
+      expect(client.getState()).toBe(ConnectionState.DISCONNECTED);
+    });
+  });
+
+  describe('Connection Management', () => {
+    it('should handle connection when already connecting', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      // Simulate slow connection
+      mockWebSocket.once.mockImplementation((event, callback) => {
+        if (event === 'open') {
+          setTimeout(() => callback(), 100);
+        }
+      });
+
+      // Start first connection
+      const firstConnect = client.connect();
+      
+      // Try to connect again immediately
+      const secondConnect = client.connect();
+
+      // Wait for callbacks to be processed
+      await new Promise(resolve => setImmediate(resolve));
+
+      // Both should resolve to the same connection
+      await expect(firstConnect).resolves.toBeUndefined();
+      await expect(secondConnect).resolves.toBeUndefined();
+    });
+
+    it('should handle connection when already connected', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      mockWebSocket.once.mockImplementation((event, callback) => {
+        if (event === 'open') {
+          setImmediate(callback);
+        }
+      });
+
+      await client.connect();
+      
+      // Try to connect again
+      await expect(client.connect()).resolves.toBeUndefined();
+    });
+
+    it('should handle WebSocket open event properly', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      let openCallback: Function | undefined;
+      mockWebSocket.once.mockImplementation((event, callback) => {
+        if (event === 'open') {
+          openCallback = callback;
+        }
+      });
+
+      const connectPromise = client.connect();
+      
+      // Trigger open event
+      if (openCallback) {
+        openCallback();
+      }
+
+      await connectPromise;
+      expect(client.isConnected()).toBe(true);
+    });
+
+    it('should handle WebSocket error during connection', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: false,
+      });
+      clients.push(client);
+
+      let errorCallback: Function | undefined;
+      mockWebSocket.once.mockImplementation((event, callback) => {
+        if (event === 'error') {
+          errorCallback = callback;
+        } else if (event === 'open') {
+          // Don't call open callback
+        }
+      });
+
+      const connectPromise = client.connect();
+      
+      // Trigger error event
+      if (errorCallback) {
+        errorCallback(new Error('Connection refused'));
+      }
+
+      await expect(connectPromise).rejects.toThrow('Failed to connect to Q-SYS Core');
+    });
+
+    it('should handle connection timeout', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        connectionTimeout: 100,
+        enableAutoReconnect: false,
+      });
+      clients.push(client);
+
+      // Don't trigger any events
+      mockWebSocket.once.mockImplementation(() => {});
+
+      await expect(client.connect()).rejects.toThrow('Failed to connect to Q-SYS Core');
+    });
+
+    it('should handle null WebSocket during waitForConnection', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: false,
+      });
+      clients.push(client);
+
+      // Make WebSocket constructor return null
+      mockWsConstructor.mockReturnValueOnce(null);
+
+      await expect(client.connect()).rejects.toThrow('Failed to connect to Q-SYS Core');
+    });
+  });
+
+  describe('Disconnection and Cleanup', () => {
+    it('should handle multiple disconnect calls', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      client.disconnect();
+      client.disconnect(); // Second call should be ignored
+      
+      expect(mockWebSocket.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle disconnect when already disconnected', () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      // Disconnect without connecting
+      client.disconnect();
+      
+      expect(mockWebSocket.close).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors during QRWC cleanup', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      // Make qrwc.close throw
+      mockQrwc.close.mockImplementation(() => {
+        throw new Error('QRWC close failed');
+      });
+
+      // Should not throw
+      expect(() => client.disconnect()).not.toThrow();
+    });
+
+    it('should clear reconnect timer on disconnect', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: true,
+        reconnectInterval: 1000,
+      });
+      clients.push(client);
+
+      // Trigger a failed connection to start reconnect timer
+      const { Qrwc } = await import('@q-sys/qrwc');
+      (Qrwc.createQrwc as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+      
+      await expect(client.connect()).rejects.toThrow();
+      
+      // Now disconnect
+      client.disconnect();
+      
+      // Wait to ensure no reconnection happens
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      expect(mockWsConstructor).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Component and Control Operations', () => {
+    it('should get component successfully', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const component = client.getComponent('TestComponent');
+      expect(component).toBeDefined();
+      expect(component.controls).toBeDefined();
+    });
+
+    it('should throw when getting component while disconnected', () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      expect(() => client.getComponent('TestComponent')).toThrow(QSysError);
+    });
+
+    it('should get control successfully', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const control = client.getControl('TestComponent', 'testControl');
+      expect(control).toBeDefined();
+      expect(control.state).toEqual({ Value: 50, Position: 0.5 });
+    });
+
+    it('should throw when component not found', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      expect(() => client.getControl('MissingComponent', 'testControl'))
+        .toThrow("Component 'MissingComponent' not found");
+    });
+
+    it('should throw when control not found', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      expect(() => client.getControl('TestComponent', 'missingControl'))
+        .toThrow("Control 'missingControl' not found on component 'TestComponent'");
+    });
+
+    it('should set control value successfully', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      await client.setControlValue('TestComponent', 'testControl', 75);
+      
+      expect(mockQrwc.components.TestComponent.controls.testControl.update)
+        .toHaveBeenCalledWith(75);
+    });
+
+    it('should handle boolean control values', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      await client.setControlValue('TestComponent', 'testControl', true);
+      
+      expect(mockQrwc.components.TestComponent.controls.testControl.update)
+        .toHaveBeenCalledWith(true);
+    });
+
+    it('should handle string control values', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      await client.setControlValue('TestComponent', 'testControl', 'test value');
+      
+      expect(mockQrwc.components.TestComponent.controls.testControl.update)
+        .toHaveBeenCalledWith('test value');
+    });
+
+    it('should throw when setting value on missing control', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      await expect(client.setControlValue('TestComponent', 'missingControl', 50))
+        .rejects.toThrow("Control 'missingControl' not found on component 'TestComponent'");
+    });
+
+    it('should get control value successfully', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const value = client.getControlValue('TestComponent', 'testControl');
+      expect(value).toEqual({ Value: 50, Position: 0.5 });
+    });
+
+    it('should throw when getting value from missing control', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      expect(() => client.getControlValue('TestComponent', 'missingControl'))
+        .toThrow("Control 'missingControl' not found on component 'TestComponent'");
+    });
+  });
+
+  describe('Control Event Listeners', () => {
+    it('should add control update listener', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const listener = jest.fn();
+      client.onControlUpdate('TestComponent', 'testControl', listener);
+      
+      expect(mockQrwc.components.TestComponent.controls.testControl.on)
+        .toHaveBeenCalledWith('update', listener);
+    });
+
+    it('should throw when adding listener to missing control', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const listener = jest.fn();
+      expect(() => client.onControlUpdate('TestComponent', 'missingControl', listener))
+        .toThrow("Control 'missingControl' not found on component 'TestComponent'");
+    });
+
+    it('should remove control update listener', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const listener = jest.fn();
+      client.offControlUpdate('TestComponent', 'testControl', listener);
+      
+      expect(mockQrwc.components.TestComponent.controls.testControl.removeListener)
+        .toHaveBeenCalledWith('update', listener);
+    });
+
+    it('should handle removing listener from missing control gracefully', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const listener = jest.fn();
+      // Should not throw
+      expect(() => client.offControlUpdate('TestComponent', 'missingControl', listener))
+        .not.toThrow();
+    });
+  });
+
+  describe('Raw Command Sending', () => {
+    it('should send raw command successfully', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      // Setup message handler to respond
+      let messageHandler: Function | undefined;
+      mockWebSocket.on.mockImplementation((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler;
+        }
+      });
+
+      const commandPromise = client.sendRawCommand('test.method', { param: 'value' });
+
+      // Simulate response
+      const responseId = JSON.parse(mockWebSocket.send.mock.calls[0][0]).id;
+      if (messageHandler) {
+        messageHandler(JSON.stringify({
+          jsonrpc: '2.0',
+          id: responseId,
+          result: { success: true },
+        }));
+      }
+
+      const result = await commandPromise;
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle raw command error response', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      let messageHandler: Function | undefined;
+      mockWebSocket.on.mockImplementation((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler;
+        }
+      });
+
+      const commandPromise = client.sendRawCommand('test.method', { param: 'value' });
+
+      // Simulate error response
+      const responseId = JSON.parse(mockWebSocket.send.mock.calls[0][0]).id;
+      if (messageHandler) {
+        messageHandler(JSON.stringify({
+          jsonrpc: '2.0',
+          id: responseId,
+          error: { message: 'Command failed', code: -32000 },
+        }));
+      }
+
+      await expect(commandPromise).rejects.toThrow('Command failed: Command failed');
+    });
+
+    it('should handle raw command timeout', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      // Don't send any response
+      mockWebSocket.on.mockImplementation(() => {});
+
+      await expect(client.sendRawCommand('test.method', {}))
+        .rejects.toThrow('Command timeout: test.method');
+    }, 10000);
+
+    it('should throw when sending command while disconnected', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await expect(client.sendRawCommand('test.method', {}))
+        .rejects.toThrow('WebSocket not connected');
+    });
+
+    it('should handle Buffer data in message handler', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      let messageHandler: Function | undefined;
+      mockWebSocket.on.mockImplementation((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler;
+        }
+      });
+
+      const commandPromise = client.sendRawCommand('test.method', {});
+
+      // Send response as Buffer
+      const responseId = JSON.parse(mockWebSocket.send.mock.calls[0][0]).id;
+      if (messageHandler) {
+        const responseData = JSON.stringify({
+          jsonrpc: '2.0',
+          id: responseId,
+          result: { success: true },
+        });
+        messageHandler(Buffer.from(responseData));
+      }
+
+      const result = await commandPromise;
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle ArrayBuffer data in message handler', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      let messageHandler: Function | undefined;
+      mockWebSocket.on.mockImplementation((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler;
+        }
+      });
+
+      const commandPromise = client.sendRawCommand('test.method', {});
+
+      // Send response as ArrayBuffer
+      const responseId = JSON.parse(mockWebSocket.send.mock.calls[0][0]).id;
+      if (messageHandler) {
+        const responseData = JSON.stringify({
+          jsonrpc: '2.0',
+          id: responseId,
+          result: { success: true },
+        });
+        const encoder = new TextEncoder();
+        messageHandler(encoder.encode(responseData).buffer);
+      }
+
+      const result = await commandPromise;
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should ignore malformed messages', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      let messageHandler: Function | undefined;
+      mockWebSocket.on.mockImplementation((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler;
+        }
+      });
+
+      const commandPromise = client.sendRawCommand('test.method', {});
+
+      // Send malformed message
+      if (messageHandler) {
+        messageHandler('not valid json');
+      }
+
+      // Send correct response
+      const responseId = JSON.parse(mockWebSocket.send.mock.calls[0][0]).id;
+      if (messageHandler) {
+        messageHandler(JSON.stringify({
+          jsonrpc: '2.0',
+          id: responseId,
+          result: { success: true },
+        }));
+      }
+
+      const result = await commandPromise;
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle error response without message', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      let messageHandler: Function | undefined;
+      mockWebSocket.on.mockImplementation((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler;
+        }
+      });
+
+      const commandPromise = client.sendRawCommand('test.method', {});
+
+      // Send error without message
+      const responseId = JSON.parse(mockWebSocket.send.mock.calls[0][0]).id;
+      if (messageHandler) {
+        messageHandler(JSON.stringify({
+          jsonrpc: '2.0',
+          id: responseId,
+          error: { code: -32000 },
+        }));
+      }
+
+      await expect(commandPromise).rejects.toThrow('Command failed: Unknown error');
+    });
+  });
+
+  describe('WebSocket Event Handlers', () => {
+    it('should handle WebSocket error events', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      const errorEvents: Error[] = [];
+      client.on('error', (error) => {
+        errorEvents.push(error);
+      });
+
+      await client.connect();
+
+      // Trigger error event
+      const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1];
+      if (errorHandler) {
+        const error = new Error('WebSocket error');
+        errorHandler(error);
+      }
+
+      expect(errorEvents).toHaveLength(1);
+      expect(errorEvents[0].message).toBe('WebSocket error');
+    });
+
+    it('should handle WebSocket close with invalid reason', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: false,
+      });
+      clients.push(client);
+
+      const disconnectedEvents: string[] = [];
+      client.on('disconnected', (reason) => {
+        disconnectedEvents.push(reason);
+      });
+
+      await client.connect();
+
+      // Trigger close event with non-buffer reason
+      const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1];
+      if (closeHandler) {
+        closeHandler(1006, { toString: () => 'Abnormal closure' });
+      }
+
+      expect(disconnectedEvents).toContain('Connection closed: 1006 Abnormal closure');
+    });
+
+    it('should not emit disconnected when closing during disconnection', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: false,
+      });
+      clients.push(client);
+
+      const disconnectedEvents: string[] = [];
+      client.on('disconnected', (reason) => {
+        disconnectedEvents.push(reason);
+      });
+
+      await client.connect();
+      
+      // Start disconnecting
+      client.disconnect();
+
+      // Trigger close event while disconnecting
+      const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1];
+      if (closeHandler) {
+        closeHandler(1000, Buffer.from('Normal'));
+      }
+
+      // Should only have one disconnected event from disconnect()
+      expect(disconnectedEvents).toHaveLength(1);
+    });
+  });
+
+  describe('Reconnection and Long-term Mode', () => {
+    it.skip('should switch to long-term reconnection mode after max attempts', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: true,
+        reconnectInterval: 50,
+        maxReconnectAttempts: 2,
+      });
+      clients.push(client);
+
+      const reconnectingEvents: any[] = [];
+      client.on('reconnecting', (data) => {
+        reconnectingEvents.push(data);
+      });
+
+      // Make all connections fail
+      const { Qrwc } = await import('@q-sys/qrwc');
+      (Qrwc.createQrwc as jest.Mock).mockRejectedValue(new Error('Connection failed'));
+
+      await expect(client.connect()).rejects.toThrow();
+
+      // Wait for reconnection attempts
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Should have logged switching to long-term mode
+      expect(mockLogger.warn).toHaveBeenCalledWith('Switching to long-term reconnection mode');
+      
+      // Should continue incrementing attempt numbers
+      const attempts = reconnectingEvents.map(e => e.attempt);
+      expect(attempts[0]).toBe(1);
+      expect(attempts[1]).toBe(2);
+      if (attempts[2]) {
+        expect(attempts[2]).toBe(3);
+      }
+    });
+
+    it.skip('should handle reconnection with downtime tracking', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: true,
+        reconnectInterval: 50,
+      });
+      clients.push(client);
+
+      // Connect successfully first
+      await client.connect();
+
+      // Simulate disconnection
+      const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1];
+      if (closeHandler) {
+        closeHandler(1006, Buffer.from('Abnormal'));
+      }
+
+      // Wait a bit for downtime
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Reset mocks for reconnection
+      const { Qrwc } = await import('@q-sys/qrwc');
+      (Qrwc.createQrwc as jest.Mock).mockClear();
+      (Qrwc.createQrwc as jest.Mock).mockResolvedValue(mockQrwc);
+      
+      mockWebSocket.once.mockImplementation((event, callback) => {
+        if (event === 'open') {
+          setImmediate(callback);
+        }
+      });
+
+      // Wait for auto-reconnect
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Should log reconnection with downtime
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Q-SYS Core reconnected after downtime'),
+        expect.objectContaining({
+          downtimeMs: expect.any(Number),
+          requiresCacheInvalidation: expect.any(Boolean),
+        })
+      );
+    });
+
+    it.skip('should emit cache invalidation event for long downtime', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: false,
+      });
+      clients.push(client);
+
+      const connectedEvents: any[] = [];
+      client.on('connected', (data) => {
+        connectedEvents.push(data);
+      });
+
+      // Mock Date to simulate long downtime
+      const originalDateNow = Date.now;
+      let currentTime = originalDateNow();
+      Date.now = jest.fn(() => currentTime);
+
+      await client.connect();
+      
+      // Clear previous events
+      connectedEvents.length = 0;
+
+      // Simulate disconnection
+      client.disconnect();
+      
+      // Advance time by 35 seconds
+      currentTime += 35000;
+
+      // Reconnect
+      mockWebSocket.once.mockImplementation((event, callback) => {
+        if (event === 'open') {
+          setImmediate(callback);
+        }
+      });
+
+      await client.connect();
+
+      expect(connectedEvents).toHaveLength(1);
+      expect(connectedEvents[0].requiresCacheInvalidation).toBe(true);
+      expect(connectedEvents[0].downtimeMs).toBeGreaterThan(30000);
+
+      // Restore Date.now
+      Date.now = originalDateNow;
+    });
+
+    it.skip('should handle reconnection during shutdown', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: true,
+      });
+      clients.push(client);
+
+      await client.connect();
+
+      // Start disconnecting
+      const disconnectPromise = client.disconnect();
+
+      // Trigger close event during shutdown
+      const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1];
+      if (closeHandler) {
+        closeHandler(1006, Buffer.from('Abnormal'));
+      }
+
+      await disconnectPromise;
+
+      // Should not schedule reconnection
+      expect(mockLogger.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('Scheduling reconnection'),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('Signal Handlers', () => {
+    afterEach(() => {
+      // Clean up any signal handlers to prevent test interference
+      process.removeAllListeners('SIGTERM');
+      process.removeAllListeners('SIGINT');
+      process.removeAllListeners('beforeExit');
+    });
+
+    it('should install signal handlers once', () => {
+      const client1 = new OfficialQRWCClient({
+        host: 'test1.local',
+      });
+      clients.push(client1);
+
+      const client2 = new OfficialQRWCClient({
+        host: 'test2.local',
+      });
+      clients.push(client2);
+
+      // Should not install handlers twice
+      expect(mockLogger.debug).toHaveBeenCalledWith('Signal handlers installed');
+      expect(mockLogger.debug).toHaveBeenCalledTimes(
+        mockLogger.debug.mock.calls.filter((call: any[]) => 
+          call[0] === 'Signal handlers installed'
+        ).length
+      );
+    });
+
+    it.skip('should handle SIGTERM signal', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+
+      // Find and trigger SIGTERM handler
+      const sigTermListeners = process.listeners('SIGTERM');
+      const handler = sigTermListeners[sigTermListeners.length - 1];
+      if (handler) {
+        handler('SIGTERM' as any);
+      }
+
+      // Give async operations time to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(client.getState()).toBe(ConnectionState.DISCONNECTED);
+    });
+
+    it('should remove signal handlers on disconnect', async () => {
+      const originalListenerCount = process.listenerCount('SIGTERM');
+      
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      const afterConnectCount = process.listenerCount('SIGTERM');
+      expect(afterConnectCount).toBeGreaterThan(originalListenerCount);
+
+      client.disconnect();
+
+      const afterDisconnectCount = process.listenerCount('SIGTERM');
+      expect(afterDisconnectCount).toBe(originalListenerCount);
+    });
+
+    it('should handle multiple disconnects with signal handler cleanup', () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      // Multiple disconnects should not cause issues
+      client.disconnect();
+      client.disconnect();
+      client.disconnect();
+
+      expect(mockLogger.debug).toHaveBeenCalledWith('Already disconnected');
+    });
+  });
+
+  describe('Edge Cases and Error Scenarios', () => {
+    it('should handle getQrwc when not connected', () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      expect(client.getQrwc()).toBeUndefined();
+    });
+
+    it('should handle isConnected with partial connection state', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      // Connect but make qrwc undefined
+      mockWebSocket.once.mockImplementation((event, callback) => {
+        if (event === 'open') {
+          setImmediate(callback);
+        }
+      });
+
+      const { Qrwc } = await import('@q-sys/qrwc');
+      (Qrwc.createQrwc as jest.Mock).mockResolvedValueOnce(undefined);
+
+      await expect(client.connect()).rejects.toThrow();
+      
+      expect(client.isConnected()).toBe(false);
+    });
+
+    it('should handle WebSocket in CLOSED state during sendRawCommand', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      // Change WebSocket state to CLOSED
+      mockWebSocket.readyState = WebSocket.CLOSED;
+
+      await expect(client.sendRawCommand('test.method', {}))
+        .rejects.toThrow('WebSocket not connected');
+    });
+
+    it.skip('should handle exponential backoff with max delay', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+        enableAutoReconnect: true,
+        reconnectInterval: 1000,
+        maxReconnectAttempts: 10,
+      });
+      clients.push(client);
+
+      // Track reconnection delays
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      
+      // Make all connections fail
+      const { Qrwc } = await import('@q-sys/qrwc');
+      (Qrwc.createQrwc as jest.Mock).mockRejectedValue(new Error('Connection failed'));
+
+      await expect(client.connect()).rejects.toThrow();
+
+      // Wait for a few reconnection attempts
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Check that delays are capped at 30 seconds
+      const delays = setTimeoutSpy.mock.calls
+        .filter(call => typeof call[1] === 'number')
+        .map(call => call[1] as number);
+      
+      const maxDelay = Math.max(...delays.filter(d => d > 0));
+      expect(maxDelay).toBeLessThanOrEqual(30000);
+
+      setTimeoutSpy.mockRestore();
+    });
+
+    it('should handle complex data types in raw command response', async () => {
+      const client = new OfficialQRWCClient({
+        host: 'test.local',
+      });
+      clients.push(client);
+
+      await client.connect();
+      
+      let messageHandler: Function | undefined;
+      mockWebSocket.on.mockImplementation((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler;
+        }
+      });
+
+      const commandPromise = client.sendRawCommand('test.method', {});
+
+      // Send response with complex object
+      const responseId = JSON.parse(mockWebSocket.send.mock.calls[0][0]).id;
+      if (messageHandler) {
+        // Send as non-string, non-buffer type
+        const responseObj = {
+          jsonrpc: '2.0',
+          id: responseId,
+          result: { success: true },
+        };
+        messageHandler(responseObj); // Will be JSON.stringified
+      }
+
+      const result = await commandPromise;
+      expect(result).toEqual({ success: true });
+    });
+  });
+});
