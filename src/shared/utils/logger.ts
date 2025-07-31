@@ -119,9 +119,15 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
         format: devFormat,
       })
     );
-  } else {
-    // Production: No transports to avoid polluting stdout for MCP
-    // All output must go to stderr or be disabled
+  } else if (isProduction) {
+    // Production: Use stderr transport to avoid polluting stdout
+    transports.push(
+      new winston.transports.Stream({
+        stream: process.stderr,
+        level: level,
+        format: prodFormat,
+      })
+    );
   }
 
   return {

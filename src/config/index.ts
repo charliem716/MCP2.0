@@ -86,12 +86,18 @@ class ConfigManager {
     // First try to load from qsys-core.config.json
     let fileConfig: FileConfig = {};
     try {
-      const configPath = path.join(process.cwd(), 'qsys-core.config.json');
+      // Look for config file relative to the module location, not cwd
+      // This ensures it works when launched from any directory (like Claude Desktop)
+      const moduleDir = path.dirname(new URL(import.meta.url).pathname);
+      const projectRoot = path.resolve(moduleDir, '..', '..');
+      const configPath = path.join(projectRoot, 'qsys-core.config.json');
+      
       if (fs.existsSync(configPath)) {
         const configContent = fs.readFileSync(configPath, 'utf-8');
-        const parsed = JSON.parse(configContent) as unknown;
-        if (parsed && typeof parsed === 'object') {
-          fileConfig = parsed as FileConfig;
+        const parsed = JSON.parse(configContent) as any;
+        // Extract the qsysCore property from the JSON
+        if (parsed && typeof parsed === 'object' && parsed.qsysCore) {
+          fileConfig = parsed.qsysCore as FileConfig;
         }
       }
     } catch (error) {
@@ -105,7 +111,7 @@ class ConfigManager {
     const username = process.env['QSYS_USERNAME'] ?? fileConfig.username ?? '';
     const password = process.env['QSYS_PASSWORD'] ?? fileConfig.password ?? '';
     
-    return {
+    const config = {
       host,
       port,
       username,
@@ -115,6 +121,8 @@ class ConfigManager {
       reconnectInterval: parseInt(process.env['QSYS_RECONNECT_INTERVAL'] ?? '5000', 10),
       heartbeatInterval: parseInt(process.env['QSYS_HEARTBEAT_INTERVAL'] ?? '30000', 10)
     };
+    
+    return config;
   }
 
   private loadMCPConfig(): MCPConfig {
