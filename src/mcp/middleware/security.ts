@@ -14,6 +14,8 @@ import { createLogger, type Logger } from '../../shared/utils/logger.js';
 export interface SecurityConfig {
   /** Enable security headers */
   enabled?: boolean;
+  /** Optional logger instance for dependency injection */
+  logger?: Logger;
   /** Content Security Policy directives */
   csp?: {
     defaultSrc?: string[];
@@ -47,21 +49,11 @@ export interface SecurityConfig {
  */
 export class SecurityHeadersProvider {
   private readonly logger: Logger;
-  private readonly config: Required<SecurityConfig>;
+  private readonly config: Required<Omit<SecurityConfig, 'logger'>>;
 
   constructor(config: SecurityConfig = {}) {
-    try {
-      this.logger = createLogger('mcp-security');
-    } catch {
-      // Fallback for test environment
-      this.logger = {
-        info: () => {},
-        error: () => {},
-        warn: () => {},
-        debug: () => {},
-        child: () => this.logger,
-      } as Logger;
-    }
+    // Use injected logger or create a default one
+    this.logger = config.logger ?? createLogger('mcp-security');
 
     this.config = {
       enabled: config.enabled ?? true,
