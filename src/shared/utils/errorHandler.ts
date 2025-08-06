@@ -14,6 +14,7 @@ export interface ErrorHandlerConfig {
   enableRecovery?: boolean;
   maxRetryAttempts?: number;
   retryDelay?: number;
+  logger?: Logger; // Add optional logger for dependency injection
 }
 
 /**
@@ -24,7 +25,7 @@ export class GlobalErrorHandler {
   private config: ErrorHandlerConfig;
 
   constructor(config: ErrorHandlerConfig = {}) {
-    this.logger = createLogger('ErrorHandler');
+    this.logger = config.logger ?? createLogger('ErrorHandler');
     this.config = {
       logErrors: true,
       enableRecovery: false,
@@ -111,8 +112,14 @@ export class ErrorUtils {
   }
 }
 
-// Export singleton instance
-export const globalErrorHandler = new GlobalErrorHandler();
+/**
+ * Factory function to create GlobalErrorHandler with dependency injection
+ */
+export const createGlobalErrorHandler = (config?: ErrorHandlerConfig) =>
+  new GlobalErrorHandler(config);
+
+// Export singleton instance for backward compatibility
+export const globalErrorHandler = createGlobalErrorHandler();
 
 // Export for backward compatibility
 export default GlobalErrorHandler;
