@@ -13,18 +13,27 @@
 
 ### Active Bugs - Implementation Order:
 
+#### Phase 0: Critical Event Monitoring Restoration
+1. **BUG-150** (5 days) - Restore event monitoring system with SQLite
+
 #### Phase 1: High Priority DI Refactoring (Source Code Changes)
-1. **BUG-145** (4 hours) - GlobalErrorHandler DI refactoring
-2. **BUG-146** (2 hours) - SecurityHeadersProvider DI refactoring
+2. **BUG-145** (4 hours) - GlobalErrorHandler DI refactoring
+3. **BUG-146** (2 hours) - SecurityHeadersProvider DI refactoring
 
 #### Phase 2: Test Fixes (No Source Changes)
-3. **BUG-147** (2 hours) - Fix auth.coverage-boost.test.ts parameters
+4. **BUG-147** (2 hours) - Fix auth.coverage-boost.test.ts parameters
 
 #### Phase 3: Additional DI Refactoring
-4. **BUG-148** (1 day) - State management files DI refactoring
-5. **BUG-149** (1 day) - QRWC adapter layer DI refactoring
+5. **BUG-148** (1 day) - State management files DI refactoring
+6. **BUG-149** (1 day) - QRWC adapter layer DI refactoring
 
 ## Dependency Analysis for Active Bugs
+
+### BUG-150: Restore Event Monitoring System
+- **Dependencies**: None (can work with existing SimpleStateManager)
+- **Blocks**: AI agents cannot monitor real-time changes or query history
+- **Effort**: 5 days (detailed plan in event-cache-sqlite-plan.md)
+- **Impact**: CRITICAL - Restores essential MCP functionality that was removed
 
 ### BUG-145: GlobalErrorHandler DI Refactoring
 - **Dependencies**: None
@@ -58,44 +67,55 @@
 
 ## Implementation Order Rationale
 
-### Phase 1: High Priority DI Refactoring (Day 1)
+### Phase 0: Critical Event Monitoring (Days 1-5)
 
-#### 1. BUG-145 FIRST - GlobalErrorHandler (Morning)
+#### 1. BUG-150 FIRST - Event Monitoring System
 **Why first:**
+- CRITICAL functionality that was accidentally removed
+- AI agents cannot function properly without event monitoring
+- No dependencies on other bugs
+- Detailed implementation plan already created
+- SQLite solution requires no external dependencies
+- 5 days allows for proper implementation and testing
+
+### Phase 1: High Priority DI Refactoring (Day 6)
+
+#### 2. BUG-145 SECOND - GlobalErrorHandler (Morning)
+**Why second:**
 - No dependencies, standalone refactoring
 - Establishes DI pattern for other files
 - GlobalErrorHandler is used across the codebase
 - Has singleton export that needs careful handling
 - 4 hours allows for thorough testing
 
-#### 2. BUG-146 SECOND - SecurityHeadersProvider (Afternoon)
-**Why second:**
+#### 3. BUG-146 THIRD - SecurityHeadersProvider (Afternoon)
+**Why third:**
 - Already has a try-catch workaround showing the problem exists
 - Simpler than BUG-145 (no singleton pattern)
 - Quick win that removes technical debt
 - 2 hours to complete
 
-### Phase 2: Test Fixes (Day 1 End/Day 2 Morning)
+### Phase 2: Test Fixes (Day 6 End/Day 7 Morning)
 
-#### 3. BUG-147 THIRD - Auth Test Fixes
-**Why third:**
+#### 4. BUG-147 FOURTH - Auth Test Fixes
+**Why fourth:**
 - No source code changes needed
 - MCPAuthenticator already has proper DI
 - Just need to fix test parameters
 - Will immediately improve coverage
 - Good break from refactoring work
 
-### Phase 3: Broader DI Refactoring (Day 2-3)
+### Phase 3: Broader DI Refactoring (Day 7-8)
 
-#### 4. BUG-148 FOURTH - State Management
-**Why fourth:**
+#### 5. BUG-148 FIFTH - State Management
+**Why fifth:**
 - Can follow established DI patterns
 - 3 related files can be done together
 - Critical for application functionality
 - State management needs good test coverage
 
-#### 5. BUG-149 FIFTH - QRWC Adapter Layer
-**Why fifth:**
+#### 6. BUG-149 SIXTH - QRWC Adapter Layer
+**Why sixth:**
 - Can follow established DI patterns  
 - 4 files but similar refactoring needed
 - Important for Q-SYS integration testing
@@ -104,6 +124,12 @@
 ## Risk Analysis
 
 ### If Order Is Changed:
+
+**Skipping BUG-150 (Event Monitoring):**
+- ❌ CRITICAL: MCP server remains without event monitoring
+- ❌ AI agents cannot track Q-SYS changes
+- ❌ No historical data for analysis
+- ❌ Major functionality gap remains
 
 **Starting with Phase 3 before Phase 1:**
 - ❌ No established DI pattern to follow
@@ -130,20 +156,22 @@ Once Phase 1 is complete:
 ## Success Metrics
 
 After implementing in recommended order:
-1. **Phase 1**: Clean DI pattern established, 2 files refactored
-2. **Phase 2**: 16 auth tests passing
-3. **Phase 3**: All logger imports use DI pattern
-4. **Overall**: Test coverage reaches 80% threshold
+1. **Phase 0**: Event monitoring restored with 33Hz capability, 30-day retention
+2. **Phase 1**: Clean DI pattern established, 2 files refactored
+3. **Phase 2**: 16 auth tests passing
+4. **Phase 3**: All logger imports use DI pattern
+5. **Overall**: Critical MCP functionality restored AND test coverage reaches 80%
 
 ## Timeline Estimate
 
 Following recommended order:
-- **Day 1**: Complete BUG-145, BUG-146, start BUG-147
-- **Day 2**: Complete BUG-147, work on BUG-148
-- **Day 3**: Complete BUG-148, work on BUG-149
-- **Day 3 End**: All DI refactoring complete
+- **Days 1-5**: Implement BUG-150 (Event Monitoring System)
+- **Day 6**: Complete BUG-145, BUG-146, start BUG-147
+- **Day 7**: Complete BUG-147, work on BUG-148
+- **Day 8**: Complete BUG-148, work on BUG-149
+- **Day 8 End**: All critical bugs resolved
 
-**Total: 3 days to complete all DI refactoring**
+**Total: 8 days to restore critical functionality and complete DI refactoring**
 
 ## Key Benefits of DI Refactoring
 

@@ -30,6 +30,11 @@ import {
   // createReadChangeGroupEventsTool,
   // createSubscribeToChangeEventsTool,
 } from '../tools/change-groups.js';
+// Event monitoring tools (BUG-150: Event monitoring restored with SQLite)
+import {
+  createQueryChangeEventsTool,
+  createGetEventStatisticsTool,
+} from '../tools/event-monitoring/index.js';
 // BUG-132: EventCacheManager removed - using simplified state management
 import type { BaseQSysTool, ToolExecutionResult } from '../tools/base.js';
 
@@ -137,7 +142,41 @@ export class MCPToolRegistry {
       this.registerQSysTool(tool);
     });
 
+    // Register event monitoring tools if available (BUG-150: Event monitoring restored)
+    this.registerEventMonitoringTools();
+
     logger.info(`Registered ${qsysTools.length} Q-SYS tools`);
+  }
+
+  /**
+   * Register event monitoring tools if the state manager supports them
+   */
+  private registerEventMonitoringTools(): void {
+    try {
+      // Check if the control system has event monitoring capability
+      // We need to check if it's a MonitoredStateManager by checking for getEventMonitor method
+      const stateManager = this.controlSystem as any;
+      
+      if (stateManager.getEventMonitor && typeof stateManager.getEventMonitor === 'function') {
+        // Register event monitoring tools
+        const eventTools: Array<BaseQSysTool<unknown>> = [
+          createQueryChangeEventsTool(this.controlSystem),
+          createGetEventStatisticsTool(this.controlSystem),
+        ];
+
+        eventTools.forEach(tool => {
+          this.registerQSysTool(tool);
+        });
+
+        logger.info('Event monitoring tools registered', {
+          tools: eventTools.map(t => t.name)
+        });
+      } else {
+        logger.debug('Event monitoring not available - tools not registered');
+      }
+    } catch (error) {
+      logger.warn('Failed to register event monitoring tools', { error });
+    }
   }
 
   /**

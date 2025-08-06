@@ -18,6 +18,14 @@ interface QSysConfig {
   heartbeatInterval: number;
 }
 
+export interface EventMonitoringConfig {
+  enabled: boolean;
+  dbPath: string;
+  retentionDays: number;
+  bufferSize: number;
+  flushInterval: number;
+}
+
 interface MCPConfig {
   logLevel: string;
   cacheSize: number;
@@ -26,6 +34,7 @@ interface MCPConfig {
   groupExpirationMinutes: number;
   mcpMode: boolean;
   debugTests: boolean;
+  eventMonitoring?: EventMonitoringConfig;
 }
 
 interface APIConfig {
@@ -126,7 +135,7 @@ class ConfigManager {
   }
 
   private loadMCPConfig(): MCPConfig {
-    return {
+    const config: MCPConfig = {
       logLevel: process.env['LOG_LEVEL'] ?? 'info',
       cacheSize: parseInt(process.env['MCP_CACHE_SIZE'] ?? '1000', 10),
       eventCacheEnabled: process.env['EVENT_CACHE_ENABLED'] !== 'false',
@@ -135,6 +144,20 @@ class ConfigManager {
       mcpMode: process.env['MCP_MODE'] === 'true',
       debugTests: process.env['DEBUG_TESTS'] === 'true'
     };
+
+    // Add event monitoring config if enabled
+    const eventMonitoringEnabled = process.env['EVENT_MONITORING_ENABLED'] === 'true';
+    if (eventMonitoringEnabled) {
+      config.eventMonitoring = {
+        enabled: true,
+        dbPath: process.env['EVENT_MONITORING_DB_PATH'] ?? './data/events',
+        retentionDays: parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] ?? '7', 10),
+        bufferSize: parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] ?? '1000', 10),
+        flushInterval: parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] ?? '100', 10)
+      };
+    }
+
+    return config;
   }
 
   private loadAPIConfig(): APIConfig {

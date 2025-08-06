@@ -81,13 +81,26 @@ export class DefaultMCPServerFactory implements IMCPServerFactory {
     if (!this.container.has(ServiceTokens.STATE_REPOSITORY)) {
       this.container.registerFactory(ServiceTokens.STATE_REPOSITORY, async () => {
         const { createStateRepository } = await import('../state/factory.js');
-        return await createStateRepository('simple', {
+        const { configManager } = await import('../../config/index.js');
+        
+        // Get event monitoring config from centralized config manager
+        const mcpConfig = configManager.get('mcp');
+        const eventMonitoringEnabled = mcpConfig.eventMonitoring?.enabled ?? false;
+        const repoType = eventMonitoringEnabled ? 'monitored' : 'simple';
+        
+        const config = {
           maxEntries: 1000,
           ttlMs: 3600000,
           cleanupIntervalMs: 60000,
           enableMetrics: true,
           persistenceEnabled: false,
-        });
+          // Add event monitoring config if available
+          ...(mcpConfig.eventMonitoring ? {
+            eventMonitoring: mcpConfig.eventMonitoring
+          } : {})
+        };
+        
+        return await createStateRepository(repoType, config, adapter);
       });
     }
 
