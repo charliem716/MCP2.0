@@ -35,35 +35,90 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
       // Get state manager from adapter
       const adapter = this.controlSystem as QRWCClientAdapter;
       
-      // Check if adapter has getStateManager method
-      if (!adapter.getStateManager) {
+      // Check if adapter exists and has getStateManager method
+      if (!adapter || typeof adapter.getStateManager !== 'function') {
+        logger.warn('Event monitoring not supported - adapter missing getStateManager', {
+          adapterType: adapter?.constructor?.name,
+          hasMethod: !!adapter?.getStateManager,
+        });
+        
         return {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not available. The control system does not support state management.',
+              text: JSON.stringify({
+                error: true,
+                message: 'Event monitoring is not available. The control system does not support state management.',
+                hint: 'Ensure you are using a Q-SYS control system with event monitoring capabilities',
+              }),
             },
           ],
           isError: true,
         };
       }
       
-      const stateManager = adapter.getStateManager() as MonitoredStateManager | undefined;
-      
-      // Check if state manager exists and has event monitor
-      if (!stateManager?.getEventMonitor) {
+      let stateManager: MonitoredStateManager | undefined;
+      try {
+        stateManager = adapter.getStateManager() as MonitoredStateManager | undefined;
+      } catch (getStateError) {
+        logger.error('Failed to get state manager', {
+          error: getStateError instanceof Error ? getStateError.message : String(getStateError),
+        });
+        
         return {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not available. Please ensure EVENT_MONITORING_ENABLED=true in your environment.',
+              text: JSON.stringify({
+                error: true,
+                message: 'Failed to access state manager',
+                hint: 'The state management system may be initializing. Please try again.',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+      
+      // Check if state manager exists and has event monitor
+      if (!stateManager || typeof stateManager.getEventMonitor !== 'function') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: true,
+                message: 'Event monitoring is not available. Please ensure EVENT_MONITORING_ENABLED=true in your environment.',
+                hint: 'Set EVENT_MONITORING_ENABLED=true and restart the application',
+              }),
             },
           ],
           isError: true,
         };
       }
 
-      const eventMonitor = stateManager.getEventMonitor();
+      let eventMonitor;
+      try {
+        eventMonitor = stateManager.getEventMonitor();
+      } catch (getMonitorError) {
+        logger.error('Failed to get event monitor', {
+          error: getMonitorError instanceof Error ? getMonitorError.message : String(getMonitorError),
+        });
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: true,
+                message: 'Failed to access event monitor',
+                hint: 'The event monitoring system may be starting up. Please try again.',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
 
       if (!eventMonitor) {
         return {
@@ -139,13 +194,27 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
         isError: false,
       };
     } catch (error: any) {
-      logger.error('Failed to get event statistics', { error });
+      // This is the final catch-all for any unexpected errors
+      logger.error('Unexpected error in get event statistics tool', { 
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        } : String(error),
+        params,
+        executionTimeMs: Date.now() - startTime,
+      });
 
       return {
         content: [
           {
             type: 'text',
-            text: `Failed to get event statistics: ${error.message}`,
+            text: JSON.stringify({
+              error: true,
+              message: `Unexpected error: ${error?.message || String(error)}`,
+              hint: 'An unexpected error occurred. Please check the logs for details.',
+              executionTimeMs: Date.now() - startTime,
+            }),
           },
         ],
         isError: true,
