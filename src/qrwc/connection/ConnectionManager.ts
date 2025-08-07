@@ -211,11 +211,7 @@ export class ConnectionManager extends EventEmitter<ConnectionManagerEvents> {
 
     // Retry connection if we have a connect function
     if (this.connectFunction) {
-      try {
-        await this.connectWithRetry(this.connectFunction);
-      } catch (error) {
-        // Error already handled in connectWithRetry
-      }
+      await this.connectWithRetry(this.connectFunction);
     }
   }
 

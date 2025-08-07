@@ -93,11 +93,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       logger: this.logger.child({ component: 'connection-manager' }),
     });
 
-    // Forward connection manager events
-    this.connectionManager.on('state_change', (state) => {
-      this.setState(state);
-    });
-
+    // Forward retry events from connection manager
     this.connectionManager.on('retry', (attempt, delay) => {
       this.emit('reconnecting', { attempt });
     });
@@ -152,21 +148,37 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    */
   private async performConnection(): Promise<void> {
     const url = `wss://${this.options.host}:${this.options.port}/qrc-public-api/v0`;
-    this.ws = new WebSocket(url, {
-      rejectUnauthorized: false, // Allow self-signed certificates
-    });
+    
+    // Set state to connecting
+    this.setState(ConnectionState.CONNECTING);
+    
+    try {
+      this.ws = new WebSocket(url, {
+        rejectUnauthorized: false, // Allow self-signed certificates
+      });
 
-    // Wait for WebSocket to open
-    await this.waitForConnection();
+      // Wait for WebSocket to open
+      await this.waitForConnection();
 
-    // Create QRWC instance with the open WebSocket
-    this.qrwc = await Qrwc.createQrwc({
-      socket: this.ws,
-      pollingInterval: this.options.pollingInterval,
-    });
+      // Create QRWC instance with the open WebSocket
+      this.qrwc = await Qrwc.createQrwc({
+        socket: this.ws,
+        pollingInterval: this.options.pollingInterval,
+      });
 
-    this.reconnectAttempts = 0;
-    this.handleConnectionSuccess();
+      this.reconnectAttempts = 0;
+      this.setState(ConnectionState.CONNECTED);
+      this.handleConnectionSuccess();
+    } catch (error) {
+      // Clean up WebSocket if connection failed
+      if (this.ws) {
+        this.ws.removeAllListeners();
+        this.ws.close();
+        this.ws = undefined;
+      }
+      this.setState(ConnectionState.DISCONNECTED);
+      throw error;
+    }
   }
 
   /**
@@ -490,18 +502,26 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       }
 
       const timeout = setTimeout(() => {
+        // Clean up event listeners before rejecting
+        this.ws?.removeAllListeners('open');
+        this.ws?.removeAllListeners('error');
         reject(new Error('Connection timeout'));
       }, this.options.connectionTimeout);
 
-      this.ws.once('open', () => {
+      const handleOpen = () => {
         clearTimeout(timeout);
+        this.ws?.removeListener('error', handleError);
         resolve();
-      });
+      };
 
-      this.ws.once('error', error => {
+      const handleError = (error: Error) => {
         clearTimeout(timeout);
+        this.ws?.removeListener('open', handleOpen);
         reject(error);
-      });
+      };
+
+      this.ws.once('open', handleOpen);
+      this.ws.once('error', handleError);
     });
   }
 
