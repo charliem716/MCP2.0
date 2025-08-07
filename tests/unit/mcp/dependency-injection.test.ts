@@ -45,7 +45,18 @@ describe('MCPServer Dependency Injection', () => {
   });
 
   it('should create MCPServer with default dependencies when none provided', () => {
-    server = new MCPServer(config, { logger: mockLogger });
+    const mockToolRegistry = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      cleanup: jest.fn().mockResolvedValue(undefined),
+      listTools: jest.fn().mockResolvedValue([]),
+      callTool: jest.fn().mockResolvedValue({ content: [], isError: false }),
+      getToolCount: jest.fn().mockReturnValue(0),
+    };
+    
+    server = new MCPServer(config, { 
+      logger: mockLogger,
+      toolRegistry: mockToolRegistry as any
+    });
     expect(server).toBeInstanceOf(MCPServer);
   });
 
@@ -160,9 +171,18 @@ describe('MCPServer Dependency Injection', () => {
       connect: jest.fn().mockResolvedValue(undefined),
     } as unknown as Server;
 
+    const mockToolRegistry = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      cleanup: jest.fn().mockResolvedValue(undefined),
+      listTools: jest.fn().mockResolvedValue([]),
+      callTool: jest.fn().mockResolvedValue({ content: [], isError: false }),
+      getToolCount: jest.fn().mockReturnValue(0),
+    };
+
     server = new MCPServer(config, {
       logger: mockLogger,
       server: mockServer,
+      toolRegistry: mockToolRegistry as any,
     });
 
     // Verify request handlers were set up
@@ -185,9 +205,18 @@ describe('MCPServer Dependency Injection', () => {
       toJSON: jest.fn().mockReturnValue({ test: 1 }),
     };
 
+    const mockToolRegistry = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      cleanup: jest.fn().mockResolvedValue(undefined),
+      listTools: jest.fn().mockResolvedValue([]),
+      callTool: jest.fn().mockResolvedValue({ content: [], isError: false }),
+      getToolCount: jest.fn().mockReturnValue(0),
+    };
+
     server = new MCPServer(config, {
       logger: mockLogger,
       metrics: mockMetrics as any,
+      toolRegistry: mockToolRegistry as any,
     });
 
     // Test metrics methods

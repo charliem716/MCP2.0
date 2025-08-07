@@ -124,7 +124,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     transports.push(
       new winston.transports.Stream({
         stream: process.stderr,
-        level: level,
+        level,
         format: prodFormat,
       })
     );

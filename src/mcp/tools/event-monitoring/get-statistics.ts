@@ -1,9 +1,10 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import { BaseQSysTool, BaseToolParamsSchema } from '../base.js';
 import type { MonitoredStateManager } from '../../state/monitored-state-manager.js';
 import type { IControlSystem } from '../../interfaces/control-system.js';
 import type { ToolCallResult } from '../../handlers/index.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 
 /**
  * Parameters for getting event statistics (empty for now)
@@ -31,16 +32,31 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
     const startTime = Date.now();
 
     try {
-      // Cast control system to MonitoredStateManager to access event monitor
-      const stateManager = this.controlSystem as unknown as MonitoredStateManager;
-
-      // Check if getEventMonitor method exists
-      if (!stateManager.getEventMonitor) {
+      // Get state manager from adapter
+      const adapter = this.controlSystem as QRWCClientAdapter;
+      
+      // Check if adapter has getStateManager method
+      if (!adapter.getStateManager) {
         return {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not available. The system may not be configured with event monitoring support.',
+              text: 'Event monitoring is not available. The control system does not support state management.',
+            },
+          ],
+          isError: true,
+        };
+      }
+      
+      const stateManager = adapter.getStateManager() as MonitoredStateManager | undefined;
+      
+      // Check if state manager exists and has event monitor
+      if (!stateManager?.getEventMonitor) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Event monitoring is not available. Please ensure EVENT_MONITORING_ENABLED=true in your environment.',
             },
           ],
           isError: true,
@@ -58,11 +74,11 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
                 {
                   status: 'disabled',
                   message:
-                    'Event monitoring is not enabled. Set EVENT_MONITORING_ENABLED=true and create a change group with auto-polling to enable.',
+                    'Event monitoring is not active. Please create and subscribe to a change group with auto-polling to start recording events.',
                   configuration: {
                     EVENT_MONITORING_ENABLED: process.env['EVENT_MONITORING_ENABLED'] || 'false',
                     EVENT_MONITORING_DB_PATH: process.env['EVENT_MONITORING_DB_PATH'] || './data/events',
-                    EVENT_MONITORING_RETENTION_DAYS: process.env['EVENT_MONITORING_RETENTION_DAYS'] || '7',
+                    EVENT_MONITORING_RETENTION_DAYS: process.env['EVENT_MONITORING_RETENTION_DAYS'] || '30',
                     EVENT_MONITORING_BUFFER_SIZE: process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000',
                     EVENT_MONITORING_FLUSH_INTERVAL: process.env['EVENT_MONITORING_FLUSH_INTERVAL'] || '100',
                   },
@@ -114,7 +130,7 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
         configuration: {
           enabled: true,
           dbPath: process.env['EVENT_MONITORING_DB_PATH'] || './data/events',
-          retentionDays: parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] || '7', 10),
+          retentionDays: parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] || '30', 10),
           bufferSize: parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000', 10),
           flushInterval: parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] || '100', 10),
         },

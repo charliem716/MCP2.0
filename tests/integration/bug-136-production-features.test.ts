@@ -327,7 +327,7 @@ describe('BUG-136: Production Readiness Features', () => {
       // Missing credentials
       const missingResult = auth.authenticate('tools/call', {});
       expect(missingResult.authenticated).toBe(false);
-      expect(missingResult.error).toContain('Missing authentication');
+      expect(missingResult.error).toContain('Authentication required');
     });
 
     it('should allow anonymous access to specific methods', () => {
@@ -397,7 +397,15 @@ describe('BUG-136: Production Readiness Features', () => {
       // Mock QRWC client connection
       jest.spyOn(console, 'error').mockImplementation();
       
-      server = new MCPServer(config);
+      const mockToolRegistry = {
+        initialize: jest.fn().mockResolvedValue(undefined),
+        cleanup: jest.fn().mockResolvedValue(undefined),
+        listTools: jest.fn().mockResolvedValue([]),
+        callTool: jest.fn().mockResolvedValue({ content: [], isError: false }),
+        getToolCount: jest.fn().mockReturnValue(0),
+      };
+      
+      server = new MCPServer(config, { toolRegistry: mockToolRegistry as any });
       const status = server.getStatus();
       
       expect(status.production.rateLimiting).toBe(true);

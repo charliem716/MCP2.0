@@ -12,7 +12,9 @@ async function debugEventRecording() {
   // Clean up
   try {
     fs.rmSync(testDbPath, { recursive: true, force: true });
-  } catch (e) {}
+  } catch {
+    // Ignore errors if directory doesn't exist
+  }
   fs.mkdirSync(testDbPath, { recursive: true });
 
   const changeGroupEmitter = new EventEmitter();
@@ -84,7 +86,9 @@ async function debugEventRecording() {
   // Clean up
   try {
     fs.rmSync(testDbPath, { recursive: true, force: true });
-  } catch (e) {}
+  } catch {
+    // Ignore errors if directory doesn't exist
+  }
 }
 
 debugEventRecording().catch(console.error);

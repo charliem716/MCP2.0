@@ -3,8 +3,7 @@
  */
 
 import { describe, it, expect, jest } from '@jest/globals';
-import type { IControlSystem } from '../../../src/mcp/interfaces/control-system.js';
-import { ConnectionState } from '../../../src/shared/types/common.js';
+import { createMockDependencies, createTestConfig } from '../../helpers/mock-factory.js';
 
 // Mock logger
 jest.mock('../../../src/shared/utils/logger.js', () => ({
@@ -20,6 +19,13 @@ jest.mock('../../../src/shared/utils/logger.js', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     debug: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
+    })),
   },
 }));
 
@@ -36,42 +42,18 @@ describe('MCPServer - Simple Coverage Tests', () => {
     expect(serverModule.MCPServer).toBeDefined();
   });
 
-  it('should handle getInfo method', async () => {
+  it('should handle getStatus method', async () => {
     const { MCPServer } = await import('../../../src/mcp/server.js');
     
-    const mockQrwc: IControlSystem = {
-      isConnected: jest.fn().mockReturnValue(false),
-      connect: jest.fn(),
-      disconnect: jest.fn(),
-      sendCommand: jest.fn(),
-      on: jest.fn(),
-      removeAllListeners: jest.fn(),
-      getState: jest.fn().mockReturnValue(ConnectionState.DISCONNECTED),
-      // Optional methods
-      once: jest.fn(),
-      off: jest.fn(),
-      emit: jest.fn(),
-    };
+    const config = createTestConfig();
+    const dependencies = createMockDependencies();
 
-    // Use any transport that won't interfere
-    const mockTransport = {
-      start: jest.fn(),
-      close: jest.fn(),
-    };
-
-    const server = new MCPServer(
-      {
-        name: 'test-server',
-        version: '1.0.0',
-      },
-      mockQrwc,
-      mockTransport as any
-    );
+    const server = new MCPServer(config, dependencies);
     
-    const info = server.getInfo();
-    expect(info).toEqual({
-      name: 'test-server',
-      version: '1.0.0',
-    });
+    const status = server.getStatus();
+    expect(status).toBeDefined();
+    expect(status.name).toBe('test-server');
+    expect(status.version).toBe('1.0.0');
+    expect(status.isConnected).toBe(false);
   });
 });

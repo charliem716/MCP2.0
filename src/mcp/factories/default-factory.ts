@@ -21,6 +21,7 @@ import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { MCPServerConfig } from '../../shared/types/mcp.js';
 import type { IMCPServerFactory } from '../interfaces/dependencies.js';
 import type { IControlSystem } from '../interfaces/control-system.js';
+import type { IStateRepository } from '../state/repository.js';
 import type { ILogger } from '../interfaces/logger.js';
 
 /**
@@ -76,37 +77,53 @@ export class DefaultMCPServerFactory implements IMCPServerFactory {
     return adapter;
   }
 
-  createToolRegistry(adapter: QRWCClientAdapter): MCPToolRegistry {
-    // Register state repository factory if not already registered
+  async createToolRegistry(adapter: QRWCClientAdapter): Promise<MCPToolRegistry> {
+    // Create state repository first
+    const stateRepo = await this.createStateRepository(adapter);
+    
+    // Attach state manager to adapter
+    adapter.setStateManager(stateRepo);
+    
+    // Register state repository in container for other components
     if (!this.container.has(ServiceTokens.STATE_REPOSITORY)) {
-      this.container.registerFactory(ServiceTokens.STATE_REPOSITORY, async () => {
-        const { createStateRepository } = await import('../state/factory.js');
-        const { configManager } = await import('../../config/index.js');
-        
-        // Get event monitoring config from centralized config manager
-        const mcpConfig = configManager.get('mcp');
-        const eventMonitoringEnabled = mcpConfig.eventMonitoring?.enabled ?? false;
-        const repoType = eventMonitoringEnabled ? 'monitored' : 'simple';
-        
-        const config = {
-          maxEntries: 1000,
-          ttlMs: 3600000,
-          cleanupIntervalMs: 60000,
-          enableMetrics: true,
-          persistenceEnabled: false,
-          // Add event monitoring config if available
-          ...(mcpConfig.eventMonitoring ? {
-            eventMonitoring: mcpConfig.eventMonitoring
-          } : {})
-        };
-        
-        return await createStateRepository(repoType, config, adapter);
-      });
+      this.container.register(ServiceTokens.STATE_REPOSITORY, stateRepo);
     }
-
+    
+    // Create tool registry with adapter that now has state manager
     return new MCPToolRegistry(
       this.container.resolve<IControlSystem>(ServiceTokens.CONTROL_SYSTEM)
     );
+  }
+
+  private async createStateRepository(adapter: QRWCClientAdapter): Promise<IStateRepository> {
+    const { createStateRepository } = await import('../state/factory.js');
+    const { configManager } = await import('../../config/index.js');
+    
+    // Get event monitoring config from centralized config manager
+    const mcpConfig = configManager.get('mcp');
+    const eventMonitoringEnabled = mcpConfig.eventMonitoring?.enabled ?? false;
+    const repoType = eventMonitoringEnabled ? 'monitored' : 'simple';
+    
+    logger.debug('Creating state repository', {
+      eventMonitoringEnabled,
+      repoType,
+      hasEventMonitoring: !!mcpConfig.eventMonitoring,
+      eventMonitoringConfig: mcpConfig.eventMonitoring
+    });
+    
+    const config = {
+      maxEntries: 1000,
+      ttlMs: 3600000,
+      cleanupIntervalMs: 60000,
+      enableMetrics: true,
+      persistenceEnabled: false,
+      // Add event monitoring config if available
+      ...(mcpConfig.eventMonitoring ? {
+        eventMonitoring: mcpConfig.eventMonitoring
+      } : {})
+    };
+    
+    return await createStateRepository(repoType, config, adapter);
   }
 
   createRateLimiter(config: MCPServerConfig): MCPRateLimiter | undefined {

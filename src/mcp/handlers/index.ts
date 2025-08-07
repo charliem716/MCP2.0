@@ -3,6 +3,7 @@ import { globalLogger as logger } from '../../shared/utils/logger.js';
 import { config as envConfig } from '../../shared/utils/env.js';
 import type { IControlSystem } from '../interfaces/control-system.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
+import type { QRWCClientAdapter } from '../qrwc/adapter.js';
 
 // Import all Q-SYS tools
 import {
@@ -78,7 +79,6 @@ export class MCPToolRegistry {
 
   constructor(
     private controlSystem: IControlSystem
-    // BUG-132: EventCacheManager removed - simplified architecture
   ) {
     logger.debug('MCPToolRegistry created');
   }
@@ -153,11 +153,17 @@ export class MCPToolRegistry {
    */
   private registerEventMonitoringTools(): void {
     try {
-      // Check if the control system has event monitoring capability
-      // We need to check if it's a MonitoredStateManager by checking for getEventMonitor method
-      const stateManager = this.controlSystem as any;
+      // Check if the control system has state manager with event monitoring
+      // Type assertion is safe here as we know the control system is a QRWCClientAdapter
+      const adapter = this.controlSystem as QRWCClientAdapter;
+      const stateManager = adapter.getStateManager?.();
       
-      if (stateManager.getEventMonitor && typeof stateManager.getEventMonitor === 'function') {
+      // Check if it's a MonitoredStateManager with getEventMonitor method
+      const hasEventMonitor = stateManager && 
+        'getEventMonitor' in stateManager && 
+        typeof (stateManager as any).getEventMonitor === 'function';
+      
+      if (hasEventMonitor) {
         // Register event monitoring tools
         const eventTools: Array<BaseQSysTool<unknown>> = [
           createQueryChangeEventsTool(this.controlSystem),
@@ -172,7 +178,12 @@ export class MCPToolRegistry {
           tools: eventTools.map(t => t.name)
         });
       } else {
-        logger.debug('Event monitoring not available - tools not registered');
+        logger.debug('Event monitoring not available - tools not registered', {
+          hasAdapter: !!adapter,
+          hasGetStateManager: !!adapter.getStateManager,
+          hasStateManager: !!stateManager,
+          hasGetEventMonitor: hasEventMonitor
+        });
       }
     } catch (error) {
       logger.warn('Failed to register event monitoring tools', { error });

@@ -4,6 +4,7 @@ import type { MonitoredStateManager } from '../../state/monitored-state-manager.
 import type { IControlSystem } from '../../interfaces/control-system.js';
 import type { ToolCallResult } from '../../handlers/index.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 
 /**
  * Parameters for querying historical change events
@@ -62,16 +63,31 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
     const startTime = Date.now();
 
     try {
-      // Cast control system to MonitoredStateManager to access event monitor
-      const stateManager = this.controlSystem as unknown as MonitoredStateManager;
+      // Get state manager from adapter
+      const adapter = this.controlSystem as QRWCClientAdapter;
       
-      // Check if getEventMonitor method exists
-      if (!stateManager.getEventMonitor) {
+      // Check if adapter has getStateManager method
+      if (!adapter.getStateManager) {
         return {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not available. The system may not be configured with event monitoring support.',
+              text: 'Event monitoring is not available. The control system does not support state management.',
+            },
+          ],
+          isError: true,
+        };
+      }
+      
+      const stateManager = adapter.getStateManager() as MonitoredStateManager | undefined;
+      
+      // Check if state manager exists and has event monitor
+      if (!stateManager?.getEventMonitor) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Event monitoring is not available. Please ensure EVENT_MONITORING_ENABLED=true in your environment.',
             },
           ],
           isError: true,
@@ -85,7 +101,7 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not enabled. Please ensure EVENT_MONITORING_ENABLED=true and create a change group with auto-polling to start recording events.',
+              text: 'Event monitoring is not active. Please create and subscribe to a change group with auto-polling to start recording events.',
             },
           ],
           isError: true,
@@ -100,17 +116,17 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
       if (params.startTime !== undefined) queryParams.startTime = params.startTime;
       if (params.endTime !== undefined) queryParams.endTime = params.endTime;
       if (params.changeGroupId !== undefined) queryParams.changeGroupId = params.changeGroupId;
-      if (params.controlNames !== undefined) queryParams.controlNames = params.controlNames;
+      if (params.controlNames !== undefined) queryParams.controlPaths = params.controlNames; // Map to new interface
       if (params.componentNames !== undefined) queryParams.componentNames = params.componentNames;
       if (params.offset !== undefined) queryParams.offset = params.offset;
 
       const events = await eventMonitor.query(queryParams);
 
-      // Parse JSON values for better readability
+      // The new monitor returns raw values, not JSON strings
       const formattedEvents = events.map(event => ({
         ...event,
-        value: JSON.parse(event.value),
-        previousValue: event.previousValue ? JSON.parse(event.previousValue) : undefined,
+        value: event.value,
+        stringValue: event.stringValue
       }));
 
       const response = {

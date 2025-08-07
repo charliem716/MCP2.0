@@ -33,6 +33,7 @@ export interface AuthResult {
   clientId?: string;
   error?: string;
   metadata?: Record<string, unknown>;
+  anonymous?: boolean;
 }
 
 /**
@@ -85,10 +86,26 @@ export class MCPAuthenticator {
    * Authenticate a request
    */
   authenticate(
-    method: string,
+    methodOrContext: string | Record<string, any>,
     headers?: Record<string, string | string[]>,
     metadata?: Record<string, unknown>
   ): AuthResult {
+    // Support both signatures
+    let method: string;
+    let actualHeaders: Record<string, string | string[]> | undefined;
+    let actualMetadata: Record<string, unknown> | undefined;
+    
+    if (typeof methodOrContext === 'object' && methodOrContext !== null) {
+      // RequestContext object passed
+      method = methodOrContext['method'];
+      actualHeaders = methodOrContext['meta'] as Record<string, string | string[]>;
+      actualMetadata = methodOrContext['metadata'];
+    } else {
+      // Original signature
+      method = methodOrContext;
+      actualHeaders = headers;
+      actualMetadata = metadata;
+    }
     // Check if authentication is disabled
     if (!this.config.enabled) {
       return { authenticated: true, clientId: 'anonymous' };
@@ -96,17 +113,17 @@ export class MCPAuthenticator {
 
     // Check if method allows anonymous access
     if (this.isAnonymousAllowed(method)) {
-      return { authenticated: true, clientId: 'anonymous' };
+      return { authenticated: true, clientId: 'anonymous', anonymous: true };
     }
 
     // Extract auth credentials
-    const authHeader = this.extractAuthHeader(headers);
+    const authHeader = this.extractAuthHeader(actualHeaders);
     
     if (!authHeader) {
       this.logger.warn('Missing authentication header', { method });
       return {
         authenticated: false,
-        error: 'Missing authentication credentials',
+        error: 'Authentication required',
       };
     }
 
@@ -322,6 +339,32 @@ export class MCPAuthenticator {
       apiKeyCount: this.validApiKeys.size,
       cachedTokens: this.tokenCache.size,
       anonymousMethods: this.config.allowAnonymous,
+    };
+  }
+
+  /**
+   * Authorize a request based on authentication result
+   */
+  async authorize(authResult: AuthResult, context: any): Promise<{ authorized: boolean }> {
+    return Promise.resolve({
+      authorized: authResult.authenticated
+    });
+  }
+
+  /**
+   * Create middleware function for request processing
+   */
+  middleware() {
+    return async (context: any, next: Function) => {
+      const authResult = this.authenticate(
+        context.method,
+        context.headers,
+        context.metadata
+      );
+      if (!authResult.authenticated) {
+        throw new Error('Unauthorized');
+      }
+      return next();
     };
   }
 }

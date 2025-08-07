@@ -44,7 +44,7 @@ export async function createStateRepository(
       ...cacheConfig,
       // Only use eventMonitoring if provided in config
       // No fallback to environment variables - config should be passed from centralized source
-      eventMonitoring: eventMonitoring
+      eventMonitoring
     };
     await manager.initialize(monitoredConfig, qrwcAdapter);
     return manager as IStateRepository;

@@ -116,7 +116,8 @@ The system uses multiple configuration sources:
 - **Phase 1 Complete**: Q-SYS QRWC integration fully functional
 - Successfully connects to Q-SYS Cores with 42+ components
 - MCP server implementation ready for AI agent connections
-- Currently on `bug/001-fix` branch addressing several issues
+- **Event Monitoring Restored**: SQLite-based event tracking with MCP tools
+- Event monitoring tools (`query_change_events`, `get_event_statistics`) fully operational
 
 ### Important Notes
 

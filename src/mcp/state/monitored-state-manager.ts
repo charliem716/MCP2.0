@@ -37,9 +37,10 @@ export class MonitoredStateManager extends SimpleStateManager {
 
     // Initialize event monitoring if enabled and adapter is available
     if (monitoredConfig.eventMonitoring?.enabled && qrwcAdapter) {
+      // Get the underlying QRWC client from the adapter
+      const client = qrwcAdapter.getClient();
       this.eventMonitor = new SQLiteEventMonitor(
-        this,
-        qrwcAdapter,
+        client,
         monitoredConfig.eventMonitoring
       );
       await this.eventMonitor.initialize();

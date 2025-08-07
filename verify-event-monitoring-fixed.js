@@ -39,7 +39,9 @@ async function runTests() {
   // Clean up
   try {
     fs.rmSync(testDbPath, { recursive: true, force: true });
-  } catch (e) {}
+  } catch {
+    // Ignore errors if directory doesn't exist
+  }
   fs.mkdirSync(testDbPath, { recursive: true });
 
   // Setup
@@ -282,7 +284,9 @@ async function runTests() {
   // Clean up
   try {
     fs.rmSync(testDbPath, { recursive: true, force: true });
-  } catch (e) {}
+  } catch {
+    // Ignore errors if directory doesn't exist
+  }
 
   // Summary
   console.log('\n=============================================');

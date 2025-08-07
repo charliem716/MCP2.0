@@ -39,8 +39,16 @@ describe('BUG-028: Signal Handler Cleanup Integration Test', () => {
     // Import MCPServer after setting up logger
     const { MCPServer } = await import('../../../src/mcp/server');
     
+    const mockToolRegistry = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      cleanup: jest.fn().mockResolvedValue(undefined),
+      listTools: jest.fn().mockResolvedValue([]),
+      callTool: jest.fn().mockResolvedValue({ content: [], isError: false }),
+      getToolCount: jest.fn().mockReturnValue(0),
+    };
+    
     // Create first server (constructor sets up error handlers)
-    const server1 = new MCPServer(config);
+    const server1 = new MCPServer(config, { toolRegistry: mockToolRegistry as any });
     // Manually setup graceful shutdown handlers (normally done in start())
     const setupMethod =
       Object.getPrototypeOf(server1).constructor.prototype.setupGracefulShutdown;
@@ -142,7 +150,7 @@ describe('BUG-028: Signal Handler Cleanup Integration Test', () => {
 
     // Create multiple servers with proper cleanup
     for (let i = 0; i < 3; i++) {
-      const server = new MCPServer(config);
+      const server = new MCPServer(config, { toolRegistry: mockToolRegistry as any });
       setupMethod.call(server);
 
       // Mock for shutdown

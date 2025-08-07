@@ -20,6 +20,7 @@ import { withErrorRecovery } from '../../shared/utils/error-recovery.js';
 import {
   handleGetComponents,
   handleGetControls,
+  handleComponentGet,
   handleControlGet,
   handleControlSet,
   handleStatusGet,
@@ -131,7 +132,6 @@ export class QRWCClientAdapter
   private indexBuilt = false;
   private changeGroups = new Map<string, SimpleChangeGroup>();
   private autoPollTimers = new Map<string, NodeJS.Timeout>();
-  private changeGroupLastValues = new Map<string, Map<string, unknown>>();
   private autoPollFailureCounts = new Map<string, number>();
   private readonly MAX_AUTOPOLL_FAILURES = 10; // Configurable threshold
   private globalSequenceNumber = 0;
@@ -228,6 +228,14 @@ export class QRWCClientAdapter
     return this.officialClient.isConnected();
   }
 
+  /**
+   * Get the underlying OfficialQRWCClient instance
+   * Used by SQLiteEventMonitorV2 for SDK event monitoring
+   */
+  getClient(): OfficialQRWCClient {
+    return this.officialClient;
+  }
+
 
   // ===== Control Methods =====
 
@@ -258,9 +266,20 @@ export class QRWCClientAdapter
           throw new QSysError('QRWC client not connected', QSysErrorCode.CONNECTION_FAILED);
         }
 
+        // Safely log params without circular references
+        let safeParams: unknown;
+        try {
+          // Try to stringify params to check for circular references
+          JSON.stringify(params);
+          safeParams = params;
+        } catch {
+          // If params has circular references, just log the keys
+          safeParams = params ? Object.keys(params as Record<string, unknown>) : undefined;
+        }
+        
         logger.debug('Sending QRWC command via adapter', {
           command,
-          params,
+          params: safeParams,
           attempt,
         });
 
@@ -355,10 +374,13 @@ export class QRWCClientAdapter
     switch (command) {
       case 'Component.GetComponents':
       case 'ComponentGetComponents':
-        return () => handleGetComponents(params, this.officialClient);
+        return async () => handleGetComponents(params, this.officialClient);
       case 'Component.GetControls':
       case 'ComponentGetControls':
         return () => handleGetControls(params, this.officialClient);
+      case 'Component.Get':
+      case 'ComponentGet':
+        return () => handleComponentGet(params, this.officialClient);
       case 'Control.Get':
       case 'ControlGet':
         return () => handleControlGet(params, this.officialClient);
@@ -378,6 +400,8 @@ export class QRWCClientAdapter
         return () => this.handleChangeGroupCreate(params);
       case 'ChangeGroup.AddControl':
         return () => this.handleChangeGroupAddControl(params);
+      case 'ChangeGroup.AddComponentControl':
+        return () => this.handleChangeGroupAddComponentControl(params);
       case 'ChangeGroup.Poll':
         return () => this.handleChangeGroupPoll(params);
       case 'ChangeGroup.AutoPoll':
@@ -556,7 +580,6 @@ export class QRWCClientAdapter
 
     // Clear change groups
     this.changeGroups.clear();
-    this.changeGroupLastValues.clear();
     this.autoPollFailureCounts.clear();
 
     logger.info('All caches cleared due to long disconnection');
@@ -590,6 +613,41 @@ export class QRWCClientAdapter
     return {
       Id: groupId,
       result: 'Change group created successfully'
+    };
+  }
+
+  /**
+   * Handle ChangeGroup.AddComponentControl command (QRWC SDK format)
+   */
+  private handleChangeGroupAddComponentControl(params?: Record<string, unknown>): unknown {
+    if (!params?.['Id']) {
+      throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    const groupId = params['Id'] as string;
+    const componentParam = params['Component'] as { Name: string; Controls: { Name: string }[] } | undefined;
+    
+    if (!componentParam?.Name || !componentParam?.Controls) {
+      throw new QSysError('Component and Controls required', QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    // Convert to our internal format
+    const controls: string[] = componentParam.Controls.map(c => 
+      `${componentParam.Name}.${c.Name}`
+    );
+    
+    // Use existing AddControl logic and convert result to SDK format
+    const internalResult = this.handleChangeGroupAddControl({
+      Id: groupId,
+      Controls: controls
+    }) as { result: { addedCount: number } };
+    
+    // Return in QRWC SDK format
+    return {
+      result: {
+        Id: groupId,
+        Controls: controls
+      }
     };
   }
 
@@ -648,18 +706,19 @@ export class QRWCClientAdapter
         continue;
       }
       
-      // Validate control exists for real Q-SYS
+      // Validate control format and add to group
       const parts = control.split('.');
       if (parts.length === 2) {
         const [componentName, controlName] = parts;
-        const qrwc = this.officialClient.getQrwc() as QRWCInstance | undefined;
-        if (!componentName || !controlName || !qrwc) continue;
-        const component = qrwc.components[componentName];
-        if (component?.controls?.[controlName]) {
-          if (!group.controls.includes(control)) {
-            group.controls.push(control);
-            addedCount++;
-          }
+        if (!componentName || !controlName) continue;
+        
+        // Add control to group if not already present
+        // We don't validate against qrwc.components since components with Script Access
+        // may not be loaded in the SDK (like TableMicMeter)
+        if (!group.controls.includes(control)) {
+          group.controls.push(control);
+          addedCount++;
+          logger.debug(`Added control ${control} to change group ${groupId}`);
         }
       }
     }
@@ -682,7 +741,11 @@ export class QRWCClientAdapter
   /**
    * Handle ChangeGroup.Poll command
    */
-  // eslint-disable-next-line max-statements -- Complex polling logic checking control changes across multiple components
+  /**
+   * Handle ChangeGroup.Poll command
+   * Note: With SDK-based event monitoring, this is primarily for compatibility.
+   * Real events come from SDK control.on('update') listeners.
+   */
   private handleChangeGroupPoll(params?: Record<string, unknown>): unknown {
     if (!params?.['Id']) {
       throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
@@ -695,29 +758,22 @@ export class QRWCClientAdapter
       throw new QSysError('Change group not found', QSysErrorCode.COMMAND_FAILED);
     }
     
-    const changes: Array<{ Name: string; Value: unknown; String: string }> = [];
+    // Return current values for all controls in the group
+    // No change detection needed - SDK handles that
+    const values: Array<{ Name: string; Value: unknown; String: string }> = [];
     const qrwc = this.officialClient.getQrwc() as QRWCInstance | undefined;
     
-    // Get or create last values map for this group
-    let lastValues = this.changeGroupLastValues.get(groupId);
-    if (!lastValues) {
-      lastValues = new Map();
-      this.changeGroupLastValues.set(groupId, lastValues);
-    }
-    
-    // Check each control for changes
     for (const controlPath of group.controls) {
       let currentValue: number;
       let currentString: string;
       
-      // Use simulator if enabled and not connected to real Core
+      // Use simulator if enabled
       if (this.useSimulation && this.simulator) {
         const simValue = this.simulator.getControlValue(controlPath);
         if (simValue) {
           currentValue = simValue.Value;
           currentString = simValue.String;
         } else {
-          // Control not in simulator, skip
           continue;
         }
       } else {
@@ -730,49 +786,25 @@ export class QRWCClientAdapter
         const control = component?.controls?.[controlName];
         
         if (control) {
-          // Get control state which has IControlState interface
           const controlState = control.state;
           currentValue = controlState.Value ?? 0;
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety: String may be undefined despite types
           currentString = controlState.String ?? String(currentValue);
-          
-          // For consistency with tests, strip common units from string values
-          if (typeof currentString === 'string') {
-            currentString = currentString.replace(/dB$/, '');
-          }
         } else {
           continue;
         }
       }
       
-      const lastValue = lastValues.get(controlPath);
-      
-      if (lastValue === undefined || lastValue !== currentValue) {
-        changes.push({
-          Name: controlPath,
-          Value: currentValue,
-          String: currentString,
-        });
-        lastValues.set(controlPath, currentValue);
-      }
-    }
-    
-    // Emit event if there are changes
-    if (changes.length > 0) {
-      const event: ChangeGroupEvent = {
-        groupId,
-        changes,
-        timestamp: BigInt(Date.now()) * BigInt(1000000),
-        timestampMs: Date.now(),
-        sequenceNumber: this.globalSequenceNumber++,
-      };
-      this.emit('changeGroup:changes', event);
+      values.push({
+        Name: controlPath,
+        Value: currentValue,
+        String: currentString,
+      });
     }
     
     return {
       result: {
         Id: groupId,
-        Changes: changes,
+        Changes: values, // Return all current values
       },
     };
   }
@@ -868,7 +900,6 @@ export class QRWCClientAdapter
     
     // Remove group and associated data
     this.changeGroups.delete(groupId);
-    this.changeGroupLastValues.delete(groupId);
     this.autoPollFailureCounts.delete(groupId);
     
     return { result: true };

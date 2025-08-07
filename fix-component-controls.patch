@@ -1,0 +1,16 @@
+## Fixes for Component Control Methods
+
+This patch fixes three critical issues:
+
+1. Component.GetControls - Handle components not in qrwc.components
+2. Component.Get - Implement missing method  
+3. Control.Get - Support Code Names without dots
+
+### Files to modify:
+- src/mcp/qrwc/command-handlers.ts
+- src/mcp/qrwc/adapter.ts
+
+### Key changes:
+1. Add fallback for components not in QRWC SDK
+2. Implement Component.Get handler
+3. Update parseControlName to handle single-word Code Names

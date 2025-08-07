@@ -27,7 +27,7 @@ export interface IMCPServerFactory {
   createTransport(): StdioServerTransport;
   createQRWCClient(config: MCPServerConfig): OfficialQRWCClient;
   createQRWCAdapter(client: OfficialQRWCClient): QRWCClientAdapter;
-  createToolRegistry(adapter: QRWCClientAdapter): MCPToolRegistry;
+  createToolRegistry(adapter: QRWCClientAdapter): MCPToolRegistry | Promise<MCPToolRegistry>;
   createRateLimiter(config: MCPServerConfig): MCPRateLimiter | undefined;
   createInputValidator(): InputValidator;
   createHealthChecker(

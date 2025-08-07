@@ -32,7 +32,7 @@ let loggerClosed = false;
  * Initialize and return MCP server
  * This is the composition root where all dependencies are wired together
  */
-function initializeMCPServer(): MCPServer {
+async function initializeMCPServer(): Promise<MCPServer> {
   const appConfig = configManager.getConfig();
   
   const mcpConfig: MCPServerConfig = {
@@ -56,7 +56,7 @@ function initializeMCPServer(): MCPServer {
   const transport = factory.createTransport();
   const qrwcClient = factory.createQRWCClient(mcpConfig);
   const qrwcAdapter = factory.createQRWCAdapter(qrwcClient);
-  const toolRegistry = factory.createToolRegistry(qrwcAdapter);
+  const toolRegistry = await factory.createToolRegistry(qrwcAdapter);
   
   // Create production features
   const rateLimiter = factory.createRateLimiter(mcpConfig);
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
     debugLog('Configuration loaded');
 
     // Initialize and start MCP server
-    mcpServer = initializeMCPServer();
+    mcpServer = await initializeMCPServer();
     logger.info('✅ MCP server initialized');
     debugLog('MCP server initialized');
 

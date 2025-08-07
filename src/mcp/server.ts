@@ -1,5 +1,5 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -18,21 +18,24 @@ const debugLog = (message: string, data?: unknown) => {
     : `${timestamp} [MCP-DEBUG] ${message}\n`;
   process.stderr.write(logEntry);
 };
-import { MCPToolRegistry, type ToolCallResult } from './handlers/index.js';
-import { OfficialQRWCClient } from '../qrwc/officialClient.js';
-import { QRWCClientAdapter } from './qrwc/adapter.js';
+import type { MCPToolRegistry} from './handlers/index.js';
+import { type ToolCallResult } from './handlers/index.js';
+import type { OfficialQRWCClient } from '../qrwc/officialClient.js';
+import type { QRWCClientAdapter } from './qrwc/adapter.js';
 // BUG-132: EventCacheManager removed - using simplified state management
 import type { MCPServerConfig } from '../shared/types/mcp.js';
 import { DIContainer, ServiceTokens } from './infrastructure/container.js';
 import type { IControlSystem } from './interfaces/control-system.js';
 
 // Production readiness imports
-import { MCPRateLimiter, createRateLimitError } from './middleware/rate-limit.js';
-import { InputValidator } from './middleware/validation.js';
-import { HealthChecker } from './health/health-check.js';
+import type { MCPRateLimiter} from './middleware/rate-limit.js';
+import { createRateLimitError } from './middleware/rate-limit.js';
+import type { InputValidator } from './middleware/validation.js';
+import type { HealthChecker } from './health/health-check.js';
 import { createQSysCircuitBreaker, type CircuitBreaker } from './infrastructure/circuit-breaker.js';
 import { getMetrics, type MCPMetrics } from './monitoring/metrics.js';
-import { MCPAuthenticator, createAuthError } from './middleware/auth.js';
+import type { MCPAuthenticator} from './middleware/auth.js';
+import { createAuthError } from './middleware/auth.js';
 
 // Dependency injection imports
 import type { MCPServerDependencies, PartialMCPServerDependencies } from './interfaces/dependencies.js';
@@ -94,7 +97,11 @@ export class MCPServer {
     this.transport = dependencies?.transport ?? factory.createTransport();
     this.officialQrwcClient = dependencies?.officialQrwcClient ?? factory.createQRWCClient(config);
     this.qrwcClientAdapter = dependencies?.qrwcClientAdapter ?? factory.createQRWCAdapter(this.officialQrwcClient);
-    this.toolRegistry = dependencies?.toolRegistry ?? factory.createToolRegistry(this.qrwcClientAdapter);
+    // Tool registry must be provided via dependencies since it may be async
+    if (!dependencies?.toolRegistry) {
+      throw new Error('toolRegistry must be provided in dependencies');
+    }
+    this.toolRegistry = dependencies.toolRegistry;
     
     // Production features - handle undefined values from factory
     const rateLimiterResult = dependencies?.rateLimiter !== undefined 

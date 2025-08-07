@@ -1,198 +1,224 @@
-# Bug Priority Analysis: Active Bugs and Implementation Order
+# Bug Priority and Implementation Order
 
-**Updated**: 2025-01-31  
-**Purpose**: Determine optimal implementation order based on dependencies and impact
+**Updated**: 2025-08-07  
+**Purpose**: Production readiness bug tracking and prioritization  
+**Target**: Transform 85% healthy system to 98%+ production-ready
 
 ## Executive Summary
 
-### Completed Bugs:
-- ✅ **BUG-140** - ESLint errors fixed
-- ✅ **BUG-141** - Hanging tests resolved (DELETED)
-- ✅ **BUG-142** - Error-recovery.ts refactored with DI
-- ✅ **BUG-143** - Coverage improved with qsys-responses.ts tests
+15 bugs identified for production readiness, organized by priority and dependencies. Critical path focuses on stability, security, and reliability before optimization and nice-to-haves.
 
-### Active Bugs - Implementation Order:
+## Implementation Order by Priority
 
-#### Phase 0: Critical Event Monitoring Restoration
-1. **BUG-150** (5 days) - Restore event monitoring system with SQLite
+### Phase 1: Critical Blockers (Day 1-2)
+**Must be fixed before any production deployment**
 
-#### Phase 1: High Priority DI Refactoring (Source Code Changes)
-2. **BUG-145** (4 hours) - GlobalErrorHandler DI refactoring
-3. **BUG-146** (2 hours) - SecurityHeadersProvider DI refactoring
+#### P0 - Emergency (Blocking Everything)
 
-#### Phase 2: Test Fixes (No Source Changes)
-4. **BUG-147** (2 hours) - Fix auth.coverage-boost.test.ts parameters
+1. **BUG-160** - Fix Critical Test Failures ⚠️
+   - **Impact**: Blocks all other work
+   - **Effort**: 1 day
+   - **Status**: 14 test suites failing (83% pass rate)
+   - **Why First**: Can't validate other fixes without working tests
 
-#### Phase 3: Additional DI Refactoring
-5. **BUG-148** (1 day) - State management files DI refactoring
-6. **BUG-149** (1 day) - QRWC adapter layer DI refactoring
+2. **BUG-161** - Security Vulnerabilities and Dependencies 🔒
+   - **Impact**: Security risk
+   - **Effort**: 2 hours
+   - **Status**: Audit needed
+   - **Why Second**: Critical vulnerabilities must be fixed
 
-## Dependency Analysis for Active Bugs
+### Phase 2: Stability & Reliability (Day 2-3)
+**Core production requirements**
 
-### BUG-150: Restore Event Monitoring System
-- **Dependencies**: None (can work with existing SimpleStateManager)
-- **Blocks**: AI agents cannot monitor real-time changes or query history
-- **Effort**: 5 days (detailed plan in event-cache-sqlite-plan.md)
-- **Impact**: CRITICAL - Restores essential MCP functionality that was removed
+#### P1 - High Priority
 
-### BUG-145: GlobalErrorHandler DI Refactoring
-- **Dependencies**: None
-- **Blocks**: Tests that need to mock GlobalErrorHandler
-- **Effort**: 4 hours
-- **Impact**: Enables proper testing of error handling, improves testability
+3. **BUG-162** - Connection Resilience and Retry Logic 🔄
+   - **Impact**: Production stability
+   - **Effort**: 4 hours
+   - **Status**: No retry mechanism
+   - **Why**: Prevents 3am failures
 
-### BUG-146: SecurityHeadersProvider DI Refactoring
-- **Dependencies**: None
-- **Blocks**: Security middleware tests
-- **Effort**: 2 hours
-- **Impact**: Removes hacky try-catch workaround, cleaner code
+4. **BUG-163** - Error Boundaries and Handling 🛡️
+   - **Impact**: Prevents crashes
+   - **Effort**: 4 hours
+   - **Status**: Missing error boundaries
+   - **Why**: Server stays running
 
-### BUG-147: Fix auth.coverage-boost.test.ts
-- **Dependencies**: None (MCPAuthenticator already supports DI)
-- **Blocks**: Auth middleware coverage
-- **Effort**: 2 hours
-- **Impact**: Fixes 16 failing tests, improves coverage
+5. **BUG-164** - Structured Logging and Monitoring 📊
+   - **Impact**: Debugging capability
+   - **Effort**: 4 hours
+   - **Status**: No correlation IDs
+   - **Why**: Production debugging
 
-### BUG-148: State Management DI Refactoring
-- **Dependencies**: Pattern established by BUG-145/146
-- **Blocks**: State management unit tests
-- **Effort**: 1 day (3 files)
-- **Impact**: Critical for testing state persistence and caching
+6. **BUG-172** - Health Check Endpoint 🏥
+   - **Impact**: Monitoring/Kubernetes
+   - **Effort**: 2 hours
+   - **Status**: No health endpoint
+   - **Why**: Required for deployment
 
-### BUG-149: QRWC Adapter Layer DI Refactoring
-- **Dependencies**: Pattern established by BUG-145/146
-- **Blocks**: Q-SYS integration tests
-- **Effort**: 1 day (4 files)
-- **Impact**: Essential for Q-SYS communication testing
+### Phase 3: Quality & Documentation (Day 4)
+**Professional deployment requirements**
 
-## Implementation Order Rationale
+#### P2 - Medium Priority
 
-### Phase 0: Critical Event Monitoring (Days 1-5)
+7. **BUG-165** - File Structure Cleanup 📁
+   - **Impact**: Maintainability
+   - **Effort**: 2 hours
+   - **Status**: 45 scattered files
+   - **Why**: Professional codebase
 
-#### 1. BUG-150 FIRST - Event Monitoring System
-**Why first:**
-- CRITICAL functionality that was accidentally removed
-- AI agents cannot function properly without event monitoring
-- No dependencies on other bugs
-- Detailed implementation plan already created
-- SQLite solution requires no external dependencies
-- 5 days allows for proper implementation and testing
+8. **BUG-166** - Production Documentation 📚
+   - **Impact**: Deployment success
+   - **Effort**: 4 hours
+   - **Status**: No deployment guide
+   - **Why**: Enables deployment
 
-### Phase 1: High Priority DI Refactoring (Day 6)
+9. **BUG-167** - Database Performance Optimization ⚡
+   - **Impact**: Scalability
+   - **Effort**: 1 day
+   - **Status**: Slow queries at scale
+   - **Why**: Production performance
 
-#### 2. BUG-145 SECOND - GlobalErrorHandler (Morning)
-**Why second:**
-- No dependencies, standalone refactoring
-- Establishes DI pattern for other files
-- GlobalErrorHandler is used across the codebase
-- Has singleton export that needs careful handling
-- 4 hours allows for thorough testing
+### Phase 4: Nice-to-Haves (Day 5-6)
+**Improvements but not blockers**
 
-#### 3. BUG-146 THIRD - SecurityHeadersProvider (Afternoon)
-**Why third:**
-- Already has a try-catch workaround showing the problem exists
-- Simpler than BUG-145 (no singleton pattern)
-- Quick win that removes technical debt
-- 2 hours to complete
+#### P3 - Low Priority
 
-### Phase 2: Test Fixes (Day 6 End/Day 7 Morning)
+10. **BUG-168** - Load Testing 🔨
+    - **Impact**: Capacity planning
+    - **Effort**: 4 hours
+    - **Status**: No benchmarks
+    - **Why**: Validates capacity
 
-#### 4. BUG-147 FOURTH - Auth Test Fixes
-**Why fourth:**
-- No source code changes needed
-- MCPAuthenticator already has proper DI
-- Just need to fix test parameters
-- Will immediately improve coverage
-- Good break from refactoring work
+11. **BUG-169** - Graceful Shutdown 🛑
+    - **Impact**: Clean restarts
+    - **Effort**: 2 hours
+    - **Status**: No signal handling
+    - **Why**: Data integrity
 
-### Phase 3: Broader DI Refactoring (Day 7-8)
+12. **BUG-170** - Configuration Management ⚙️
+    - **Impact**: Flexibility
+    - **Effort**: 4 hours
+    - **Status**: No validation
+    - **Why**: Multi-environment
 
-#### 5. BUG-148 FIFTH - State Management
-**Why fifth:**
-- Can follow established DI patterns
-- 3 related files can be done together
-- Critical for application functionality
-- State management needs good test coverage
+13. **BUG-171** - Database Backup Strategy 💾
+    - **Impact**: Disaster recovery
+    - **Effort**: 4 hours
+    - **Status**: No backups
+    - **Why**: Data protection
 
-#### 6. BUG-149 SIXTH - QRWC Adapter Layer
-**Why sixth:**
-- Can follow established DI patterns  
-- 4 files but similar refactoring needed
-- Important for Q-SYS integration testing
-- Can be done in parallel with BUG-148 if needed
+14. **BUG-173** - CI/CD Pipeline 🚀
+    - **Impact**: Development velocity
+    - **Effort**: 1 day
+    - **Status**: No automation
+    - **Why**: Quality assurance
+
+### Phase 5: Final Validation (Day 7)
+
+15. **BUG-174** - Production Validation Checklist ✅
+    - **Impact**: Go/No-go decision
+    - **Effort**: 1 day
+    - **Status**: Final gate
+    - **Why**: Ensures readiness
+
+## Dependency Graph
+
+```
+BUG-160 (Tests) ──┬──> BUG-161 (Security)
+                  ├──> BUG-162 (Connection)
+                  ├──> BUG-163 (Errors)
+                  └──> BUG-164 (Logging)
+                           │
+                           ├──> BUG-172 (Health)
+                           ├──> BUG-165 (Cleanup)
+                           └──> BUG-166 (Docs)
+                                    │
+                                    ├──> BUG-167 (Performance)
+                                    └──> BUG-168-173 (Nice-to-haves)
+                                              │
+                                              └──> BUG-174 (Final Validation)
+```
 
 ## Risk Analysis
 
-### If Order Is Changed:
+### If Order Changed:
 
-**Skipping BUG-150 (Event Monitoring):**
-- ❌ CRITICAL: MCP server remains without event monitoring
-- ❌ AI agents cannot track Q-SYS changes
-- ❌ No historical data for analysis
-- ❌ Major functionality gap remains
+**Starting without fixing tests (BUG-160):**
+- ❌ Can't verify any fixes work
+- ❌ May introduce new bugs
+- ❌ No regression detection
 
-**Starting with Phase 3 before Phase 1:**
-- ❌ No established DI pattern to follow
-- ❌ Inconsistent implementations across files
-- ❌ More rework needed later
+**Skipping security (BUG-161):**
+- ❌ Production vulnerabilities
+- ❌ Potential data breach
+- ❌ Compliance issues
 
-**Skipping BUG-147 (test fixes):**
-- ⚠️ Missing easy coverage wins
-- ⚠️ 16 tests remain failing
-- ⚠️ Auth middleware stays untested
-
-**Doing BUG-148/149 before BUG-145/146:**
-- ❌ More complex files without pattern
-- ❌ Higher risk of mistakes
-- ❌ Longer implementation time
-
-## Parallel Work Opportunities
-
-Once Phase 1 is complete:
-- **Developer A**: Work on BUG-148 (state management)
-- **Developer B**: Work on BUG-149 (QRWC adapter)
-- **Developer C**: Fix BUG-147 (test parameters)
+**Deploying without error handling (BUG-163):**
+- ❌ Production crashes
+- ❌ Poor user experience
+- ❌ Difficult debugging
 
 ## Success Metrics
 
-After implementing in recommended order:
-1. **Phase 0**: Event monitoring restored with 33Hz capability, 30-day retention
-2. **Phase 1**: Clean DI pattern established, 2 files refactored
-3. **Phase 2**: 16 auth tests passing
-4. **Phase 3**: All logger imports use DI pattern
-5. **Overall**: Critical MCP functionality restored AND test coverage reaches 80%
+### Must Have (Production Blockers):
+- ✅ Tests: >95% passing
+- ✅ Security: 0 critical vulnerabilities  
+- ✅ Stability: No unhandled exceptions
+- ✅ Monitoring: Health endpoint working
+
+### Should Have (Professional):
+- ✅ Documentation complete
+- ✅ Performance optimized
+- ✅ Clean codebase
+- ✅ Backup strategy
+
+### Nice to Have (Excellence):
+- ✅ CI/CD pipeline
+- ✅ Load testing complete
+- ✅ Full automation
 
 ## Timeline Estimate
 
-Following recommended order:
-- **Days 1-5**: Implement BUG-150 (Event Monitoring System)
-- **Day 6**: Complete BUG-145, BUG-146, start BUG-147
-- **Day 7**: Complete BUG-147, work on BUG-148
-- **Day 8**: Complete BUG-148, work on BUG-149
-- **Day 8 End**: All critical bugs resolved
+```
+Day 1: BUG-160 (Fix tests)
+Day 2: BUG-161, 162, 163 (Security & Stability)
+Day 3: BUG-164, 172, 165 (Monitoring & Cleanup)
+Day 4: BUG-166, 167 (Documentation & Performance)
+Day 5: BUG-168, 169, 170 (Testing & Config)
+Day 6: BUG-171, 173 (Backup & CI/CD)
+Day 7: BUG-174 (Final Validation)
+```
 
-**Total: 8 days to restore critical functionality and complete DI refactoring**
+**Total: 7 working days to production ready**
 
-## Key Benefits of DI Refactoring
+## Quick Reference
 
-1. **Eliminates ES module mocking issues** - No more `jest.unstable_mockModule`
-2. **Improves testability** - Easy to inject mock loggers
-3. **Reduces test complexity** - Simpler test setup
-4. **Increases reliability** - No flaky mocking behavior
-5. **Better separation of concerns** - Explicit dependencies
+| BUG | Title | Priority | Effort | Status |
+|-----|-------|----------|--------|--------|
+| 160 | Fix Critical Test Failures | P0 | 1 day | Open |
+| 161 | Security Vulnerabilities | P0 | 2 hours | Open |
+| 162 | Connection Resilience | P1 | 4 hours | Open |
+| 163 | Error Boundaries | P1 | 4 hours | Open |
+| 164 | Structured Logging | P1 | 4 hours | Open |
+| 165 | File Structure Cleanup | P2 | 2 hours | Open |
+| 166 | Production Documentation | P2 | 4 hours | Open |
+| 167 | Database Performance | P2 | 1 day | Open |
+| 168 | Load Testing | P3 | 4 hours | Open |
+| 169 | Graceful Shutdown | P3 | 2 hours | Open |
+| 170 | Configuration Management | P3 | 4 hours | Open |
+| 171 | Database Backup | P3 | 4 hours | Open |
+| 172 | Health Check Endpoint | P1 | 2 hours | Open |
+| 173 | CI/CD Pipeline | P3 | 1 day | Open |
+| 174 | Final Validation | P1 | 1 day | Open |
 
-## Recommendations
+## Next Actions
 
-1. **Start with BUG-145** - Establishes the pattern
-2. **Document the DI pattern** - Update coding standards
-3. **Review all logger imports** - Ensure completeness
-4. **Update test examples** - Show proper mock injection
-5. **Consider factory pattern** - For complex instantiations
+1. **Immediate**: Start with BUG-160 (fix failing tests)
+2. **Today**: Complete security audit (BUG-161)
+3. **Tomorrow**: Implement stability features (BUG-162, 163)
+4. **This Week**: Achieve production ready status
 
-## Next Steps After Completion
+---
 
-1. Run full test suite with coverage
-2. Verify 80% threshold is met
-3. Remove any remaining `jest.mock` calls for logger
-4. Update developer documentation
-5. Consider DI for other dependencies (not just logger)
+**Note**: This plan transforms the current 85% healthy system into a 98%+ production-ready MCP server in 7 working days.

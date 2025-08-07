@@ -51,6 +51,12 @@ export function extractControlValue(state: unknown): {
   let type = 'String';
 
   if (state && typeof state === 'object') {
+    // Check if this is a QRWC SDK Control object with a state property
+    if ('state' in (state as any) && typeof (state as any).state === 'object') {
+      // Extract from the state property of a Control object
+      return extractControlValue((state as any).state);
+    }
+    
     const stateObj = state as QSYSControlState;
 
     // Handle different state object formats

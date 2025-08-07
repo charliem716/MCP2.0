@@ -97,16 +97,15 @@ class ConfigManager {
     try {
       // Look for config file relative to the module location, not cwd
       // This ensures it works when launched from any directory (like Claude Desktop)
-      const moduleDir = path.dirname(new URL(import.meta.url).pathname);
-      const projectRoot = path.resolve(moduleDir, '..', '..');
+      const projectRoot = process.cwd();
       const configPath = path.join(projectRoot, 'qsys-core.config.json');
       
       if (fs.existsSync(configPath)) {
         const configContent = fs.readFileSync(configPath, 'utf-8');
-        const parsed = JSON.parse(configContent) as any;
+        const parsed = JSON.parse(configContent);
         // Extract the qsysCore property from the JSON
-        if (parsed && typeof parsed === 'object' && parsed.qsysCore) {
-          fileConfig = parsed.qsysCore as FileConfig;
+        if (parsed && typeof parsed === 'object' && 'qsysCore' in parsed) {
+          fileConfig = (parsed).qsysCore as FileConfig;
         }
       }
     } catch (error) {

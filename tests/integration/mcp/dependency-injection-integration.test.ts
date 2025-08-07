@@ -36,7 +36,7 @@ describe('Dependency Injection Integration', () => {
     container.clear();
   });
 
-  it('should create all dependencies using the factory', () => {
+  it('should create all dependencies using the factory', async () => {
     const config: MCPServerConfig = {
       name: 'test-server',
       version: '1.0.0',
@@ -75,7 +75,7 @@ describe('Dependency Injection Integration', () => {
     expect(qrwcAdapter).toBeDefined();
     expect(qrwcAdapter.constructor.name).toBe('QRWCClientAdapter');
 
-    const toolRegistry = factory.createToolRegistry(qrwcAdapter);
+    const toolRegistry = await factory.createToolRegistry(qrwcAdapter);
     expect(toolRegistry).toBeDefined();
     expect(toolRegistry.constructor.name).toBe('MCPToolRegistry');
 
@@ -199,7 +199,7 @@ describe('Dependency Injection Integration', () => {
     const transport = factory.createTransport();
     const qrwcClient = factory.createQRWCClient(config);
     const qrwcAdapter = factory.createQRWCAdapter(qrwcClient);
-    const toolRegistry = factory.createToolRegistry(qrwcAdapter);
+    const toolRegistry = await factory.createToolRegistry(qrwcAdapter);
     const rateLimiter = factory.createRateLimiter(config);
     const inputValidator = factory.createInputValidator();
     const healthChecker = factory.createHealthChecker(qrwcClient, config.version);
