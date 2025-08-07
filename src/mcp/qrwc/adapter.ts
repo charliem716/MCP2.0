@@ -28,6 +28,7 @@ import {
   handleDirectControl,
 } from './command-handlers.js';
 import type { CommandMap, CommandName, CommandParams, CommandResult } from './command-map.js';
+import { ControlSimulator } from './control-simulator.js';
 import { isQSysApiResponse, type QSysApiResponse } from '../types/qsys-api-responses.js';
 import type { IControlSystem, ControlSystemCommand } from '../interfaces/control-system.js';
 import type { IStateRepository } from '../state/repository.js';
@@ -136,10 +137,21 @@ export class QRWCClientAdapter
   private globalSequenceNumber = 0;
   private stateManager?: IStateRepository;
 
+  private simulator: ControlSimulator | null = null;
+  private useSimulation = false;
+
   constructor(private readonly officialClient: OfficialQRWCClient) {
     super();
     // Extract host and port from the official client if possible
     // We'll initialize the raw command client lazily when needed
+    
+    // Initialize simulator for testing when not connected to real Core
+    if (process.env['USE_CONTROL_SIMULATION'] === 'true') {
+      this.simulator = new ControlSimulator();
+      this.simulator.start();
+      this.useSimulation = true;
+      logger.info('Control simulator enabled for 33Hz testing');
+    }
   }
 
   // ===== State Manager Integration =====
@@ -627,7 +639,16 @@ export class QRWCClientAdapter
     // Add controls that don't already exist
     let addedCount = 0;
     for (const control of controls) {
-      // Validate control exists
+      // If using simulation, skip validation
+      if (this.useSimulation && this.simulator) {
+        if (!group.controls.includes(control)) {
+          group.controls.push(control);
+          addedCount++;
+        }
+        continue;
+      }
+      
+      // Validate control exists for real Q-SYS
       const parts = control.split('.');
       if (parts.length === 2) {
         const [componentName, controlName] = parts;
@@ -686,35 +707,53 @@ export class QRWCClientAdapter
     
     // Check each control for changes
     for (const controlPath of group.controls) {
-      const parts = controlPath.split('.');
-      if (parts.length !== 2) continue;
-      const [componentName, controlName] = parts;
-      if (!componentName || !controlName || !qrwc) continue;
-      const component = qrwc.components[componentName];
-      const control = component?.controls?.[controlName];
+      let currentValue: number;
+      let currentString: string;
       
-      if (control) {
-        // Get control state which has IControlState interface
-        const controlState = control.state;
-        const currentValue = controlState.Value ?? 0;
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety: String may be undefined despite types
-        let currentString = controlState.String ?? String(currentValue);
-        
-        // For consistency with tests, strip common units from string values
-        if (typeof currentString === 'string') {
-          currentString = currentString.replace(/dB$/, '');
+      // Use simulator if enabled and not connected to real Core
+      if (this.useSimulation && this.simulator) {
+        const simValue = this.simulator.getControlValue(controlPath);
+        if (simValue) {
+          currentValue = simValue.Value;
+          currentString = simValue.String;
+        } else {
+          // Control not in simulator, skip
+          continue;
         }
+      } else {
+        // Use real Q-SYS Core values
+        const parts = controlPath.split('.');
+        if (parts.length !== 2) continue;
+        const [componentName, controlName] = parts;
+        if (!componentName || !controlName || !qrwc) continue;
+        const component = qrwc.components[componentName];
+        const control = component?.controls?.[controlName];
         
-        const lastValue = lastValues.get(controlPath);
-        
-        if (lastValue === undefined || lastValue !== currentValue) {
-          changes.push({
-            Name: controlPath,
-            Value: currentValue,
-            String: currentString,
-          });
-          lastValues.set(controlPath, currentValue);
+        if (control) {
+          // Get control state which has IControlState interface
+          const controlState = control.state;
+          currentValue = controlState.Value ?? 0;
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety: String may be undefined despite types
+          currentString = controlState.String ?? String(currentValue);
+          
+          // For consistency with tests, strip common units from string values
+          if (typeof currentString === 'string') {
+            currentString = currentString.replace(/dB$/, '');
+          }
+        } else {
+          continue;
         }
+      }
+      
+      const lastValue = lastValues.get(controlPath);
+      
+      if (lastValue === undefined || lastValue !== currentValue) {
+        changes.push({
+          Name: controlPath,
+          Value: currentValue,
+          String: currentString,
+        });
+        lastValues.set(controlPath, currentValue);
       }
     }
     
