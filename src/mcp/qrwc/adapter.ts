@@ -30,6 +30,7 @@ import {
 import type { CommandMap, CommandName, CommandParams, CommandResult } from './command-map.js';
 import { isQSysApiResponse, type QSysApiResponse } from '../types/qsys-api-responses.js';
 import type { IControlSystem, ControlSystemCommand } from '../interfaces/control-system.js';
+import type { IStateRepository } from '../state/repository.js';
 
 /**
  * Interface that MCP tools expect from a QRWC client
@@ -133,11 +134,32 @@ export class QRWCClientAdapter
   private autoPollFailureCounts = new Map<string, number>();
   private readonly MAX_AUTOPOLL_FAILURES = 10; // Configurable threshold
   private globalSequenceNumber = 0;
+  private stateManager?: IStateRepository;
 
   constructor(private readonly officialClient: OfficialQRWCClient) {
     super();
     // Extract host and port from the official client if possible
     // We'll initialize the raw command client lazily when needed
+  }
+
+  // ===== State Manager Integration =====
+
+  /**
+   * Set the state manager for this adapter
+   * This allows event monitoring tools to access the state through the control system
+   */
+  setStateManager(manager: IStateRepository): void {
+    this.stateManager = manager;
+    logger.debug('State manager attached to QRWC adapter', {
+      hasEventMonitor: !!('getEventMonitor' in manager && typeof (manager as any).getEventMonitor === 'function')
+    });
+  }
+
+  /**
+   * Get the state manager attached to this adapter
+   */
+  getStateManager(): IStateRepository | undefined {
+    return this.stateManager;
   }
 
   // ===== Connection Management =====
@@ -340,6 +362,8 @@ export class QRWCClientAdapter
       case 'Component.GetAllControlValues':
       case 'ComponentGetAllControlValues':
         return () => handleGetAllControlValues(params, this.officialClient);
+      case 'ChangeGroup.Create':
+        return () => this.handleChangeGroupCreate(params);
       case 'ChangeGroup.AddControl':
         return () => this.handleChangeGroupAddControl(params);
       case 'ChangeGroup.Poll':
@@ -527,6 +551,37 @@ export class QRWCClientAdapter
   }
 
   /**
+   * Handle ChangeGroup.Create command
+   */
+  private handleChangeGroupCreate(params?: Record<string, unknown>): unknown {
+    if (!params?.['Id']) {
+      throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    const groupId = params['Id'] as string;
+    
+    // Check if group already exists
+    if (this.changeGroups.has(groupId)) {
+      return {
+        Id: groupId,
+        result: 'Change group already exists'
+      };
+    }
+    
+    // Create new change group
+    const group = { 
+      id: groupId, 
+      controls: [] 
+    };
+    this.changeGroups.set(groupId, group);
+    
+    return {
+      Id: groupId,
+      result: 'Change group created successfully'
+    };
+  }
+
+  /**
    * Handle ChangeGroup.AddControl command
    */
   // eslint-disable-next-line max-statements -- Complex logic for adding controls to change groups with validation
@@ -685,6 +740,7 @@ export class QRWCClientAdapter
   
   /**
    * Handle ChangeGroup.AutoPoll command
+   * Supports high-frequency polling up to 33Hz (30ms intervals)
    */
   private handleChangeGroupAutoPoll(params?: Record<string, unknown>): unknown {
     if (!params?.['Id']) {
@@ -692,7 +748,17 @@ export class QRWCClientAdapter
     }
     
     const groupId = params['Id'] as string;
-    const rate = (params['Rate'] as number | undefined) ?? 1; // Default 1 second
+    // Rate in seconds, supports fractional values (e.g., 0.03 for 30ms)
+    // Default to 30ms (33Hz) for high-frequency event monitoring
+    const rate = (params['Rate'] as number | undefined) ?? 0.03;
+    
+    // Validate rate (minimum 30ms, maximum 1 hour)
+    if (rate < 0.03 || rate > 3600) {
+      throw new QSysError(
+        `Invalid poll rate: ${rate}. Must be between 0.03 (33Hz) and 3600 seconds`,
+        QSysErrorCode.COMMAND_FAILED
+      );
+    }
     
     const group = this.changeGroups.get(groupId);
     if (!group) {
@@ -706,7 +772,10 @@ export class QRWCClientAdapter
       this.autoPollTimers.delete(groupId);
     }
     
-    // Set up new timer
+    // Set up new timer with millisecond precision
+    // Convert rate (in seconds) to milliseconds, with minimum of 30ms
+    const intervalMs = Math.max(30, Math.round(rate * 1000));
+    
     const timer = setInterval(() => {
       void (async () => {
         try {
@@ -726,10 +795,17 @@ export class QRWCClientAdapter
           }
         }
       })();
-    }, rate * 1000);
+    }, intervalMs);
     
     this.autoPollTimers.set(groupId, timer);
     this.autoPollFailureCounts.delete(groupId); // Reset failure count
+    
+    logger.info('Auto-polling configured for change group', { 
+      groupId, 
+      rateSeconds: rate,
+      intervalMs,
+      frequency: intervalMs <= 30 ? '33Hz' : `${(1000 / intervalMs).toFixed(1)}Hz`
+    });
     
     return { result: { Id: groupId, Rate: rate } };
   }
