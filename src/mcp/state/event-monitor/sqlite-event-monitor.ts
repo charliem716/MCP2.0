@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { EventEmitter } from 'events';
-import { SimpleStateManager, StateManagerEvent } from '../simple-state-manager.js';
+import type { SimpleStateManager} from '../simple-state-manager.js';
+import { StateManagerEvent } from '../simple-state-manager.js';
 import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import * as path from 'path';
@@ -28,24 +29,54 @@ export class SQLiteEventMonitor extends EventEmitter {
   private db?: Database.Database;
   private buffer: EventRecord[] = [];
   private flushTimer?: NodeJS.Timeout;
-  private activeChangeGroups: Set<string> = new Set();
-  private monitoredControls: Map<string, Set<string>> = new Map(); // control -> set of group IDs
+  private activeChangeGroups = new Set<string>();
+  private monitoredControls = new Map<string, Set<string>>(); // control -> set of group IDs
+  private stateChangeHandler: ((data: any) => void) | null = null;
+  private batchUpdateHandler: ((data: any) => void) | null = null;
   private config: Required<EventMonitorConfig>;
   private isInitialized = false;
+  private stateManager!: SimpleStateManager;
+  private qrwcAdapter!: QRWCClientAdapter;
 
   constructor(
-    private stateManager: SimpleStateManager,
-    private qrwcAdapter: QRWCClientAdapter,
-    config: EventMonitorConfig
+    dbPathOrStateManager: string | SimpleStateManager,
+    stateManagerOrAdapter?: SimpleStateManager | QRWCClientAdapter,
+    adapterOrConfig?: QRWCClientAdapter | EventMonitorConfig
   ) {
     super();
-    this.config = {
-      enabled: config.enabled,
-      dbPath: config.dbPath || './data/events',
-      retentionDays: config.retentionDays || 7,
-      bufferSize: config.bufferSize || 1000,
-      flushInterval: config.flushInterval || 100,
-    };
+    
+    // Support both old and new signatures
+    if (typeof dbPathOrStateManager === 'string') {
+      // Old signature: (dbPath, stateManager, adapter)
+      const dbPath = dbPathOrStateManager;
+      this.stateManager = stateManagerOrAdapter as SimpleStateManager;
+      this.qrwcAdapter = adapterOrConfig as QRWCClientAdapter;
+      this.config = {
+        enabled: process.env['EVENT_MONITORING_ENABLED'] !== 'false',
+        dbPath,
+        retentionDays: 7,
+        bufferSize: 1000,
+        flushInterval: 100,
+      };
+      // Auto-initialize for old signature
+      this.initialize().catch(error => {
+        logger.error('Failed to initialize event monitor', { error });
+        // Mark as not initialized on error
+        this.isInitialized = false;
+      });
+    } else {
+      // New signature: (stateManager, qrwcAdapter, config)
+      this.stateManager = dbPathOrStateManager;
+      this.qrwcAdapter = stateManagerOrAdapter as QRWCClientAdapter;
+      const config = adapterOrConfig as EventMonitorConfig || {};
+      this.config = {
+        enabled: config.enabled !== false && process.env['EVENT_MONITORING_ENABLED'] !== 'false',
+        dbPath: config.dbPath || './data/events',
+        retentionDays: config.retentionDays || 7,
+        bufferSize: config.bufferSize || 1000,
+        flushInterval: config.flushInterval || 100,
+      };
+    }
   }
 
   async initialize(): Promise<void> {
@@ -55,10 +86,12 @@ export class SQLiteEventMonitor extends EventEmitter {
     }
 
     try {
-      // Ensure data directory exists
-      const dbDir = path.dirname(this.config.dbPath);
-      if (!fs.existsSync(dbDir)) {
-        fs.mkdirSync(dbDir, { recursive: true });
+      // Ensure data directory exists (skip for in-memory database)
+      if (this.config.dbPath !== ':memory:') {
+        const dbDir = path.dirname(this.config.dbPath);
+        if (!fs.existsSync(dbDir)) {
+          fs.mkdirSync(dbDir, { recursive: true });
+        }
       }
 
       // Initialize database with date-based filename
@@ -94,6 +127,10 @@ export class SQLiteEventMonitor extends EventEmitter {
   }
 
   private getDatabaseFilename(): string {
+    // Special case for in-memory database (used in tests)
+    if (this.config.dbPath === ':memory:') {
+      return ':memory:';
+    }
     const date = new Date().toISOString().split('T')[0];
     return path.join(this.config.dbPath, `events-${date}.db`);
   }
@@ -130,8 +167,10 @@ export class SQLiteEventMonitor extends EventEmitter {
     this.qrwcAdapter.on('changeGroup:changes', this.handleChangeGroupChanges.bind(this));
     
     // Also listen to state changes for additional context
-    this.stateManager.on(StateManagerEvent.StateChanged, this.handleStateChange.bind(this));
-    this.stateManager.on(StateManagerEvent.BatchUpdate, this.handleBatchUpdate.bind(this));
+    this.stateChangeHandler = (data) => void this.handleStateChange(data);
+    this.batchUpdateHandler = (data) => void this.handleBatchUpdate(data);
+    this.stateManager.on(StateManagerEvent.StateChanged, this.stateChangeHandler);
+    this.stateManager.on(StateManagerEvent.BatchUpdate, this.batchUpdateHandler);
     
     // Track when auto-polling starts/stops (multiple event names for compatibility)
     const handleSubscribed = async (groupId: string) => {
@@ -171,10 +210,10 @@ export class SQLiteEventMonitor extends EventEmitter {
     };
     
     // Listen to multiple event names for compatibility
-    this.qrwcAdapter.on('changeGroup:autoPollStarted', handleSubscribed);
-    this.qrwcAdapter.on('changeGroupSubscribed', handleSubscribed);
-    this.qrwcAdapter.on('changeGroup:autoPollStopped', handleUnsubscribed);
-    this.qrwcAdapter.on('changeGroupUnsubscribed', handleUnsubscribed);
+    this.qrwcAdapter.on('changeGroup:autoPollStarted', (groupId: string) => void handleSubscribed(groupId));
+    this.qrwcAdapter.on('changeGroupSubscribed', (groupId: string) => void handleSubscribed(groupId));
+    this.qrwcAdapter.on('changeGroup:autoPollStopped', (groupId: string) => void handleUnsubscribed(groupId));
+    this.qrwcAdapter.on('changeGroupUnsubscribed', (groupId: string) => void handleUnsubscribed(groupId));
   }
 
   private handleChangeGroupChanges(event: any): void {
@@ -390,9 +429,9 @@ export class SQLiteEventMonitor extends EventEmitter {
     const msUntil3AM = next3AM.getTime() - now.getTime();
 
     setTimeout(() => {
-      this.performMaintenance();
+      void this.performMaintenance();
       // Schedule daily
-      setInterval(() => this.performMaintenance(), 24 * 60 * 60 * 1000);
+      setInterval(() => void this.performMaintenance(), 24 * 60 * 60 * 1000);
     }, msUntil3AM);
   }
 
@@ -440,38 +479,130 @@ export class SQLiteEventMonitor extends EventEmitter {
     databaseSize: number;
     bufferSize: number;
   }> {
-    if (!this.isInitialized) {
-      throw new Error('Event monitoring is not active. Please create and subscribe to a change group first.');
+    // Return default stats if not initialized
+    if (!this.isInitialized || !this.db) {
+      return {
+        totalEvents: 0,
+        uniqueControls: 0,
+        uniqueChangeGroups: 0,
+        databaseSize: 0,
+        bufferSize: this.buffer?.length || 0,
+      };
     }
 
-    if (!this.db) {
-      throw new Error('Database not initialized');
+    try {
+      // Flush buffer first
+      this.flush();
+
+      const stats = this.db.prepare(`
+        SELECT
+          COUNT(*) as total_events,
+          COUNT(DISTINCT control_name) as unique_controls,
+          COUNT(DISTINCT change_group_id) as unique_change_groups,
+          MIN(timestamp) as oldest_event,
+          MAX(timestamp) as newest_event
+        FROM events
+      `).get() as any;
+
+      const dbInfo = this.db.prepare("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()").get() as any;
+
+      return {
+        totalEvents: stats?.total_events || 0,
+        uniqueControls: stats?.unique_controls || 0,
+        uniqueChangeGroups: stats?.unique_change_groups || 0,
+        oldestEvent: stats?.oldest_event,
+        newestEvent: stats?.newest_event,
+        databaseSize: dbInfo?.size || 0,
+        bufferSize: this.buffer.length,
+      };
+    } catch (error) {
+      logger.error('Failed to get statistics', { error });
+      return {
+        totalEvents: 0,
+        uniqueControls: 0,
+        uniqueChangeGroups: 0,
+        databaseSize: 0,
+        bufferSize: this.buffer?.length || 0,
+      };
+    }
+  }
+
+  isEnabled(): boolean {
+    return this.config.enabled && this.isInitialized;
+  }
+
+  async getChangeGroupById(groupId: string): Promise<any> {
+    if (!this.isInitialized || !this.db) {
+      return null;
     }
 
-    // Flush buffer first
-    this.flush();
+    try {
+      const result = this.db.prepare(`
+        SELECT DISTINCT change_group_id, MIN(timestamp) as first_seen, MAX(timestamp) as last_seen
+        FROM events
+        WHERE change_group_id = ?
+        GROUP BY change_group_id
+      `).get(groupId);
+      
+      return result || null;
+    } catch (error) {
+      logger.error('Failed to get change group by ID', { error, groupId });
+      return null;
+    }
+  }
 
-    const stats = this.db.prepare(`
-      SELECT
-        COUNT(*) as total_events,
-        COUNT(DISTINCT control_name) as unique_controls,
-        COUNT(DISTINCT change_group_id) as unique_change_groups,
-        MIN(timestamp) as oldest_event,
-        MAX(timestamp) as newest_event
-      FROM events
-    `).get() as any;
+  async queryEvents(params: {
+    groupId?: string;
+    startTime?: number | string;
+    endTime?: number | string;
+    limit?: number;
+  } = {}): Promise<any[]> {
+    if (!this.isInitialized || !this.db) {
+      return [];
+    }
 
-    const dbInfo = this.db.prepare("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()").get() as any;
+    try {
+      // Validate parameters
+      if (params.startTime && (typeof params.startTime !== 'number' && typeof params.startTime !== 'string')) {
+        return [];
+      }
+      if (params.endTime && (typeof params.endTime !== 'number' && typeof params.endTime !== 'string')) {
+        return [];
+      }
+      if (params.limit && params.limit < 0) {
+        return [];
+      }
 
-    return {
-      totalEvents: stats.total_events || 0,
-      uniqueControls: stats.unique_controls || 0,
-      uniqueChangeGroups: stats.unique_change_groups || 0,
-      oldestEvent: stats.oldest_event,
-      newestEvent: stats.newest_event,
-      databaseSize: dbInfo.size || 0,
-      bufferSize: this.buffer.length,
-    };
+      let query = 'SELECT * FROM events WHERE 1=1';
+      const queryParams: any[] = [];
+
+      if (params.groupId) {
+        query += ' AND change_group_id = ?';
+        queryParams.push(params.groupId);
+      }
+
+      if (params.startTime) {
+        query += ' AND timestamp >= ?';
+        queryParams.push(params.startTime);
+      }
+
+      if (params.endTime) {
+        query += ' AND timestamp <= ?';
+        queryParams.push(params.endTime);
+      }
+
+      query += ' ORDER BY timestamp DESC';
+
+      if (params.limit) {
+        query += ' LIMIT ?';
+        queryParams.push(params.limit);
+      }
+
+      return this.db.prepare(query).all(...queryParams) || [];
+    } catch (error) {
+      logger.error('Failed to query events', { error, params });
+      return [];
+    }
   }
 
   async close(): Promise<void> {
@@ -484,8 +615,14 @@ export class SQLiteEventMonitor extends EventEmitter {
     }
 
     // Remove listeners
-    this.stateManager.removeAllListeners(StateManagerEvent.StateChanged);
-    this.stateManager.removeAllListeners(StateManagerEvent.BatchUpdate);
+    if (this.stateChangeHandler) {
+      this.stateManager.off(StateManagerEvent.StateChanged, this.stateChangeHandler);
+      this.stateChangeHandler = null;
+    }
+    if (this.batchUpdateHandler) {
+      this.stateManager.off(StateManagerEvent.BatchUpdate, this.batchUpdateHandler);
+      this.batchUpdateHandler = null;
+    }
 
     // Close database
     if (this.db) {
@@ -493,6 +630,7 @@ export class SQLiteEventMonitor extends EventEmitter {
     }
 
     this.isInitialized = false;
+    this.config.enabled = false; // Disable after closing
     logger.info('Event monitor closed');
   }
 }

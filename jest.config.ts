@@ -39,6 +39,9 @@ const config: Config = {
   
   // Module name mapping for imports
   moduleNameMapper: {
+    // Mock better-sqlite3 to avoid native module issues in tests
+    '^better-sqlite3$': '<rootDir>/__mocks__/better-sqlite3.ts',
+    
     // Mock the logger module globally (handle both with and without .js extension)
     '^.*/shared/utils/logger(\\.js)?$': '<rootDir>/tests/__mocks__/shared/utils/logger.ts',
     
