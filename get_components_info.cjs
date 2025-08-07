@@ -103,7 +103,7 @@ proc.stdout.on('data', data => {
         process.exit(0);
       }
     }
-  } catch (e) {
+  } catch {
     // Ignore JSON parse errors from log lines
   }
 });

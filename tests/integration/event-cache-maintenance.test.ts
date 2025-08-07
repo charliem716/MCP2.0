@@ -17,12 +17,10 @@ jest.useFakeTimers();
 
 // Import modules after mocking - better-sqlite3 will be automatically mocked via moduleNameMapper
 const { SQLiteEventMonitor } = await import('../../src/mcp/state/event-monitor/sqlite-event-monitor.js');
-const { SimpleStateManager } = await import('../../src/mcp/state/simple-state-manager.js');
 import type { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter.js';
 
 describe('Event Cache Maintenance and Rotation', () => {
   let eventMonitor: SQLiteEventMonitor;
-  let stateManager: SimpleStateManager;
   let mockAdapter: QRWCClientAdapter;
   let changeGroupEmitter: EventEmitter;
 
@@ -69,11 +67,9 @@ describe('Event Cache Maintenance and Rotation', () => {
     } as any;
 
     // Create state manager
-    stateManager = new SimpleStateManager();
     
     // Create and initialize the event monitor using new constructor signature
     eventMonitor = new SQLiteEventMonitor(
-      stateManager,
       mockAdapter,
       { dbPath: ':memory:', enabled: true }
     );
@@ -96,7 +92,6 @@ describe('Event Cache Maintenance and Rotation', () => {
       mockFs.statSync.mockReturnValue({ size: 50 * 1024 * 1024 } as any); // 50MB
       
       eventMonitor = new SQLiteEventMonitor(
-        stateManager,
         mockAdapter,
         { dbPath: ':memory:', enabled: true }
       );
@@ -115,7 +110,6 @@ describe('Event Cache Maintenance and Rotation', () => {
       });
       
       eventMonitor = new SQLiteEventMonitor(
-        stateManager,
         mockAdapter,
         { dbPath: './test-db', enabled: true }
       );
@@ -151,10 +145,10 @@ describe('Event Cache Maintenance and Rotation', () => {
     it('should clean old events during maintenance', async () => {
       // Add some events
       for (let i = 0; i < 100; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId: 'test-group',
-          changes: [{ Name: `test-${i}`, String: `value-${i}` }],
-          timestampMs: Date.now() - (31 * 24 * 60 * 60 * 1000) // 31 days old
+          controls: [{ Name: `test-${i}`, Value: i, String: `value-${i}` }],
+          timestamp: Date.now() - (31 * 24 * 60 * 60 * 1000) // 31 days old
         });
       }
       
@@ -180,14 +174,14 @@ describe('Event Cache Maintenance and Rotation', () => {
       
       // Send many events rapidly
       for (let i = 0; i < 10000; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId: `group-${i % 10}`,
-          changes: [
+          controls: [
             { Name: 'control1', String: `value-${i}` },
             { Name: 'control2', Value: i },
             { Name: 'control3', Position: i / 100 }
           ],
-          timestampMs: startTime + i
+          timestamp: startTime + i
         });
       }
       
@@ -198,15 +192,15 @@ describe('Event Cache Maintenance and Rotation', () => {
     it('should maintain query performance with large dataset', async () => {
       // Add many events
       for (let i = 0; i < 1000; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId: 'test-group',
-          changes: [{ Name: 'test', String: `value-${i}` }],
-          timestampMs: Date.now() - i * 1000
+          controls: [{ Name: 'test', Value: 0, String: `value-${i}` }],
+          timestamp: Date.now() - i * 1000
         });
       }
       
       // Query should still work
-      const results = await eventMonitor.queryEvents({
+      const results = await eventMonitor.queryEventsEvents({
         groupId: 'test-group',
         limit: 10
       });
@@ -220,14 +214,14 @@ describe('Event Cache Maintenance and Rotation', () => {
       // Concurrent operations
       for (let i = 0; i < 100; i++) {
         // Write
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId: `group-${i}`,
-          changes: [{ Name: 'test', String: `value-${i}` }],
-          timestampMs: Date.now()
+          controls: [{ Name: 'test', Value: 0, String: `value-${i}` }],
+          timestamp: Date.now()
         });
         
         // Read
-        promises.push(eventMonitor.queryEvents({ limit: 1 }));
+        promises.push(eventMonitor.queryEventsEvents({ limit: 1 }));
       }
       
       await Promise.all(promises);
@@ -244,10 +238,10 @@ describe('Event Cache Maintenance and Rotation', () => {
         const timestamp = Date.now() + i * 1000;
         timestamps.push(timestamp);
         
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId: 'test-group',
-          changes: [{ Name: 'test', String: `value-${i}` }],
-          timestampMs: timestamp
+          controls: [{ Name: 'test', Value: 0, String: `value-${i}` }],
+          timestamp: timestamp
         });
       }
       
@@ -263,15 +257,15 @@ describe('Event Cache Maintenance and Rotation', () => {
     it('should preserve event data integrity', () => {
       const testData = {
         groupId: 'test-group',
-        changes: [
+        controls: [
           { Name: 'control1', String: 'test-value' },
           { Name: 'control2', Value: 42.5 },
           { Name: 'control3', Position: 0.75 }
         ],
-        timestampMs: Date.now()
+        timestamp: Date.now()
       };
       
-      changeGroupEmitter.emit('changeGroup:changes', testData);
+      changeGroupEmitter.emit('changeGroup:poll', testData);
       
       // Should not corrupt data
       expect(eventMonitor.isEnabled()).toBe(true);
@@ -280,10 +274,10 @@ describe('Event Cache Maintenance and Rotation', () => {
     it('should handle special characters in data', () => {
       const specialChars = "'; DROP TABLE events; --";
       
-      changeGroupEmitter.emit('changeGroup:changes', {
+      changeGroupEmitter.emit('changeGroup:poll', {
         groupId: specialChars,
-        changes: [{ Name: 'test', String: specialChars }],
-        timestampMs: Date.now()
+        controls: [{ Name: 'test', Value: 0, String: specialChars }],
+        timestamp: Date.now()
       });
       
       // Should handle SQL injection attempts safely
@@ -298,7 +292,6 @@ describe('Event Cache Maintenance and Rotation', () => {
       // We can't easily mock database corruption with the current setup
       // Just verify that monitoring can be disabled
       eventMonitor = new SQLiteEventMonitor(
-        stateManager,
         mockAdapter,
         { dbPath: './corrupted.db', enabled: false }
       );
@@ -312,10 +305,10 @@ describe('Event Cache Maintenance and Rotation', () => {
     it('should handle disk full errors', async () => {
       // Send event that would trigger write
       // The mock will handle this without errors
-      changeGroupEmitter.emit('changeGroup:changes', {
+      changeGroupEmitter.emit('changeGroup:poll', {
         groupId: 'test-group',
-        changes: [{ Name: 'test', String: 'value' }],
-        timestampMs: Date.now()
+        controls: [{ Name: 'test', Value: 0, String: 'value' }],
+        timestamp: Date.now()
       });
       
       // Should handle gracefully and remain enabled
@@ -327,7 +320,6 @@ describe('Event Cache Maintenance and Rotation', () => {
       
       // Test that monitoring can be disabled when there are permission issues
       eventMonitor = new SQLiteEventMonitor(
-        stateManager,
         mockAdapter,
         { dbPath: '/root/protected/events.db', enabled: false }
       );

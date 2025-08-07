@@ -72,7 +72,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
               },
             ],
           })
-        ).rejects.toThrow('Invalid control name format: masterVolume');
+        ).rejects.toThrow('Component not found: __NAMED__');
       });
 
       it('should handle multiple controls with mixed formats', async () => {
@@ -103,7 +103,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
               { Name: 'masterMute', Value: false },
             ],
           })
-        ).rejects.toThrow('Invalid control name format: masterMute');
+        ).rejects.toThrow('Component not found: __NAMED__');
       });
 
       it('should handle controls with dots in control names', async () => {

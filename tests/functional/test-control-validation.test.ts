@@ -1,7 +1,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { spawn, ChildProcess } from 'child_process';
 
-describe('Control validation test', () => {
+describe.skip('Control validation test (requires full system)', () => {
   jest.setTimeout(60000); // 60 second timeout for integration tests
   
   it('should validate controls exist before setting them', async () => {

@@ -18,14 +18,13 @@ jest.useFakeTimers();
 // Import modules after mocking - better-sqlite3 will be automatically mocked via moduleNameMapper
 const { SQLiteEventMonitor } = await import('../../src/mcp/state/event-monitor/sqlite-event-monitor.js');
 const { MonitoredStateManager } = await import('../../src/mcp/state/monitored-state-manager.js');
-const { SimpleStateManager } = await import('../../src/mcp/state/simple-state-manager.js');
 import type { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter.js';
 
 describe('Event Cache Error Recovery', () => {
   let eventMonitor: SQLiteEventMonitor;
-  let stateManager: SimpleStateManager;
   let mockAdapter: QRWCClientAdapter;
   let changeGroupEmitter: EventEmitter;
+  let stateManager: any;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -72,12 +71,19 @@ describe('Event Cache Error Recovery', () => {
       getAllChangeGroups: jest.fn().mockResolvedValue(new Map())
     } as any;
 
-    // Create state manager  
-    stateManager = new SimpleStateManager();
+    // Create state manager mock
+    stateManager = {
+      setState: jest.fn(),
+      getState: jest.fn(),
+      deleteState: jest.fn(),
+      getAllStates: jest.fn().mockReturnValue(new Map()),
+      clear: jest.fn(),
+      hasComponent: jest.fn().mockReturnValue(false),
+      getComponentControls: jest.fn().mockReturnValue(new Map())
+    };
     
     // Create and initialize the event monitor using new constructor signature
     eventMonitor = new SQLiteEventMonitor(
-      stateManager,
       mockAdapter,
       { dbPath: ':memory:', enabled: true }
     );
@@ -101,7 +107,6 @@ describe('Event Cache Error Recovery', () => {
       // Since we can't easily mock the database creation failure with the current setup,
       // let's test that monitoring can be disabled
       eventMonitor = new SQLiteEventMonitor(
-        stateManager,
         mockAdapter,
         { dbPath: './test-db/events.db', enabled: false }
       );
@@ -127,7 +132,6 @@ describe('Event Cache Error Recovery', () => {
       
       // Create a monitor with an invalid path
       eventMonitor = new SQLiteEventMonitor(
-        stateManager,
         mockAdapter,
         { dbPath: '/invalid/path/that/does/not/exist/test.db', enabled: true }
       );
@@ -151,7 +155,6 @@ describe('Event Cache Error Recovery', () => {
       
       // Create a disabled monitor
       eventMonitor = new SQLiteEventMonitor(
-        stateManager,
         mockAdapter,
         { dbPath: ':memory:', enabled: false }
       );
@@ -163,7 +166,7 @@ describe('Event Cache Error Recovery', () => {
   });
 
   describe('Runtime failures', () => {
-    it('should handle change group lookup failures', async () => {
+    it.skip('should handle change group lookup failures (method removed)', async () => {
       // The mock returns an object with stats, but get() returns undefined for non-existent IDs
       // We need to update our mock to return undefined for get() when no result
       const result = await eventMonitor.getChangeGroupById('non-existent');
@@ -178,10 +181,10 @@ describe('Event Cache Error Recovery', () => {
 
     it('should handle database write failures', () => {
       // Emit an event to trigger a write
-      changeGroupEmitter.emit('changeGroup:changes', {
+      changeGroupEmitter.emit('changeGroup:poll', {
         groupId: 'test-group',
-        changes: [{ Name: 'test', String: 'value' }],
-        timestampMs: Date.now()
+        controls: [{ Name: 'test', Value: 0, String: 'value' }],
+        timestamp: Date.now()
       });
       
       // Should not throw - monitor should remain enabled
@@ -192,10 +195,10 @@ describe('Event Cache Error Recovery', () => {
     it('should recover from buffer overflow', () => {
       // Send many events rapidly
       for (let i = 0; i < 1000; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId: 'test-group',
-          changes: [{ Name: `test-${i}`, String: `value-${i}` }],
-          timestampMs: Date.now()
+          controls: [{ Name: `test-${i}`, String: `value-${i}` }],
+          timestamp: Date.now()
         });
       }
       
@@ -240,10 +243,10 @@ describe('Event Cache Error Recovery', () => {
       for (let i = 0; i < 10; i++) {
         promises.push(
           new Promise<void>((resolve) => {
-            changeGroupEmitter.emit('changeGroup:changes', {
+            changeGroupEmitter.emit('changeGroup:poll', {
               groupId: `group-${i}`,
-              changes: [{ Name: 'test', String: `value-${i}` }],
-              timestampMs: Date.now()
+              controls: [{ Name: 'test', Value: 0, String: `value-${i}` }],
+              timestamp: Date.now()
             });
             resolve();
           })
@@ -272,10 +275,10 @@ describe('Event Cache Error Recovery', () => {
       const largePayload = 'x'.repeat(10000);
       
       for (let i = 0; i < 100; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId: 'test-group',
-          changes: [{ Name: 'test', String: largePayload }],
-          timestampMs: Date.now()
+          controls: [{ Name: 'test', Value: 0, String: largePayload }],
+          timestamp: Date.now()
         });
       }
       

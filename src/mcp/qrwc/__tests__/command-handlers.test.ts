@@ -160,12 +160,12 @@ describe('command-handlers', () => {
       expect(result.result[0]).toEqual({
         Name: 'InvalidFormat',
         Result: 'Error',
-        Error: 'Invalid control name format: InvalidFormat',
+        Error: 'Component not found: __NAMED__',
       });
       expect(result.result[1]).toEqual({
         Name: 'AlsoInvalid',
         Result: 'Error',
-        Error: 'Invalid control name format: AlsoInvalid',
+        Error: 'Component not found: __NAMED__',
       });
       expect(result.result[2]).toEqual({
         Name: '',

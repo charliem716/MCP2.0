@@ -101,7 +101,7 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
         statistics: {
           totalEvents: stats.totalEvents,
           uniqueControls: stats.uniqueControls,
-          uniqueChangeGroups: stats.uniqueChangeGroups,
+          uniqueChangeGroups: stats.changeGroups,
           oldestEvent: stats.oldestEvent
             ? new Date(stats.oldestEvent).toISOString()
             : null,
@@ -117,14 +117,6 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
           database: {
             sizeBytes: stats.databaseSize,
             sizeMB: (stats.databaseSize / (1024 * 1024)).toFixed(2),
-          },
-          buffer: {
-            currentSize: stats.bufferSize,
-            maxSize: parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000', 10),
-            utilizationPercent: (
-              (stats.bufferSize / parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000', 10)) *
-              100
-            ).toFixed(1),
           },
         },
         configuration: {

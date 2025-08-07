@@ -108,22 +108,26 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
         };
       }
 
-      // Query events with provided parameters, filtering out undefined values
-      const queryParams: Parameters<typeof eventMonitor.query>[0] = {
+      // Query events with provided parameters
+      const queryParams: {
+        limit?: number;
+        startTime?: number;
+        endTime?: number;
+        changeGroupId?: string;
+        controlPaths?: string[];
+      } = {
         limit: params.limit || 1000,
       };
       
       if (params.startTime !== undefined) queryParams.startTime = params.startTime;
       if (params.endTime !== undefined) queryParams.endTime = params.endTime;
       if (params.changeGroupId !== undefined) queryParams.changeGroupId = params.changeGroupId;
-      if (params.controlNames !== undefined) queryParams.controlPaths = params.controlNames; // Map to new interface
-      if (params.componentNames !== undefined) queryParams.componentNames = params.componentNames;
-      if (params.offset !== undefined) queryParams.offset = params.offset;
+      if (params.controlNames !== undefined) queryParams.controlPaths = params.controlNames;
 
-      const events = await eventMonitor.query(queryParams);
+      const events = await eventMonitor.queryEvents(queryParams);
 
       // The new monitor returns raw values, not JSON strings
-      const formattedEvents = events.map(event => ({
+      const formattedEvents = events.map((event: any) => ({
         ...event,
         value: event.value,
         stringValue: event.stringValue

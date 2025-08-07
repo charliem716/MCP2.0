@@ -49,9 +49,9 @@ describe('BUG-134: ESLint Warning Verification', () => {
     }
     
     // Assert expected warnings (errors are already caught by ESLint config)
-    expect(warnings).toBe(206);  // Current warning count
+    expect(warnings).toBe(158);  // Current warning count (reduced from 206!)
     expect(errors).toBe(0);  // No errors remain
-    expect(totalProblems).toBe(206);  // Total problems
+    expect(totalProblems).toBe(158);  // Total problems
     
     // ESLint exits with code 0 when there are only warnings (not errors)
     expect(exitCode).toBe(0);

@@ -88,7 +88,7 @@ async function analyzeSDKValueFlow() {
     
     const updateRate = updateCount / 3;
     console.log(`\n  Received ${updateCount} updates in 3s = ${updateRate.toFixed(1)} Hz`);
-    console.log(`  This rate is controlled by the SDK\'s polling interval (${client.options.pollingInterval}ms)`);
+    console.log(`  This rate is controlled by the SDK's polling interval (${client.options.pollingInterval}ms)`);
     
     // ============================================================
     // LEVEL 3: SDK's Internal ChangeGroup

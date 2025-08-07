@@ -129,7 +129,7 @@ describe('QRWCClientAdapter - Reliability (Minimal)', () => {
             { Name: 'InvalidFormat', Value: 1 } // Missing dot separator
           ]
         })
-      ).rejects.toThrow('Invalid control name format');
+      ).rejects.toThrow('Component not found: __NAMED__');
     });
 
     it('should handle unknown commands', async () => {

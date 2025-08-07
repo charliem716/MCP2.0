@@ -16,7 +16,7 @@ export interface SimulatedControl {
 }
 
 export class ControlSimulator {
-  private controls: Map<string, SimulatedControl> = new Map();
+  private controls = new Map<string, SimulatedControl>();
   private running = false;
   private updateTimer: NodeJS.Timeout | null = null;
 

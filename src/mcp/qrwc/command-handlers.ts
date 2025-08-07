@@ -49,8 +49,8 @@ export async function handleGetComponents(
   // We need to send the actual command to Q-SYS
   const qrwc = client.getQrwc();
   
-  // If QRWC is already initialized, return components from it
-  if (qrwc && Object.keys(qrwc.components).length > 0) {
+  // If QRWC is available, return components from it
+  if (qrwc) {
     const components = Object.entries(qrwc.components).map(([name, component]) => {
       // ESLint's no-unnecessary-condition rule is giving contradictory advice here
       // The state property is optional on QSYSComponent, so we need to handle it
@@ -70,19 +70,8 @@ export async function handleGetComponents(
     return { result: components };
   }
   
-  // During initialization or if qrwc is not available, 
-  // we need to get the components directly from Q-SYS
-  // This would require sending a raw QRC command
-  logger.warn('Component.GetComponents called during initialization or without QRWC, returning mock data');
-  
-  // For now, return a hardcoded list that includes TableMicMeter
-  // In a real implementation, this would send the actual QRC command
-  return { 
-    result: [
-      { Name: 'TableMicMeter', Type: 'meter2', Properties: [] },
-      // Add other essential components here if needed
-    ] 
-  };
+  // If qrwc is not available, throw error
+  throw new QSysError('QRWC instance not available', QSysErrorCode.NOT_INITIALIZED);
 }
 
 /**

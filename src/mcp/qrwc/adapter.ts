@@ -801,6 +801,15 @@ export class QRWCClientAdapter
       });
     }
     
+    // Emit event for monitoring
+    if (values.length > 0) {
+      this.emit('changeGroup:poll', {
+        groupId,
+        controls: values,
+        timestamp: Date.now()
+      });
+    }
+    
     return {
       result: {
         Id: groupId,

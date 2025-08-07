@@ -220,9 +220,7 @@ describe('Event Monitoring 33Hz Polling', () => {
       
       // This test verifies that the event monitor can handle 33Hz event rate
       const { SQLiteEventMonitor } = await import('../../src/mcp/state/event-monitor/sqlite-event-monitor.js');
-      const { SimpleStateManager } = await import('../../src/mcp/state/simple-state-manager.js');
       
-      const stateManager = new SimpleStateManager();
       const changeGroupEmitter = new EventEmitter();
       
       const mockAdapter = {
@@ -230,10 +228,10 @@ describe('Event Monitoring 33Hz Polling', () => {
         emit: changeGroupEmitter.emit.bind(changeGroupEmitter),
         once: jest.fn(),
         off: jest.fn(),
-        getAllChangeGroups: jest.fn().mockResolvedValue(new Map()),
+        sendCommand: jest.fn().mockResolvedValue({ result: true }),
       } as any;
       
-      const monitor = new SQLiteEventMonitor(stateManager, mockAdapter, {
+      const monitor = new SQLiteEventMonitor(mockAdapter, {
         enabled: true,
         dbPath: ':memory:',
         retentionDays: 30,
@@ -243,36 +241,31 @@ describe('Event Monitoring 33Hz Polling', () => {
       
       await monitor.initialize();
       
-      // Simulate 33Hz events for 1 second
+      // Simulate 33Hz polling events for 1 second
       const groupId = 'high-freq-group';
-      
-      // Activate the change group for monitoring
-      changeGroupEmitter.emit('changeGroup:autoPollStarted', groupId);
-      
-      const events: any[] = [];
       const baseTime = Date.now();
       
       for (let i = 0; i < 33; i++) {
         const timestamp = baseTime + i * 30; // 30ms intervals
         const event = {
           groupId,
-          changes: [
+          controls: [
             {
               Name: `TestComponent.control${i}`,
               Value: i,
+              String: `${i}`,
             },
           ],
-          timestampMs: timestamp,
+          timestamp,
         };
-        events.push(event);
-        changeGroupEmitter.emit('changeGroup:changes', event);
+        changeGroupEmitter.emit('changeGroup:poll', event);
       }
       
       // Wait for flush (real time)
       await new Promise(resolve => setTimeout(resolve, 200));
       
       // Query events
-      const recordedEvents = await monitor.query({
+      const recordedEvents = await monitor.queryEvents({
         changeGroupId: groupId,
       });
       
@@ -299,18 +292,17 @@ describe('Event Monitoring 33Hz Polling', () => {
       process.env['EVENT_MONITORING_RETENTION_DAYS'] = '30';
       
       const { SQLiteEventMonitor } = await import('../../src/mcp/state/event-monitor/sqlite-event-monitor.js');
-      const { SimpleStateManager } = await import('../../src/mcp/state/simple-state-manager.js');
       
-      const stateManager = new SimpleStateManager();
       const mockAdapter = {
         on: jest.fn(),
         emit: jest.fn(),
         once: jest.fn(),
         off: jest.fn(),
+        sendCommand: jest.fn().mockResolvedValue({ result: true }),
       } as any;
       
       // Test with default configuration (should be 30 days now)
-      const monitor = new SQLiteEventMonitor(stateManager, mockAdapter, {
+      const monitor = new SQLiteEventMonitor(mockAdapter, {
         enabled: true,
         dbPath: ':memory:',
       });

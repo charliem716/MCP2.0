@@ -10,12 +10,10 @@
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'events';
 import { SQLiteEventMonitor } from '../../src/mcp/state/event-monitor/sqlite-event-monitor.js';
-import { SimpleStateManager } from '../../src/mcp/state/simple-state-manager.js';
 import type { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter.js';
 
 describe('Event Monitoring Performance Requirements (BUG-150)', () => {
   let eventMonitor: SQLiteEventMonitor;
-  let stateManager: SimpleStateManager;
   let mockAdapter: QRWCClientAdapter;
   let changeGroupEmitter: EventEmitter;
 
@@ -27,7 +25,6 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
     process.env['EVENT_MONITORING_RETENTION_DAYS'] = '30';
     
     // Create state manager
-    stateManager = new SimpleStateManager();
     
     // Create event emitter for adapter
     changeGroupEmitter = new EventEmitter();
@@ -48,7 +45,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
     } as any;
     
     // Create event monitor with in-memory database for testing
-    eventMonitor = new SQLiteEventMonitor(stateManager, mockAdapter, {
+    eventMonitor = new SQLiteEventMonitor(mockAdapter, {
       enabled: true,
       dbPath: ':memory:',
       retentionDays: 30,
@@ -80,28 +77,30 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       for (let i = 0; i < 33; i++) {
         const event = {
           groupId,
-          changes: [
+          controls: [
             {
               Name: 'Component1.control1',
               Value: i,
+              String: `${i}`,
             },
             {
               Name: 'Component1.control2',
               Value: i * 2,
+              String: `${i * 2}`,
             },
           ],
-          timestampMs: startTime + (i * 30), // 30ms intervals
+          timestamp: startTime + (i * 30), // 30ms intervals
         };
         
         events.push(event);
-        changeGroupEmitter.emit('changeGroup:changes', event);
+        changeGroupEmitter.emit('changeGroup:poll', event);
       }
       
       // Force flush to database
       eventMonitor['flush']();
       
       // Query recorded events
-      const recordedEvents = await eventMonitor.query({
+      const recordedEvents = await eventMonitor.queryEvents({
         changeGroupId: groupId,
         startTime: startTime - 100,
         endTime: startTime + 1100,
@@ -133,15 +132,16 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       const totalEvents = 330;
       
       for (let i = 0; i < totalEvents; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId,
-          changes: [
+          controls: [
             {
               Name: 'LoadTest.control',
               Value: i,
+              String: `${i}`,
             },
           ],
-          timestampMs: startTime + (i * 30),
+          timestamp: startTime + (i * 30),
         });
       }
       
@@ -149,7 +149,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       eventMonitor['flush']();
       
       // Query and verify
-      const recordedEvents = await eventMonitor.query({
+      const recordedEvents = await eventMonitor.queryEvents({
         changeGroupId: groupId,
       });
       
@@ -174,15 +174,16 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       // Generate interleaved events for all groups
       for (let i = 0; i < eventsPerGroup; i++) {
         groups.forEach((groupId, groupIndex) => {
-          changeGroupEmitter.emit('changeGroup:changes', {
+          changeGroupEmitter.emit('changeGroup:poll', {
             groupId,
-            changes: [
+            controls: [
               {
                 Name: `Component${groupIndex}.control`,
                 Value: i,
+                String: `${i}`,
               },
             ],
-            timestampMs: startTime + (i * 30) + (groupIndex * 10), // Slightly offset
+            timestamp: startTime + (i * 30) + (groupIndex * 10), // Slightly offset
           });
         });
       }
@@ -192,7 +193,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       
       // Verify each group's events
       for (const groupId of groups) {
-        const events = await eventMonitor.query({ changeGroupId: groupId });
+        const events = await eventMonitor.queryEvents({ changeGroupId: groupId });
         expect(events.length).toBe(eventsPerGroup);
       }
       
@@ -221,7 +222,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       process.env['EVENT_MONITORING_RETENTION_DAYS'] = '60';
       
       // Create new monitor
-      const customMonitor = new SQLiteEventMonitor(stateManager, mockAdapter, {
+      const customMonitor = new SQLiteEventMonitor(mockAdapter, {
         enabled: true,
         dbPath: ':memory:',
       });
@@ -247,15 +248,16 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       // Generate large dataset
       const startTime = Date.now();
       for (let i = 0; i < eventCount; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId,
-          changes: [
+          controls: [
             {
               Name: `PerfTest.control${i % 10}`,
               Value: i,
+              String: `${i}`,
             },
           ],
-          timestampMs: startTime + i,
+          timestamp: startTime + i,
         });
       }
       
@@ -264,7 +266,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       
       // Measure query performance
       const queryStart = Date.now();
-      const events = await eventMonitor.query({
+      const events = await eventMonitor.queryEvents({
         changeGroupId: groupId,
         limit: 100,
       });
@@ -286,15 +288,16 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       
       // Generate events without flushing
       for (let i = 0; i < 100; i++) {
-        changeGroupEmitter.emit('changeGroup:changes', {
+        changeGroupEmitter.emit('changeGroup:poll', {
           groupId,
-          changes: [
+          controls: [
             {
               Name: 'BufferTest.control',
               Value: i,
+              String: `${i}`,
             },
           ],
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         });
       }
       
@@ -308,7 +311,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       expect(eventMonitor['buffer'].length).toBe(0);
       
       // Events should be in database
-      const events = await eventMonitor.query({ changeGroupId: groupId });
+      const events = await eventMonitor.queryEvents({ changeGroupId: groupId });
       expect(events.length).toBe(100);
     });
   });
@@ -323,20 +326,21 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       changeGroupEmitter.emit('changeGroup:autoPollStarted', groupId);
       
       // Send event with specific values
-      changeGroupEmitter.emit('changeGroup:changes', {
+      changeGroupEmitter.emit('changeGroup:poll', {
         groupId,
-        changes: [
+        controls: [
           {
             Name: 'Test.control',
             Value: testValue,
+            String: `${testValue}`,
           },
         ],
-        timestampMs: testTimestamp,
+        timestamp: testTimestamp,
       });
       
       // Force flush and query
       eventMonitor['flush']();
-      const events = await eventMonitor.query({ changeGroupId: groupId });
+      const events = await eventMonitor.queryEvents({ changeGroupId: groupId });
       
       expect(events.length).toBe(1);
       expect(events[0].timestamp).toBe(testTimestamp);
@@ -357,10 +361,10 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       // Generate writes
       for (let i = 0; i < 50; i++) {
         writePromises.push(new Promise<void>(resolve => {
-          changeGroupEmitter.emit('changeGroup:changes', {
+          changeGroupEmitter.emit('changeGroup:poll', {
             groupId,
-            changes: [{ Name: 'Concurrent.control', Value: i }],
-            timestampMs: Date.now(),
+            controls: [{ Name: 'Concurrent.control', Value: i, String: `${i}` }],
+            timestamp: Date.now(),
           });
           resolve();
         }));
@@ -368,7 +372,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       
       // Perform reads
       for (let i = 0; i < 10; i++) {
-        readPromises.push(eventMonitor.query({ changeGroupId: groupId }));
+        readPromises.push(eventMonitor.queryEvents({ changeGroupId: groupId }));
       }
       
       // Wait for all operations
@@ -378,7 +382,7 @@ describe('Event Monitoring Performance Requirements (BUG-150)', () => {
       eventMonitor['flush']();
       
       // Verify all events were recorded
-      const finalEvents = await eventMonitor.query({ changeGroupId: groupId });
+      const finalEvents = await eventMonitor.queryEvents({ changeGroupId: groupId });
       expect(finalEvents.length).toBe(50);
     });
   });
