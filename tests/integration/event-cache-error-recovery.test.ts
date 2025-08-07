@@ -13,6 +13,8 @@ const mockFs = {
 // Mock fs module before imports
 await jest.unstable_mockModule('fs', () => mockFs);
 
+jest.useFakeTimers();
+
 // Import modules after mocking - better-sqlite3 will be automatically mocked via moduleNameMapper
 const { SQLiteEventMonitor } = await import('../../src/mcp/state/event-monitor/sqlite-event-monitor.js');
 const { MonitoredStateManager } = await import('../../src/mcp/state/monitored-state-manager.js');
@@ -88,6 +90,7 @@ describe('Event Cache Error Recovery', () => {
     }
     // Clean up environment
     delete process.env.EVENT_MONITORING_ENABLED;
+    jest.clearAllTimers();
   });
 
   describe('Initialization failures', () => {
