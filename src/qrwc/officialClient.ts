@@ -10,6 +10,7 @@ import { createLogger, type Logger } from '../shared/utils/logger.js';
 import { config as envConfig } from '../shared/utils/env.js';
 import { ConnectionState } from '../shared/types/common.js';
 import { QSysError, QSysErrorCode, type ErrorContext } from '../shared/types/errors.js';
+import { ConnectionManager, type ConnectionHealth } from './connection/ConnectionManager.js';
 
 /**
  * Configuration options for the Official QRWC Client
@@ -51,6 +52,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   private disconnectTime: Date | null = null;
   private shutdownHandler?: (() => void) | undefined;
   private signalHandlersInstalled = false;
+  private connectionManager: ConnectionManager;
 
   constructor(options: OfficialQRWCClientOptions) {
     super();
@@ -82,12 +84,35 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       // Fallback for test environment where logger creation might fail
       this.logger = fallbackLogger;
     }
+
+    // Initialize connection manager with resilience features
+    this.connectionManager = new ConnectionManager({
+      maxRetries: this.options.maxReconnectAttempts,
+      initialRetryDelay: this.options.reconnectInterval,
+      connectionTimeout: this.options.connectionTimeout,
+      logger: this.logger.child({ component: 'connection-manager' }),
+    });
+
+    // Forward connection manager events
+    this.connectionManager.on('state_change', (state) => {
+      this.setState(state);
+    });
+
+    this.connectionManager.on('retry', (attempt, delay) => {
+      this.emit('reconnecting', { attempt });
+    });
+
+    this.connectionManager.on('health_check', (isHealthy) => {
+      if (!isHealthy && this.connectionState === ConnectionState.CONNECTED) {
+        this.logger.warn('Connection health degraded');
+      }
+    });
     
     this.setupGracefulShutdown();
   }
 
   /**
-   * Connect to Q-SYS Core using the official QRWC library
+   * Connect to Q-SYS Core using the official QRWC library with resilience
   // eslint-disable-next-line max-statements -- Complex connection sequence with error handling   */
   async connect(): Promise<void> {
     if (
@@ -97,45 +122,51 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       return;
     }
 
-    this.setState(ConnectionState.CONNECTING);
     this.logger.info('Connecting to Q-SYS Core using official QRWC library', {
       host: this.options.host,
       port: this.options.port,
     });
 
-    try {
-      const url = `wss://${this.options.host}:${this.options.port}/qrc-public-api/v0`;
-      this.ws = new WebSocket(url, {
-        rejectUnauthorized: false, // Allow self-signed certificates
-      });
-
-      // Wait for WebSocket to open
-      await this.waitForConnection();
-
-      // Create QRWC instance with the open WebSocket
-      this.qrwc = await Qrwc.createQrwc({
-        socket: this.ws,
-        pollingInterval: this.options.pollingInterval,
-      });
-
-      this.setState(ConnectionState.CONNECTED);
-      this.reconnectAttempts = 0;
-      this.handleConnectionSuccess();
-    } catch (error) {
-      this.setState(ConnectionState.DISCONNECTED);
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Failed to connect to Q-SYS Core', { error: errorMsg });
-
-      if (this.options.enableAutoReconnect) {
-        this.scheduleReconnect();
+    // Use connection manager for resilient connection
+    if (this.options.enableAutoReconnect) {
+      try {
+        await this.connectionManager.connectWithRetry(async () => {
+          await this.performConnection();
+        });
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        throw new QSysError(
+          'Failed to connect to Q-SYS Core',
+          QSysErrorCode.CONNECTION_FAILED,
+          { error: errorMsg }
+        );
       }
-
-      throw new QSysError(
-        'Failed to connect to Q-SYS Core',
-        QSysErrorCode.CONNECTION_FAILED,
-        { error: errorMsg }
-      );
+    } else {
+      // Direct connection without retry logic
+      await this.performConnection();
     }
+  }
+
+  /**
+   * Perform the actual connection to Q-SYS Core
+   */
+  private async performConnection(): Promise<void> {
+    const url = `wss://${this.options.host}:${this.options.port}/qrc-public-api/v0`;
+    this.ws = new WebSocket(url, {
+      rejectUnauthorized: false, // Allow self-signed certificates
+    });
+
+    // Wait for WebSocket to open
+    await this.waitForConnection();
+
+    // Create QRWC instance with the open WebSocket
+    this.qrwc = await Qrwc.createQrwc({
+      socket: this.ws,
+      pollingInterval: this.options.pollingInterval,
+    });
+
+    this.reconnectAttempts = 0;
+    this.handleConnectionSuccess();
   }
 
   /**
@@ -203,6 +234,9 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       clearTimeout(this.reconnectTimer);
       delete this.reconnectTimer;
     }
+
+    // Disconnect connection manager
+    this.connectionManager.disconnect();
 
     // Close QRWC instance first
     if (this.qrwc) {
@@ -501,59 +535,16 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       delete this.qrwc;
 
       if (!this.shutdownInProgress && this.options.enableAutoReconnect) {
-        this.scheduleReconnect();
+        // Use connection manager for resilient reconnection
+        this.connectionManager.connectWithRetry(async () => {
+          await this.performConnection();
+        }).catch((error) => {
+          this.logger.error('Reconnection failed', { error });
+        });
       }
     });
   }
 
-  /**
-   * Schedule reconnection attempt
-   */
-  private scheduleReconnect(): void {
-    if (this.shutdownInProgress) return;
-
-    // Switch to long-term reconnection mode after initial attempts
-    if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-      this.logger.warn('Switching to long-term reconnection mode');
-      const longTermDelay = 60000; // 1 minute intervals
-
-      this.logger.info('Scheduling long-term reconnection attempt', {
-        nextAttempt: new Date(Date.now() + longTermDelay).toISOString(),
-      });
-
-      this.emit('reconnecting', { attempt: this.reconnectAttempts + 1 });
-
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectAttempts++; // Continue counting attempts
-        this.connect().catch((error: unknown) => {
-          this.logger.error('Long-term reconnection attempt failed', {
-            error,
-            attempt: this.reconnectAttempts,
-          });
-        });
-      }, longTermDelay);
-      return;
-    }
-
-    this.reconnectAttempts++;
-    const delay = Math.min(
-      this.options.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1),
-      30000 // Max 30 seconds
-    );
-
-    this.logger.info('Scheduling reconnection attempt', {
-      attempt: this.reconnectAttempts,
-      delay,
-    });
-
-    this.emit('reconnecting', { attempt: this.reconnectAttempts });
-
-    this.reconnectTimer = setTimeout(() => {
-      this.connect().catch((error: unknown) => {
-        this.logger.error('Reconnection attempt failed', { error });
-      });
-    }, delay);
-  }
 
   /**
    * Set connection state
@@ -606,5 +597,33 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     this.signalHandlersInstalled = false;
     this.shutdownHandler = undefined;
     this.logger.debug('Signal handlers removed');
+  }
+
+  /**
+   * Get connection health status
+   */
+  getHealthStatus(): ConnectionHealth {
+    return this.connectionManager.getHealthStatus();
+  }
+
+  /**
+   * Check if connection is healthy
+   */
+  isHealthy(): boolean {
+    return this.connectionManager.isHealthy();
+  }
+
+  /**
+   * Get circuit breaker state
+   */
+  getCircuitBreakerState(): 'closed' | 'open' | 'half-open' {
+    return this.connectionManager.getCircuitBreakerState();
+  }
+
+  /**
+   * Manually trigger a health check
+   */
+  checkHealth(): ConnectionHealth {
+    return this.connectionManager.checkHealth();
   }
 }

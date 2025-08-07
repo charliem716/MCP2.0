@@ -45,6 +45,11 @@ async function initializeMCPServer(): Promise<MCPServer> {
       reconnectInterval: appConfig.qsys.reconnectInterval,
       heartbeatInterval: appConfig.qsys.heartbeatInterval,
     },
+    rateLimiting: {
+      requestsPerMinute: config.rateLimit.maxRequests * 60 / (config.rateLimit.windowMs / 1000),
+      burstSize: 20,
+      perClient: false,
+    },
   };
   debugLog('MCP config created', mcpConfig);
   
