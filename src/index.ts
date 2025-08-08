@@ -104,6 +104,15 @@ async function main(): Promise<void> {
 
     logger.info('✅ MCP Voice/Text-Controlled Q-SYS Demo is ready');
     logger.info('🎯 AI agents can now control Q-SYS via stdio');
+    
+    // IMPORTANT: Keep the process alive for stdio transport
+    // The StdioServerTransport handles the event loop, but we need to ensure
+    // the main async function doesn't complete and allow Node.js to exit
+    // This is the root cause fix for BUG-180
+    await new Promise<void>(() => {
+      // This promise never resolves, keeping the process alive
+      // The process will exit via signal handlers (SIGTERM, SIGINT, etc.)
+    });
   } catch (error) {
     logger.error('❌ Failed to start application:', error);
     await cleanup();
@@ -288,9 +297,25 @@ process.on(
   }
 );
 
+// Detect if we're running as an MCP server (stdin is piped, not a TTY)
+const isMCPMode = process.env['NODE_ENV'] === 'production' && !process.stdin.isTTY;
+
+// Silence Winston warnings in MCP mode to avoid stderr pollution
+if (isMCPMode) {
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    // Filter out Winston warnings about no transports
+    if (args[0] && typeof args[0] === 'string' && args[0].includes('[winston]')) {
+      return; // Suppress Winston warnings
+    }
+    originalWarn.apply(console, args);
+  };
+}
+
 // Start the application
 main().catch(async (error: Error) => {
   logger.error('💥 Application failed to start:', error);
   await cleanup();
   process.exit(1);
 });
+

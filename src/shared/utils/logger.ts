@@ -45,7 +45,9 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const isDevelopment = config.isDevelopment;
   const isProduction = config.isProduction;
   const isTest = config.isTest;
-  const isMCPMode = mcpConfig.mcpMode;
+  // In production without MCP_MODE set, we should still avoid stdout
+  // when running as an MCP server (Claude Desktop doesn't set MCP_MODE)
+  const isMCPMode = mcpConfig.mcpMode || (isProduction && !process.stdin.isTTY);
 
   const level = mcpConfig.logLevel as LogLevel;
 
@@ -236,13 +238,16 @@ export function createLogger(serviceName: string): Logger {
   const appConfig = getConfig();
   const mcpConfig = getMCPConfig();
 
+  // Check if we're in MCP mode
+  const isMCPMode = mcpConfig.mcpMode || (appConfig.isProduction && !process.stdin.isTTY);
+  
   const winstonLogger = winston.createLogger({
     level: loggerConfig.level,
     format: loggerConfig.format,
     defaultMeta: loggerConfig.defaultMeta,
     transports: loggerConfig.transports,
     exitOnError: false,
-    silent: mcpConfig.mcpMode || (appConfig.isTest && !mcpConfig.debugTests),
+    silent: isMCPMode || (appConfig.isTest && !mcpConfig.debugTests),
   });
 
   // Handle unhandled promise rejections in production
