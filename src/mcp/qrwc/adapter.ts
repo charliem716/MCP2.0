@@ -435,7 +435,7 @@ export class QRWCClientAdapter
         return () => handleStatusGet(params, this.officialClient);
       case 'Component.GetAllControls':
       case 'ComponentGetAllControls':
-        return () => handleGetAllControls(params, this.officialClient);
+        return async () => handleGetAllControls(params, this.officialClient);
       case 'Component.GetAllControlValues':
       case 'ComponentGetAllControlValues':
         return () => handleGetAllControlValues(params, this.officialClient);
