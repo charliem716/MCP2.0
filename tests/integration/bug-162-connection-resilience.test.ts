@@ -8,7 +8,29 @@ import { ConnectionState } from '../../src/shared/types/common.js';
 import WebSocket from 'ws';
 
 // Mock WebSocket
-jest.mock('ws');
+jest.mock('ws', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    once: jest.fn(),
+    off: jest.fn(),
+    removeListener: jest.fn(),
+    close: jest.fn(),
+    send: jest.fn(),
+    readyState: 1, // WebSocket.OPEN
+  })),
+  WebSocket: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    once: jest.fn(),
+    off: jest.fn(),
+    removeListener: jest.fn(),
+    close: jest.fn(),
+    send: jest.fn(),
+    readyState: 1, // WebSocket.OPEN
+  })),
+  OPEN: 1,
+  CLOSED: 3,
+}));
 
 describe('BUG-162: Connection Resilience', () => {
   let client: OfficialQRWCClient;
@@ -29,8 +51,7 @@ describe('BUG-162: Connection Resilience', () => {
       readyState: WebSocket.OPEN,
     } as unknown as jest.Mocked<WebSocket>;
 
-    // Mock WebSocket constructor
-    (WebSocket as unknown as jest.Mock).mockImplementation(() => mockWebSocket);
+    // WebSocket is already mocked at module level
   });
 
   afterEach(() => {
