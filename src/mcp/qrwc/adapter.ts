@@ -955,13 +955,23 @@ export class QRWCClientAdapter
    * This should be called when the adapter is no longer needed
    * to prevent memory leaks from active timers
    */
-  dispose(): void {
+  async dispose(): Promise<void> {
     logger.info('Disposing QRWCClientAdapter...');
 
     // Clear all caches and timers
     this.clearAllCaches();
 
-    // Additional cleanup if needed in the future
+    // Shutdown state manager if it exists
+    if (this.stateManager && 'shutdown' in this.stateManager) {
+      try {
+        logger.info('Shutting down state manager...');
+        await (this.stateManager as any).shutdown();
+        logger.info('State manager shutdown completed');
+      } catch (error) {
+        logger.error('Error shutting down state manager', { error });
+      }
+    }
+
     logger.info('QRWCClientAdapter disposed successfully');
   }
 }

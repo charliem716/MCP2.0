@@ -89,10 +89,9 @@ export class DefaultMCPServerFactory implements IMCPServerFactory {
       this.container.register(ServiceTokens.STATE_REPOSITORY, stateRepo);
     }
     
-    // Create tool registry with adapter that now has state manager
-    return new MCPToolRegistry(
-      this.container.resolve<IControlSystem>(ServiceTokens.CONTROL_SYSTEM)
-    );
+    // Create tool registry with the actual adapter that has state manager attached
+    // The adapter parameter IS the control system registered in the container
+    return new MCPToolRegistry(adapter as IControlSystem);
   }
 
   private async createStateRepository(adapter: QRWCClientAdapter): Promise<IStateRepository> {

@@ -379,6 +379,17 @@ export class MCPToolRegistry {
       tools: this.getToolNames(),
     });
 
+    // Dispose of the control system (adapter) if it has a dispose method
+    if (this.controlSystem && 'dispose' in this.controlSystem && typeof this.controlSystem.dispose === 'function') {
+      try {
+        logger.info('Disposing control system adapter...');
+        await (this.controlSystem as any).dispose();
+        logger.info('Control system adapter disposed');
+      } catch (error) {
+        logger.error('Error disposing control system adapter', { error });
+      }
+    }
+
     this.tools.clear();
     this.initialized = false;
 
