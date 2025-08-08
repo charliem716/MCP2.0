@@ -13,6 +13,7 @@
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:backup": "NODE_OPTIONS='--experimental-vm-modules' jest --config jest.config.integration.ts",
     "test:coverage:measure": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage --coverageThreshold='{}' --passWithNoTests || true",
     "test:coverage:event-cache": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage --coverageThreshold='{}' --testPathPattern=event-cache --passWithNoTests || true",
     "lint": "eslint . --ext .ts,.js,.test.ts",
@@ -26,7 +27,11 @@
     "test:mcp:live": "npm run build && node tests/manual/test-mcp-tools-live.test.ts",
     "test:connection": "node tests/integration/qsys/test-connection.test.ts",
     "test:mcp": "node tests/functional/mcp-control-test.js",
-    "test:validation": "node tests/functional/test-control-validation.test.ts"
+    "test:validation": "node tests/functional/test-control-validation.test.ts",
+    "backup": "tsx src/cli/backup.ts",
+    "backup:create": "tsx src/cli/backup.ts backup",
+    "backup:list": "tsx src/cli/backup.ts list",
+    "backup:restore": "tsx src/cli/backup.ts restore"
   },
   "keywords": [
     "mcp",

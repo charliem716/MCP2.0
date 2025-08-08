@@ -12,6 +12,7 @@ import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import * as path from 'path';
 import * as fs from 'fs';
+import { EventDatabaseBackupManager, type BackupInfo } from './backup-manager.js';
 
 interface EventRecord {
   timestamp: number;
@@ -39,6 +40,7 @@ export class SQLiteEventMonitor extends EventEmitter {
   private config: Required<EventMonitorConfig>;
   private isInitialized = false;
   private adapter?: QRWCClientAdapter;
+  private backupManager: EventDatabaseBackupManager;
 
   constructor(adapter?: QRWCClientAdapter, config?: EventMonitorConfig) {
     super();
@@ -54,6 +56,9 @@ export class SQLiteEventMonitor extends EventEmitter {
       bufferSize: config?.bufferSize || parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000', 10),
       flushInterval: config?.flushInterval || parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] || '100', 10),
     };
+    
+    // Initialize backup manager
+    this.backupManager = new EventDatabaseBackupManager();
   }
 
   async initialize(): Promise<void> {
@@ -93,6 +98,9 @@ export class SQLiteEventMonitor extends EventEmitter {
           this.recordPollEvent(event);
         });
       }
+      
+      // Initialize backup manager
+      await this.backupManager.initialize(dbFile);
       
       this.isInitialized = true;
       logger.info('SQLite event monitor initialized', {
@@ -443,6 +451,9 @@ export class SQLiteEventMonitor extends EventEmitter {
       this.flush();
     }
     
+    // Shutdown backup manager
+    await this.backupManager.shutdown();
+    
     // Close database
     if (this.db) {
       this.db.close();
@@ -458,5 +469,79 @@ export class SQLiteEventMonitor extends EventEmitter {
    */
   isEnabled(): boolean {
     return this.config.enabled && this.isInitialized;
+  }
+  
+  /**
+   * Perform a manual backup of the database
+   */
+  async performBackup(): Promise<BackupInfo> {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Event monitor not initialized');
+    }
+    
+    // Flush any pending events before backup
+    this.flush();
+    
+    const dbFile = this.getDatabaseFilename();
+    return await this.backupManager.performBackup(dbFile);
+  }
+  
+  /**
+   * Restore database from a backup
+   */
+  async restoreFromBackup(backupPath: string): Promise<void> {
+    const dbFile = this.getDatabaseFilename();
+    
+    // Close current database if open
+    if (this.db) {
+      await this.close();
+    }
+    
+    // Restore from backup
+    await this.backupManager.restoreFromBackup(backupPath, dbFile);
+    
+    // Reinitialize with restored database
+    await this.initialize();
+  }
+  
+  /**
+   * Export event data to JSON
+   */
+  async exportData(startTime?: number, endTime?: number): Promise<string> {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Event monitor not initialized');
+    }
+    
+    // Flush any pending events before export
+    this.flush();
+    
+    const dbFile = this.getDatabaseFilename();
+    return await this.backupManager.exportData(dbFile, startTime, endTime);
+  }
+  
+  /**
+   * Import event data from JSON
+   */
+  async importData(exportPath: string): Promise<number> {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Event monitor not initialized');
+    }
+    
+    const dbFile = this.getDatabaseFilename();
+    return await this.backupManager.importData(dbFile, exportPath);
+  }
+  
+  /**
+   * List available backups
+   */
+  async listBackups(): Promise<BackupInfo[]> {
+    return await this.backupManager.listBackups();
+  }
+  
+  /**
+   * Get the latest backup
+   */
+  async getLatestBackup(): Promise<BackupInfo | null> {
+    return await this.backupManager.getLatestBackup();
   }
 }
