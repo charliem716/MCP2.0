@@ -5,6 +5,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { config as existingEnvConfig } from '../shared/utils/env.js';
 
 interface QSysConfig {
@@ -98,11 +102,14 @@ class ConfigManager {
       // Try multiple locations to find the config file
       // 1. First try absolute path (for MCP mode from Claude Desktop)
       // 2. Then try relative to current working directory
+      // 3. Try relative to the dist directory (when running from Claude Desktop)
       const possiblePaths = [
         '/Users/charliemccarrel/Desktop/Builds/MCP2.0/qsys-core.config.json',
         path.join(process.cwd(), 'qsys-core.config.json'),
         path.join(__dirname, '../../qsys-core.config.json'),
-        path.join(__dirname, '../../../qsys-core.config.json')
+        path.join(__dirname, '../../../qsys-core.config.json'),
+        // Add explicit path resolution from dist/config to project root
+        path.resolve(__dirname, '..', '..', 'qsys-core.config.json')
       ];
       
       let configPath: string | null = null;
