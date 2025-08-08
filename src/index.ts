@@ -3,7 +3,7 @@
  * Main entry point for the application
  */
 
-import 'dotenv/config';
+// Imports
 import { createLogger, type Logger } from './shared/utils/logger.js';
 import { validateConfig, config } from './shared/utils/env.js';
 import { configManager } from './config/index.js';
@@ -13,15 +13,6 @@ import { DefaultMCPServerFactory } from './mcp/factories/default-factory.js';
 import type { PartialMCPServerDependencies } from './mcp/interfaces/dependencies.js';
 
 const logger: Logger = createLogger('Main');
-
-// Add stderr logging for debugging MCP issues
-const debugLog = (message: string, data?: unknown) => {
-  const timestamp = new Date().toISOString();
-  const logEntry = data
-    ? `${timestamp} [DEBUG] ${message}: ${JSON.stringify(data)}\n`
-    : `${timestamp} [DEBUG] ${message}\n`;
-  process.stderr.write(logEntry);
-};
 
 // Global references for cleanup
 let mcpServer: MCPServer | null = null;
@@ -51,7 +42,6 @@ async function initializeMCPServer(): Promise<MCPServer> {
       perClient: false,
     },
   };
-  debugLog('MCP config created', mcpConfig);
   
   // Create factory for dependency creation
   const factory = new DefaultMCPServerFactory(logger);
@@ -98,31 +88,22 @@ async function initializeMCPServer(): Promise<MCPServer> {
 
 async function main(): Promise<void> {
   try {
-    debugLog('Process started', {
-      pid: process.pid,
-      args: process.argv,
-      cwd: process.cwd(),
-    });
     logger.info('🚀 Starting MCP Voice/Text-Controlled Q-SYS Demo...');
 
     // Configuration is validated by ConfigManager on initialization
     logger.info('✅ Configuration loaded');
-    debugLog('Configuration loaded');
 
     // Initialize and start MCP server
     mcpServer = await initializeMCPServer();
     logger.info('✅ MCP server initialized');
-    debugLog('MCP server initialized');
 
     // Start MCP server (this includes QRWC connection)
     await mcpServer.start();
     logger.info('✅ MCP server started and listening on stdio');
     logger.info('✅ Connected to Q-SYS Core via MCP server');
-    debugLog('MCP server started successfully');
 
     logger.info('✅ MCP Voice/Text-Controlled Q-SYS Demo is ready');
     logger.info('🎯 AI agents can now control Q-SYS via stdio');
-    debugLog('Application ready and waiting for input');
   } catch (error) {
     logger.error('❌ Failed to start application:', error);
     await cleanup();
@@ -136,14 +117,12 @@ async function main(): Promise<void> {
 async function cleanup(): Promise<void> {
   if (isShuttingDown) {
     // Force output during shutdown
-    debugLog('Already shutting down...');
     logger.info('⚠️  Already shutting down...');
     return;
   }
 
   isShuttingDown = true;
   // Force output during shutdown
-  debugLog('Cleaning up resources...');
   logger.info('🧹 Cleaning up resources...');
 
   // Set a timeout to force exit if cleanup takes too long
@@ -162,7 +141,6 @@ async function cleanup(): Promise<void> {
     clearTimeout(forceExitTimeout);
 
     // Log completion before closing logger
-    debugLog('Cleanup completed');
     logger.info('✅ Cleanup completed');
 
     // Flush logger transports last
@@ -181,7 +159,6 @@ async function cleanup(): Promise<void> {
  */
 async function gracefulShutdown(signal: string): Promise<void> {
   // Force output during shutdown
-  debugLog(`${signal} received, shutting down gracefully...`);
   logger.info(`🛑 ${signal} received, shutting down gracefully...`);
 
   try {
@@ -226,19 +203,12 @@ process.on('SIGUSR2', () => {
 
 // Handle uncaught exceptions - try to recover if possible
 process.on('uncaughtException', (error: Error) => {
-  debugLog('Uncaught exception', {
-    message: error.message,
-    stack: error.stack,
-  });
-
   if (!loggerClosed) {
     logger.error('💥 Uncaught Exception:', {
       message: error.message,
       stack: error.stack,
       name: error.name,
     });
-  } else {
-    debugLog('Uncaught Exception (logger closed)', error);
   }
 
   // Only exit for truly fatal errors
@@ -255,8 +225,7 @@ process.on('uncaughtException', (error: Error) => {
   
   if (isFatal) {
     logger.error('⚠️  Fatal error detected, initiating graceful shutdown');
-    gracefulShutdown('UNCAUGHT_EXCEPTION').catch(shutdownError => {
-      debugLog('Error during exception shutdown', shutdownError);
+    gracefulShutdown('UNCAUGHT_EXCEPTION').catch(() => {
       process.exit(1);
     });
   } else if (!loggerClosed) {
@@ -279,11 +248,6 @@ process.on(
   (reason: unknown, promise: Promise<unknown>) => {
     unhandledRejectionCount++;
     
-    debugLog('Unhandled rejection', { 
-      reason,
-      count: unhandledRejectionCount 
-    });
-    
     if (!loggerClosed) {
       // Enhanced logging with more context
       const errorInfo = {
@@ -301,8 +265,7 @@ process.on(
       // If we see too many rejections in a short time, something is seriously wrong
       if (unhandledRejectionCount > 10) {
         logger.error('⚠️  Too many unhandled rejections, initiating graceful shutdown');
-        gracefulShutdown('UNHANDLED_REJECTION_OVERFLOW').catch(shutdownError => {
-          debugLog('Error during rejection overflow shutdown', shutdownError);
+        gracefulShutdown('UNHANDLED_REJECTION_OVERFLOW').catch(() => {
           process.exit(1);
         });
       } else {
@@ -310,8 +273,6 @@ process.on(
           `⚠️  Continuing after unhandled rejection #${unhandledRejectionCount} - this should be fixed`
         );
       }
-    } else {
-      debugLog('Unhandled Rejection (logger closed)', reason);
     }
     
     // Reset count periodically to avoid shutdown from sporadic rejections
@@ -327,23 +288,7 @@ process.on(
   }
 );
 
-// Log stdio events
-process.stdin.on('end', () => {
-  debugLog('stdin ended');
-});
-
-process.stdin.on('close', () => {
-  debugLog('stdin closed');
-});
-
-process.stdout.on('close', () => {
-  debugLog('stdout closed');
-});
-
-process.on('exit', code => {
-  debugLog('Process exiting', { code });
-});
-
+// Start the application
 main().catch(async (error: Error) => {
   logger.error('💥 Application failed to start:', error);
   await cleanup();

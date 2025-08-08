@@ -157,3 +157,6 @@ src/**/*.js
 event-cache-spillover/
 test-cache-state.*.json
 coverage/
+data/backups/
+*.db-shm
+*.db-wal

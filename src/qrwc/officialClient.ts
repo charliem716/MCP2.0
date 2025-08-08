@@ -174,7 +174,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     } catch (error) {
       // Clean up WebSocket if connection failed
       if (this.ws) {
-        this.ws.removeAllListeners();
+        // WebSocket doesn't have removeAllListeners, just close it
         this.ws.close();
         delete this.ws;
       }
@@ -518,20 +518,20 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
       const timeout = setTimeout(() => {
         // Clean up event listeners before rejecting
-        this.ws?.removeAllListeners('open');
-        this.ws?.removeAllListeners('error');
+        this.ws?.off('open', handleOpen);
+        this.ws?.off('error', handleError);
         reject(new Error('Connection timeout'));
       }, this.options.connectionTimeout);
 
       const handleOpen = () => {
         clearTimeout(timeout);
-        this.ws?.removeListener('error', handleError);
+        this.ws?.off('error', handleError);
         resolve();
       };
 
       const handleError = (error: Error) => {
         clearTimeout(timeout);
-        this.ws?.removeListener('open', handleOpen);
+        this.ws?.off('open', handleOpen);
         reject(error);
       };
 

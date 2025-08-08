@@ -242,7 +242,7 @@ export function createLogger(serviceName: string): Logger {
     defaultMeta: loggerConfig.defaultMeta,
     transports: loggerConfig.transports,
     exitOnError: false,
-    silent: appConfig.isTest && !mcpConfig.debugTests,
+    silent: mcpConfig.mcpMode || (appConfig.isTest && !mcpConfig.debugTests),
   });
 
   // Handle unhandled promise rejections in production

@@ -8,7 +8,6 @@
  */
 
 import { z } from 'zod';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
@@ -17,13 +16,9 @@ import { ConfigurationError } from '../types/errors.js';
 // Avoid circular dependency during environment parsing
 import type { Logger } from './logger.js';
 
-// Load environment variables from .env file
-dotenv.config({
-  path: ['.env.local', '.env'],
-  debug:
-    process.env['NODE_ENV'] === 'development' &&
-    process.env['MCP_MODE'] !== 'true',
-});
+// Dotenv loading removed from here to avoid top-level await
+// In production, environment variables come from the runtime
+// In development, dotenv should be loaded before importing this module
 
 // BUG-138 FIX: Removed direct qsys-core.config.json loading
 // All configuration must go through ConfigManager in src/config/index.ts

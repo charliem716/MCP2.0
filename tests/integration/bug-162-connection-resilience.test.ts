@@ -70,14 +70,20 @@ describe('BUG-162: Connection Resilience', () => {
       enableAutoReconnect: true,
       maxReconnectAttempts: 3,
       reconnectInterval: 1000,
+      connectionTimeout: 5000,
     });
 
-    // Mock successful initial connection
-    mockWebSocket.once.mockImplementation((event, handler) => {
-      if (event === 'open') {
-        setImmediate(() => handler());
-      }
-      return mockWebSocket;
+    // Mock WebSocket constructor to return our mock
+    const MockedWebSocket = WebSocket as jest.MockedClass<typeof WebSocket>;
+    MockedWebSocket.mockImplementation(() => {
+      // Simulate successful connection
+      setImmediate(() => {
+        const openHandler = mockWebSocket.on.mock.calls.find(
+          call => call[0] === 'open'
+        )?.[1];
+        if (openHandler) openHandler();
+      });
+      return mockWebSocket as any;
     });
 
     // Connect initially

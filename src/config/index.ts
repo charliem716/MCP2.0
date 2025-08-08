@@ -95,12 +95,25 @@ class ConfigManager {
     // First try to load from qsys-core.config.json
     let fileConfig: FileConfig = {};
     try {
-      // Look for config file relative to the module location, not cwd
-      // This ensures it works when launched from any directory (like Claude Desktop)
-      const projectRoot = process.cwd();
-      const configPath = path.join(projectRoot, 'qsys-core.config.json');
+      // Try multiple locations to find the config file
+      // 1. First try absolute path (for MCP mode from Claude Desktop)
+      // 2. Then try relative to current working directory
+      const possiblePaths = [
+        '/Users/charliemccarrel/Desktop/Builds/MCP2.0/qsys-core.config.json',
+        path.join(process.cwd(), 'qsys-core.config.json'),
+        path.join(__dirname, '../../qsys-core.config.json'),
+        path.join(__dirname, '../../../qsys-core.config.json')
+      ];
       
-      if (fs.existsSync(configPath)) {
+      let configPath: string | null = null;
+      for (const tryPath of possiblePaths) {
+        if (fs.existsSync(tryPath)) {
+          configPath = tryPath;
+          break;
+        }
+      }
+      
+      if (configPath) {
         const configContent = fs.readFileSync(configPath, 'utf-8');
         const parsed = JSON.parse(configContent);
         // Extract the qsysCore property from the JSON

@@ -58,7 +58,11 @@ export class SQLiteEventMonitor extends EventEmitter {
     };
     
     // Initialize backup manager
-    this.backupManager = new EventDatabaseBackupManager();
+    // Disable auto-backup if in test environment
+    const backupConfig = process.env['NODE_ENV'] === 'test' 
+      ? { autoBackupInterval: 0 }
+      : undefined;
+    this.backupManager = new EventDatabaseBackupManager(backupConfig);
   }
 
   async initialize(): Promise<void> {

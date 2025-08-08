@@ -4,12 +4,15 @@
   "description": "MCP Voice/Text-Controlled Q-SYS Demo - AI-powered voice and text control for Q-SYS audio systems",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "qsys-mcp": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "start:mcp": "NODE_ENV=production MCP_MODE=true node dist/index.js",
+    "start:mcp": "node mcp-server.js",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",

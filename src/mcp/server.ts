@@ -10,15 +10,6 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { globalLogger as logger } from '../shared/utils/logger.js';
 import { generateCorrelationId, runWithCorrelation } from '../shared/utils/correlation.js';
-
-// Add stderr logging for debugging MCP issues
-const debugLog = (message: string, data?: unknown) => {
-  const timestamp = new Date().toISOString();
-  const logEntry = data
-    ? `${timestamp} [MCP-DEBUG] ${message}: ${JSON.stringify(data)}\n`
-    : `${timestamp} [MCP-DEBUG] ${message}\n`;
-  process.stderr.write(logEntry);
-};
 import type { MCPToolRegistry} from './handlers/index.js';
 import { type ToolCallResult } from './handlers/index.js';
 import type { OfficialQRWCClient } from '../qrwc/officialClient.js';
@@ -83,7 +74,6 @@ export class MCPServer {
     private config: MCPServerConfig,
     dependencies?: PartialMCPServerDependencies
   ) {
-    debugLog('MCPServer constructor called', config);
     this.serverName = config.name;
     this.serverVersion = config.version;
 
@@ -125,7 +115,6 @@ export class MCPServer {
     
     this.metrics = dependencies?.metrics ?? factory.createMetrics();
 
-    debugLog('MCP Server instance created with dependencies');
 
     this.setupRequestHandlers();
     this.setupErrorHandling();
@@ -327,36 +316,42 @@ export class MCPServer {
   async start(): Promise<void> {
     try {
       logger.info('Starting MCP server...');
-      debugLog('Starting MCP server');
 
-      // Initialize QRWC client first
-      await this.officialQrwcClient.connect();
-      logger.info('QRWC client connected');
-      debugLog('QRWC client connected');
-
-      // Set up reconnection handlers
-      this.setupReconnectionHandlers();
-
-      // Initialize tool registry
-      await this.toolRegistry.initialize();
-      logger.info('Tool registry initialized');
-      debugLog('Tool registry initialized');
-
-      // Connect to transport
-      debugLog('Connecting server to transport');
+      // Initialize tool registry - all tools are always available
+      this.toolRegistry.initialize();
+      logger.info('Tool registry initialized with all tools ready');
+      
+      // Connect to MCP transport
       await this.server.connect(this.transport);
-      debugLog('Server connected to transport');
-
       this.isConnected = true;
       logger.info('MCP server started successfully with stdio transport');
-      debugLog('MCP server started successfully');
-
+      
+      // Try to connect to Q-SYS but don't block on it
+      // Tools will handle connection errors gracefully
+      this.attemptQSysConnection();
+      
       // Handle graceful shutdown
       this.setupGracefulShutdown();
     } catch (error) {
       logger.error('Failed to start MCP server', { error });
       throw error;
     }
+  }
+  
+  /**
+   * Attempt to connect to Q-SYS (non-blocking)
+   */
+  private attemptQSysConnection(): void {
+    // Fire and forget - don't await
+    this.officialQrwcClient.connect()
+      .then(() => {
+        logger.info('Q-SYS Core connected successfully');
+        this.setupReconnectionHandlers();
+      })
+      .catch(error => {
+        logger.warn('Q-SYS Core connection failed - tools will handle this gracefully', { error });
+        // Tools will return user-friendly errors when Q-SYS is not connected
+      });
   }
 
   /**

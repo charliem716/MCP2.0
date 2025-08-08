@@ -116,6 +116,7 @@ export class MCPToolRegistry {
    */
   private registerQSysTools(): void {
     const qsysTools: Array<BaseQSysTool<unknown>> = [
+      // Core Q-SYS tools
       createListComponentsTool(this.controlSystem),
       createGetComponentControlsTool(this.controlSystem),
       createListControlsTool(this.controlSystem),
@@ -133,62 +134,18 @@ export class MCPToolRegistry {
       createClearChangeGroupTool(this.controlSystem),
       createSetChangeGroupAutoPollTool(this.controlSystem),
       createListChangeGroupsTool(this.controlSystem),
+      // Event monitoring tools - always register, let them handle availability
+      createQueryChangeEventsTool(this.controlSystem),
+      createGetEventStatisticsTool(this.controlSystem),
     ];
-
-    // BUG-132: Event cache tools removed - functionality integrated into SimpleStateManager
-    // These tools are no longer needed with the simplified architecture
 
     qsysTools.forEach(tool => {
       this.registerQSysTool(tool);
     });
 
-    // Register event monitoring tools if available (BUG-150: Event monitoring restored)
-    this.registerEventMonitoringTools();
-
     logger.info(`Registered ${qsysTools.length} Q-SYS tools`);
   }
 
-  /**
-   * Register event monitoring tools if the state manager supports them
-   */
-  private registerEventMonitoringTools(): void {
-    try {
-      // Check if the control system has state manager with event monitoring
-      // Type assertion is safe here as we know the control system is a QRWCClientAdapter
-      const adapter = this.controlSystem as QRWCClientAdapter;
-      const stateManager = adapter.getStateManager?.();
-      
-      // Check if it's a MonitoredStateManager with getEventMonitor method
-      const hasEventMonitor = stateManager && 
-        'getEventMonitor' in stateManager && 
-        typeof (stateManager as any).getEventMonitor === 'function';
-      
-      if (hasEventMonitor) {
-        // Register event monitoring tools
-        const eventTools: Array<BaseQSysTool<unknown>> = [
-          createQueryChangeEventsTool(this.controlSystem),
-          createGetEventStatisticsTool(this.controlSystem),
-        ];
-
-        eventTools.forEach(tool => {
-          this.registerQSysTool(tool);
-        });
-
-        logger.info('Event monitoring tools registered', {
-          tools: eventTools.map(t => t.name)
-        });
-      } else {
-        logger.debug('Event monitoring not available - tools not registered', {
-          hasAdapter: !!adapter,
-          hasGetStateManager: !!adapter.getStateManager,
-          hasStateManager: !!stateManager,
-          hasGetEventMonitor: hasEventMonitor
-        });
-      }
-    } catch (error) {
-      logger.warn('Failed to register event monitoring tools', { error });
-    }
-  }
 
   /**
    * Register a Q-SYS tool (adapts to legacy interface)

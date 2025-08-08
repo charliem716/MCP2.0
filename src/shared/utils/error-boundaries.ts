@@ -29,7 +29,7 @@ export async function withTimeout<T>(
       })
       .catch((error: unknown) => {
         clearTimeout(timeoutId);
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       });
   });
 }
