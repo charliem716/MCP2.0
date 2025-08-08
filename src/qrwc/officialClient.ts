@@ -7,6 +7,7 @@ import { EventEmitter } from 'events';
 import WebSocket from 'ws';
 import { Qrwc } from '@q-sys/qrwc';
 import { createLogger, type Logger } from '../shared/utils/logger.js';
+import { getCorrelationId } from '../shared/utils/correlation.js';
 import { config as envConfig } from '../shared/utils/env.js';
 import { ConnectionState } from '../shared/types/common.js';
 import { QSysError, QSysErrorCode, type ErrorContext } from '../shared/types/errors.js';
@@ -75,6 +76,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       warn: noop, 
       debug: noop,
       child: () => fallbackLogger,
+      setContext: () => { /* no-op */ },
     };
     
     try {
@@ -190,18 +192,25 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       ? Date.now() - this.disconnectTime.getTime()
       : 0;
 
+    const correlationId = getCorrelationId();
+
     if (downtime > 0) {
       this.logger.info('Q-SYS Core reconnected after downtime', {
         downtimeMs: downtime,
         requiresCacheInvalidation: downtime > 30000,
+        correlationId,
+        component: 'qrwc.client'
       });
     }
 
     this.setupWebSocketHandlers();
 
-    this.logger.info(
-      'Successfully connected to Q-SYS Core using official QRWC library'
-    );
+    this.logger.info('Successfully connected to Q-SYS Core using official QRWC library', {
+      correlationId,
+      component: 'qrwc.client',
+      host: this.options.host,
+      port: this.options.port
+    });
 
     // Emit appropriate event based on downtime
     if (downtime > 30000) {
@@ -238,7 +247,10 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     }
 
     this.setState(ConnectionState.DISCONNECTING);
-    this.logger.info('Disconnecting from Q-SYS Core');
+    this.logger.info('Disconnecting from Q-SYS Core', {
+      correlationId: getCorrelationId(),
+      component: 'qrwc.client'
+    });
     this.shutdownInProgress = true;
 
     // Clear reconnect timer
@@ -269,7 +281,10 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
     this.setState(ConnectionState.DISCONNECTED);
     this.emit('disconnected', 'Client disconnect');
 
-    this.logger.info('Disconnected from Q-SYS Core');
+    this.logger.info('Disconnected from Q-SYS Core', {
+      correlationId: getCorrelationId(),
+      component: 'qrwc.client'
+    });
 
     // Reset shutdown flag to allow future connections
     this.shutdownInProgress = false;

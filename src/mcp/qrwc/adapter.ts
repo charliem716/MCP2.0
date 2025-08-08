@@ -8,6 +8,7 @@
 
 import { EventEmitter } from 'events';
 import { globalLogger as logger } from '../../shared/utils/logger.js';
+import { getCorrelationId } from '../../shared/utils/correlation.js';
 import type { OfficialQRWCClient } from '../../qrwc/officialClient.js';
 import type { IControlState } from '@q-sys/qrwc';
 import {
@@ -203,11 +204,18 @@ export class QRWCClientAdapter
       }
 
       this.indexBuilt = true;
-      logger.debug(
-        `Built control index with ${controlCount} controls from ${Object.keys(qrwc.components).length} components`
-      );
+      logger.debug('Built control index', {
+        controlCount,
+        componentCount: Object.keys(qrwc.components).length,
+        correlationId: getCorrelationId(),
+        component: 'qrwc.adapter.index'
+      });
     } catch (error) {
-      logger.error('Failed to build control index', { error });
+      logger.error('Failed to build control index', { 
+        error,
+        correlationId: getCorrelationId(),
+        component: 'qrwc.adapter.index'
+      });
       this.indexBuilt = false;
     }
   }
@@ -251,7 +259,16 @@ export class QRWCClientAdapter
     params?: CommandParams<T>,
     options: RetryOptions = {}
   ): Promise<QSysApiResponse<CommandResult<T>>> {
+    const startTime = Date.now();
+    const correlationId = getCorrelationId();
     const { maxRetries = 3, retryDelay = 1000, retryBackoff = 2 } = options;
+
+    logger.debug('sendCommand initiated', {
+      command,
+      correlationId,
+      component: 'qrwc.adapter',
+      hasParams: !!params
+    });
 
     let lastError: Error = new QSysError('Unknown error', QSysErrorCode.COMMAND_FAILED);
 
@@ -281,9 +298,28 @@ export class QRWCClientAdapter
           command,
           params: safeParams,
           attempt,
+          correlationId,
+          component: 'qrwc.adapter.command',
+          elapsedMs: Date.now() - startTime
         });
 
+        const commandStartTime = Date.now();
         const result = await this.executeCommand(command, params, options);
+        const commandDuration = Date.now() - commandStartTime;
+        
+        logger.info('Command executed successfully', {
+          command,
+          duration: commandDuration,
+          totalDuration: Date.now() - startTime,
+          correlationId,
+          component: 'qrwc.adapter.command',
+          attempt,
+          performanceMetrics: {
+            commandExecutionTimeMs: commandDuration,
+            totalTimeMs: Date.now() - startTime,
+            timestamp: new Date().toISOString()
+          }
+        });
         
         // Check if result is already wrapped in QSysApiResponse
         if (isQSysApiResponse(result)) {

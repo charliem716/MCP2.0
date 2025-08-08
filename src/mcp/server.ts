@@ -9,6 +9,7 @@ import {
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { globalLogger as logger } from '../shared/utils/logger.js';
+import { generateCorrelationId, runWithCorrelation } from '../shared/utils/correlation.js';
 
 // Add stderr logging for debugging MCP issues
 const debugLog = (message: string, data?: unknown) => {
@@ -141,66 +142,111 @@ export class MCPServer {
    */
   private setupRequestHandlers(): void {
     // Tools handlers
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      logger.debug('Received list_tools request');
-      try {
-        const tools = await this.toolRegistry.listTools();
-        logger.debug('Returning tools list', { count: tools.length });
-        return { tools };
-      } catch (error) {
-        logger.error('Error listing tools', { error });
-        throw this.createMCPError(
-          -32603,
-          'Internal error listing tools',
-          error
-        );
-      }
+    this.server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+      const correlationId = generateCorrelationId();
+      return runWithCorrelation(correlationId, async () => {
+        const startTime = Date.now();
+        logger.info('Received list_tools request', { 
+          correlationId,
+          component: 'mcp.tools'
+        });
+        
+        try {
+          const tools = await this.toolRegistry.listTools();
+          const duration = Date.now() - startTime;
+          
+          logger.info('Tools list retrieved', { 
+            correlationId,
+            component: 'mcp.tools',
+            count: tools.length,
+            duration
+          });
+          
+          this.metrics.requestCount.inc({ method: 'tools/list', status: 'success' });
+          this.metrics.requestDuration.observe(duration / 1000);
+          
+          return { tools };
+        } catch (error) {
+          const duration = Date.now() - startTime;
+          logger.error('Error listing tools', { 
+            error,
+            correlationId,
+            component: 'mcp.tools',
+            duration
+          });
+          
+          this.metrics.requestCount.inc({ method: 'tools/list', status: 'error' });
+          this.metrics.requestErrors.inc({ method: 'tools/list', error_type: 'list_error' });
+          
+          throw this.createMCPError(
+            -32603,
+            'Internal error listing tools',
+            error
+          );
+        }
+      }, { startTime: Date.now() });
     });
 
     this.server.setRequestHandler(CallToolRequestSchema, async request => {
       const { name, arguments: args } = request.params;
-      const startTime = Date.now();
+      const correlationId = generateCorrelationId();
       
-      // Extract client ID from request context if available
-      let clientId = this.extractClientId(request);
-      
-      logger.info('Received call_tool request', { tool: name, clientId });
-
-      try {
-        // Authenticate request
-        clientId = this.authenticateToolRequest(name, request, clientId);
-
-        // Check rate limits
-        this.checkRateLimits(name, clientId);
-
-        // Validate input
-        this.validateToolInput(name, args);
-
-        // Execute tool
-        const result = await this.executeToolWithProtection(name, args);
+      return runWithCorrelation(correlationId, async () => {
+        const startTime = Date.now();
         
-        // Record success metrics
-        this.recordSuccessMetrics(name, startTime, clientId);
+        // Extract client ID from request context if available
+        let clientId = this.extractClientId(request);
         
-        return {
-          content: result.content,
-          isError: result.isError,
-        };
-      } catch (error) {
-        // Record error metrics
-        this.recordErrorMetrics(name, error, startTime, clientId);
-        
-        // Re-throw if already formatted MCP error
-        if (typeof error === 'object' && error !== null && 'code' in error) {
-          throw error;
+        logger.info('Received call_tool request', { 
+          tool: name,
+          clientId,
+          correlationId,
+          component: 'mcp.tools',
+          args: typeof args === 'object' ? Object.keys(args as object) : undefined
+        });
+
+        try {
+          // Authenticate request
+          clientId = this.authenticateToolRequest(name, request, clientId);
+
+          // Check rate limits
+          this.checkRateLimits(name, clientId);
+
+          // Validate input
+          this.validateToolInput(name, args);
+
+          // Execute tool with timing
+          logger.debug('Executing tool', {
+            tool: name,
+            correlationId,
+            component: 'mcp.tools.execution'
+          });
+          
+          const result = await this.executeToolWithProtection(name, args);
+          
+          // Record success metrics
+          this.recordSuccessMetrics(name, startTime, clientId, correlationId);
+          
+          return {
+            content: result.content,
+            isError: result.isError,
+          };
+        } catch (error) {
+          // Record error metrics
+          this.recordErrorMetrics(name, error, startTime, clientId, correlationId);
+          
+          // Re-throw if already formatted MCP error
+          if (typeof error === 'object' && error !== null && 'code' in error) {
+            throw error;
+          }
+          
+          throw this.createMCPError(
+            -32603,
+            `Tool execution failed: ${name}`,
+            error
+          );
         }
-        
-        throw this.createMCPError(
-          -32603,
-          `Tool execution failed: ${name}`,
-          error
-        );
-      }
+      }, { startTime: Date.now() });
     });
 
     // Resources handlers (placeholder for future implementation)
@@ -686,7 +732,8 @@ export class MCPServer {
   private recordSuccessMetrics(
     toolName: string,
     startTime: number,
-    clientId: string | undefined
+    clientId: string | undefined,
+    correlationId?: string
   ): void {
     const duration = Date.now() - startTime;
     this.metrics.toolCalls.inc({ tool: toolName, status: 'success' });
@@ -700,6 +747,12 @@ export class MCPServer {
       success: true,
       duration,
       clientId,
+      correlationId,
+      component: 'mcp.tools',
+      performanceMetrics: {
+        executionTimeMs: duration,
+        timestamp: new Date().toISOString()
+      }
     });
   }
 
@@ -710,10 +763,13 @@ export class MCPServer {
     toolName: string,
     error: unknown,
     startTime: number,
-    clientId: string | undefined
+    clientId: string | undefined,
+    correlationId?: string
   ): void {
     const duration = Date.now() - startTime;
     const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
     
     this.metrics.toolCalls.inc({ tool: toolName, status: 'error' });
     this.metrics.toolErrors.inc({ tool: toolName, error_type: errorType });
@@ -721,6 +777,19 @@ export class MCPServer {
     this.metrics.requestErrors.inc({ method: 'tools/call', error_type: errorType });
     this.addAuditLog(toolName, clientId, false, duration);
     
-    logger.error('Error executing tool', { tool: toolName, error, clientId });
+    logger.error('Tool execution failed', { 
+      tool: toolName,
+      error: errorMessage,
+      errorType,
+      errorStack,
+      clientId,
+      correlationId,
+      component: 'mcp.tools',
+      duration,
+      performanceMetrics: {
+        failureTimeMs: duration,
+        timestamp: new Date().toISOString()
+      }
+    });
   }
 }

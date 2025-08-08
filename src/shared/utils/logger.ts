@@ -6,6 +6,7 @@
 import winston from 'winston';
 import path from 'path';
 import { getConfig, getMCPConfig } from '../../config/index.js';
+import { getCorrelationContext } from './correlation.js';
 
 // Ensure winston format is available
 const { format } = winston;
@@ -16,6 +17,7 @@ export interface Logger {
   warn(message: string, meta?: unknown): void;
   debug(message: string, meta?: unknown): void;
   child(meta: Record<string, unknown>): Logger;
+  setContext(context: Record<string, unknown>): void;
 }
 
 export type LogLevel =
@@ -47,12 +49,25 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
 
   const level = mcpConfig.logLevel as LogLevel;
 
+  // Add correlation ID to log entries
+  const correlationFormat = format((info: any) => {
+    const context = getCorrelationContext();
+    if (context?.correlationId) {
+      info['correlationId'] = context.correlationId;
+      if (context.metadata) {
+        info['requestMetadata'] = context.metadata;
+      }
+    }
+    return info;
+  });
+
   // Base format for all environments
   const baseFormat = format.combine(
+    correlationFormat(),
     format.timestamp(),
     format.errors({ stack: true }),
     format.metadata({
-      fillExcept: ['message', 'level', 'timestamp', 'service'],
+      fillExcept: ['message', 'level', 'timestamp', 'service', 'correlationId', 'component', 'duration', 'requestMetadata'],
     })
   );
 
@@ -61,20 +76,24 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
     baseFormat,
     format.colorize(),
     format.printf(info => {
-      const { timestamp, level, message, service, metadata } = info as {
+      const { timestamp, level, message, service, correlationId, component, metadata } = info as {
         timestamp: string;
         level: string;
         message: string;
         service: string;
+        correlationId?: string;
+        component?: string;
         metadata?: unknown;
       };
+      const corrId = correlationId ? ` [${correlationId.substring(0, 8)}]` : '';
+      const comp = component ? ` [${component}]` : '';
       const meta =
         metadata &&
         typeof metadata === 'object' &&
         Object.keys(metadata).length > 0
           ? ` ${JSON.stringify(metadata)}`
           : '';
-      return `${timestamp} [${service}] ${level}: ${message}${meta}`;
+      return `${timestamp} [${service}]${comp}${corrId} ${level}: ${message}${meta}`;
     })
   );
 
@@ -139,6 +158,77 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
 }
 
 /**
+ * Enhanced logger with context support
+ */
+class EnhancedLogger implements Logger {
+  private context: Record<string, unknown> = {};
+
+  constructor(private winstonLogger: winston.Logger) {}
+
+  info(message: string, meta?: unknown): void {
+    this.log('info', message, meta);
+  }
+
+  error(message: string, meta?: unknown): void {
+    this.log('error', message, meta);
+  }
+
+  warn(message: string, meta?: unknown): void {
+    this.log('warn', message, meta);
+  }
+
+  debug(message: string, meta?: unknown): void {
+    this.log('debug', message, meta);
+  }
+
+  private log(level: string, message: string, meta?: unknown): void {
+    const logData: any = { message };
+    
+    // Add context
+    if (Object.keys(this.context).length > 0) {
+      Object.assign(logData, this.context);
+    }
+    
+    // Add metadata
+    if (meta && typeof meta === 'object') {
+      Object.assign(logData, meta);
+    } else if (meta !== undefined) {
+      logData.data = meta;
+    }
+    
+    // Add performance timing if available
+    const correlationContext = getCorrelationContext();
+    if (correlationContext?.metadata?.['startTime']) {
+      const duration = Date.now() - (correlationContext.metadata['startTime'] as number);
+      logData.duration = duration;
+      
+      // Add explicit performance metrics
+      if (!logData.performanceMetrics) {
+        logData.performanceMetrics = {};
+      }
+      if (typeof logData.performanceMetrics === 'object') {
+        Object.assign(logData.performanceMetrics, {
+          executionTimeMs: duration,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    
+    this.winstonLogger.log(level, logData);
+  }
+
+  child(meta: Record<string, unknown>): Logger {
+    const childLogger = new EnhancedLogger(this.winstonLogger.child(meta));
+    childLogger.context = { ...this.context, ...meta };
+    return childLogger;
+  }
+
+  setContext(context: Record<string, unknown>): void {
+    this.context = { ...this.context, ...context };
+  }
+}
+
+/**
  * Create a logger instance for a specific service
  */
 export function createLogger(serviceName: string): Logger {
@@ -146,7 +236,7 @@ export function createLogger(serviceName: string): Logger {
   const appConfig = getConfig();
   const mcpConfig = getMCPConfig();
 
-  const logger = winston.createLogger({
+  const winstonLogger = winston.createLogger({
     level: loggerConfig.level,
     format: loggerConfig.format,
     defaultMeta: loggerConfig.defaultMeta,
@@ -166,7 +256,7 @@ export function createLogger(serviceName: string): Logger {
   //   );
   // }
 
-  return logger;
+  return new EnhancedLogger(winstonLogger);
 }
 
 /**
