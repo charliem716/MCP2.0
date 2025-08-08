@@ -451,6 +451,10 @@ export class QRWCClientAdapter
         return () => this.handleChangeGroupAutoPoll(params);
       case 'ChangeGroup.Destroy':
         return () => this.handleChangeGroupDestroy(params);
+      case 'ChangeGroup.Remove':
+        return () => this.handleChangeGroupRemove(params);
+      case 'ChangeGroup.Clear':
+        return () => this.handleChangeGroupClear(params);
       default:
         return null;
     }
@@ -1018,6 +1022,77 @@ export class QRWCClientAdapter
     this.autoPollFailureCounts.delete(groupId);
     
     return { result: true };
+  }
+
+  /**
+   * Handle ChangeGroup.Remove command - Remove specific controls from a change group
+   */
+  private handleChangeGroupRemove(params?: Record<string, unknown>): unknown {
+    if (!params?.['Id']) {
+      throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    const groupId = params['Id'] as string;
+    const controlsParam = params['Controls'];
+    
+    if (!controlsParam || !Array.isArray(controlsParam) || controlsParam.length === 0) {
+      throw new QSysError('Controls array required and must not be empty', QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    const group = this.changeGroups.get(groupId);
+    if (!group) {
+      throw new QSysError(`Change group '${groupId}' not found`, QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    const controlsToRemove = controlsParam as string[];
+    const initialCount = group.controls.length;
+    
+    // Remove specified controls from the group
+    group.controls = group.controls.filter(control => !controlsToRemove.includes(control));
+    
+    const removedCount = initialCount - group.controls.length;
+    
+    logger.debug('Removed controls from change group', {
+      groupId,
+      removedCount,
+      remainingControls: group.controls.length,
+      controlsToRemove
+    });
+    
+    return {
+      Success: true,
+      RemainingControls: group.controls.length,
+      RemovedCount: removedCount
+    };
+  }
+
+  /**
+   * Handle ChangeGroup.Clear command - Remove all controls from a change group
+   */
+  private handleChangeGroupClear(params?: Record<string, unknown>): unknown {
+    if (!params?.['Id']) {
+      throw new QSysError('Change group ID required', QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    const groupId = params['Id'] as string;
+    
+    const group = this.changeGroups.get(groupId);
+    if (!group) {
+      throw new QSysError(`Change group '${groupId}' not found`, QSysErrorCode.COMMAND_FAILED);
+    }
+    
+    const clearedCount = group.controls.length;
+    group.controls = [];
+    
+    logger.debug('Cleared all controls from change group', {
+      groupId,
+      clearedCount
+    });
+    
+    return {
+      Success: true,
+      ClearedCount: clearedCount
+    };
   }
 
   /**
