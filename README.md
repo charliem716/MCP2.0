@@ -335,6 +335,13 @@ npm run type-check
 - [**QRC Overview**](qrc-overview.md) - Q-SYS Remote Control overview
 - [**Component Control**](qrc-component-control.md) - Component interaction guide
 
+### **Production & Operations**
+
+- [**Production Deployment Guide**](docs/DEPLOYMENT.md) - Complete deployment instructions
+- [**MCP Tools API Reference**](docs/api/MCP_TOOLS.md) - Comprehensive API documentation
+- [**Troubleshooting Guide**](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [**Configuration Reference**](docs/CONFIGURATION.md) - Configuration options explained
+
 ### **Project Management**
 
 - [**PRD Document**](mcp_voice_text_prd_v_2.md) - Product requirements
