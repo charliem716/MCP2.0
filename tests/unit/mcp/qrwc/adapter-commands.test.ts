@@ -224,6 +224,143 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
     });
   });
 
+  describe('Control.GetValues command', () => {
+    it('should retrieve values for multiple controls', async () => {
+      // Mock the QRC object with components
+      const mockComponents = {
+        'Main Mixer': {
+          controls: {
+            gain: { 
+              state: { 
+                Value: -10, 
+                String: '-10.0 dB',
+                Type: 'Float'
+              } 
+            },
+            mute: { 
+              state: { 
+                Value: 0, 
+                String: 'false',
+                Type: 'Boolean'
+              } 
+            },
+          },
+        },
+        'Output Gain': {
+          controls: {
+            level: { 
+              state: { 
+                Value: 5, 
+                String: '5.0 dB',
+                Type: 'Float'
+              } 
+            },
+          },
+        },
+      };
+
+      mockOfficialClient.getQrwc.mockReturnValue({
+        components: mockComponents,
+      });
+
+      const result = await adapter.sendCommand('Control.GetValues', {
+        Names: ['Main Mixer.gain', 'Main Mixer.mute', 'Output Gain.level'],
+      });
+
+      expect(result).toHaveProperty('result');
+      expect(result.result).toBeInstanceOf(Array);
+      expect(result.result).toHaveLength(3);
+
+      // Verify control values
+      const gainControl = result.result.find((c: any) => c.Name === 'Main Mixer.gain');
+      expect(gainControl).toBeDefined();
+      expect(gainControl).toHaveProperty('Value', -10);
+      expect(gainControl).toHaveProperty('String', '-10.0 dB');
+      expect(gainControl).toHaveProperty('Type', 'Float');
+
+      const muteControl = result.result.find((c: any) => c.Name === 'Main Mixer.mute');
+      expect(muteControl).toBeDefined();
+      expect(muteControl).toHaveProperty('Value', 0);
+      expect(muteControl).toHaveProperty('String', 'false');
+      expect(muteControl).toHaveProperty('Type', 'Boolean');
+
+      const levelControl = result.result.find((c: any) => c.Name === 'Output Gain.level');
+      expect(levelControl).toBeDefined();
+      expect(levelControl).toHaveProperty('Value', 5);
+      expect(levelControl).toHaveProperty('String', '5.0 dB');
+      expect(levelControl).toHaveProperty('Type', 'Float');
+    });
+
+    it('should handle non-existent controls gracefully', async () => {
+      const mockComponents = {
+        'Main Mixer': {
+          controls: {
+            gain: { 
+              state: { 
+                Value: -10, 
+                String: '-10.0 dB',
+                Type: 'Float'
+              } 
+            },
+          },
+        },
+      };
+
+      mockOfficialClient.getQrwc.mockReturnValue({
+        components: mockComponents,
+      });
+
+      const result = await adapter.sendCommand('Control.GetValues', {
+        Names: ['Main Mixer.gain', 'NonExistent.control', 'Main Mixer.nonexistent'],
+      });
+
+      expect(result).toHaveProperty('result');
+      expect(result.result).toBeInstanceOf(Array);
+      expect(result.result).toHaveLength(3);
+
+      // Verify existing control
+      const gainControl = result.result.find((c: any) => c.Name === 'Main Mixer.gain');
+      expect(gainControl).toBeDefined();
+      expect(gainControl).toHaveProperty('Value', -10);
+
+      // Verify non-existent component control
+      const nonExistentComponent = result.result.find((c: any) => c.Name === 'NonExistent.control');
+      expect(nonExistentComponent).toBeDefined();
+      expect(nonExistentComponent).toHaveProperty('Value', 0);
+      expect(nonExistentComponent).toHaveProperty('String', 'Component not found');
+      expect(nonExistentComponent).toHaveProperty('Type', 'Unknown');
+
+      // Verify non-existent control on existing component
+      const nonExistentControl = result.result.find((c: any) => c.Name === 'Main Mixer.nonexistent');
+      expect(nonExistentControl).toBeDefined();
+      expect(nonExistentControl).toHaveProperty('Value', 0);
+      expect(nonExistentControl).toHaveProperty('String', 'Control not found');
+      expect(nonExistentControl).toHaveProperty('Type', 'Unknown');
+    });
+
+    it('should throw error when Names parameter is missing', async () => {
+      await expect(adapter.sendCommand('Control.GetValues', {})).rejects.toThrow(
+        'Names array is required'
+      );
+    });
+
+    it('should throw error when Names is not an array', async () => {
+      await expect(adapter.sendCommand('Control.GetValues', {
+        Names: 'not-an-array',
+      })).rejects.toThrow('Names array is required');
+    });
+
+    it('should throw error when control name is not a string', async () => {
+      mockOfficialClient.getQrwc.mockReturnValue({
+        components: {},
+      });
+
+      await expect(adapter.sendCommand('Control.GetValues', {
+        Names: [123, 'valid.control'],
+      })).rejects.toThrow('Control name must be a string');
+    });
+  });
+
   describe('Status.Get command', () => {
     it('should return simplified status when connected', async () => {
       mockOfficialClient.isConnected.mockReturnValue(true);

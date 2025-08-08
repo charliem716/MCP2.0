@@ -290,6 +290,101 @@ export function handleControlGet(
 }
 
 /**
+ * Handle Control.GetValues command
+ * Similar to Control.Get but accepts an array of control names in the 'Names' parameter
+ */
+export function handleControlGetValues(
+  params: Record<string, unknown> | undefined,
+  client: OfficialQRWCClient
+): { result: ControlInfo[] } {
+  const namesParam = params?.['Names'];
+  if (!Array.isArray(namesParam)) {
+    throw new ValidationError('Names array is required',
+      [{ field: 'Names', message: 'Must be an array', code: 'INVALID_TYPE' }]);
+  }
+  const controlNames = namesParam;
+
+  const qrwc = client.getQrwc();
+  if (!qrwc) {
+    throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
+  }
+
+  const results = controlNames.map(fullName => {
+    // Ensure it's a string
+    if (typeof fullName !== 'string') {
+      throw new ValidationError('Control name must be a string',
+        [{ field: 'controlName', message: 'Must be a string', code: 'INVALID_TYPE' }]);
+    }
+
+    // Parse control name - supports both Component.Control and single CodeName formats
+    const parsed = parseControlName(fullName);
+    
+    if (!parsed) {
+      throw new ValidationError(`Invalid control name format: ${fullName}`,
+        [{ field: 'controlName', message: 'Must be in format Component.Control or a valid Code Name', code: 'INVALID_FORMAT' }]);
+    }
+    
+    // Handle named controls (single word Code Names without dots)
+    if (parsed.componentName === '__NAMED__') {
+      // This is a named control - we need different handling
+      // For now, return a placeholder since we can't access it without proper Code Name setup
+      logger.warn(`Named control ${parsed.controlName} requested but not accessible via QRWC SDK`);
+      return {
+        Name: fullName,
+        Type: 'Unknown',
+        Value: 0,
+        String: 'N/A',
+      };
+    }
+
+    const { componentName, controlName } = parsed;
+    const component = qrwc.components[componentName];
+    if (!component) {
+      // Return error result for non-existent component
+      logger.warn(`Component not found: ${componentName}`);
+      return {
+        Name: fullName,
+        Type: 'Unknown',
+        Value: 0,
+        String: 'Component not found',
+      };
+    }
+
+    const control = component.controls[controlName];
+    if (!control) {
+      // Return error result for non-existent control
+      logger.warn(`Control not found: ${fullName}`);
+      return {
+        Name: fullName,
+        Type: 'Unknown',
+        Value: 0,
+        String: 'Control not found',
+      };
+    }
+
+    const { value, type } = extractControlValue(control as unknown);
+    
+    // Extract String value if available in the control state
+    let stringValue = valueToString(value);
+    if (control && typeof control === 'object' && 'state' in control) {
+      const state = (control as any).state;
+      if (state && typeof state === 'object' && 'String' in state) {
+        stringValue = state.String;
+      }
+    }
+
+    return {
+      Name: fullName,
+      Type: type,
+      Value: value,
+      String: stringValue,
+    };
+  });
+
+  return { result: results };
+}
+
+/**
  * Parse control name into component and control parts
  * Supports both "Component.Control" format and single "CodeName" format
  */

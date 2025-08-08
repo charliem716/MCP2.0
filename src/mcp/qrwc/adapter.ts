@@ -23,6 +23,7 @@ import {
   handleGetControls,
   handleComponentGet,
   handleControlGet,
+  handleControlGetValues,
   handleControlSet,
   handleStatusGet,
   handleGetAllControls,
@@ -420,6 +421,9 @@ export class QRWCClientAdapter
       case 'Control.Get':
       case 'ControlGet':
         return () => handleControlGet(params, this.officialClient);
+      case 'Control.GetValues':
+      case 'ControlGetValues':
+        return () => handleControlGetValues(params, this.officialClient);
       case 'Control.Set':
       case 'ControlSet':
         return async () => this.handleControlSetWrapper(params);
