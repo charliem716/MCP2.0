@@ -744,7 +744,12 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       const jsonResults = allResults.map(({ control, result }) => {
         if (result.status === 'fulfilled') {
           // Check if the Q-SYS response contains an error
-          const qsysResponse = result.value as { error?: { code: number; message: string } };
+          const qsysResponse = result.value as { 
+            error?: { code: number; message: string };
+            result?: Array<{ Name: string; Result: string; Error?: string }>;
+          };
+          
+          // Check for top-level error
           if (qsysResponse?.error) {
             const errorResponse: ControlSetResponse = {
               name: control.name,
@@ -753,6 +758,23 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
               error: qsysResponse.error.message || 'Q-SYS error',
             };
             return errorResponse;
+          }
+          
+          // Check for individual control errors in result array
+          if (qsysResponse?.result && Array.isArray(qsysResponse.result)) {
+            const controlResult = qsysResponse.result.find(r => 
+              r.Name === control.name || r.Name.endsWith(`.${control.name.split('.').pop()}`)
+            );
+            
+            if (controlResult && controlResult.Result === 'Error') {
+              const errorResponse: ControlSetResponse = {
+                name: control.name,
+                value: control.value,
+                success: false,
+                error: controlResult.Error || 'Control set failed',
+              };
+              return errorResponse;
+            }
           }
           
           const response: ControlSetResponse = {

@@ -423,6 +423,9 @@ export class QRWCClientAdapter
       case 'Control.Set':
       case 'ControlSet':
         return async () => this.handleControlSetWrapper(params);
+      case 'Component.Set':
+      case 'ComponentSet':
+        return async () => this.handleComponentSet(params);
       case 'Status.Get':
       case 'StatusGet':
         return () => handleStatusGet(params, this.officialClient);
@@ -447,6 +450,69 @@ export class QRWCClientAdapter
       default:
         return null;
     }
+  }
+
+  /**
+   * Handle Component.Set command - sets multiple controls on a component
+   */
+  private async handleComponentSet(params?: Record<string, unknown>): Promise<unknown> {
+    if (!params?.['Name'] || !params?.['Controls']) {
+      throw new ValidationError('Component name and Controls array are required',
+        [{ field: 'Name', message: 'Component name and Controls array are required', code: 'REQUIRED_FIELD' }]);
+    }
+    
+    const componentName = params['Name'] as string;
+    const controlsParam = params['Controls'];
+    
+    if (!Array.isArray(controlsParam)) {
+      throw new ValidationError('Controls must be an array',
+        [{ field: 'Controls', message: 'Must be an array', code: 'INVALID_TYPE' }]);
+    }
+    
+    // Convert Component.Set format to Control.Set format
+    // Component.Set has: { Name: "componentName", Controls: [{Name: "controlName", Value: x}] }
+    // Control.Set needs: { Controls: [{Name: "componentName.controlName", Value: x}] }
+    const convertedControls = controlsParam.map((control: unknown) => {
+      if (typeof control !== 'object' || !control) {
+        throw new ValidationError('Invalid control format',
+          [{ field: 'control', message: 'Control must be an object', code: 'INVALID_FORMAT' }]);
+      }
+      
+      const controlObj = control as Record<string, unknown>;
+      const controlName = controlObj['Name'];
+      
+      if (!controlName || typeof controlName !== 'string') {
+        throw new ValidationError('Control name is required',
+          [{ field: 'Name', message: 'Control name is required', code: 'REQUIRED_FIELD' }]);
+      }
+      
+      // Create the full control name
+      const fullControlName = `${componentName}.${controlName}`;
+      
+      // Build the converted control object
+      const convertedControl: Record<string, unknown> = {
+        Name: fullControlName,
+        Value: controlObj['Value']
+      };
+      
+      // Preserve optional properties
+      if ('Ramp' in controlObj) {
+        convertedControl['Ramp'] = controlObj['Ramp'];
+      }
+      if ('Position' in controlObj) {
+        convertedControl['Position'] = controlObj['Position'];
+      }
+      
+      return convertedControl;
+    });
+    
+    // Now call the existing Control.Set handler with converted format
+    const result = await handleControlSet({ Controls: convertedControls }, this.officialClient);
+    
+    // The result from handleControlSet has the format:
+    // { result: [{Name: "componentName.controlName", Result: "Success/Error", Error?: "..."}] }
+    // We should keep this format for consistency
+    return result;
   }
 
   /**
