@@ -3,6 +3,7 @@ import { BaseQSysTool, BaseToolParamsSchema, type ToolExecutionContext } from '.
 import { config as envConfig } from '../../shared/utils/env.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import type { IControlSystem } from '../interfaces/control-system.js';
+import { ValidationError } from '../../shared/types/errors.js';
 import {
   type QSysComponentControlsResponse,
   type QSysControlGetResponse,
@@ -49,8 +50,7 @@ interface ControlSetResponse {
 export const ListControlsParamsSchema = BaseToolParamsSchema.extend({
   component: z
     .string()
-    .optional()
-    .describe('Specific component name to list controls for'),
+    .describe('Component name to list controls for (required)'),
   controlType: z
     .enum(['gain', 'mute', 'input_select', 'output_select', 'all'])
     .optional()
@@ -111,7 +111,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     super(
       qrwcClient,
       'list_controls',
-      "List controls with optional filtering by component/type. Set includeMetadata=true for direction (Read/Write), values, ranges, and normalized position (0-1). Filter by controlType: 'gain', 'mute', 'input_select', 'output_select'. Examples: {component:'Main Mixer'} for specific component, {controlType:'gain',includeMetadata:true} for all system gains with metadata.",
+      "List controls for a specific component with optional filtering. Component parameter is required. Use includeMetadata=true for values/ranges/positions. Example: {component:'Main Mixer',includeMetadata:true}.",
       ListControlsParamsSchema
     );
   }
@@ -121,13 +121,15 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      const command = params.component
-        ? `Component.GetControls`
-        : `Component.GetAllControls`;
-
-      const response = params.component
-        ? await this.controlSystem.sendCommand(command, { Name: params.component })
-        : await this.controlSystem.sendCommand(command);
+      // Component is now required
+      if (!params.component) {
+        throw new ValidationError(
+          'Component parameter is required. For system-wide discovery, use list_components then iterate with list_controls for each component.',
+          [{ field: 'component', message: 'Required parameter', code: 'REQUIRED_FIELD' }]
+        );
+      }
+      
+      const response = await this.controlSystem.sendCommand('Component.GetControls', { Name: params.component });
 
       const controls = this.parseControlsResponse(response, params);
 
@@ -199,7 +201,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
   ): QSysControl[] {
     this.logger.debug('Parsing controls response', { response });
 
-    // Handle different response formats from Component.GetControls vs Component.GetAllControls
+    // Handle response format from Component.GetControls
     if (!isQSysApiResponse<QSysComponentControlsResponse | QSysControlInfo[]>(response)) {
       this.logger.warn('Invalid response format', { response });
       return [];
@@ -210,23 +212,16 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       throw new Error(`Q-SYS API error: ${response.error.message}`);
     }
 
-    // Component.GetAllControls returns { result: [...] } directly
     // Component.GetControls returns { result: { Name: "...", Controls: [...] } }
     let controls: QSysControlInfo[] = [];
     let componentName = 'unknown';
 
-    if (response.result) {
-      if (Array.isArray(response.result)) {
-        // Component.GetAllControls format
-        controls = response.result;
-      } else if (typeof response.result === 'object' && 
-                 'Controls' in response.result && 
-                 Array.isArray(response.result.Controls)) {
-        // Component.GetControls format  
-        const componentResponse = response.result;
-        controls = componentResponse.Controls;
-        componentName = componentResponse.Name;
-      }
+    if (response.result && typeof response.result === 'object' && 
+        'Controls' in response.result && 
+        Array.isArray(response.result.Controls)) {
+      const componentResponse = response.result;
+      controls = componentResponse.Controls;
+      componentName = componentResponse.Name;
     }
 
     if (controls.length === 0) {
@@ -273,7 +268,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
       // Component.GetControls was used, so all controls are from the requested component
       // Don't filter by component name
     } else if (params.component) {
-      // Component.GetAllControls was used with a component filter
+      // Component filter was specified
       filteredControls = filteredControls.filter(
         (c: QSysControl) => c.component === params.component
       );
@@ -388,13 +383,27 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
 
 /**
  * Tool to get current values of specific controls
+ * 
+ * IMPORTANT BULK OPERATIONS NOTE:
+ * This tool now supports complex control naming (e.g., 'Zone.1.Audio.gain') and optimizes
+ * bulk requests by grouping controls by component. However, for LARGE bulk operations
+ * (>20 controls across many components), consider this more efficient pattern:
+ * 
+ * 1. Use 'list_components' to get all components
+ * 2. Use 'get_component_controls' for each component you need
+ * 3. This avoids the overhead of parsing complex control names and provides full component state
+ * 
+ * The get_control_values tool is best for:
+ * - Getting specific known controls (1-20 controls)
+ * - Mixed controls from different components
+ * - When you know exact control paths
  */
 export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
   constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
       'get_control_values',
-      "Get current values of Q-SYS controls. Specify full control paths like 'Main Mixer.gain', 'APM 1.input.mute', 'Delay.delay_ms'. Returns current values with precise timestamps for each control across multiple components. Use includeMetadata=true for min/max ranges and position info. Max 100 controls per request.",
+      "Get current values of Q-SYS controls. Supports complex naming: 'Zone.1.Audio.gain', 'Main Mixer.gain'. BULK TIP: For many controls (>20), use list_components then get_component_controls for each component instead - it's more efficient. This tool is optimized for getting specific known controls (1-20). Returns values with timestamps. Max 100 controls per request.",
       GetControlValuesParamsSchema
     );
   }
@@ -581,6 +590,13 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
 
 /**
  * Tool to set values for specific controls
+ * 
+ * BULK OPERATIONS NOTE:
+ * This tool processes controls individually for safety and validation.
+ * For bulk updates across many controls:
+ * 1. Group controls by component when possible
+ * 2. Consider using change groups for atomic updates
+ * 3. For >20 controls, batch them in smaller groups to avoid timeouts
  */
 export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
   // Validation cache with TTL (30 seconds)
@@ -678,126 +694,109 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         }
       }
 
-      // Separate controls into named controls and component controls
-      const namedControls: typeof params.controls = [];
-      const componentControlsMap = new Map<string, typeof params.controls>();
-
-      for (const control of params.controls) {
-        if (control.name.includes('.')) {
-          // This is a component control (e.g., "Main Output Gain.mute")
-          const parts = control.name.split('.');
-          const componentName = parts[0];
-          const controlName = parts.slice(1).join('.');
-
-          if (!componentName) {
-            // Invalid control name format, treat as named control
-            namedControls.push(control);
-            continue;
+      // For complex control names, we'll let the Control.Set handler do the parsing
+      // since it has access to QRWC instance for validation
+      // Just send all controls directly to Control.Set
+      const controlsToSet = params.controls.map(control => {
+        // Convert boolean to 0/1 for Q-SYS
+        let value = control.value;
+        if (typeof value === 'boolean') {
+          value = value ? 1 : 0;
+        } else if (typeof value === 'string') {
+          // Convert string boolean values
+          const lowerValue = value.toLowerCase();
+          if (lowerValue === 'true' || lowerValue === 'yes' || lowerValue === 'on') {
+            value = 1;
+          } else if (lowerValue === 'false' || lowerValue === 'no' || lowerValue === 'off') {
+            value = 0;
           }
-
-          let controls = componentControlsMap.get(componentName);
-          if (!controls) {
-            controls = [];
-            componentControlsMap.set(componentName, controls);
-          }
-
-          controls.push({
-            name: controlName, // Store just the control name part
-            value: control.value,
-            ramp: control.ramp,
-          });
-        } else {
-          // This is a named control
-          namedControls.push(control);
         }
-      }
-
-      // Execute all operations
-      const allResults: Array<{
-        control: (typeof params.controls)[0];
-        result: PromiseSettledResult<unknown>;
-      }> = [];
-
-      // Set named controls individually
-      for (const control of namedControls) {
-        const result = await Promise.allSettled([
-          this.setNamedControl(control),
-        ]);
-        allResults.push({ control, result: result[0] });
-      }
-
-      // Set component controls grouped by component
-      for (const [componentName, controls] of componentControlsMap) {
-        const result = await Promise.allSettled([
-          this.setComponentControls(componentName, controls),
-        ]);
-        // Add results for each control in the component
-        for (const control of controls) {
-          allResults.push({
-            control: { ...control, name: `${componentName}.${control.name}` },
-            result: result[0],
-          });
+        
+        const controlCmd: any = {
+          Name: control.name,
+          Value: value,
+        };
+        
+        if (control.ramp !== undefined) {
+          controlCmd.Ramp = control.ramp;
         }
+        
+        return controlCmd;
+      })
+
+      // Send all controls to Control.Set handler which has enhanced parsing
+      const response = await this.controlSystem.sendCommand('Control.Set', {
+        Controls: controlsToSet,
+      });
+      
+      // Parse the response
+      const qsysResponse = response as {
+        error?: { code: number; message: string };
+        result?: Array<{ Name: string; Result: string; Error?: string }>;
       }
 
       // Convert results to the expected JSON format
-      const jsonResults = allResults.map(({ control, result }) => {
-        if (result.status === 'fulfilled') {
-          // Check if the Q-SYS response contains an error
-          const qsysResponse = result.value as { 
-            error?: { code: number; message: string };
-            result?: Array<{ Name: string; Result: string; Error?: string }>;
-          };
+      const jsonResults: ControlSetResponse[] = [];
+      
+      // Check for top-level error
+      if (qsysResponse?.error) {
+        // All controls failed
+        for (const control of params.controls) {
+          jsonResults.push({
+            name: control.name,
+            value: control.value,
+            success: false,
+            error: qsysResponse.error.message || 'Q-SYS error',
+          });
+        }
+      } else if (qsysResponse?.result && Array.isArray(qsysResponse.result)) {
+        // Process individual control results
+        for (const control of params.controls) {
+          const controlResult = qsysResponse.result.find(r => r.Name === control.name);
           
-          // Check for top-level error
-          if (qsysResponse?.error) {
-            const errorResponse: ControlSetResponse = {
-              name: control.name,
-              value: control.value,
-              success: false,
-              error: qsysResponse.error.message || 'Q-SYS error',
-            };
-            return errorResponse;
-          }
-          
-          // Check for individual control errors in result array
-          if (qsysResponse?.result && Array.isArray(qsysResponse.result)) {
-            const controlResult = qsysResponse.result.find(r => 
-              r.Name === control.name || r.Name.endsWith(`.${control.name.split('.').pop()}`)
-            );
-            
-            if (controlResult && controlResult.Result === 'Error') {
-              const errorResponse: ControlSetResponse = {
+          if (controlResult) {
+            if (controlResult.Result === 'Error') {
+              jsonResults.push({
                 name: control.name,
                 value: control.value,
                 success: false,
                 error: controlResult.Error || 'Control set failed',
+              });
+            } else {
+              const response: ControlSetResponse = {
+                name: control.name,
+                value: control.value,
+                success: true,
               };
-              return errorResponse;
+              if (control.ramp !== undefined) {
+                response.rampTime = control.ramp;
+              }
+              jsonResults.push(response);
             }
+          } else {
+            // Control not found in response - assume success
+            const response: ControlSetResponse = {
+              name: control.name,
+              value: control.value,
+              success: true,
+            };
+            if (control.ramp !== undefined) {
+              response.rampTime = control.ramp;
+            }
+            jsonResults.push(response);
           }
-          
-          const response: ControlSetResponse = {
-            name: control.name,
-            value: control.value,
-            success: true,
-          };
-          if (control.ramp !== undefined) {
-            response.rampTime = control.ramp;
-          }
-          return response;
-        } else {
-          const errorResponse: ControlSetResponse = {
+        }
+      } else {
+        // Unexpected response format
+        for (const control of params.controls) {
+          jsonResults.push({
             name: control.name,
             value: control.value,
             success: false,
-            error: result.reason instanceof Error 
-              ? result.reason.message 
-              : String(result.reason),
-          };
-          return errorResponse;
+            error: 'Unexpected response format from Q-SYS',
+          });
         }
-      });
+      }
 
       // Try to serialize results with proper error handling
       let serializedResults: string;
@@ -1140,106 +1139,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     return errors;
   }
 
-  private async setNamedControl(control: {
-    name: string;
-    value: number | string | boolean;
-    ramp?: number | undefined;
-  }) {
-    // Convert boolean to 0/1 for Q-SYS
-    let value = control.value;
-    if (typeof value === 'boolean') {
-      value = value ? 1 : 0;
-    } else if (typeof value === 'string') {
-      // Convert string boolean values
-      const lowerValue = value.toLowerCase();
-      if (lowerValue === 'true' || lowerValue === 'yes' || lowerValue === 'on') {
-        value = 1;
-      } else if (lowerValue === 'false' || lowerValue === 'no' || lowerValue === 'off') {
-        value = 0;
-      } else {
-        // Try to parse as number
-        const numValue = parseFloat(value);
-        if (!isNaN(numValue)) {
-          value = numValue;
-        }
-        // Otherwise keep as string
-      }
-    }
-
-    interface ControlSetParams {
-      Name: string;
-      Value: number | string | boolean;
-      Ramp?: number;
-    }
-
-    const commandParams: ControlSetParams = {
-      Name: control.name,
-      Value: value,
-    };
-
-    if (control.ramp !== undefined) {
-      commandParams.Ramp = control.ramp;
-    }
-
-    return await this.controlSystem.sendCommand(
-      'Control.Set',
-      commandParams as unknown as Record<string, unknown>
-    );
-  }
-
-  private async setComponentControls(
-    componentName: string,
-    controls: Array<{
-      name: string;
-      value: number | string | boolean;
-      ramp?: number | undefined;
-    }>
-  ) {
-    const controlsArray = controls.map(control => {
-      // Convert boolean to 0/1 for Q-SYS
-      let value = control.value;
-      if (typeof value === 'boolean') {
-        value = value ? 1 : 0;
-      } else if (typeof value === 'string') {
-        // Convert string boolean values
-        const lowerValue = value.toLowerCase();
-        if (lowerValue === 'true' || lowerValue === 'yes' || lowerValue === 'on') {
-          value = 1;
-        } else if (lowerValue === 'false' || lowerValue === 'no' || lowerValue === 'off') {
-          value = 0;
-        } else {
-          // Try to parse as number
-          const numValue = parseFloat(value);
-          if (!isNaN(numValue)) {
-            value = numValue;
-          }
-          // Otherwise keep as string
-        }
-      }
-
-      interface ComponentControlParams {
-        Name: string;
-        Value: number | string;
-        Ramp?: number;
-      }
-
-      const controlParams: ComponentControlParams = {
-        Name: control.name,
-        Value: value,
-      };
-
-      if (control.ramp !== undefined) {
-        controlParams.Ramp = control.ramp;
-      }
-
-      return controlParams;
-    });
-
-    return await this.controlSystem.sendCommand('Component.Set', {
-      Name: componentName,
-      Controls: controlsArray,
-    });
-  }
+  // Removed setNamedControl and setComponentControls methods
+  // Now using unified Control.Set with enhanced parsing in command-handlers.ts
 
   private formatSetControlsResponseNew(
     results: Array<{

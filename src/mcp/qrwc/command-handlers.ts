@@ -242,12 +242,12 @@ export function handleControlGet(
         [{ field: 'control', message: 'Control must be a string or object', code: 'INVALID_FORMAT' }]);
     }
 
-    // Parse control name - supports both Component.Control and single CodeName formats
-    const parsed = parseControlName(fullName);
+    // Parse control name with enhanced support for complex names
+    const parsed = parseControlNameEnhanced(fullName, qrwc);
     
     if (!parsed) {
       throw new ValidationError(`Invalid control name format: ${fullName}`,
-        [{ field: 'controlName', message: 'Must be in format Component.Control or a valid Code Name', code: 'INVALID_FORMAT' }]);
+        [{ field: 'controlName', message: 'Must be in format Component.Control, Complex.Component.Control, or a valid Code Name', code: 'INVALID_FORMAT' }]);
     }
     
     // Handle named controls (single word Code Names without dots)
@@ -290,8 +290,19 @@ export function handleControlGet(
 }
 
 /**
- * Handle Control.GetValues command
- * Similar to Control.Get but accepts an array of control names in the 'Names' parameter
+ * Handle Control.GetValues command - Optimized for bulk operations
+ * Groups controls by component for efficient batch retrieval
+ * 
+ * OPTIMIZATION STRATEGY:
+ * - Parses all control names first to group by component
+ * - Processes all controls from the same component together
+ * - Reduces redundant component lookups
+ * - Maintains original order in results
+ * 
+ * For very large bulk operations (>50 controls), callers should consider:
+ * 1. Getting all components first with Component.GetComponents
+ * 2. Then getting full component state with Component.Get for each needed component
+ * This avoids the overhead of parsing many individual control paths.
  */
 export function handleControlGetValues(
   params: Record<string, unknown> | undefined,
@@ -309,84 +320,142 @@ export function handleControlGetValues(
     throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
   }
 
-  const results = controlNames.map(fullName => {
-    // Ensure it's a string
+  // Group controls by component for batch processing
+  const controlsByComponent = new Map<string, string[]>();
+  const namedControls: string[] = [];
+  const resultOrder = new Map<string, number>();
+  
+  // Parse and group controls
+  for (let index = 0; index < controlNames.length; index++) {
+    const fullName = controlNames[index];
+    resultOrder.set(fullName, index);
+    
     if (typeof fullName !== 'string') {
-      throw new ValidationError('Control name must be a string',
-        [{ field: 'controlName', message: 'Must be a string', code: 'INVALID_TYPE' }]);
+      continue; // Skip invalid entries, handle them later
     }
-
-    // Parse control name - supports both Component.Control and single CodeName formats
-    const parsed = parseControlName(fullName);
     
+    const parsed = parseControlNameEnhanced(fullName, qrwc);
     if (!parsed) {
-      throw new ValidationError(`Invalid control name format: ${fullName}`,
-        [{ field: 'controlName', message: 'Must be in format Component.Control or a valid Code Name', code: 'INVALID_FORMAT' }]);
+      continue; // Skip unparseable entries
     }
     
-    // Handle named controls (single word Code Names without dots)
     if (parsed.componentName === '__NAMED__') {
-      // This is a named control - we need different handling
-      // For now, return a placeholder since we can't access it without proper Code Name setup
-      logger.warn(`Named control ${parsed.controlName} requested but not accessible via QRWC SDK`);
-      return {
-        Name: fullName,
-        Type: 'Unknown',
-        Value: 0,
-        String: 'N/A',
-      };
+      namedControls.push(fullName);
+    } else {
+      // Group by component for batch retrieval
+      if (!controlsByComponent.has(parsed.componentName)) {
+        controlsByComponent.set(parsed.componentName, []);
+      }
+      controlsByComponent.get(parsed.componentName)!.push(parsed.controlName);
     }
-
-    const { componentName, controlName } = parsed;
+  }
+  
+  // Process controls in batches by component for efficiency
+  const resultsMap = new Map<string, ControlInfo>();
+  
+  // Process grouped controls by component
+  for (const [componentName, controls] of controlsByComponent) {
     const component = qrwc.components[componentName];
     if (!component) {
-      // Return error result for non-existent component
-      logger.warn(`Component not found: ${componentName}`);
-      return {
-        Name: fullName,
-        Type: 'Unknown',
-        Value: 0,
-        String: 'Component not found',
-      };
+      // Add error results for all controls in this component
+      controls.forEach(controlName => {
+        const fullName = `${componentName}.${controlName}`;
+        resultsMap.set(fullName, {
+          Name: fullName,
+          Type: 'Unknown',
+          Value: 0,
+          String: 'Component not found',
+        });
+      });
+      continue;
     }
-
-    const control = component.controls[controlName];
-    if (!control) {
-      // Return error result for non-existent control
-      logger.warn(`Control not found: ${fullName}`);
-      return {
-        Name: fullName,
-        Type: 'Unknown',
-        Value: 0,
-        String: 'Control not found',
-      };
-    }
-
-    const { value, type } = extractControlValue(control as unknown);
     
-    // Extract String value if available in the control state
-    let stringValue = valueToString(value);
-    if (control && typeof control === 'object' && 'state' in control) {
-      const state = (control as any).state;
-      if (state && typeof state === 'object' && 'String' in state) {
-        stringValue = state.String;
+    // Batch process all controls for this component
+    controls.forEach(controlName => {
+      const fullName = `${componentName}.${controlName}`;
+      const control = component.controls[controlName];
+      
+      if (!control) {
+        resultsMap.set(fullName, {
+          Name: fullName,
+          Type: 'Unknown',
+          Value: 0,
+          String: 'Control not found',
+        });
+      } else {
+        const { value, type } = extractControlValue(control as unknown);
+        let stringValue = valueToString(value);
+        
+        if (control && typeof control === 'object' && 'state' in control) {
+          const state = (control as any).state;
+          if (state && typeof state === 'object' && 'String' in state) {
+            stringValue = state.String;
+          }
+        }
+        
+        resultsMap.set(fullName, {
+          Name: fullName,
+          Type: type,
+          Value: value,
+          String: stringValue,
+        });
       }
-    }
-
-    return {
+    });
+  }
+  
+  // Handle named controls
+  namedControls.forEach(fullName => {
+    logger.warn(`Named control ${fullName} requested but not accessible via QRWC SDK`);
+    resultsMap.set(fullName, {
       Name: fullName,
-      Type: type,
-      Value: value,
-      String: stringValue,
+      Type: 'Unknown',
+      Value: 0,
+      String: 'N/A',
+    });
+  });
+  
+  // Handle any invalid entries
+  controlNames.forEach((fullName, index) => {
+    if (typeof fullName !== 'string') {
+      const name = String(fullName);
+      resultsMap.set(name, {
+        Name: name,
+        Type: 'Unknown',
+        Value: 0,
+        String: 'Invalid control name type',
+      });
+    } else if (!resultsMap.has(fullName)) {
+      // Handle any controls that weren't processed
+      resultsMap.set(fullName, {
+        Name: fullName,
+        Type: 'Unknown',
+        Value: 0,
+        String: 'Invalid control format',
+      });
+    }
+  });
+  
+  // Return results in original order
+  const results = controlNames.map(name => {
+    const key = typeof name === 'string' ? name : String(name);
+    return resultsMap.get(key) || {
+      Name: key,
+      Type: 'Unknown',
+      Value: 0,
+      String: 'Processing error',
     };
   });
-
+  
   return { result: results };
 }
 
 /**
  * Parse control name into component and control parts
- * Supports both "Component.Control" format and single "CodeName" format
+ * Supports multiple formats:
+ * - "Component.Control" - Standard format
+ * - "Complex Component.Complex Control" - Components/controls with spaces
+ * - "Component.with.dots.ControlName" - Complex nested naming
+ * - "CodeName" - Single Code Name format
  */
 function parseControlName(name: string): { componentName: string; controlName: string } | null {
   const parts = name.split('.');
@@ -402,9 +471,71 @@ function parseControlName(name: string): { componentName: string; controlName: s
     // Single Code Name format (no dots) - treat as a standalone named control
     // Return special marker to indicate this is a named control
     return { componentName: '__NAMED__', controlName: name };
+  } else if (parts.length > 2) {
+    // Complex format - try different splitting strategies
+    // Strategy 1: Last part is control, everything else is component
+    // Example: "Zone.1.Audio.gain" -> component: "Zone.1.Audio", control: "gain"
+    const lastDotIndex = name.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+      const componentName = name.substring(0, lastDotIndex);
+      const controlName = name.substring(lastDotIndex + 1);
+      if (componentName && controlName) {
+        return { componentName, controlName };
+      }
+    }
   }
   
   return null;
+}
+
+/**
+ * Enhanced control name parser with fallback strategies
+ * Tries multiple approaches to find valid component.control combinations
+ * 
+ * STRATEGY:
+ * 1. First tries standard parsing (Component.Control or CodeName)
+ * 2. If QRWC available, validates the parse result exists
+ * 3. For complex names (>2 dots), tries all possible split points
+ * 4. Returns the first valid component.control combination found
+ * 
+ * This enables support for complex control paths like:
+ * - "Zone.1.Audio.gain" -> finds Zone.1.Audio component with gain control
+ * - "Building.Floor.2.temperature" -> finds correct component split
+ * 
+ * NOTE: This validation adds overhead. For bulk operations with known
+ * control paths, consider getting full component states instead.
+ */
+function parseControlNameEnhanced(
+  name: string,
+  qrwc: NonNullable<ReturnType<OfficialQRWCClient['getQrwc']>> | null
+): { componentName: string; controlName: string } | null {
+  // First try the standard parser
+  const parsed = parseControlName(name);
+  
+  // If we have a QRWC instance and the parsed result, verify it exists
+  if (parsed && qrwc && parsed.componentName !== '__NAMED__') {
+    // Check if this component.control combination exists
+    if (qrwc.components[parsed.componentName]?.controls[parsed.controlName]) {
+      return parsed;
+    }
+    
+    // If not found with the default parse, try alternative strategies for complex names
+    const parts = name.split('.');
+    if (parts.length > 2) {
+      // Try each possible split point to find a valid component.control combination
+      for (let i = 1; i < parts.length; i++) {
+        const possibleComponent = parts.slice(0, i).join('.');
+        const possibleControl = parts.slice(i).join('.');
+        
+        if (qrwc.components[possibleComponent]?.controls[possibleControl]) {
+          logger.debug(`Found complex control via search: ${possibleComponent}.${possibleControl}`);
+          return { componentName: possibleComponent, controlName: possibleControl };
+        }
+      }
+    }
+  }
+  
+  return parsed;
 }
 
 /**
@@ -447,8 +578,8 @@ function extractControlUpdateParams(
     return null;
   }
 
-  // Parse control name
-  const parsed = parseControlName(name);
+  // Parse control name with enhanced support for complex names
+  const parsed = parseControlNameEnhanced(name, qrwc);
   if (!parsed) {
     return { name, componentName: '', controlName: '', newValue: 0, error: `Invalid control name format: ${name}` };
   }
@@ -608,81 +739,6 @@ export function handleStatusGet(
   };
 }
 
-/**
- * Handle Component.GetAllControls command
- */
-export async function handleGetAllControls(
-  params: Record<string, unknown> | undefined,
-  client: OfficialQRWCClient
-): Promise<{ result: ControlInfo[] }> {
-  const qrwc = client.getQrwc();
-  if (!qrwc) {
-    throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
-  }
-
-  const allControls: ControlInfo[] = [];
-
-  // Check if cache is empty - if so, we need to discover components first
-  if (Object.keys(qrwc.components).length === 0) {
-    logger.info('Component cache empty, performing discovery for GetAllControls');
-    
-    try {
-      // Get all components first to populate the cache
-      const componentsResult = await handleGetComponents(params, client);
-      logger.info(`Discovered ${componentsResult.result.length} components`);
-      
-      // Now iterate through the discovered components to get their controls
-      for (const componentInfo of componentsResult.result) {
-        try {
-          // Get controls for this component
-          const controlsResult = handleGetControls(
-            { Name: componentInfo.Name }, 
-            client
-          );
-          
-          // Add each control to our result
-          for (const control of controlsResult.result.Controls) {
-            allControls.push({
-              Name: `${componentInfo.Name}.${control.Name}`,
-              Type: control.Type,
-              Value: control.Value,
-              String: control.String,
-            });
-          }
-        } catch (err) {
-          // Log but continue - some components may not have accessible controls
-          logger.warn(`Failed to get controls for component ${componentInfo.Name}: ${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
-    } catch (err) {
-      logger.error('Failed to discover components for GetAllControls', err);
-      // Fall through to use cache if discovery fails
-    }
-  }
-  
-  // If we didn't get controls from discovery, or if cache was already populated,
-  // use the cache (this is the original implementation)
-  if (allControls.length === 0 && Object.keys(qrwc.components).length > 0) {
-    for (const [componentName, component] of Object.entries(qrwc.components)) {
-      const comp = component;
-      
-      for (const [controlName, control] of Object.entries(comp.controls)) {
-        const fullName = `${componentName}.${controlName}`;
-        const { value, type } = extractControlValue(control);
-
-        allControls.push({
-          Name: fullName,
-          Type: type,
-          Value: value,
-          String: valueToString(value),
-        });
-      }
-    }
-  }
-
-  logger.info(`Retrieved ${allControls.length} controls from all components`);
-  return { result: allControls };
-}
 
 /**
  * Handle Component.GetAllControlValues command

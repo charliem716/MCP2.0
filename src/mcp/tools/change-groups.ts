@@ -26,7 +26,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
     super(
       controlSystem,
       'create_change_group',
-      "Create a new change group for monitoring control value changes. Groups allow efficient polling of multiple controls at once. Example: {groupId:'mixer-controls'} creates a group for monitoring mixer-related controls. Group IDs must be unique and non-empty. Errors: Throws if groupId is empty, if Q-SYS Core is not connected, or if communication fails. Returns warning if group already exists.",
+      "Create a change group for monitoring control value changes. Groups enable efficient polling of multiple controls. Example: {groupId:'mixer-controls'}. Returns success or warning if group exists.",
       CreateChangeGroupParamsSchema
     );
   }
@@ -87,7 +87,7 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
     super(
       controlSystem,
       'add_controls_to_change_group',
-      "Add Named Controls to a change group for monitoring. Controls must exist in Q-SYS (e.g., 'Gain1.gain', 'Mixer.level'). Invalid controls are skipped. Example: {groupId:'mixer-controls',controlNames:['MainMixer.gain','MainMixer.mute']} adds gain and mute controls to the mixer-controls group. Errors: Throws if groupId is empty, controlNames array is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
+      "Add controls to a change group for monitoring. Invalid controls are skipped. Example: {groupId:'mixer-controls',controlNames:['Main.gain','Main.mute']}. Use Component.Control format.",
       AddControlsToChangeGroupParamsSchema
     );
   }
@@ -136,7 +136,7 @@ export class PollChangeGroupTool extends BaseQSysTool<PollChangeGroupParams> {
     super(
       controlSystem,
       'poll_change_group',
-      "Poll a change group for control value changes since last poll. Returns only controls whose values changed. First poll returns all controls as changed. Example: {groupId:'mixer-controls'} returns array of changed controls with Name, Value, and String properties. Use for efficient UI updates or state monitoring. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
+      "Poll a change group for changes since last poll. Returns only changed controls. First poll returns all controls. Example: {groupId:'mixer-controls'}. Returns [{Name,Value,String}].",
       PollChangeGroupParamsSchema
     );
   }
@@ -188,7 +188,7 @@ export class DestroyChangeGroupTool extends BaseQSysTool<DestroyChangeGroupParam
     super(
       controlSystem,
       'destroy_change_group',
-      "Destroy a change group and clean up all resources including auto-poll timers. Always destroy groups when no longer needed to prevent memory leaks. Example: {groupId:'mixer-controls'} destroys the group and stops any associated polling. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
+      "Destroy a change group and stop polling. Always destroy unused groups to prevent memory leaks. Example: {groupId:'mixer-controls'}.",
       DestroyChangeGroupParamsSchema
     );
   }
@@ -234,7 +234,7 @@ export class RemoveControlsFromChangeGroupTool extends BaseQSysTool<RemoveContro
     super(
       controlSystem,
       'remove_controls_from_change_group',
-      "Remove specific controls from a change group without destroying the group. Example: {groupId:'mixer-controls',controlNames:['MainMixer.input_1_gain']} removes the specified control. Use when dynamically adjusting monitored controls. Errors: Throws if groupId is empty, controlNames array is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
+      "Remove specific controls from a change group. Example: {groupId:'mixer-controls',controlNames:['Main.input_1_gain']}. Group remains active.",
       RemoveControlsFromChangeGroupParamsSchema
     );
   }
@@ -276,7 +276,7 @@ export class ClearChangeGroupTool extends BaseQSysTool<ClearChangeGroupParams> {
     super(
       controlSystem,
       'clear_change_group',
-      "Remove all controls from a change group while keeping it active. Useful for reconfiguring monitoring without destroying/recreating the group. Example: {groupId:'mixer-controls'} clears all controls but keeps the group ready for new additions. Errors: Throws if groupId is empty, Q-SYS Core is not connected, or if the change group doesn't exist.",
+      "Remove all controls from a change group but keep it active. Useful for reconfiguring. Example: {groupId:'mixer-controls'}.",
       ClearChangeGroupParamsSchema
     );
   }
@@ -325,7 +325,7 @@ export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoP
     super(
       controlSystem,
       'set_change_group_auto_poll',
-      "Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300 seconds). Auto-stops after 10 consecutive failures. Example: {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5} polls every 500ms. Set enabled:false to stop polling. Errors: Throws if groupId is empty, intervalSeconds is outside 0.1-300 range, Q-SYS Core is not connected, or if the change group doesn't exist.",
+      "Enable/disable automatic polling for a change group. Interval: 0.1-300 seconds. Auto-stops after 10 failures. Example: {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5}.",
       SetChangeGroupAutoPollParamsSchema
     );
   }
@@ -402,7 +402,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     super(
       controlSystem,
       'list_change_groups',
-      "List all active change groups (MCP-specific tool, not part of Q-SYS API). Shows ID, control count, and auto-poll status. No parameters needed. Example: {} returns [{id:'mixer-controls',controlCount:4,hasAutoPoll:true}]. Use to monitor MCP server state and verify cleanup. Errors: Throws if Q-SYS Core is not connected or if adapter doesn't support group listing.",
+      "List all active change groups with control counts and poll status. MCP-specific tool. Example: {} returns [{id,controlCount,hasAutoPoll}].",
       ListChangeGroupsParamsSchema
     );
   }
@@ -518,7 +518,7 @@ export class ReadChangeGroupEventsTool extends BaseQSysTool<ReadChangeGroupEvent
     super(
       controlSystem,
       'read_change_group_events',
-      "Query historical change group events for time-based analysis. Retrieves control changes within time range (default: last minute). Filters by group, control names, or value changes. Example: {groupId:'mixer-controls',startTime:Date.now()-300000,controlNames:['Gain1.gain'],valueFilter:{operator:'changed_to',value:0}} finds when gain was muted in last 5 minutes. Requires event cache to be enabled. Errors: Returns empty array if no cache available or no events match criteria.",
+      "Query historical change events. Filter by time, group, controls, or values. Default: last minute. Example: {groupId:'mixer-controls',startTime:Date.now()-300000}. Requires event cache.",
       ReadChangeGroupEventsParamsSchema
     );
     this.eventCache = eventCache;

@@ -26,7 +26,6 @@ import {
   handleControlGetValues,
   handleControlSet,
   handleStatusGet,
-  handleGetAllControls,
   handleGetAllControlValues,
   handleDirectControl,
 } from './command-handlers.js';
@@ -433,9 +432,6 @@ export class QRWCClientAdapter
       case 'Status.Get':
       case 'StatusGet':
         return () => handleStatusGet(params, this.officialClient);
-      case 'Component.GetAllControls':
-      case 'ComponentGetAllControls':
-        return async () => handleGetAllControls(params, this.officialClient);
       case 'Component.GetAllControlValues':
       case 'ComponentGetAllControlValues':
         return () => handleGetAllControlValues(params, this.officialClient);
@@ -568,7 +564,7 @@ export class QRWCClientAdapter
       supportedCommands: [
         'Component.GetComponents', 'Component.GetControls', 'Component.Get', 'Component.Set',
         'Control.Get', 'Control.Set', 'Control.GetValues',
-        'Status.Get', 'Component.GetAllControls', 'Component.GetAllControlValues',
+        'Status.Get', 'Component.GetAllControlValues',
         'ChangeGroup.Create', 'ChangeGroup.AddControl', 'ChangeGroup.AddComponentControl',
         'ChangeGroup.Poll', 'ChangeGroup.AutoPoll', 'ChangeGroup.Destroy',
         'ChangeGroup.Remove', 'ChangeGroup.Clear'

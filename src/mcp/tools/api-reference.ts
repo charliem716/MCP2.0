@@ -119,44 +119,6 @@ export class QSysAPIReference {
       },
     },
     {
-      name: 'Component.GetAllControls',
-      category: 'Component',
-      description: 'Get all controls from ALL components at once',
-      params: {},
-      example: {
-        method: 'Component.GetAllControls',
-        description: 'Returns all controls from all components',
-        response: {
-          controls: [
-            {
-              Component: 'Main Gain',
-              Name: 'gain',
-              Value: -10,
-              String: '-10.0 dB',
-            },
-            {
-              Component: 'Main Gain',
-              Name: 'mute',
-              Value: false,
-              String: 'unmuted',
-            },
-            {
-              Component: 'Room Combine',
-              Name: 'wall.1.open',
-              Value: true,
-              String: 'open',
-            },
-            {
-              Component: 'Room Combine',
-              Name: 'wall.2.open',
-              Value: false,
-              String: 'closed',
-            },
-          ],
-        },
-      },
-    },
-    {
       name: 'Component.Set',
       category: 'Component',
       description:

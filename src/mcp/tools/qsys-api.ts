@@ -61,7 +61,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     super(
       qrwcClient,
       'query_qsys_api',
-      "Interactive API documentation for all Q-SYS MCP tools. Query types: 'tools' for tool reference, 'methods' for API commands, 'components' for component types, 'controls' for control types, 'examples' for usage patterns. Supports fuzzy search and filtering. Features learning paths and contextual examples. Example: {query_type:'tools'} for complete tool documentation.",
+      "API documentation for Q-SYS MCP tools. Query types: 'tools', 'methods', 'components', 'controls', 'examples'. Supports search and filtering. Example: {query_type:'tools',search:'gain'}.",
       QueryQSysAPIParamsSchema
     );
 
@@ -171,10 +171,10 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
       query_type: 'tools',
       overview: {
         description:
-          'Available MCP Tools for Q-SYS Control - 17 specialized tools for comprehensive system management',
+          'Available MCP Tools for Q-SYS Control - 16 specialized tools for comprehensive system management',
         note: 'The send_raw_command tool has been deprecated for stability. Use these dedicated tools instead.',
         categories: {
-          discovery: 'list_components, list_controls, qsys_get_all_controls',
+          discovery: 'list_components, list_controls, get_component_controls',
           control: 'get_control_values, set_control_values, qsys_component_get',
           monitoring:
             'create_change_group, add_controls_to_change_group, poll_change_group, set_change_group_auto_poll, list_change_groups, remove_controls_from_change_group, clear_change_group, destroy_change_group',
@@ -529,56 +529,6 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
             'Real-time dashboard creation',
           ],
           note: 'Enterprise-grade monitoring comparable to dedicated network management systems',
-        },
-        {
-          name: 'qsys_get_all_controls',
-          description:
-            'Advanced bulk control management with intelligent filtering, pagination, and system analytics for large Q-SYS designs',
-          usage:
-            "Parameters: mode ('summary'/'filtered'/'full'), filter object (component, type, hasNonDefaultValue, namePattern), pagination (limit/offset), includeValues",
-          parameters: {
-            mode: "'summary' (default) for stats, 'filtered' for targeted retrieval, 'full' for complete dump",
-            filter:
-              'Smart filters: component name, type (gain/mute/select/trigger/text), non-default values, name regex',
-            pagination:
-              'limit (max 1000, default 100), offset for large datasets',
-            includeValues:
-              'Include current values (default: false, increases processing time)',
-          },
-          example: {
-            tool: 'qsys_get_all_controls',
-            arguments: {
-              mode: 'filtered',
-              filter: { component: 'Matrix_Mixer 9x6', type: 'gain' },
-              includeValues: true,
-            },
-          },
-          examples: [
-            {
-              mode: 'summary',
-              description: 'System overview (recommended first call)',
-            },
-            {
-              mode: 'filtered',
-              filter: { hasNonDefaultValue: true },
-              description: 'Find all modified controls',
-            },
-            {
-              mode: 'filtered',
-              filter: { type: 'mute' },
-              pagination: { limit: 50 },
-              description: 'Paginated mute controls',
-            },
-          ],
-          returns:
-            'Summary: system stats; Filtered: control array with metadata; Full: complete control dump',
-          warning:
-            "Handles 2,997+ controls efficiently. Avoid 'full' mode on systems >1000 controls",
-          best_practices: [
-            'Start with summary mode to understand system size',
-            'Use filtered mode for targeted operations',
-            'Use pagination for UI applications',
-          ],
         },
         {
           name: 'query_qsys_api',

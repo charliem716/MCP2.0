@@ -66,11 +66,6 @@ export interface CommandMap {
     result: { Controls: QSysControl[] };
   };
   
-  'Component.GetAllControls': {
-    params?: never;
-    result: { Controls: QSysControl[] };
-  };
-  
   'Component.Set': {
     params: {
       Name: string;
@@ -216,7 +211,6 @@ export function isValidCommand(command: string): command is CommandName {
     'Component.GetComponents',
     'Component.Get',
     'Component.GetControls',
-    'Component.GetAllControls',
     'Component.Set',
     'Control.Get',
     'Control.GetValues',
