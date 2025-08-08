@@ -740,44 +740,6 @@ export function handleStatusGet(
 }
 
 
-/**
- * Handle Component.GetAllControlValues command
- */
-export function handleGetAllControlValues(
-  params: Record<string, unknown> | undefined,
-  client: OfficialQRWCClient
-): { result: Record<string, { Value: unknown; String: string }> } {
-  const componentName = params?.['Name'] ?? params?.['name'];
-  if (!componentName || typeof componentName !== 'string') {
-    throw new ValidationError('Component name is required', 
-      [{ field: 'Name', message: 'Component name is required', code: 'REQUIRED_FIELD' }]);
-  }
-
-  const qrwc = client.getQrwc();
-  if (!qrwc?.components[componentName]) {
-    throw new QSysError(`Component not found: ${componentName}`, QSysErrorCode.INVALID_COMPONENT,
-      { componentName });
-  }
-
-  const component = qrwc.components[componentName] as Component | undefined;
-  if (!component) {
-    return { result: {} };
-  }
-
-  const controlValues: Record<string, { Value: unknown; String: string }> = {};
-
-  for (const [name, control] of Object.entries(component.controls)) {
-    const fullName = `${componentName}.${name}`;
-    const { value } = extractControlValue(control);
-
-    controlValues[fullName] = {
-      Value: value,
-      String: valueToString(value),
-    };
-  }
-
-  return { result: controlValues };
-}
 
 /**
  * Handle direct control operations

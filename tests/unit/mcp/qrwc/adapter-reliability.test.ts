@@ -98,17 +98,6 @@ describe('QRWCClientAdapter - Reliability (Minimal)', () => {
       expect(components[0]).toHaveProperty('Name', 'TestComponent');
     });
 
-    it('should get all controls', async () => {
-      const result = await adapter.sendCommand('Component.GetAllControlValues', {
-        Name: 'TestComponent'
-      });
-      
-      expect(result).toHaveProperty('result');
-      const controls = (result as any).result;
-      expect(typeof controls).toBe('object');
-      expect('TestComponent.TestControl' in controls).toBe(true);
-      expect(controls['TestComponent.TestControl']).toHaveProperty('Value', 0);
-    });
   });
 
   describe('Error handling', () => {
