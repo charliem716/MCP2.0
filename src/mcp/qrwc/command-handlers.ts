@@ -611,10 +611,10 @@ export function handleStatusGet(
 /**
  * Handle Component.GetAllControls command
  */
-export function handleGetAllControls(
+export async function handleGetAllControls(
   params: Record<string, unknown> | undefined,
   client: OfficialQRWCClient
-): { result: ControlInfo[] } {
+): Promise<{ result: ControlInfo[] }> {
   const qrwc = client.getQrwc();
   if (!qrwc) {
     throw new QSysError('QRWC instance not available', QSysErrorCode.CONNECTION_FAILED);
@@ -622,19 +622,61 @@ export function handleGetAllControls(
 
   const allControls: ControlInfo[] = [];
 
-  for (const [componentName, component] of Object.entries(qrwc.components)) {
-    const comp = component;
+  // Check if cache is empty - if so, we need to discover components first
+  if (Object.keys(qrwc.components).length === 0) {
+    logger.info('Component cache empty, performing discovery for GetAllControls');
     
-    for (const [controlName, control] of Object.entries(comp.controls)) {
-      const fullName = `${componentName}.${controlName}`;
-      const { value, type } = extractControlValue(control);
+    try {
+      // Get all components first to populate the cache
+      const componentsResult = await handleGetComponents(params, client);
+      logger.info(`Discovered ${componentsResult.result.length} components`);
+      
+      // Now iterate through the discovered components to get their controls
+      for (const componentInfo of componentsResult.result) {
+        try {
+          // Get controls for this component
+          const controlsResult = handleGetControls(
+            { Name: componentInfo.Name }, 
+            client
+          );
+          
+          // Add each control to our result
+          for (const control of controlsResult.result.Controls) {
+            allControls.push({
+              Name: `${componentInfo.Name}.${control.Name}`,
+              Type: control.Type,
+              Value: control.Value,
+              String: control.String,
+            });
+          }
+        } catch (err) {
+          // Log but continue - some components may not have accessible controls
+          logger.warn(`Failed to get controls for component ${componentInfo.Name}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    } catch (err) {
+      logger.error('Failed to discover components for GetAllControls', err);
+      // Fall through to use cache if discovery fails
+    }
+  }
+  
+  // If we didn't get controls from discovery, or if cache was already populated,
+  // use the cache (this is the original implementation)
+  if (allControls.length === 0 && Object.keys(qrwc.components).length > 0) {
+    for (const [componentName, component] of Object.entries(qrwc.components)) {
+      const comp = component;
+      
+      for (const [controlName, control] of Object.entries(comp.controls)) {
+        const fullName = `${componentName}.${controlName}`;
+        const { value, type } = extractControlValue(control);
 
-      allControls.push({
-        Name: fullName,
-        Type: type,
-        Value: value,
-        String: valueToString(value),
-      });
+        allControls.push({
+          Name: fullName,
+          Type: type,
+          Value: value,
+          String: valueToString(value),
+        });
+      }
     }
   }
 
