@@ -28,7 +28,7 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
   private lastFailureTime: Date | null = null;
   private nextAttemptTime: Date | null = null;
   private resetTimer?: NodeJS.Timeout;
-  private options: Required<CircuitBreakerOptions>;
+  private options: Omit<Required<CircuitBreakerOptions>, 'logger'> & { logger?: Logger };
   private logger?: Logger;
 
   constructor(options: CircuitBreakerOptions) {
@@ -38,10 +38,12 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
       threshold: options.threshold,
       timeout: options.timeout,
       resetTimeout: options.resetTimeout ?? 120000, // 2 minutes default
-      logger: options.logger,
     };
-
-    this.logger = options.logger;
+    
+    if (options.logger !== undefined) {
+      this.options.logger = options.logger;
+      this.logger = options.logger;
+    }
   }
 
   /**
@@ -182,7 +184,7 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
   private clearResetTimer(): void {
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
-      this.resetTimer = undefined;
+      delete this.resetTimer;
     }
   }
 

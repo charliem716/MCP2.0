@@ -176,7 +176,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
       if (this.ws) {
         this.ws.removeAllListeners();
         this.ws.close();
-        this.ws = undefined;
+        delete this.ws;
       }
       this.setState(ConnectionState.DISCONNECTED);
       throw error;

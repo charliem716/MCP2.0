@@ -232,39 +232,98 @@ process.on('uncaughtException', (error: Error) => {
   });
 
   if (!loggerClosed) {
-    logger.error('💥 Uncaught Exception:', error);
+    logger.error('💥 Uncaught Exception:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
   } else {
     debugLog('Uncaught Exception (logger closed)', error);
   }
 
-  // Only exit for fatal errors
-  if (
-    error.message.includes('EADDRINUSE') ||
-    error.message.includes('EACCES') ||
-    error.message.includes('write after end')
-  ) {
+  // Only exit for truly fatal errors
+  const fatalErrors = [
+    'EADDRINUSE',
+    'EACCES',
+    'write after end',
+    'EPIPE',
+    'ENOTFOUND',
+    'ECONNREFUSED',
+  ];
+  
+  const isFatal = fatalErrors.some(fatal => error.message.includes(fatal));
+  
+  if (isFatal) {
+    logger.error('⚠️  Fatal error detected, initiating graceful shutdown');
     gracefulShutdown('UNCAUGHT_EXCEPTION').catch(shutdownError => {
       debugLog('Error during exception shutdown', shutdownError);
       process.exit(1);
     });
   } else if (!loggerClosed) {
     logger.warn('⚠️  Attempting to continue after uncaught exception');
+    // Try to recover by resetting any broken state
+    if (mcpServer) {
+      logger.info('🔄 Attempting to recover MCP server state');
+      // The server should handle its own recovery
+    }
   }
 });
 
-// Handle unhandled promise rejections - log but don't exit
+// Handle unhandled promise rejections - log and track for patterns
+let unhandledRejectionCount = 0;
+const rejectionResetInterval = 60000; // Reset count every minute
+let rejectionResetTimer: NodeJS.Timeout | null = null;
+
 process.on(
   'unhandledRejection',
   (reason: unknown, promise: Promise<unknown>) => {
-    debugLog('Unhandled rejection', { reason });
+    unhandledRejectionCount++;
+    
+    debugLog('Unhandled rejection', { 
+      reason,
+      count: unhandledRejectionCount 
+    });
+    
     if (!loggerClosed) {
-      logger.error('💥 Unhandled Rejection', { reason, promise });
-      logger.warn(
-        '⚠️  Continuing after unhandled rejection - consider fixing the root cause'
-      );
+      // Enhanced logging with more context
+      const errorInfo = {
+        reason: reason instanceof Error ? {
+          message: reason.message,
+          stack: reason.stack,
+          name: reason.name,
+        } : String(reason),
+        count: unhandledRejectionCount,
+        promise: promise.toString(),
+      };
+      
+      logger.error('💥 Unhandled Rejection', errorInfo);
+      
+      // If we see too many rejections in a short time, something is seriously wrong
+      if (unhandledRejectionCount > 10) {
+        logger.error('⚠️  Too many unhandled rejections, initiating graceful shutdown');
+        gracefulShutdown('UNHANDLED_REJECTION_OVERFLOW').catch(shutdownError => {
+          debugLog('Error during rejection overflow shutdown', shutdownError);
+          process.exit(1);
+        });
+      } else {
+        logger.warn(
+          `⚠️  Continuing after unhandled rejection #${unhandledRejectionCount} - this should be fixed`
+        );
+      }
     } else {
       debugLog('Unhandled Rejection (logger closed)', reason);
     }
+    
+    // Reset count periodically to avoid shutdown from sporadic rejections
+    if (rejectionResetTimer) {
+      clearTimeout(rejectionResetTimer);
+    }
+    rejectionResetTimer = setTimeout(() => {
+      if (unhandledRejectionCount > 0) {
+        logger.info(`🔄 Resetting unhandled rejection count from ${unhandledRejectionCount} to 0`);
+        unhandledRejectionCount = 0;
+      }
+    }, rejectionResetInterval);
   }
 );
 

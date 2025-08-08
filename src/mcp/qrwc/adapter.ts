@@ -661,7 +661,7 @@ export class QRWCClientAdapter
     }
     
     const groupId = params['Id'] as string;
-    const componentParam = params['Component'] as { Name: string; Controls: { Name: string }[] } | undefined;
+    const componentParam = params['Component'] as { Name: string; Controls: Array<{ Name: string }> } | undefined;
     
     if (!componentParam?.Name || !componentParam?.Controls) {
       throw new QSysError('Component and Controls required', QSysErrorCode.COMMAND_FAILED);

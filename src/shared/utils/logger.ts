@@ -53,9 +53,9 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const correlationFormat = format((info: any) => {
     const context = getCorrelationContext();
     if (context?.correlationId) {
-      info['correlationId'] = context.correlationId;
+      info.correlationId = context.correlationId;
       if (context.metadata) {
-        info['requestMetadata'] = context.metadata;
+        info.requestMetadata = context.metadata;
       }
     }
     return info;

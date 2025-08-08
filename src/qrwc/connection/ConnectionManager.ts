@@ -6,6 +6,7 @@
 import { EventEmitter } from 'events';
 import { ConnectionState } from '../../shared/types/common.js';
 import { createLogger, type Logger } from '../../shared/utils/logger.js';
+import type { CircuitBreakerOptions } from './CircuitBreaker.js';
 import { CircuitBreaker } from './CircuitBreaker.js';
 
 export interface ConnectionManagerOptions {
@@ -64,6 +65,7 @@ export class ConnectionManager extends EventEmitter<ConnectionManagerEvents> {
       warn: noop, 
       debug: noop,
       child: () => fallbackLogger,
+      setContext: noop,
     };
 
     try {
@@ -84,15 +86,16 @@ export class ConnectionManager extends EventEmitter<ConnectionManagerEvents> {
     };
 
     // Initialize circuit breaker with proper logger handling
-    const circuitBreakerLogger = this.logger.child 
-      ? this.logger.child({ component: 'circuit-breaker' }) 
-      : undefined;
-
-    this.circuitBreaker = new CircuitBreaker({
+    const circuitBreakerOptions: CircuitBreakerOptions = {
       threshold: this.options.circuitBreakerThreshold,
       timeout: this.options.circuitBreakerTimeout,
-      logger: circuitBreakerLogger,
-    });
+    };
+    
+    if (this.logger.child) {
+      circuitBreakerOptions.logger = this.logger.child({ component: 'circuit-breaker' });
+    }
+
+    this.circuitBreaker = new CircuitBreaker(circuitBreakerOptions);
 
     this.circuitBreaker.on('open', () => {
       this.logger.warn('Circuit breaker opened - stopping connection attempts');
@@ -252,7 +255,7 @@ export class ConnectionManager extends EventEmitter<ConnectionManagerEvents> {
   private stopHealthMonitoring(): void {
     if (this.healthCheckTimer) {
       clearInterval(this.healthCheckTimer);
-      this.healthCheckTimer = undefined;
+      delete this.healthCheckTimer;
     }
   }
 
@@ -311,7 +314,7 @@ export class ConnectionManager extends EventEmitter<ConnectionManagerEvents> {
     
     if (this.retryTimer) {
       clearTimeout(this.retryTimer);
-      this.retryTimer = undefined;
+      delete this.retryTimer;
     }
 
     this.setState(ConnectionState.DISCONNECTED);
@@ -323,14 +326,14 @@ export class ConnectionManager extends EventEmitter<ConnectionManagerEvents> {
    */
   disconnect(): void {
     this.reset();
-    this.connectFunction = undefined;
+    delete this.connectFunction;
     this.logger.info('Connection manager disconnected');
   }
 
   /**
    * Sleep for specified milliseconds
    */
-  private sleep(ms: number): Promise<void> {
+  private async sleep(ms: number): Promise<void> {
     return new Promise(resolve => {
       this.retryTimer = setTimeout(resolve, ms);
     });

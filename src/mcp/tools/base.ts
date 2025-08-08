@@ -3,6 +3,7 @@ import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { IControlSystem } from '../interfaces/control-system.js';
 import type { ToolCallResult } from '../handlers/index.js';
 import { QSysError, QSysErrorCode, ValidationError } from '../../shared/types/errors.js';
+import { withTimeout, safeAsyncOperation, formatUserError } from '../../shared/utils/error-boundaries.js';
 
 /**
  * Base schema for all Q-SYS tool parameters
@@ -81,16 +82,38 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
         rawParams,
       });
 
-      // Validate parameters using Zod
-      const validatedParams = this.validateParams(rawParams);
-
-      // Check QRWC connection
-      if (!this.controlSystem.isConnected()) {
-        throw new QSysError('Q-SYS Core not connected', QSysErrorCode.CONNECTION_FAILED);
+      // Validate parameters using Zod with proper error boundaries
+      let validatedParams: TParams;
+      try {
+        validatedParams = this.validateParams(rawParams);
+      } catch (validationError) {
+        // Log validation errors with full context
+        this.logger.warn(`Tool parameter validation failed: ${this.name}`, {
+          context,
+          error: validationError instanceof Error ? validationError.message : String(validationError),
+          rawParams,
+        });
+        throw validationError;
       }
 
-      // Execute the tool-specific logic
-      const result = await this.executeInternal(validatedParams, context);
+      // Check QRWC connection with timeout
+      const connectionCheck = async () => {
+        if (!this.controlSystem.isConnected()) {
+          throw new QSysError('Q-SYS Core not connected', QSysErrorCode.CONNECTION_FAILED);
+        }
+      };
+      
+      await withTimeout(connectionCheck(), 5000, 'Connection check');
+
+      // Execute the tool-specific logic with timeout and error boundary
+      const result = await safeAsyncOperation(
+        async () => this.executeInternal(validatedParams, context),
+        {
+          operationName: `Tool execution: ${this.name}`,
+          timeoutMs: 30000, // 30 second timeout for tool execution
+          logError: false, // We'll log ourselves with more context
+        }
+      );
 
       const executionTime = Date.now() - context.startTime;
 
@@ -108,12 +131,17 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
     } catch (error) {
       const executionTime = Date.now() - context.startTime;
 
+      // Enhanced error logging with full context
       this.logger.error(`Tool execution failed: ${this.name}`, {
         context,
         error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name,
         executionTimeMs: executionTime,
+        rawParams,
       });
 
+      // Return user-friendly error response
       return {
         content: [
           {
@@ -184,12 +212,13 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       timestamp: string;
       fields?: Array<{ field: string; message: string; code: string }>;
       fieldErrors?: string;
+      hint?: string;
     }
     
     const errorObj: ErrorResponse = {
       error: true,
       toolName: this.name,
-      message: error instanceof Error ? error.message : String(error),
+      message: formatUserError(error),
       code: 'UNKNOWN_ERROR',
       timestamp: new Date().toISOString(),
     };
@@ -202,9 +231,28 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       errorObj.fieldErrors = error.fields
         .map(f => `${f.field}: ${f.message}`)
         .join('; ');
+      errorObj.hint = 'Please check the parameter requirements and try again';
     }
     
-    // For MCPError or other errors with code property
+    // For Q-SYS errors, include specific error codes
+    if (error instanceof QSysError) {
+      errorObj.code = error.code;
+      
+      // Add helpful hints based on error code
+      switch (error.code) {
+        case QSysErrorCode.CONNECTION_FAILED:
+          errorObj.hint = 'Check Q-SYS Core connection and ensure the system is accessible';
+          break;
+        case QSysErrorCode.TIMEOUT:
+          errorObj.hint = 'The operation took too long. The Q-SYS Core may be overloaded or network issues may exist';
+          break;
+        case QSysErrorCode.COMMAND_FAILED:
+          errorObj.hint = 'Review the parameter documentation and ensure all required fields are provided';
+          break;
+      }
+    }
+    
+    // For other errors with code property
     if (error instanceof Error && 'code' in error) {
       const errorWithCode = error as Error & { code?: string };
       if (typeof errorWithCode.code === 'string') {

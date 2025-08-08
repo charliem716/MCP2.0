@@ -63,45 +63,104 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
     const startTime = Date.now();
 
     try {
-      // Get state manager from adapter
+      // Get state manager from adapter with proper null checking
       const adapter = this.controlSystem as QRWCClientAdapter;
       
       // Check if adapter has getStateManager method
-      if (!adapter.getStateManager) {
+      if (!adapter || typeof adapter.getStateManager !== 'function') {
+        logger.warn('Event monitoring not supported - adapter missing getStateManager', {
+          adapterType: adapter?.constructor?.name,
+          hasMethod: !!adapter?.getStateManager,
+        });
+        
         return {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not available. The control system does not support state management.',
+              text: JSON.stringify({
+                error: true,
+                message: 'Event monitoring is not available. The control system does not support state management.',
+                hint: 'Ensure you are using a Q-SYS control system with event monitoring capabilities',
+              }),
             },
           ],
           isError: true,
         };
       }
       
-      const stateManager = adapter.getStateManager() as MonitoredStateManager | undefined;
-      
-      // Check if state manager exists and has event monitor
-      if (!stateManager?.getEventMonitor) {
+      let stateManager: MonitoredStateManager | undefined;
+      try {
+        stateManager = adapter.getStateManager() as MonitoredStateManager | undefined;
+      } catch (getStateError) {
+        logger.error('Failed to get state manager', {
+          error: getStateError instanceof Error ? getStateError.message : String(getStateError),
+        });
+        
         return {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not available. Please ensure EVENT_MONITORING_ENABLED=true in your environment.',
+              text: JSON.stringify({
+                error: true,
+                message: 'Failed to access state manager',
+                hint: 'The state management system may be initializing. Please try again.',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+      
+      // Check if state manager exists and has event monitor
+      if (!stateManager || typeof stateManager.getEventMonitor !== 'function') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: true,
+                message: 'Event monitoring is not available. Please ensure EVENT_MONITORING_ENABLED=true in your environment.',
+                hint: 'Set EVENT_MONITORING_ENABLED=true and restart the application',
+              }),
             },
           ],
           isError: true,
         };
       }
 
-      const eventMonitor = stateManager.getEventMonitor();
+      let eventMonitor;
+      try {
+        eventMonitor = stateManager.getEventMonitor();
+      } catch (getMonitorError) {
+        logger.error('Failed to get event monitor', {
+          error: getMonitorError instanceof Error ? getMonitorError.message : String(getMonitorError),
+        });
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: true,
+                message: 'Failed to access event monitor',
+                hint: 'The event monitoring system may be starting up. Please try again.',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
 
       if (!eventMonitor) {
         return {
           content: [
             {
               type: 'text',
-              text: 'Event monitoring is not active. Please create and subscribe to a change group with auto-polling to start recording events.',
+              text: JSON.stringify({
+                error: true,
+                message: 'Event monitoring is not active. Please create and subscribe to a change group with auto-polling to start recording events.',
+                hint: 'Use the create_change_group and subscribe_change_group tools first',
+              }),
             },
           ],
           isError: true,
@@ -124,17 +183,60 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
       if (params.changeGroupId !== undefined) queryParams.changeGroupId = params.changeGroupId;
       if (params.controlNames !== undefined) queryParams.controlPaths = params.controlNames;
 
-      const events = await eventMonitor.queryEvents(queryParams);
+      let events: any[];
+      try {
+        // Query with timeout to prevent hanging
+        const queryPromise = eventMonitor.queryEvents(queryParams);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000);
+        });
+        
+        events = await Promise.race([queryPromise, timeoutPromise]) as any[];
+      } catch (queryError) {
+        logger.error('Failed to query events from monitor', {
+          error: queryError instanceof Error ? queryError.message : String(queryError),
+          queryParams,
+        });
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: true,
+                message: `Failed to query events: ${queryError instanceof Error ? queryError.message : String(queryError)}`,
+                hint: 'Check your query parameters and ensure the database is accessible',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
 
-      // The new monitor returns raw values, not JSON strings
-      const formattedEvents = events.map((event: any) => ({
-        ...event,
-        value: event.value,
-        stringValue: event.stringValue
-      }));
+      // Safely format events with null checking
+      let formattedEvents: any[];
+      try {
+        formattedEvents = (events || []).map((event: any) => {
+          if (!event) return null;
+          
+          return {
+            ...event,
+            value: event.value ?? null,
+            stringValue: event.stringValue ?? null,
+          };
+        }).filter(Boolean); // Remove any null entries
+      } catch (formatError) {
+        logger.error('Failed to format events', {
+          error: formatError instanceof Error ? formatError.message : String(formatError),
+          eventCount: events?.length,
+        });
+        
+        // Return raw events if formatting fails
+        formattedEvents = events || [];
+      }
 
       const response = {
-        eventCount: events.length,
+        eventCount: formattedEvents.length,
         events: formattedEvents,
         query: {
           startTime: params.startTime,
@@ -158,13 +260,27 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
         isError: false,
       };
     } catch (error: any) {
-      logger.error('Failed to query events', { error, params });
+      // This is the final catch-all for any unexpected errors
+      logger.error('Unexpected error in query events tool', { 
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        } : String(error),
+        params,
+        executionTimeMs: Date.now() - startTime,
+      });
 
       return {
         content: [
           {
             type: 'text',
-            text: `Failed to query events: ${error.message}`,
+            text: JSON.stringify({
+              error: true,
+              message: `Unexpected error: ${error?.message || String(error)}`,
+              hint: 'An unexpected error occurred. Please check the logs for details.',
+              executionTimeMs: Date.now() - startTime,
+            }),
           },
         ],
         isError: true,
