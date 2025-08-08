@@ -559,13 +559,31 @@ export class QRWCClientAdapter
    */
   private executeRawCommand(
     command: string,
-    _params?: Record<string, unknown>
+    params?: Record<string, unknown>
   ): unknown {
-    // For unknown commands, throw an error
+    // Log which commands we actually support for debugging
+    logger.warn('Unhandled command received', {
+      command,
+      hasParams: !!params,
+      supportedCommands: [
+        'Component.GetComponents', 'Component.GetControls', 'Component.Get', 'Component.Set',
+        'Control.Get', 'Control.Set', 'Control.GetValues',
+        'Status.Get', 'Component.GetAllControls', 'Component.GetAllControlValues',
+        'ChangeGroup.Create', 'ChangeGroup.AddControl', 'ChangeGroup.AddComponentControl',
+        'ChangeGroup.Poll', 'ChangeGroup.AutoPoll', 'ChangeGroup.Destroy',
+        'ChangeGroup.Remove', 'ChangeGroup.Clear'
+      ],
+      component: 'qrwc.adapter'
+    });
+    
+    // For unknown commands, throw a more helpful error
     throw new QSysError(
-      `Unknown QRWC command: ${command}. Please implement this command in the adapter or official client.`,
+      `Unrecognized command: '${command}'. This might be due to a typo or case sensitivity issue. Check the command name and try again.`,
       QSysErrorCode.COMMAND_FAILED,
-      { command }
+      { 
+        command,
+        hint: 'Commands are case-sensitive. Common commands include Component.Get, Control.Set, ChangeGroup.Create, etc.'
+      }
     );
   }
 
