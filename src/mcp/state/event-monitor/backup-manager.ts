@@ -339,7 +339,8 @@ export class EventDatabaseBackupManager {
         const stats = fs.statSync(filePath);
         
         // Extract timestamp from filename
-        const timestampMatch = file.match(/events-backup-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})/);
+        const timestampRegex = /events-backup-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})/;
+        const timestampMatch = timestampRegex.exec(file);
         let createdAt = stats.mtime;
         
         if (timestampMatch && timestampMatch[1]) {
@@ -407,13 +408,15 @@ export class EventDatabaseBackupManager {
       clearInterval(this.autoBackupTimer);
     }
     
-    this.autoBackupTimer = setInterval(async () => {
-      try {
-        await this.performBackup();
-        logger.info('Automatic backup completed');
-      } catch (error) {
-        logger.error('Automatic backup failed', { error });
-      }
+    this.autoBackupTimer = setInterval(() => {
+      // Handle async operation without making the callback async
+      this.performBackup()
+        .then(() => {
+          logger.info('Automatic backup completed');
+        })
+        .catch((error) => {
+          logger.error('Automatic backup failed', { error });
+        });
     }, this.config.autoBackupInterval);
     
     logger.info('Automatic backups scheduled', {

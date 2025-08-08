@@ -19,7 +19,7 @@ async function testShutdown(scenario) {
   console.log(`Testing ${scenario.name} shutdown...`);
   console.log('='.repeat(60));
 
-  return new Promise(async (resolve) => {
+  return new Promise((resolve) => {
     const env = {
       ...process.env,
       EVENT_MONITORING_ENABLED: 'true',
@@ -97,21 +97,21 @@ async function testShutdown(scenario) {
       resolve(result);
     });
 
-    // Wait for server to start
-    await setTimeout(scenario.delay);
+    // Wait for server to start, then send shutdown signal
+    setTimeout(() => {
+      // Send the shutdown signal
+      console.log(`\nSending ${scenario.signal} to process...`);
+      child.kill(scenario.signal);
+    }, scenario.delay);
     
-    // Send the shutdown signal
-    console.log(`\nSending ${scenario.signal} to process...`);
-    child.kill(scenario.signal);
-    
-    // Wait for shutdown to complete (max 15 seconds)
-    await setTimeout(15000);
-    
-    // Force kill if still running
-    if (!child.killed) {
-      console.log('⚠️  Process did not exit cleanly, forcing termination');
-      child.kill('SIGKILL');
-    }
+    // Force timeout after 15 seconds
+    setTimeout(() => {
+      // Force kill if still running
+      if (!child.killed) {
+        console.log('⚠️  Process did not exit cleanly, forcing termination');
+        child.kill('SIGKILL');
+      }
+    }, 15000);
   });
 }
 

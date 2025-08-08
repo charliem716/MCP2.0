@@ -1,4 +1,4 @@
-#\!/usr/bin/env node
+#!/usr/bin/env node
 
 /**
  * BUG-169 Final Verification Test
@@ -226,7 +226,7 @@ async function printSummary() {
 
 async function runTests() {
   // Check if server is built
-  if (\!existsSync('dist/index.js')) {
+  if (!existsSync('dist/index.js')) {
     console.log(`${RED}Error: dist/index.js not found. Run 'npm run build' first.${RESET}`);
     process.exit(1);
   }

@@ -23,7 +23,7 @@ async function testEventMonitorShutdown() {
     fs.rmSync(testDbPath, { recursive: true, force: true });
   }
 
-  return new Promise(async (resolve) => {
+  return new Promise((resolve) => {
     const env = {
       ...process.env,
       EVENT_MONITORING_ENABLED: 'true',
@@ -122,20 +122,20 @@ async function testEventMonitorShutdown() {
     });
 
     // Wait for server to start
-    await setTimeout(3000);
+    setTimeout(() => {
+      // Send SIGTERM
+      console.log('\nSending SIGTERM to process...');
+      child.kill('SIGTERM');
+    }, 3000);
     
-    // Send SIGTERM
-    console.log('\nSending SIGTERM to process...');
-    child.kill('SIGTERM');
-    
-    // Wait for shutdown to complete (max 10 seconds)
-    await setTimeout(10000);
-    
-    // Force kill if still running
-    if (!child.killed) {
-      console.log('⚠️  Process did not exit cleanly, forcing termination');
-      child.kill('SIGKILL');
-    }
+    // Force timeout after 10 seconds
+    setTimeout(() => {
+      // Force kill if still running
+      if (!child.killed) {
+        console.log('⚠️  Process did not exit cleanly, forcing termination');
+        child.kill('SIGKILL');
+      }
+    }, 10000);
   });
 }
 

@@ -239,7 +239,8 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       errorObj.code = error.code;
       
       // Add helpful hints based on error code
-      switch (error.code) {
+      // Cast to QSysErrorCode to ensure type safety
+      switch (error.code as QSysErrorCode) {
         case QSysErrorCode.CONNECTION_FAILED:
           errorObj.hint = 'Check Q-SYS Core connection and ensure the system is accessible';
           break;

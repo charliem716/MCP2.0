@@ -47,10 +47,11 @@ export class HealthEndpointServer {
       return;
     }
 
-    this.server = createServer(async (req, res) => {
+    this.server = createServer((req, res) => {
       const correlationId = generateCorrelationId();
       
-      await runWithCorrelation(correlationId, async () => {
+      // Handle the async operation without making the callback async
+      void runWithCorrelation(correlationId, async () => {
         const startTime = Date.now();
         const url = req.url ?? '/';
         
