@@ -17,6 +17,12 @@ import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 
 const CreateChangeGroupParamsSchema = BaseToolParamsSchema.extend({
   groupId: z.string().min(1).describe('Unique identifier for the change group'),
+  pollRate: z.number()
+    .min(0.03)
+    .max(3600)
+    .default(1)
+    .optional()
+    .describe('Polling rate in seconds (0.03=33Hz, 0.1=10Hz, 1=1Hz). When event monitoring is enabled, controls polling frequency and recording rate.'),
 });
 
 type CreateChangeGroupParams = z.infer<typeof CreateChangeGroupParamsSchema>;
@@ -26,7 +32,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
     super(
       controlSystem,
       'create_change_group',
-      "Create a change group for monitoring control value changes. Groups enable efficient polling of multiple controls. Example: {groupId:'mixer-controls'}. Returns success or warning if group exists.",
+      "Create a change group with automatic polling for monitoring control changes. Polling starts immediately at specified rate. If event monitoring is enabled, changes are recorded to database. Example: {groupId:'mixer-controls',pollRate:0.1}.",
       CreateChangeGroupParamsSchema
     );
   }
@@ -34,6 +40,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
   protected async executeInternal(
     params: CreateChangeGroupParams
   ): Promise<ToolCallResult> {
+    // Create the change group with empty controls
     const result = (await this.controlSystem.sendCommand(
       'ChangeGroup.AddControl',
       {
@@ -42,15 +49,29 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
       }
     )) as unknown as { result: boolean; warning?: string };
 
+    // Automatically enable AutoPoll with the specified rate
+    // This ensures recording starts immediately if event monitoring is enabled
+    const pollRate = params.pollRate ?? 1;
+    await this.controlSystem.sendCommand('ChangeGroup.AutoPoll', {
+      Id: params.groupId,
+      Rate: pollRate,
+    });
+
     const response: {
       success: boolean;
       groupId: string;
       warning?: string;
       message: string;
+      pollRate: number;
+      frequency: string;
+      recording: boolean;
     } = {
       success: true,
       groupId: params.groupId,
-      message: result.warning ?? `Change group '${params.groupId}' created successfully`,
+      message: result.warning ?? `Change group '${params.groupId}' created with auto-polling`,
+      pollRate,
+      frequency: pollRate <= 0.03 ? '33Hz' : `${(1/pollRate).toFixed(1)}Hz`,
+      recording: process.env['EVENT_MONITORING_ENABLED'] === 'true',
     };
 
     if (result.warning) {
@@ -188,7 +209,7 @@ export class DestroyChangeGroupTool extends BaseQSysTool<DestroyChangeGroupParam
     super(
       controlSystem,
       'destroy_change_group',
-      "Destroy a change group and stop polling. Always destroy unused groups to prevent memory leaks. Example: {groupId:'mixer-controls'}.",
+      "Destroy a change group, stop polling, and cease event recording. Always destroy unused groups to prevent memory leaks. If event monitoring is enabled, this stops recording for this group. Example: {groupId:'mixer-controls'}.",
       DestroyChangeGroupParamsSchema
     );
   }

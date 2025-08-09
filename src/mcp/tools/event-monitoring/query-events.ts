@@ -158,8 +158,8 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
               type: 'text',
               text: JSON.stringify({
                 error: true,
-                message: 'Event monitoring is not active. Please create and subscribe to a change group with auto-polling to start recording events.',
-                hint: 'Use the create_change_group and subscribe_change_group tools first',
+                message: 'Event monitoring is not enabled in this environment.',
+                hint: 'Set EVENT_MONITORING_ENABLED=true and restart the application. Then create change groups with polling to record events.',
               }),
             },
           ],
