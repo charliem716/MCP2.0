@@ -37,52 +37,56 @@ describe('ListControlsTool', () => {
   describe('parseControlsResponse', () => {
     it('should parse real QRWC response correctly', async () => {
       const mockResponse = {
-        result: [
-          {
-            Name: 'MainMixer.input.1.gain',
-            Component: 'MainMixer',
-            Value: -12.5,
-            Properties: {
-              MinValue: -100,
-              MaxValue: 20,
-              Units: 'dB',
-              Step: 0.1,
+        result: {
+          Name: 'Test Component',
+          Controls: [
+            {
+              Name: 'MainMixer.input.1.gain',
+              Component: 'MainMixer',
+              Value: -12.5,
+              Properties: {
+                MinValue: -100,
+                MaxValue: 20,
+                Units: 'dB',
+                Step: 0.1,
+              },
             },
-          },
-          {
-            Name: 'MainMixer.input.1.mute',
-            Component: 'MainMixer',
-            Value: false,
-            Properties: {
-              ValueType: 'Boolean',
+            {
+              Name: 'MainMixer.input.1.mute',
+              Component: 'MainMixer',
+              Value: false,
+              Properties: {
+                ValueType: 'Boolean',
+              },
             },
-          },
-          {
-            Name: 'ZoneAmpControl.output.1.gain',
-            Value: -6.0,
-            Properties: {
-              MinValue: -80,
-              MaxValue: 12,
-              Units: 'dB',
-              Step: 0.5,
+            {
+              Name: 'ZoneAmpControl.output.1.gain',
+              Value: -6.0,
+              Properties: {
+                MinValue: -80,
+                MaxValue: 12,
+                Units: 'dB',
+                Step: 0.5,
+              },
             },
-          },
-        ],
+          ],
+        },
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'Test Component' });
 
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'Component.GetAllControls'
+        'Component.GetControls',
+        { Name: 'Test Component' }
       );
       expect(result.isError).toBe(false);
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(3);
       expect(controls[0]).toEqual({
         name: 'MainMixer.input.1.gain',
-        component: 'MainMixer',
+        component: 'MainMixer', // Uses Component property from control
         type: 'gain',
         value: -12.5,
         metadata: {
@@ -94,7 +98,7 @@ describe('ListControlsTool', () => {
       });
       expect(controls[1]).toEqual({
         name: 'MainMixer.input.1.mute',
-        component: 'MainMixer',
+        component: 'MainMixer', // Uses Component property from control
         type: 'mute',
         value: false,
         metadata: {
@@ -103,7 +107,7 @@ describe('ListControlsTool', () => {
       });
       expect(controls[2]).toEqual({
         name: 'ZoneAmpControl.output.1.gain',
-        component: 'ZoneAmpControl', // extracted from control name
+        component: 'Test Component', // Uses component name from response
         type: 'gain',
         value: -6.0,
         metadata: {
@@ -117,12 +121,15 @@ describe('ListControlsTool', () => {
 
     it('should handle empty response gracefully', async () => {
       const mockResponse = {
-        result: [],
+        result: {
+          Name: 'TestComponent',
+          Controls: [],
+        },
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'TestComponent' });
 
       expect(result.isError).toBe(false);
       const controls = JSON.parse(result.content[0].text);
@@ -134,7 +141,7 @@ describe('ListControlsTool', () => {
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'TestComponent' });
 
       expect(result.isError).toBe(false);
       const controls = JSON.parse(result.content[0].text);
@@ -143,18 +150,16 @@ describe('ListControlsTool', () => {
 
     it('should apply component filter correctly', async () => {
       const mockResponse = {
-        result: [
-          {
-            Name: 'MainMixer.input.1.gain',
-            Component: 'MainMixer',
-            Value: -12.5,
-          },
-          {
-            Name: 'ZoneAmpControl.output.1.gain',
-            Component: 'ZoneAmpControl',
-            Value: -6.0,
-          },
-        ],
+        result: {
+          Name: 'MainMixer',
+          Controls: [
+            {
+              Name: 'MainMixer.input.1.gain',
+              Component: 'MainMixer',
+              Value: -12.5,
+            },
+          ],
+        },
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
@@ -174,25 +179,28 @@ describe('ListControlsTool', () => {
 
     it('should apply control type filter correctly', async () => {
       const mockResponse = {
-        result: [
-          {
-            Name: 'MainMixer.input.1.gain',
-            Component: 'MainMixer',
-            Value: -12.5,
-            Properties: { Units: 'dB' },
-          },
-          {
-            Name: 'MainMixer.input.1.mute',
-            Component: 'MainMixer',
-            Value: false,
-            Properties: { ValueType: 'Boolean' },
-          },
-        ],
+        result: {
+          Name: 'MainMixer',
+          Controls: [
+            {
+              Name: 'MainMixer.input.1.gain',
+              Component: 'MainMixer',
+              Value: -12.5,
+              Properties: { Units: 'dB' },
+            },
+            {
+              Name: 'MainMixer.input.1.mute',
+              Component: 'MainMixer',
+              Value: false,
+              Properties: { ValueType: 'Boolean' },
+            },
+          ],
+        },
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-      const result = await tool.execute({ controlType: 'gain' });
+      const result = await tool.execute({ component: 'MainMixer', controlType: 'gain' });
 
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(1);
@@ -202,24 +210,27 @@ describe('ListControlsTool', () => {
 
     it('should include metadata when requested', async () => {
       const mockResponse = {
-        result: [
-          {
-            Name: 'MainMixer.input.1.gain',
-            Component: 'MainMixer',
-            Value: -12.5,
-            Properties: {
-              MinValue: -100,
-              MaxValue: 20,
-              Units: 'dB',
-              Step: 0.1,
+        result: {
+          Name: 'MainMixer',
+          Controls: [
+            {
+              Name: 'MainMixer.input.1.gain',
+              Component: 'MainMixer',
+              Value: -12.5,
+              Properties: {
+                MinValue: -100,
+                MaxValue: 20,
+                Units: 'dB',
+                Step: 0.1,
+              },
             },
-          },
-        ],
+          ],
+        },
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-      const result = await tool.execute({ includeMetadata: true });
+      const result = await tool.execute({ component: 'MainMixer', includeMetadata: true });
 
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(1);
@@ -233,18 +244,21 @@ describe('ListControlsTool', () => {
 
     it('should infer control type from name patterns', async () => {
       const mockResponse = {
-        result: [
-          { Name: 'Device.some_gain_control', Value: 0 },
-          { Name: 'Device.mute_button', Value: false },
-          { Name: 'Device.input_select', Value: 1 },
-          { Name: 'Device.output_select', Value: 2 },
-          { Name: 'Device.unknown_control', Value: 'test' },
-        ],
+        result: {
+          Name: 'Device',
+          Controls: [
+            { Name: 'Device.some_gain_control', Value: 0 },
+            { Name: 'Device.mute_button', Value: false },
+            { Name: 'Device.input_select', Value: 1 },
+            { Name: 'Device.output_select', Value: 2 },
+            { Name: 'Device.unknown_control', Value: 'test' },
+          ],
+        },
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'Device' });
 
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(5);
@@ -257,23 +271,26 @@ describe('ListControlsTool', () => {
 
     it('should extract component name from control name when not provided', async () => {
       const mockResponse = {
-        result: [
-          { Name: 'DeviceA.control1', Value: 0 },
-          { Name: 'DeviceB.sub.control2', Value: 1 },
-        ],
+        result: {
+          Name: 'TestDevice',
+          Controls: [
+            { Name: 'DeviceA.control1', Value: 0 },
+            { Name: 'DeviceB.sub.control2', Value: 1 },
+          ],
+        },
       };
 
       mockQrwcClient.sendCommand.mockResolvedValue(mockResponse);
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'TestDevice' });
 
       // Check that component names were extracted correctly
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(2);
       expect(controls[0].name).toBe('DeviceA.control1');
-      expect(controls[0].component).toBe('DeviceA'); // extracted from control name
+      expect(controls[0].component).toBe('TestDevice'); // Uses component from response
       expect(controls[1].name).toBe('DeviceB.sub.control2');
-      expect(controls[1].component).toBe('DeviceB'); // extracted from control name
+      expect(controls[1].component).toBe('TestDevice'); // Uses component from response
     });
   });
 
@@ -283,33 +300,40 @@ describe('ListControlsTool', () => {
       const error = new Error('Network failure');
       mockQrwcClient.sendCommand.mockRejectedValueOnce(error);
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'TestComponent' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Network failure');
     });
 
-    it('should filter out control without matching component', async () => {
+    it('should handle controls without dots in name', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [
-          { Name: 'SimpleControl', Value: 1 }, // No dot in name
-        ],
+        result: {
+          Name: 'TestComponent',
+          Controls: [
+            { Name: 'SimpleControl', Value: 1 }, // No dot in name
+          ],
+        },
       });
 
       const result = await tool.execute({ component: 'TestComponent' });
       const controls = JSON.parse(result.content[0].text);
-      expect(controls).toHaveLength(0); // Control is filtered out because component name doesn't match
+      expect(controls).toHaveLength(1); // Control is included as it belongs to the requested component
+      expect(controls[0].component).toBe('TestComponent');
     });
 
     it('should handle Position property edge cases', async () => {
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [
-          { Name: 'Control1', Value: 0, Position: null },
-          { Name: 'Control2', Value: 1, Position: undefined },
-          { Name: 'Control3', Value: 2 }, // No Position property
-        ],
+        result: {
+          Name: 'TestComponent',
+          Controls: [
+            { Name: 'Control1', Value: 0, Position: null },
+            { Name: 'Control2', Value: 1, Position: undefined },
+            { Name: 'Control3', Value: 2 }, // No Position property
+          ],
+        },
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'TestComponent' });
       expect(result.isError).toBe(false);
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(3);
