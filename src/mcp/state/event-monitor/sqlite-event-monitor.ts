@@ -50,7 +50,9 @@ export class SQLiteEventMonitor extends EventEmitter {
     }
     
     this.config = {
-      enabled: config?.enabled !== false && process.env['EVENT_MONITORING_ENABLED'] !== 'false',
+      enabled: config?.enabled !== undefined 
+        ? config.enabled 
+        : process.env['EVENT_MONITORING_ENABLED'] !== 'false',
       dbPath: config?.dbPath || process.env['EVENT_MONITORING_DB_PATH'] || './data/events',
       retentionDays: config?.retentionDays || parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] || '30', 10),
       bufferSize: config?.bufferSize || parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000', 10),
@@ -84,8 +86,10 @@ export class SQLiteEventMonitor extends EventEmitter {
       const dbFile = this.getDatabaseFilename();
       this.db = new Database(dbFile);
       
-      // Optimize for write performance
-      this.db.pragma('journal_mode = WAL');
+      // Optimize for write performance (skip WAL for in-memory databases)
+      if (dbFile !== ':memory:') {
+        this.db.pragma('journal_mode = WAL');
+      }
       this.db.pragma('synchronous = NORMAL');
       this.db.pragma('cache_size = -64000'); // 64MB cache
       this.db.pragma('temp_store = MEMORY');
@@ -103,8 +107,10 @@ export class SQLiteEventMonitor extends EventEmitter {
         });
       }
       
-      // Initialize backup manager
-      await this.backupManager.initialize(dbFile);
+      // Initialize backup manager (skip for in-memory databases)
+      if (dbFile !== ':memory:') {
+        await this.backupManager.initialize(dbFile);
+      }
       
       this.isInitialized = true;
       logger.info('SQLite event monitor initialized', {
@@ -191,6 +197,14 @@ export class SQLiteEventMonitor extends EventEmitter {
   }
 
   /**
+   * Get the database instance (for testing only)
+   * @internal
+   */
+  public getDatabase(): Database.Database | null {
+    return this.db || null;
+  }
+
+  /**
    * Get database filename with date
    */
   private getDatabaseFilename(): string {
@@ -227,6 +241,13 @@ export class SQLiteEventMonitor extends EventEmitter {
       CREATE INDEX IF NOT EXISTS idx_events_group ON events(change_group_id);
       CREATE INDEX IF NOT EXISTS idx_events_control ON events(control_path);
       CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
+      
+      -- Add missing indexes for better query performance
+      CREATE INDEX IF NOT EXISTS idx_events_component ON events(component_name);
+      
+      -- Compound indexes for common query patterns
+      CREATE INDEX IF NOT EXISTS idx_events_component_time ON events(component_name, timestamp);
+      CREATE INDEX IF NOT EXISTS idx_events_group_time ON events(change_group_id, timestamp);
     `);
   }
 
