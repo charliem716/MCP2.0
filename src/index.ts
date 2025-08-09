@@ -302,6 +302,7 @@ const isMCPMode = process.env['NODE_ENV'] === 'production' && !process.stdin.isT
 
 // Silence Winston warnings in MCP mode to avoid stderr pollution
 if (isMCPMode) {
+  /* eslint-disable no-console */
   const originalWarn = console.warn;
   console.warn = (...args: any[]) => {
     // Filter out Winston warnings about no transports
@@ -310,6 +311,7 @@ if (isMCPMode) {
     }
     originalWarn.apply(console, args);
   };
+  /* eslint-enable no-console */
 }
 
 // Start the application

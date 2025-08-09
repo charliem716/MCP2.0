@@ -9,6 +9,7 @@
 import { Command } from 'commander';
 import { SQLiteEventMonitor } from '../mcp/state/event-monitor/sqlite-event-monitor.js';
 import { globalLogger as logger } from '../shared/utils/logger.js';
+import { cliOutput } from './output.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -29,16 +30,25 @@ program
       await monitor.initialize();
       
       const backupInfo = await monitor.performBackup();
-      console.log('✅ Backup created successfully');
-      console.log(`   File: ${backupInfo.filename}`);
-      console.log(`   Size: ${(backupInfo.size / 1024 / 1024).toFixed(2)} MB`);
-      console.log(`   Events: ${backupInfo.eventsCount ?? 'unknown'}`);
-      console.log(`   Compressed: ${backupInfo.compressed ? 'Yes' : 'No'}`);
+      cliOutput.printSuccess('Backup created successfully');
+      cliOutput.printItem('File', backupInfo.filename);
+      cliOutput.printItem('Size', `${(backupInfo.size / 1024 / 1024).toFixed(2)} MB`);
+      cliOutput.printItem('Events', backupInfo.eventsCount ?? 'unknown');
+      cliOutput.printItem('Compressed', backupInfo.compressed ? 'Yes' : 'No');
+      
+      // Also log for debugging/monitoring
+      logger.info('Backup completed', { 
+        filename: backupInfo.filename, 
+        size: backupInfo.size,
+        eventsCount: backupInfo.eventsCount,
+        compressed: backupInfo.compressed
+      });
       
       await monitor.close();
       process.exit(0);
     } catch (error) {
-      console.error('❌ Backup failed:', error);
+      cliOutput.printFailure(`Backup failed: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error('Backup failed', { error });
       process.exit(1);
     }
   });
@@ -57,22 +67,26 @@ program
       // Check if target exists and warn
       const targetPath = options.target;
       if (fs.existsSync(targetPath) && !options.force) {
-        console.warn(`⚠️  Target database exists: ${targetPath}`);
-        console.warn('   Use --force to overwrite');
+        cliOutput.printWarning(`Target database exists: ${targetPath}`);
+        cliOutput.printItem('Use --force to overwrite');
+        logger.warn('Restore blocked - target exists', { targetPath });
         process.exit(1);
       }
       
       const monitor = new SQLiteEventMonitor();
       await monitor.restoreFromBackup(backupFile);
       
-      console.log('✅ Database restored successfully');
-      console.log(`   From: ${backupFile}`);
-      console.log(`   To: ${targetPath}`);
+      cliOutput.printSuccess('Database restored successfully');
+      cliOutput.printItem('From', backupFile);
+      cliOutput.printItem('To', targetPath);
+      
+      logger.info('Database restored', { backupFile, targetPath });
       
       await monitor.close();
       process.exit(0);
     } catch (error) {
-      console.error('❌ Restore failed:', error);
+      cliOutput.printFailure(`Restore failed: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error('Restore failed', { error });
       process.exit(1);
     }
   });
@@ -86,12 +100,11 @@ program
       const backups = await monitor.listBackups();
       
       if (backups.length === 0) {
-        console.log('No backups found');
+        cliOutput.print('No backups found');
         process.exit(0);
       }
       
-      console.log('Available backups:');
-      console.log('==================');
+      cliOutput.printHeader('Available backups');
       
       for (const backup of backups) {
         const sizeMB = (backup.size / 1024 / 1024).toFixed(2);
@@ -99,15 +112,18 @@ program
         const timePart = backup.createdAt.toISOString().split('T')[1];
         const time = timePart ? timePart.split('.')[0] : '';
         
-        console.log(`\n📦 ${backup.filename}`);
-        console.log(`   Date: ${date} ${time}`);
-        console.log(`   Size: ${sizeMB} MB`);
-        console.log(`   Compressed: ${backup.compressed ? 'Yes' : 'No'}`);
+        cliOutput.print(`\n📦 ${backup.filename}`);
+        cliOutput.printItem('Date', `${date} ${time}`);
+        cliOutput.printItem('Size', `${sizeMB} MB`);
+        cliOutput.printItem('Compressed', backup.compressed ? 'Yes' : 'No');
       }
+      
+      logger.info('Listed backups', { count: backups.length });
       
       process.exit(0);
     } catch (error) {
-      console.error('❌ Failed to list backups:', error);
+      cliOutput.printFailure(`Failed to list backups: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error('Failed to list backups', { error });
       process.exit(1);
     }
   });
@@ -134,19 +150,22 @@ program
       
       const exportPath = await monitor.exportData(startTime, endTime);
       
-      console.log('✅ Data exported successfully');
-      console.log(`   File: ${exportPath}`);
+      cliOutput.printSuccess('Data exported successfully');
+      cliOutput.printItem('File', exportPath);
       
       if (startTime || endTime) {
-        console.log(`   Time range:`);
-        if (startTime) console.log(`     From: ${new Date(startTime).toISOString()}`);
-        if (endTime) console.log(`     To: ${new Date(endTime).toISOString()}`);
+        cliOutput.printItem('Time range', '');
+        if (startTime) cliOutput.print(`     From: ${new Date(startTime).toISOString()}`);
+        if (endTime) cliOutput.print(`     To: ${new Date(endTime).toISOString()}`);
       }
+      
+      logger.info('Data exported', { exportPath, startTime, endTime });
       
       await monitor.close();
       process.exit(0);
     } catch (error) {
-      console.error('❌ Export failed:', error);
+      cliOutput.printFailure(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error('Export failed', { error });
       process.exit(1);
     }
   });
@@ -165,14 +184,17 @@ program
       
       const count = await monitor.importData(exportFile);
       
-      console.log('✅ Data imported successfully');
-      console.log(`   File: ${exportFile}`);
-      console.log(`   Events imported: ${count}`);
+      cliOutput.printSuccess('Data imported successfully');
+      cliOutput.printItem('File', exportFile);
+      cliOutput.printItem('Events imported', count);
+      
+      logger.info('Data imported', { exportFile, count });
       
       await monitor.close();
       process.exit(0);
     } catch (error) {
-      console.error('❌ Import failed:', error);
+      cliOutput.printFailure(`Import failed: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error('Import failed', { error });
       process.exit(1);
     }
   });
@@ -195,16 +217,19 @@ program
       db.close();
       
       if (integrityCheck.integrity_check === 'ok') {
-        console.log('✅ Database integrity check passed');
-        console.log(`   Events: ${stats.count}`);
+        cliOutput.printSuccess('Database integrity check passed');
+        cliOutput.printItem('Events', stats.count);
+        logger.info('Database verification passed', { eventsCount: stats.count });
         process.exit(0);
       } else {
-        console.error('❌ Database integrity check failed');
-        console.error(`   Result: ${integrityCheck.integrity_check}`);
+        cliOutput.printFailure('Database integrity check failed');
+        cliOutput.printItem('Result', integrityCheck.integrity_check);
+        logger.error('Database verification failed', { result: integrityCheck.integrity_check });
         process.exit(1);
       }
     } catch (error) {
-      console.error('❌ Verification failed:', error);
+      cliOutput.printFailure(`Verification failed: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error('Verification failed', { error });
       process.exit(1);
     }
   });

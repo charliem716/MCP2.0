@@ -152,7 +152,7 @@ export default tseslint.config(
   },
   // Test files - no type checking
   {
-    files: ['tests/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    files: ['tests/**/*.ts', '**/*.test.ts', '**/*.spec.ts', 'test-*.mjs', 'tests/manual/**/*.mjs'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
@@ -177,6 +177,13 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       '@typescript-eslint/no-var-requires': 'off',
+    },
+  },
+  // CLI output utility - legitimate console usage
+  {
+    files: ['src/cli/output.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
   // Files with parsing issues - minimal checking

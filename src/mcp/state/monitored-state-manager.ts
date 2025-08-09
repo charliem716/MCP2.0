@@ -1,5 +1,6 @@
 import { SimpleStateManager } from './simple-state-manager.js';
 import { SQLiteEventMonitor } from './event-monitor/sqlite-event-monitor.js';
+import { globalLogger as logger } from '../../shared/utils/logger.js';
 import type { QRWCClientAdapter } from '../qrwc/adapter.js';
 import type { CacheConfig } from './repository.js';
 
@@ -45,7 +46,7 @@ export class MonitoredStateManager extends SimpleStateManager {
       await this.eventMonitor.initialize();
     } else if (monitoredConfig.eventMonitoring?.enabled && !qrwcAdapter) {
       // Log warning if monitoring is enabled but no adapter is available
-      console.warn('Event monitoring enabled but no QRWC adapter provided');
+      logger.warn('Event monitoring enabled but no QRWC adapter provided');
     }
   }
 
