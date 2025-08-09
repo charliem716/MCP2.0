@@ -408,7 +408,7 @@ describe('QRWCClientAdapter - Q-SYS Commands', () => {
     });
 
     // BUG-056 regression tests - actual Q-SYS Core data
-    describe.skip('BUG-056: Status.Get returns actual Q-SYS Core data', () => {
+    describe('BUG-056: Status.Get returns actual Q-SYS Core data', () => {
       let mockSendRawCommand: jest.Mock;
 
       beforeEach(() => {

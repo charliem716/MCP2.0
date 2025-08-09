@@ -166,18 +166,6 @@ describe('Event Cache Error Recovery', () => {
   });
 
   describe('Runtime failures', () => {
-    it.skip('should handle change group lookup failures (method removed)', async () => {
-      // The mock returns an object with stats, but get() returns undefined for non-existent IDs
-      // We need to update our mock to return undefined for get() when no result
-      const result = await eventMonitor.getChangeGroupById('non-existent');
-      // The mock returns the default stats object, not null
-      // Since we can't easily mock this, just check it's falsy or has zero events
-      if (result) {
-        expect(result.total_events).toBe(0);
-      } else {
-        expect(result).toBeNull();
-      }
-    });
 
     it('should handle database write failures', () => {
       // Emit an event to trigger a write

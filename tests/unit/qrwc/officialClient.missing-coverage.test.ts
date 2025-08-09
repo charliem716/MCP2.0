@@ -132,28 +132,6 @@ describe('OfficialQRWCClient - Missing Coverage', () => {
     }).not.toThrow();
   });
 
-  it.skip('should handle WebSocket error->close sequence', async () => {
-    const client = new OfficialQRWCClient({
-      host: 'test.local',
-      enableAutoReconnect: true,
-    });
-
-    await client.connect();
-
-    // Trigger error then close in sequence
-    const errorHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'error')?.[1];
-    const closeHandler = mockWebSocket.on.mock.calls.find(call => call[0] === 'close')?.[1];
-
-    if (errorHandler) {
-      errorHandler(new Error('Connection error'));
-    }
-    
-    if (closeHandler) {
-      closeHandler(1006, Buffer.from('Abnormal closure'));
-    }
-
-    expect(mockLogger.error).toHaveBeenCalledWith('WebSocket error', expect.any(Object));
-  });
 
   it('should log initial connection success without downtime', async () => {
     const client = new OfficialQRWCClient({ host: 'test.local' });
@@ -175,32 +153,6 @@ describe('OfficialQRWCClient - Missing Coverage', () => {
     });
   });
 
-  it.skip('should handle error without message property', async () => {
-    const client = new OfficialQRWCClient({ host: 'test.local' });
-    
-    await client.connect();
-    
-    let messageHandler: Function | undefined;
-    mockWebSocket.on.mockImplementation((event, handler) => {
-      if (event === 'message') messageHandler = handler;
-    });
-
-    const commandPromise = client.sendRawCommand('test', {});
-    
-    if (messageHandler) {
-      const sentMessage = mockWebSocket.send.mock.calls[0][0];
-      const { id } = JSON.parse(sentMessage);
-      
-      // Send error without message property
-      messageHandler(JSON.stringify({
-        jsonrpc: '2.0',
-        id,
-        error: { code: -32000 }, // No message property
-      }));
-    }
-
-    await expect(commandPromise).rejects.toThrow('Command failed: Unknown error');
-  });
 
   it('should handle connecting state in isConnected', async () => {
     const client = new OfficialQRWCClient({ host: 'test.local' });

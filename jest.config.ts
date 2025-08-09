@@ -110,6 +110,7 @@ const config: Config = {
     '/dist/', 
     '/coverage/',
     '/tests/manual/',  // Exclude manual integration tests
+    '/tests/e2e/',     // Exclude e2e tests that require real Q-SYS Core
     '/archived-complex/', // BUG-132: Exclude archived complex state management tests
   ],
   watchPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],

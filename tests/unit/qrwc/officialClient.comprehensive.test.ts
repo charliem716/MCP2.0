@@ -184,7 +184,7 @@ describe('OfficialQRWCClient - Comprehensive Coverage Tests', () => {
     });
   });
 
-  describe.skip('Event Emitter', () => {
+  describe('Event Emitter', () => {
     it('should emit state_change events', (done) => {
       const client = new OfficialQRWCClient({ host: 'test.local' });
       clients.push(client);
@@ -289,7 +289,7 @@ describe('OfficialQRWCClient - Comprehensive Coverage Tests', () => {
       expect(client.getConnectionOptions().host).toBe(longHost);
     });
 
-    it.skip('should handle connection with already connecting state', async () => {
+    it('should handle connection with already connecting state', async () => {
       const client = new OfficialQRWCClient({ host: 'test.local' });
       clients.push(client);
       
