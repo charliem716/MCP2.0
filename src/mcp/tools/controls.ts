@@ -649,6 +649,151 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     });
   }
 
+  /**
+   * Process Q-SYS control set response with reduced nesting
+   */
+  private processControlSetResponse(
+    qsysResponse: {
+      error?: { code: number; message: string };
+      result?: Array<{ Name: string; Result: string; Error?: string }>;
+    },
+    controls: Array<{ name: string; value: ControlValue; ramp?: number }>,
+    isComponentResponse = false,
+    componentName?: string
+  ): ControlSetResponse[] {
+    const jsonResults: ControlSetResponse[] = [];
+    
+    // Handle top-level error - all controls failed
+    if (qsysResponse?.error) {
+      return controls.map(control => ({
+        name: control.name,
+        value: control.value,
+        success: false,
+        error: qsysResponse.error!.message || 'Q-SYS error',
+      }));
+    }
+    
+    // Handle unexpected response format
+    if (!qsysResponse?.result || !Array.isArray(qsysResponse.result)) {
+      return controls.map(control => ({
+        name: control.name,
+        value: control.value,
+        success: false,
+        error: 'Unexpected response format from Q-SYS',
+      }));
+    }
+    
+    // Process individual control results
+    for (const control of controls) {
+      // For component responses, the result has control names without component prefix
+      const searchName = isComponentResponse && componentName 
+        ? control.name.substring(componentName.length + 1) // Remove "ComponentName." prefix
+        : control.name;
+      
+      const controlResult = qsysResponse.result.find(r => r.Name === searchName);
+      const response = this.createControlResponse(control, controlResult);
+      jsonResults.push(response);
+    }
+    
+    return jsonResults;
+  }
+
+  /**
+   * Create response for a single control with reduced nesting
+   */
+  private createControlResponse(
+    control: { name: string; value: ControlValue; ramp?: number },
+    controlResult?: { Name: string; Result: string; Error?: string }
+  ): ControlSetResponse {
+    // Control failed
+    if (controlResult?.Result === 'Error') {
+      return {
+        name: control.name,
+        value: control.value,
+        success: false,
+        error: controlResult.Error || 'Control set failed',
+      };
+    }
+    
+    // Control succeeded (either explicit success or not found in response)
+    const response: ControlSetResponse = {
+      name: control.name,
+      value: control.value,
+      success: true,
+    };
+    
+    // Add ramp time if specified
+    if (control.ramp !== undefined) {
+      response.rampTime = control.ramp;
+    }
+    
+    return response;
+  }
+
+  /**
+   * Convert value to Q-SYS format (booleans to 0/1)
+   */
+  private convertToQSysValue(value: ControlValue): number | string {
+    if (typeof value === 'boolean') {
+      return value ? 1 : 0;
+    }
+    
+    if (typeof value === 'string') {
+      const lowerValue = value.toLowerCase();
+      if (lowerValue === 'true' || lowerValue === 'yes' || lowerValue === 'on') {
+        return 1;
+      }
+      if (lowerValue === 'false' || lowerValue === 'no' || lowerValue === 'off') {
+        return 0;
+      }
+    }
+    
+    return value;
+  }
+
+  /**
+   * Separate controls into named and component groups
+   */
+  private separateControls(controls: Array<{ name: string; value: ControlValue; ramp?: number }>): {
+    namedControls: Array<{ Name: string; Value: number | string; Ramp?: number }>;
+    componentGroups: Map<string, Array<{ Name: string; Value: number | string; Ramp?: number }>>;
+  } {
+    const namedControls: Array<{ Name: string; Value: number | string; Ramp?: number }> = [];
+    const componentGroups = new Map<string, Array<{ Name: string; Value: number | string; Ramp?: number }>>();
+    
+    for (const control of controls) {
+      const value = this.convertToQSysValue(control.value);
+      const dotIndex = control.name.indexOf('.');
+      
+      if (dotIndex > 0) {
+        // Component control: "ComponentName.controlName"
+        const componentName = control.name.substring(0, dotIndex);
+        const controlName = control.name.substring(dotIndex + 1);
+        
+        if (!componentGroups.has(componentName)) {
+          componentGroups.set(componentName, []);
+        }
+        
+        const controlCmd: any = { Name: controlName, Value: value };
+        if (control.ramp !== undefined) {
+          controlCmd.Ramp = control.ramp;
+        }
+        
+        componentGroups.get(componentName)!.push(controlCmd);
+      } else {
+        // Named control: "ControlName"
+        const controlCmd: any = { Name: control.name, Value: value };
+        if (control.ramp !== undefined) {
+          controlCmd.Ramp = control.ramp;
+        }
+        
+        namedControls.push(controlCmd);
+      }
+    }
+    
+    return { namedControls, componentGroups };
+  }
+
   // eslint-disable-next-line max-statements -- Complex control value setting with validation and error handling
   protected async executeInternal(
     params: SetControlValuesParams,
@@ -694,109 +839,55 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         }
       }
 
-      // For complex control names, we'll let the Control.Set handler do the parsing
-      // since it has access to QRWC instance for validation
-      // Just send all controls directly to Control.Set
-      const controlsToSet = params.controls.map(control => {
-        // Convert boolean to 0/1 for Q-SYS
-        let value = control.value;
-        if (typeof value === 'boolean') {
-          value = value ? 1 : 0;
-        } else if (typeof value === 'string') {
-          // Convert string boolean values
-          const lowerValue = value.toLowerCase();
-          if (lowerValue === 'true' || lowerValue === 'yes' || lowerValue === 'on') {
-            value = 1;
-          } else if (lowerValue === 'false' || lowerValue === 'no' || lowerValue === 'off') {
-            value = 0;
-          }
-        }
+      // Separate controls into named and component groups
+      const { namedControls, componentGroups } = this.separateControls(params.controls);
+      
+      // Collect all results
+      const allResults: ControlSetResponse[] = [];
+      
+      // Send named controls via Control.Set if any exist
+      if (namedControls.length > 0) {
+        const response = await this.controlSystem.sendCommand('Control.Set', {
+          Controls: namedControls,
+        });
         
-        const controlCmd: any = {
-          Name: control.name,
-          Value: value,
+        const qsysResponse = response as {
+          error?: { code: number; message: string };
+          result?: Array<{ Name: string; Result: string; Error?: string }>;
         };
         
-        if (control.ramp !== undefined) {
-          controlCmd.Ramp = control.ramp;
-        }
+        // Process named control results
+        const namedControlsOriginal = params.controls.filter(c => !c.name.includes('.'));
+        const namedResults = this.processControlSetResponse(qsysResponse, namedControlsOriginal, false);
+        allResults.push(...namedResults);
+      }
+      
+      // Send component controls via Component.Set for each component
+      for (const [componentName, controls] of componentGroups) {
+        const response = await this.controlSystem.sendCommand('Component.Set', {
+          Name: componentName,
+          Controls: controls,
+        });
         
-        return controlCmd;
-      })
-
-      // Send all controls to Control.Set handler which has enhanced parsing
-      const response = await this.controlSystem.sendCommand('Control.Set', {
-        Controls: controlsToSet,
-      });
-      
-      // Parse the response
-      const qsysResponse = response as {
-        error?: { code: number; message: string };
-        result?: Array<{ Name: string; Result: string; Error?: string }>;
+        const qsysResponse = response as {
+          error?: { code: number; message: string };
+          result?: Array<{ Name: string; Result: string; Error?: string }>;
+        };
+        
+        // Process component control results, restoring full control names
+        const componentControlsOriginal = params.controls.filter(c => 
+          c.name.startsWith(`${componentName}.`)
+        );
+        const componentResults = this.processControlSetResponse(
+          qsysResponse, 
+          componentControlsOriginal, 
+          true, 
+          componentName
+        );
+        allResults.push(...componentResults);
       }
-
-      // Convert results to the expected JSON format
-      const jsonResults: ControlSetResponse[] = [];
       
-      // Check for top-level error
-      if (qsysResponse?.error) {
-        // All controls failed
-        for (const control of params.controls) {
-          jsonResults.push({
-            name: control.name,
-            value: control.value,
-            success: false,
-            error: qsysResponse.error.message || 'Q-SYS error',
-          });
-        }
-      } else if (qsysResponse?.result && Array.isArray(qsysResponse.result)) {
-        // Process individual control results
-        for (const control of params.controls) {
-          const controlResult = qsysResponse.result.find(r => r.Name === control.name);
-          
-          if (controlResult) {
-            if (controlResult.Result === 'Error') {
-              jsonResults.push({
-                name: control.name,
-                value: control.value,
-                success: false,
-                error: controlResult.Error || 'Control set failed',
-              });
-            } else {
-              const response: ControlSetResponse = {
-                name: control.name,
-                value: control.value,
-                success: true,
-              };
-              if (control.ramp !== undefined) {
-                response.rampTime = control.ramp;
-              }
-              jsonResults.push(response);
-            }
-          } else {
-            // Control not found in response - assume success
-            const response: ControlSetResponse = {
-              name: control.name,
-              value: control.value,
-              success: true,
-            };
-            if (control.ramp !== undefined) {
-              response.rampTime = control.ramp;
-            }
-            jsonResults.push(response);
-          }
-        }
-      } else {
-        // Unexpected response format
-        for (const control of params.controls) {
-          jsonResults.push({
-            name: control.name,
-            value: control.value,
-            success: false,
-            error: 'Unexpected response format from Q-SYS',
-          });
-        }
-      }
+      const jsonResults = allResults;
 
       // Try to serialize results with proper error handling
       let serializedResults: string;

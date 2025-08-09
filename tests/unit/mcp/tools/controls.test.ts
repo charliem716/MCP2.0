@@ -447,7 +447,12 @@ describe('SetControlValuesTool', () => {
     mockQrwcClient.sendCommand
       .mockResolvedValueOnce({ result: { Name: 'MainGain', Value: 0 } }) // Validation for MainGain
       .mockResolvedValueOnce({ result: { Name: 'MainMute', Value: 0 } }) // Validation for MainMute
-      .mockResolvedValue({ success: true }); // All subsequent set operations
+      .mockResolvedValue({ 
+        result: [
+          { Name: 'MainGain', Result: 'OK' },
+          { Name: 'MainMute', Result: 'OK' }
+        ]
+      }); // Control.Set response
 
     const result = await tool.execute({
       controls: [
@@ -457,8 +462,8 @@ describe('SetControlValuesTool', () => {
     });
 
     // When validation is enabled (default), it makes additional calls
-    // 2 calls for validation + 2 calls for setting = 4 total
-    expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(4);
+    // 2 calls for validation + 1 call for batch setting = 3 total
+    expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(3);
     expect(result.isError).toBe(false);
     const results = JSON.parse(result.content[0].text);
     expect(results).toHaveLength(2);
@@ -475,7 +480,29 @@ describe('SetControlValuesTool', () => {
   });
 
   it('should set component control values successfully', async () => {
-    mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+    // Mock proper Q-SYS response format for Component.GetControls (validation)
+    mockQrwcClient.sendCommand.mockImplementation(async (cmd: string) => {
+      if (cmd === 'Component.GetControls') {
+        return {
+          result: {
+            Controls: [
+              { Name: 'gain', Type: 'Float' },
+              { Name: 'mute', Type: 'Boolean' }
+            ]
+          }
+        };
+      }
+      // Mock proper Q-SYS response format for Component.Set
+      if (cmd === 'Component.Set') {
+        return {
+          result: [
+            { Name: 'gain', Result: 'OK' },
+            { Name: 'mute', Result: 'OK' }
+          ]
+        };
+      }
+      return { success: true };
+    });
 
     const result = await tool.execute({
       controls: [
@@ -516,7 +543,21 @@ describe('SetControlValuesTool', () => {
   });
 
   it('should handle ramp parameter for component controls', async () => {
-    mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+    mockQrwcClient.sendCommand.mockImplementation(async (cmd: string) => {
+      if (cmd === 'Component.GetControls') {
+        return {
+          result: {
+            Controls: [{ Name: 'gain', Type: 'Float' }]
+          }
+        };
+      }
+      if (cmd === 'Component.Set') {
+        return {
+          result: [{ Name: 'gain', Result: 'OK' }]
+        };
+      }
+      return { success: true };
+    });
 
     const result = await tool.execute({
       controls: [{ name: 'Main Output Gain.gain', value: -5, ramp: 2.5 }],
@@ -538,18 +579,35 @@ describe('SetControlValuesTool', () => {
 
   it('should handle mixed named and component controls', async () => {
     // Mock validation responses for named control and component controls
-    mockQrwcClient.sendCommand
-      .mockResolvedValueOnce({ result: { Name: 'MainGain', Value: 0 } }) // Validation for MainGain
-      .mockResolvedValueOnce({ 
-        result: { 
-          Name: 'Main Output Gain',
-          Controls: [
-            { Name: 'gain', Value: 0 },
-            { Name: 'mute', Value: 0 }
+    mockQrwcClient.sendCommand.mockImplementation(async (cmd: string) => {
+      if (cmd === 'Control.Get') {
+        return { result: { Name: 'MainGain', Value: 0 } };
+      }
+      if (cmd === 'Component.GetControls') {
+        return { 
+          result: { 
+            Controls: [
+              { Name: 'gain', Type: 'Float' },
+              { Name: 'mute', Type: 'Boolean' }
+            ]
+          } 
+        };
+      }
+      if (cmd === 'Control.Set') {
+        return {
+          result: [{ Name: 'MainGain', Result: 'OK' }]
+        };
+      }
+      if (cmd === 'Component.Set') {
+        return {
+          result: [
+            { Name: 'gain', Result: 'OK' },
+            { Name: 'mute', Result: 'OK' }
           ]
-        } 
-      }) // Validation for component
-      .mockResolvedValue({ success: true }); // All subsequent set operations
+        };
+      }
+      return { success: true };
+    });
 
     const result = await tool.execute({
       controls: [
@@ -568,8 +626,7 @@ describe('SetControlValuesTool', () => {
     );
     expect(controlSetCalls.length).toBeGreaterThan(0);
     expect(controlSetCalls[0][1]).toEqual({
-      Name: 'MainGain',
-      Value: -10,
+      Controls: [{ Name: 'MainGain', Value: -10 }],
     });
 
     // Find the Component.Set call among all the calls (validation calls happen first)
@@ -619,7 +676,9 @@ describe('SetControlValuesTool', () => {
   // BUG-025 regression tests
   describe('BUG-025: Command type selection', () => {
     it('should use Control.Set for named controls', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+      mockQrwcClient.sendCommand.mockResolvedValue({ 
+        result: [{ Name: 'TestControl', Result: 'OK' }]
+      });
 
       await tool.execute({
         controls: [{ name: 'TestControl', value: 50 }],
@@ -628,14 +687,31 @@ describe('SetControlValuesTool', () => {
 
       // Verify the correct command for named controls
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
-        Name: 'TestControl',
-        Value: 50,
+        Controls: [{ Name: 'TestControl', Value: 50 }],
       });
     });
 
 
     it('should pass ramp parameter correctly for both control types', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+      mockQrwcClient.sendCommand.mockImplementation(async (cmd: string) => {
+        if (cmd === 'Control.Get') {
+          return { result: { Name: 'TestControl', Value: 0 } };
+        }
+        if (cmd === 'Component.GetControls') {
+          return { 
+            result: { 
+              Controls: [{ Name: 'gain', Type: 'Float' }]
+            } 
+          };
+        }
+        if (cmd === 'Control.Set') {
+          return { result: [{ Name: 'TestControl', Result: 'OK' }] };
+        }
+        if (cmd === 'Component.Set') {
+          return { result: [{ Name: 'gain', Result: 'OK' }] };
+        }
+        return { success: true };
+      });
 
       await tool.execute({
         controls: [
@@ -647,9 +723,7 @@ describe('SetControlValuesTool', () => {
 
       // Named control with ramp
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
-        Name: 'FaderControl',
-        Value: -6,
-        Ramp: 1.5,
+        Controls: [{ Name: 'FaderControl', Value: -6, Ramp: 1.5 }],
       });
 
       // Component control with ramp

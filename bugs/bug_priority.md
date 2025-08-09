@@ -1,39 +1,43 @@
 # Bug Priority and Implementation Order
 
-**Updated**: 2025-01-19  
+**Updated**: 2025-08-09  
 **Purpose**: Code quality and test coverage improvement tracking  
 **Target**: Achieve 0 ESLint errors and <50 warnings
 
 ## Executive Summary
 
-Following production readiness improvements, focus has shifted to code quality. **6 active bugs** target test coverage, type safety, and code standards. With all ESLint errors now resolved, focus shifts to reducing 331 warnings to <50 and fixing 39 skipped tests.
+Following extensive bug fixes (BUG-180 through BUG-187 resolved), focus remains on code quality. **7 active bugs** target ESLint compliance, test coverage, type safety, and production readiness. **Critical**: 3 ESLint errors discovered in controls.ts require immediate fix.
 
 ## Current Status
 
-### ✅ Critical Code Quality Issues
-- **0 ESLint errors** (all critical errors resolved)
-- **331 ESLint warnings** (type safety, code style issues)
+### 🚨 Critical Issue
+- **3 ESLint errors** in `src/mcp/tools/controls.ts` (max-depth violations)
+
+### 📊 Code Quality Metrics
+- **3 ESLint errors** (max-depth violations) 
+- **349 ESLint warnings** (type safety, console statements, etc.)
 - **39 skipped tests** (untested functionality)
 
 ### 🎯 Target State
-- **0 ESLint errors** ✅ ACHIEVED
+- **0 ESLint errors** 
 - **<50 ESLint warnings**
 - **0 skipped unit tests**
 
 ## Implementation Order by Priority
 
-### Phase 1: Critical Fixes ✅ COMPLETED
-**All critical runtime failures resolved**
+### Phase 0: IMMEDIATE FIX REQUIRED
+**Must resolve before any other work**
 
-#### ~~P0 - Emergency Priority~~ RESOLVED
+#### P0 - Critical Priority
 
-1. ~~**BUG-176** - Critical ESLint Errors~~ ✅ FIXED
-   - All 9 critical errors resolved
-   - Promise handling corrected
-   - Type safety restored
-   - RegExp optimized
+1. **BUG-188** - Fix Remaining ESLint Errors 🚨 **NEW**
+   - **Impact**: CI/CD blocked, cannot deploy
+   - **Effort**: 2 hours
+   - **Errors**: 3 max-depth violations in controls.ts
+   - **Lines**: 758, 771, 783
+   - **Why First**: Blocking all other work
 
-### Phase 2: Test Coverage (Current Focus)
+### Phase 1: Test Coverage 
 **Restore confidence in test suite**
 
 #### P1 - High Priority
@@ -43,10 +47,9 @@ Following production readiness improvements, focus has shifted to code quality. 
    - **Effort**: 8 hours
    - **Count**: 39 skipped tests across 26 files
    - **Root Cause**: Complex mocking, external dependencies
-   - **Dependencies**: None
-   - **Why Second**: Need proper test coverage before refactoring
+   - **Dependencies**: BUG-188 must be fixed first
 
-### Phase 3: Type Safety (Day 4-5)
+### Phase 2: Type Safety
 **Prevent future bugs through type safety**
 
 #### P1 - High Priority
@@ -56,10 +59,9 @@ Following production readiness improvements, focus has shifted to code quality. 
    - **Effort**: 16 hours
    - **Warnings**: 86+ unsafe operations
    - **Root Cause**: Untyped APIs, missing type definitions
-   - **Dependencies**: BUG-176 (fix errors first)
-   - **Why Third**: Most impactful for long-term stability
+   - **Dependencies**: BUG-188, BUG-175
 
-### Phase 4: Code Quality (Day 6-7)
+### Phase 3: Code Quality
 **Professional code standards**
 
 #### P2 - Medium Priority
@@ -67,10 +69,8 @@ Following production readiness improvements, focus has shifted to code quality. 
 4. **BUG-178** - Console Statement Cleanup 📝
    - **Impact**: Unstructured logging, security risks
    - **Effort**: 6 hours
-   - **Warnings**: 35 console statements
+   - **Warnings**: 35 console statements (mostly in cli/backup.ts)
    - **Root Cause**: Debug statements, mixed CLI output
-   - **Dependencies**: None
-   - **Why Fourth**: Improves production readiness
 
 #### P3 - Low Priority
 
@@ -79,85 +79,100 @@ Following production readiness improvements, focus has shifted to code quality. 
    - **Effort**: 4 hours
    - **Warnings**: 36+ logical OR operators
    - **Root Cause**: Legacy patterns before ?? operator
-   - **Dependencies**: BUG-177 (type safety helps identify issues)
-   - **Why Fifth**: Modernization, prevents edge cases
 
-### Phase 5: Validation (Day 8)
-**Ensure all improvements are complete**
+### Phase 4: Performance & Validation
+**Final optimizations and checks**
 
-#### P2 - Medium Priority
+#### P3 - Low Priority
 
 6. **BUG-167** - Database Indexes 🗂️
    - **Impact**: Query performance at scale
    - **Effort**: 1 hour
-   - **Status**: Missing indexes on event queries
-   - **Dependencies**: None
-   - **Note**: Carried over from previous sprint
+   - **Status**: Simple index additions needed
+   - **Note**: Quick win, can be done anytime
+
+#### P2 - Medium Priority
 
 7. **BUG-174** - Production Validation Checklist ✅
    - **Impact**: Final quality assurance
    - **Effort**: 4 hours
-   - **Status**: Verify all fixes complete
-   - **Dependencies**: All other bugs
-   - **Why Last**: Final verification step
+   - **Status**: Final verification of all fixes
+   - **Dependencies**: All other bugs must be resolved
 
 ## Dependency Graph
 
 ```
-BUG-176 (ESLint Errors) ──┬──> BUG-177 (Type Safety) ──> BUG-179 (Nullish)
+BUG-188 (ESLint Errors) ──┬──> BUG-175 (Tests) ──> BUG-177 (Type Safety)
+                          │         │
+                          │         └──> BUG-178 (Console)
+                          │                │
+                          │                └──> BUG-179 (Nullish)
                           │
-BUG-175 (Skipped Tests) ──┤
-                          │
-BUG-178 (Console) ────────┤
-                          │
-BUG-167 (Indexes) ────────┴──> BUG-174 (Final Validation)
+                          └──> BUG-167 (Indexes) ──> BUG-174 (Validation)
 ```
+
+## Recent Progress
+
+### ✅ Recently Resolved (Last 48 hours)
+- **BUG-187**: Event monitoring with automatic polling
+- **BUG-186**: Component discovery in get_all_controls
+- **BUG-184**: Unrecognized QRWC command error messages
+- **BUG-183**: ChangeGroup.Remove and Clear commands
+- **BUG-182**: Component.Set command implementation
+- **BUG-181**: Control.GetValues command
+- **BUG-180**: MCP server connection persistence
+- **BUG-176**: Critical ESLint errors (partially - 3 remain)
+- **BUG-171**: Database backup and recovery
 
 ## Risk Analysis
 
 ### High Risk Areas
-- **BUG-176**: Promise handling errors can crash production
+- **BUG-188**: ESLint errors blocking deployment
 - **BUG-177**: Type errors cause runtime failures
-- **BUG-179**: Falsy value bugs (0 treated as missing)
+- **BUG-175**: Untested code in production
 
 ### Low Risk Areas
 - **BUG-178**: Console statements (cosmetic)
+- **BUG-179**: Nullish coalescing (edge cases)
 - **BUG-167**: Performance optimization
 
 ## Success Metrics
 
+### Immediate Goals (Today)
+- ✅ 0 ESLint errors (fix BUG-188)
+- ✅ Unblock CI/CD pipeline
+
 ### Week 1 Goals
-- ✅ 0 ESLint errors (from 9)
-- ✅ 0 skipped unit tests (from 39)
-- ✅ <100 ESLint warnings (from 330)
+- ✅ 0 skipped unit tests
+- ✅ <100 ESLint warnings
 
 ### Week 2 Goals
 - ✅ <50 ESLint warnings
 - ✅ 100% type coverage in production code
-- ✅ All tests passing
+- ✅ Production validation complete
 
 ## Timeline Estimate
 
 ```
-Day 1:  BUG-176 (ESLint Errors)
-Day 2-3: BUG-175 (Skipped Tests)
-Day 4-5: BUG-177 (Type Safety)
-Day 6:  BUG-178 (Console Cleanup)
-Day 7:  BUG-179 (Nullish Coalescing)
-Day 8:  BUG-167, BUG-174 (Indexes & Validation)
+Day 0 (Today): BUG-188 (ESLint Errors) - 2 hours
+Day 1-2:       BUG-175 (Skipped Tests)
+Day 3-4:       BUG-177 (Type Safety)
+Day 5:         BUG-178 (Console Cleanup)
+Day 6:         BUG-179 (Nullish Coalescing)
+Day 7:         BUG-167 (Indexes) + BUG-174 (Validation)
 ```
 
-**Total: 8 working days to achieve code quality targets**
+**Total: 7 working days to achieve all code quality targets**
 
 ## Quick Reference
 
 | BUG | Title | Priority | Issues | Effort | Status |
 |-----|-------|----------|--------|--------|--------|
-| 176 | Critical ESLint Errors | P0 | 9 errors | 4h | Open |
+| 188 | ESLint Errors (max-depth) | P0 | 3 errors | 2h | **Open** 🚨 |
 | 175 | Skipped Tests Cleanup | P1 | 39 tests | 8h | Open |
 | 177 | Type Safety Warnings | P1 | 86+ warnings | 16h | Open |
 | 178 | Console Statement Cleanup | P2 | 35 warnings | 6h | Open |
-| 179 | Nullish Coalescing Migration | P3 | 36+ warnings | 4h | Open |
+| 179 | Nullish Coalescing | P3 | 36+ warnings | 4h | Open |
 | 167 | Database Indexes | P3 | Performance | 1h | Open |
 | 174 | Production Validation | P2 | Final check | 4h | Open |
 
@@ -170,31 +185,33 @@ Day 8:  BUG-167, BUG-174 (Indexes & Validation)
 | Console statements | 35 | 0 | BUG-178 |
 | Unsafe assignment | 26+ | 5 | BUG-177 |
 | Unnecessary conditions | 25+ | 5 | BUG-177 |
-| **Total** | **330** | **<50** | - |
+| **Total Warnings** | **349** | **<50** | - |
+| **Total Errors** | **3** | **0** | BUG-188 |
 
 ## Next Actions
 
-1. **Immediate**: Fix BUG-176 (9 ESLint errors)
-2. **Today**: Start BUG-175 (remove/fix skipped tests)
-3. **This Week**: Complete type safety improvements
+1. **IMMEDIATE**: Fix BUG-188 (3 ESLint errors in controls.ts)
+2. **Today**: Complete BUG-188 and start BUG-175
+3. **This Week**: Complete test cleanup and type safety
 4. **Next Week**: Finish all code quality issues
 
 ## Files to Review
 
 Active bug reports:
+- `bugs/BUG-188.md` - **NEW** ESLint Errors (max-depth)
 - `bugs/BUG-175.md` - Skipped Tests Cleanup
-- `bugs/BUG-176.md` - Critical ESLint Errors
 - `bugs/BUG-177.md` - Type Safety Warnings
 - `bugs/BUG-178.md` - Console Statement Cleanup
 - `bugs/BUG-179.md` - Nullish Coalescing Migration
-- `bugs/BUG-167.md` - Database Indexes (carried over)
+- `bugs/BUG-167.md` - Database Indexes
 - `bugs/BUG-174.md` - Production Validation Checklist
 
 ---
 
-**Note**: Previous production readiness bugs (166, 169, 171) have been resolved. Focus is now entirely on code quality and maintainability.
+**Note**: Excellent progress with 9 bugs resolved in the last 48 hours. Focus now shifts to fixing the remaining 3 ESLint errors before continuing with code quality improvements.
 
 **Update Log**:
-- 2025-01-19: Complete rewrite for code quality focus
-- 2025-01-19: Added 5 new bugs (175-179) for ESLint and test issues
-- 2025-01-19: Retained BUG-167 and BUG-174 from previous sprint
+- 2025-08-09: Added BUG-188 for remaining ESLint errors
+- 2025-08-09: Updated metrics (3 errors, 349 warnings)
+- 2025-08-09: Added recent progress section
+- 2025-01-19: Previous update for code quality focus
