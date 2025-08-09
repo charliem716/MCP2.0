@@ -235,8 +235,8 @@ describe('BaseQSysTool Response Formatting', () => {
     });
   });
 
-  // BUG-055 regression tests - Zod type conversion
-  describe('BUG-055: Zod type conversion fixes', () => {
+  // Zod type conversion regression tests
+  describe('Zod type conversion fixes', () => {
     it('should handle ZodObject schema without type conversion errors', () => {
       const properties = (tool as any).getSchemaProperties();
 

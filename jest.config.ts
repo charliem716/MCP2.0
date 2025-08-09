@@ -71,8 +71,9 @@ const config: Config = {
       'ts-jest',
       {
         useESM: true,
+        isolatedModules: true,
         tsconfig: {
-          module: 'ES2022',
+          module: 'ESNext',
           target: 'ES2022',
           moduleResolution: 'node',
           esModuleInterop: true,

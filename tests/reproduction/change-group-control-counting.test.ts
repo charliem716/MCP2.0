@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter';
 import { AddControlsToChangeGroupTool } from '../../src/mcp/tools/change-groups';
 
-describe('BUG-067: add_controls_to_change_group returns incorrect control count', () => {
+describe('add_controls_to_change_group returns correct control count', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;
   let tool: AddControlsToChangeGroupTool;
 
@@ -29,7 +29,7 @@ describe('BUG-067: add_controls_to_change_group returns incorrect control count'
 
     const response = JSON.parse(result.content[0].text);
 
-    // FIXED: Now returns the actual count of controls added (excluding invalid)
+    // Returns the actual count of controls added (excluding invalid)
     expect(response.controlsAdded).toBe(2);
     expect(response.message).toBe("Added 2 controls to change group 'test'");
   });
@@ -61,7 +61,7 @@ describe('BUG-067: add_controls_to_change_group returns incorrect control count'
 
     const response = JSON.parse(result.content[0].text);
 
-    // FIXED: Now correctly returns 0 when all controls are invalid
+    // Correctly returns 0 when all controls are invalid
     expect(response.controlsAdded).toBe(0);
     expect(response.message).toBe("Added 0 controls to change group 'test'");
   });

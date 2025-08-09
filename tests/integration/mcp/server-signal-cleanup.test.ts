@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { strict as assert } from 'assert';
 
-describe('BUG-028: Signal Handler Cleanup Integration Test', () => {
+describe('Signal Handler Cleanup Integration Test', () => {
   jest.setTimeout(30000); // 30 second timeout for integration tests
   
   it('should handle signal handler cleanup properly', async () => {
@@ -191,6 +191,6 @@ describe('BUG-028: Signal Handler Cleanup Integration Test', () => {
       'No unhandledRejection accumulation'
     );
 
-    console.log('\n✅ All integration tests passed! BUG-028 is fully fixed.');
+    console.log('\n✅ All integration tests passed! Signal handler cleanup is working correctly.');
   });
 });

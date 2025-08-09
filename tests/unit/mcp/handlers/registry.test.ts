@@ -15,7 +15,7 @@ describe('MCPToolRegistry', () => {
       sendCommand: jest.fn(),
     } as any;
 
-    // BUG-132: MCPToolRegistry now takes IControlSystem interface
+    // MCPToolRegistry now takes IControlSystem interface
     registry = new MCPToolRegistry(mockQrwcClient);
   });
 
@@ -300,7 +300,7 @@ describe('MCPToolRegistry', () => {
     });
   });
 
-  describe('metadata preservation (BUG-027)', () => {
+  describe('metadata preservation', () => {
     beforeEach(async () => {
       await registry.initialize();
     });

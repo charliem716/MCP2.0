@@ -1,5 +1,5 @@
 /**
- * Integration test for BUG-169: Graceful Shutdown and Signal Handling
+ * Integration test for Graceful Shutdown and Signal Handling
  * 
  * Tests that the server properly shuts down and cleans up resources
  * when receiving termination signals.
@@ -11,7 +11,7 @@ import { setTimeout } from 'timers/promises';
 import * as fs from 'fs';
 import * as path from 'path';
 
-describe('Graceful Shutdown (BUG-169)', () => {
+describe('Graceful Shutdown', () => {
   let serverProcess: ChildProcess | null = null;
   const testDbPath = './data/test-shutdown-integration';
 

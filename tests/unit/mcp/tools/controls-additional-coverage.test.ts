@@ -1,6 +1,6 @@
 import { GetControlValuesTool, SetControlValuesTool } from '../../../../src/mcp/tools/controls';
 
-describe('Controls Additional Coverage - BUG-143', () => {
+describe('Controls Additional Coverage', () => {
   describe('GetControlValuesTool - Additional Coverage', () => {
     let mockQrwcClient: any;
     let tool: GetControlValuesTool;

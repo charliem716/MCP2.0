@@ -1,9 +1,9 @@
 import { describe, it, expect } from '@jest/globals';
 
-describe('BUG-129: ESLint unnecessary type assertion fix', () => {
+describe('ESLint unnecessary type assertion fix', () => {
   it('should validate source field without type assertion', () => {
-    // This test verifies that the fix for BUG-129 correctly handles
-    // the source field validation without the unnecessary type assertion
+    // This test verifies that source field validation works correctly
+    // without using unnecessary type assertions
     
     const validSources = ['qsys', 'cache', 'user'];
     

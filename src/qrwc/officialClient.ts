@@ -298,6 +298,13 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
   }
 
   /**
+   * Get client configuration
+   */
+  get config(): Readonly<Required<Omit<OfficialQRWCClientOptions, 'logger'>>> {
+    return this.options;
+  }
+
+  /**
    * Check if client is connected
    */
   isConnected(): boolean {

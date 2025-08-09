@@ -53,10 +53,10 @@ export class SQLiteEventMonitor extends EventEmitter {
       enabled: config?.enabled !== undefined 
         ? config.enabled 
         : process.env['EVENT_MONITORING_ENABLED'] !== 'false',
-      dbPath: config?.dbPath || process.env['EVENT_MONITORING_DB_PATH'] || './data/events',
-      retentionDays: config?.retentionDays || parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] || '30', 10),
-      bufferSize: config?.bufferSize || parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000', 10),
-      flushInterval: config?.flushInterval || parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] || '100', 10),
+      dbPath: config?.dbPath ?? process.env['EVENT_MONITORING_DB_PATH'] ?? './data/events',
+      retentionDays: config?.retentionDays ?? parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] ?? '30', 10),
+      bufferSize: config?.bufferSize ?? parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] ?? '1000', 10),
+      flushInterval: config?.flushInterval ?? parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] ?? '100', 10),
     };
     
     // Initialize backup manager
@@ -148,8 +148,8 @@ export class SQLiteEventMonitor extends EventEmitter {
         timestamp: event.timestamp,
         changeGroupId: event.groupId,
         controlPath: control.Name,
-        componentName: componentName || '',
-        controlName: controlName || '',
+        componentName: componentName ?? '',
+        controlName: controlName ?? '',
         value: control.Value,
         stringValue: control.String,
         source: 'change-group-poll'
@@ -411,9 +411,9 @@ export class SQLiteEventMonitor extends EventEmitter {
       }
       
       return {
-        totalEvents: stats.total_events || 0,
-        uniqueControls: stats.unique_controls || 0,
-        changeGroups: stats.change_groups || 0,
+        totalEvents: stats.total_events ?? 0,
+        uniqueControls: stats.unique_controls ?? 0,
+        changeGroups: stats.change_groups ?? 0,
         oldestEvent: stats.oldest_event || null,
         newestEvent: stats.newest_event || null,
         databaseSize: dbSize

@@ -14,6 +14,8 @@
 - Outbound HTTPS for OpenAI API (if using agent features)
 - Port for health endpoint (default: 3000)
 
+---
+
 ## 🔧 Environment Variables
 
 Create a `.env` file in the project root:
@@ -36,6 +38,8 @@ OPENAI_API_KEY=your-api-key-here
 HEALTH_CHECK_PORT=3000
 HEALTH_CHECK_INTERVAL=30000
 ```
+
+---
 
 ## 📦 Installation Steps
 
@@ -89,6 +93,8 @@ sudo chown -R $USER:$USER /var/lib/mcp
 sudo mkdir -p /var/log/mcp-qsys
 sudo chown -R $USER:$USER /var/log/mcp-qsys
 ```
+
+---
 
 ## 🚀 Deployment Methods
 
@@ -220,6 +226,8 @@ docker run -d \
   mcp-qsys-server
 ```
 
+---
+
 ## 🏥 Health Checks
 
 ### Health Endpoint
@@ -266,6 +274,8 @@ sudo journalctl -u mcp-qsys -f
 sudo journalctl -u mcp-qsys -n 100
 ```
 
+---
+
 ## 🔍 Verification Steps
 
 ### 1. Test Q-SYS Connection
@@ -287,6 +297,8 @@ ls -la /var/lib/mcp/events/
 # Test event logging
 npm run test:events
 ```
+
+---
 
 ## 📊 Performance Tuning
 
@@ -318,6 +330,8 @@ For multiple Q-SYS Cores, adjust in `qsys-core.config.json`:
 }
 ```
 
+---
+
 ## 🔒 Security Considerations
 
 ### 1. Secure Credentials
@@ -345,6 +359,8 @@ chmod 700 /var/lib/mcp/events
 - Use systemd sandboxing features
 - Consider container isolation
 
+---
+
 ## 🔄 Backup and Recovery
 
 ### Database Backup
@@ -366,6 +382,8 @@ tar -czf mcp-config-$(date +%Y%m%d).tar.gz qsys-core.config.json .env
 aws s3 cp mcp-config-*.tar.gz s3://your-backup-bucket/
 ```
 
+---
+
 ## 📈 Monitoring and Alerting
 
 ### Prometheus Metrics
@@ -384,6 +402,8 @@ Configure alerts for:
 - High memory usage (>80%)
 - Event database size
 - API response times
+
+---
 
 ## 🔧 Maintenance
 
@@ -413,6 +433,8 @@ sqlite3 /var/lib/mcp/events/events.db "VACUUM;"
 sqlite3 /var/lib/mcp/events/events.db "ANALYZE;"
 ```
 
+---
+
 ## 🚨 Rollback Procedure
 
 ### Quick Rollback
@@ -441,9 +463,13 @@ sqlite3 /var/lib/mcp/events/events.db ".restore /backup/events-20250119.db"
 pm2 start mcp-qsys-server
 ```
 
+---
+
 ## 📝 Troubleshooting
 
 See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues and solutions.
+
+---
 
 ## 📚 Additional Resources
 
@@ -451,6 +477,8 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues and solutions.
 - [MCP Tools API](./api/MCP_TOOLS.md)
 - [Event Monitoring Guide](./EVENT_MONITORING_API.md)
 - [Security Best Practices](./SECURITY.md)
+
+---
 
 ## 🆘 Support
 

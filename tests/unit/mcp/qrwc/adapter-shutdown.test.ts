@@ -1,5 +1,5 @@
 /**
- * Unit test for BUG-169: Adapter dispose method properly shuts down state manager
+ * Unit test for Adapter dispose method properly shuts down state manager
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
@@ -7,7 +7,7 @@ import { QRWCClientAdapter } from '../../../../src/mcp/qrwc/adapter.js';
 import type { OfficialQRWCClient } from '../../../../src/qrwc/client.js';
 import type { IStateRepository } from '../../../../src/mcp/state/repository.js';
 
-describe('QRWCClientAdapter Shutdown (BUG-169)', () => {
+describe('QRWCClientAdapter Shutdown', () => {
   let adapter: QRWCClientAdapter;
   let mockClient: jest.Mocked<OfficialQRWCClient>;
   let mockStateManager: jest.Mocked<IStateRepository & { shutdown: () => Promise<void> }>;

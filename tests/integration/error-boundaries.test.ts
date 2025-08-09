@@ -1,5 +1,5 @@
 /**
- * BUG-163 Verification Test
+ * Error Boundaries Test
  * Tests comprehensive error boundaries and handling
  */
 
@@ -9,7 +9,7 @@ import { createLogger } from '../../src/shared/utils/logger.js';
 import type { MCPServerConfig } from '../../src/shared/types/mcp.js';
 import type { PartialMCPServerDependencies } from '../../src/mcp/interfaces/dependencies.js';
 
-describe('BUG-163: Error Boundaries and Handling', () => {
+describe('Error Boundaries and Handling', () => {
   let server: MCPServer;
   let unhandledRejections: any[] = [];
   let uncaughtExceptions: any[] = [];
@@ -100,14 +100,28 @@ describe('BUG-163: Error Boundaries and Handling', () => {
     it('should handle unhandled promise rejections without crashing', async () => {
       await server.start();
       
+      // Track if our handler was called
+      let handlerCalled = false;
+      const originalHandler = process.listeners('unhandledRejection')[0];
+      process.removeAllListeners('unhandledRejection');
+      process.on('unhandledRejection', (reason) => {
+        handlerCalled = true;
+        if (originalHandler) originalHandler(reason, Promise.reject(reason));
+      });
+      
       // Create unhandled rejection
       Promise.reject(new Error('Test unhandled rejection'));
       
       // Wait for handlers
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Server should still be running
+      // Server should still be running and handler should have been called
       expect(server.isRunning()).toBe(true);
+      expect(handlerCalled).toBe(true);
+      
+      // Restore original handler
+      process.removeAllListeners('unhandledRejection');
+      process.on('unhandledRejection', originalHandler);
     });
   });
 
@@ -116,14 +130,14 @@ describe('BUG-163: Error Boundaries and Handling', () => {
       await server.start();
       
       // Get a tool that will fail
-      const toolRegistry = server['dependencies'].toolRegistry;
+      const toolRegistry = server['toolRegistry'];
       const tools = await toolRegistry?.listTools();
       
       if (tools && tools.length > 0) {
         const tool = tools[0];
         
         // Call with invalid params to trigger error
-        const result = await toolRegistry?.executeTool(tool.name, null);
+        const result = await toolRegistry?.callTool(tool.name, null);
         
         // Should return error result, not throw
         expect(result).toBeDefined();
@@ -137,17 +151,17 @@ describe('BUG-163: Error Boundaries and Handling', () => {
       await server.start();
       
       // Force disconnect
-      const qrwcClient = server['dependencies'].officialQrwcClient;
+      const qrwcClient = server['officialQrwcClient'];
       if (qrwcClient && 'disconnect' in qrwcClient) {
         await qrwcClient.disconnect();
       }
       
       // Try to execute a tool
-      const toolRegistry = server['dependencies'].toolRegistry;
+      const toolRegistry = server['toolRegistry'];
       const tools = await toolRegistry?.listTools();
       
       if (tools && tools.length > 0) {
-        const result = await toolRegistry?.executeTool(tools[0].name, {});
+        const result = await toolRegistry?.callTool(tools[0].name, {});
         
         // Should return error, not crash
         expect(result).toBeDefined();
@@ -161,13 +175,13 @@ describe('BUG-163: Error Boundaries and Handling', () => {
       await server.start();
       
       // Mock a slow operation
-      const toolRegistry = server['dependencies'].toolRegistry;
+      const toolRegistry = server['toolRegistry'];
       const tools = await toolRegistry?.listTools();
       
       if (tools && tools.length > 0) {
         // This should timeout if properly configured
         const startTime = Date.now();
-        const result = await toolRegistry?.executeTool(tools[0].name, {
+        const result = await toolRegistry?.callTool(tools[0].name, {
           __testTimeout: true, // Special test param
         });
         
@@ -187,11 +201,18 @@ describe('BUG-163: Error Boundaries and Handling', () => {
     it('should recover from errors and continue operating', async () => {
       await server.start();
       
+      // Track errors
+      const handledErrors: any[] = [];
+      const originalHandler = process.listeners('unhandledRejection')[0];
+      process.removeAllListeners('unhandledRejection');
+      process.on('unhandledRejection', (reason) => {
+        handledErrors.push(reason);
+        if (originalHandler) originalHandler(reason, Promise.reject(reason));
+      });
+      
       // Cause multiple errors
-      const errors = [];
       for (let i = 0; i < 5; i++) {
         Promise.reject(new Error(`Test error ${i}`));
-        errors.push(`Error ${i}`);
       }
       
       // Wait for handlers
@@ -199,22 +220,27 @@ describe('BUG-163: Error Boundaries and Handling', () => {
       
       // Server should still be running
       expect(server.isRunning()).toBe(true);
+      expect(handledErrors.length).toBe(5);
       
       // Should be able to execute new operations
-      const toolRegistry = server['dependencies'].toolRegistry;
+      const toolRegistry = server['toolRegistry'];
       const tools = await toolRegistry?.listTools();
       expect(tools).toBeDefined();
+      
+      // Restore original handler
+      process.removeAllListeners('unhandledRejection');
+      process.on('unhandledRejection', originalHandler);
     });
 
     it('should provide meaningful error messages', async () => {
       await server.start();
       
-      const toolRegistry = server['dependencies'].toolRegistry;
+      const toolRegistry = server['toolRegistry'];
       const tools = await toolRegistry?.listTools();
       
       if (tools && tools.length > 0) {
         // Call with invalid params
-        const result = await toolRegistry?.executeTool(tools[0].name, {
+        const result = await toolRegistry?.callTool(tools[0].name, {
           invalidParam: 'test',
         });
         
@@ -236,7 +262,7 @@ describe('BUG-163: Error Boundaries and Handling', () => {
       await server.start();
       
       // Perform normal operations
-      const toolRegistry = server['dependencies'].toolRegistry;
+      const toolRegistry = server['toolRegistry'];
       await toolRegistry?.listTools();
       
       // Wait for any async operations
@@ -250,7 +276,7 @@ describe('BUG-163: Error Boundaries and Handling', () => {
       await server.start();
       
       // Perform normal operations  
-      const toolRegistry = server['dependencies'].toolRegistry;
+      const toolRegistry = server['toolRegistry'];
       await toolRegistry?.listTools();
       
       // Wait for any async operations

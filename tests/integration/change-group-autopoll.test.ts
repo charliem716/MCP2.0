@@ -1,7 +1,7 @@
 import { CreateChangeGroupTool } from '../../src/mcp/tools/change-groups.js';
 import type { IControlSystem } from '../../src/mcp/interfaces/control-system.js';
 
-describe('BUG-187: Automatic polling on change group creation', () => {
+describe('Automatic polling on change group creation', () => {
   let mockControlSystem: IControlSystem;
   let commandsSent: Array<{ method: string; params: any }> = [];
 

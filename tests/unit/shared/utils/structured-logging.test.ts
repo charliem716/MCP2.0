@@ -1,5 +1,5 @@
 /**
- * Tests for BUG-164: Structured Logging and Monitoring
+ * Tests for Structured Logging and Monitoring
  */
 
 import { jest } from '@jest/globals';
@@ -7,7 +7,7 @@ import winston from 'winston';
 import { generateCorrelationId, runWithCorrelation, getCorrelationId, getCorrelationContext } from '../../../../src/shared/utils/correlation.js';
 import type { Logger } from '../../../../src/shared/utils/logger.js';
 
-describe('BUG-164: Structured Logging and Monitoring', () => {
+describe('Structured Logging and Monitoring', () => {
   describe('Correlation ID Management', () => {
     it('should generate unique correlation IDs', () => {
       const id1 = generateCorrelationId();

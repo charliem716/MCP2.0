@@ -1,5 +1,5 @@
 /**
- * Tests for QueryQSysAPITool (BUG-047)
+ * Tests for QueryQSysAPITool
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
@@ -26,7 +26,7 @@ describe('QueryQSysAPITool', () => {
 
   it('should have correct tool name and description', () => {
     expect(tool.name).toBe('query_qsys_api');
-    expect(tool.description).toContain('Interactive API documentation');
+    expect(tool.description).toContain('API documentation');
     expect(tool.description).toContain('methods');
     expect(tool.description).toContain('examples');
   });

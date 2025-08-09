@@ -697,8 +697,8 @@ describe('SetControlValuesTool', () => {
     expect(invalidResult.error).toBeDefined();
   });
 
-  // BUG-025 regression tests
-  describe('BUG-025: Command type selection', () => {
+  // Command type selection tests
+  describe('Command type selection', () => {
     it('should use Control.Set for named controls', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({ 
         result: [{ Name: 'TestControl', Result: 'OK' }]
@@ -813,8 +813,8 @@ describe('SetControlValuesTool', () => {
   });
 });
 
-// BUG-055 regression tests for ListControlsTool
-describe('ListControlsTool - BUG-055 regression', () => {
+// ListControlsTool type handling regression tests
+describe('ListControlsTool - Type handling regression', () => {
   let mockQrwcClient: any;
   let tool: ListControlsTool;
 

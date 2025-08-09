@@ -324,95 +324,7 @@ export class ClearChangeGroupTool extends BaseQSysTool<ClearChangeGroupParams> {
   }
 }
 
-// ===== Tool 7: Set Change Group Auto Poll =====
-
-const SetChangeGroupAutoPollParamsSchema = BaseToolParamsSchema.extend({
-  groupId: z.string().min(1).describe('Change group identifier'),
-  enabled: z.boolean().describe('Enable or disable automatic polling'),
-  intervalSeconds: z
-    .number()
-    .min(0.1)
-    .max(300)
-    .optional()
-    .describe('Polling interval in seconds (default: 1.0)'),
-});
-
-type SetChangeGroupAutoPollParams = z.infer<
-  typeof SetChangeGroupAutoPollParamsSchema
->;
-
-export class SetChangeGroupAutoPollTool extends BaseQSysTool<SetChangeGroupAutoPollParams> {
-  constructor(controlSystem: IControlSystem) {
-    super(
-      controlSystem,
-      'set_change_group_auto_poll',
-      "Enable/disable automatic polling for a change group. Interval: 0.1-300 seconds. Auto-stops after 10 failures. Example: {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5}.",
-      SetChangeGroupAutoPollParamsSchema
-    );
-  }
-
-  protected async executeInternal(
-    params: SetChangeGroupAutoPollParams
-  ): Promise<ToolCallResult> {
-    if (params.enabled) {
-      // Enable auto polling
-      await this.controlSystem.sendCommand('ChangeGroup.AutoPoll', {
-        Id: params.groupId,
-        Rate: params.intervalSeconds ?? 1.0,
-      });
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              success: true,
-              groupId: params.groupId,
-              autoPollEnabled: true,
-              intervalSeconds: params.intervalSeconds ?? 1.0,
-              message: `Auto-poll enabled for change group '${params.groupId}' at ${params.intervalSeconds ?? 1.0}s intervals`,
-            }),
-          },
-        ],
-      };
-    } else {
-      // Disable auto polling by clearing the timer
-      // Note: This requires internal adapter knowledge
-      const adapter = this.controlSystem as { 
-        autoPollTimers?: Map<string, NodeJS.Timeout>;
-        autoPollFailureCounts?: Map<string, number>;
-      };
-
-      // Check if adapter has the autoPollTimers Map and the group has an active timer
-      if (adapter.autoPollTimers?.has(params.groupId)) {
-        const timer = adapter.autoPollTimers.get(params.groupId);
-        clearInterval(timer);
-        adapter.autoPollTimers.delete(params.groupId);
-
-        // Also clean up failure counts if present
-        if (adapter.autoPollFailureCounts?.has(params.groupId)) {
-          adapter.autoPollFailureCounts.delete(params.groupId);
-        }
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              success: true,
-              groupId: params.groupId,
-              autoPollEnabled: false,
-              message: `Auto-poll disabled for change group '${params.groupId}'`,
-            }),
-          },
-        ],
-      };
-    }
-  }
-}
-
-// ===== Tool 8: List Change Groups =====
+// ===== Tool 7: List Change Groups =====
 
 const ListChangeGroupsParamsSchema = BaseToolParamsSchema;
 
@@ -720,7 +632,7 @@ export class SubscribeToChangeEventsTool extends BaseQSysTool<SubscribeToChangeE
     super(
       controlSystem,
       'subscribe_to_change_events',
-      `Subscribe to real-time change events from a change group. Events are automatically cached and can be queried later using read_change_group_events. Subscription enables both real-time monitoring and historical analysis. Note: You must call set_change_group_auto_poll to start receiving events. Example: 1. Subscribe: subscribe_to_change_events({ groupId: "my-group", enableCache: true }) 2. Start polling: set_change_group_auto_poll({ groupId: "my-group", rate: 100 }) 3. Query history: read_change_group_events({ groupId: "my-group", startTime: Date.now()-60000 })`,
+      `Subscribe to real-time change events from a change group. Events are automatically cached and can be queried later using read_change_group_events. Subscription enables both real-time monitoring and historical analysis. Note: Polling starts automatically when you create a change group. Example: 1. Create group: create_change_group({ groupId: "my-group", pollRate: 0.1 }) 2. Subscribe: subscribe_to_change_events({ groupId: "my-group", enableCache: true }) 3. Query history: read_change_group_events({ groupId: "my-group", startTime: Date.now()-60000 })`,
       SubscribeToChangeEventsParamsSchema as z.ZodSchema<SubscribeToChangeEventsParams>
     );
     this.eventCache = eventCache;
@@ -838,12 +750,6 @@ export function createClearChangeGroupTool(
   controlSystem: IControlSystem
 ): ClearChangeGroupTool {
   return new ClearChangeGroupTool(controlSystem);
-}
-
-export function createSetChangeGroupAutoPollTool(
-  controlSystem: IControlSystem
-): SetChangeGroupAutoPollTool {
-  return new SetChangeGroupAutoPollTool(controlSystem);
 }
 
 export function createListChangeGroupsTool(

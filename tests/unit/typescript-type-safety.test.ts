@@ -1,11 +1,11 @@
 /**
- * Test to verify BUG-106 TypeScript compilation errors are fixed
+ * Test to verify TypeScript compilation type safety
  */
 import { describe, it, expect } from '@jest/globals';
 import { validateControlValue } from '../../src/mcp/qrwc/command-handlers';
 import { OfficialQRWCClient } from '../../src/qrwc/officialClient';
 
-describe('BUG-106: TypeScript Compilation Fixes', () => {
+describe('TypeScript Compilation Type Safety', () => {
   describe('command-handlers.ts type safety', () => {
     it('should handle various Value types correctly', () => {
       // Test that the type narrowing works for different input types
@@ -82,12 +82,7 @@ describe('BUG-106: TypeScript Compilation Fixes', () => {
     });
   });
 
-  // BUG-132: Removed test for ChangeGroupEvent which was part of removed complex state management
-  // describe('rollback-handler.ts event emission', () => {
-  //   it('should use valid ChangeGroupEvent values', () => {
-  //     // Test removed - ChangeGroupEvent was part of the complex state management removed in BUG-132
-  //   });
-  // });
+  // Removed test for ChangeGroupEvent which was part of removed complex state management
 
   describe('status.ts type safety', () => {
     it('should access correct Status properties', () => {

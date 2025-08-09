@@ -38,8 +38,8 @@ export class EventDatabaseBackupManager {
   
   constructor(config?: BackupConfig) {
     this.config = {
-      backupPath: config?.backupPath || process.env['EVENT_BACKUP_PATH'] || './data/backups',
-      maxBackups: config?.maxBackups || parseInt(process.env['EVENT_MAX_BACKUPS'] || '7', 10),
+      backupPath: config?.backupPath ?? process.env['EVENT_BACKUP_PATH'] ?? './data/backups',
+      maxBackups: config?.maxBackups ?? parseInt(process.env['EVENT_MAX_BACKUPS'] ?? '7', 10),
       compressionEnabled: config?.compressionEnabled !== false,
       autoBackupInterval: config?.autoBackupInterval ?? parseInt(process.env['EVENT_BACKUP_INTERVAL'] || '86400000', 10), // 24 hours default
     };
@@ -74,7 +74,7 @@ export class EventDatabaseBackupManager {
    * Perform a backup of the database
    */
   async performBackup(dbPath?: string): Promise<BackupInfo> {
-    const sourcePath = dbPath || this.currentDbPath;
+    const sourcePath = dbPath ?? this.currentDbPath;
     if (!sourcePath || sourcePath === ':memory:') {
       throw new Error('Cannot backup in-memory database');
     }

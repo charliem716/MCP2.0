@@ -39,7 +39,7 @@ describe('QRWCClientAdapter - Core Functionality', () => {
   });
 
   describe('Basic Control Operations', () => {
-    describe('BUG-024: Control Name Parsing', () => {
+    describe('Control Name Parsing', () => {
       it('should correctly parse component.control format for Control.Set', async () => {
         // Test setting a control with component.control format
         const result = await adapter.sendCommand('Control.Set', {

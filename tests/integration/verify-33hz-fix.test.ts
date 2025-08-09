@@ -1,12 +1,12 @@
 /**
- * Simple verification test for BUG-150 fixes
+ * Verification test for 33Hz polling fix
  */
 
 import { QRWCClientAdapter } from '../../src/mcp/qrwc/adapter.js';
 import { SQLiteEventMonitor } from '../../src/mcp/state/event-monitor/sqlite-event-monitor.js';
 import { SimpleStateManager } from '../../src/mcp/state/simple-state-manager.js';
 
-describe('BUG-150 Fix Verification', () => {
+describe('33Hz Polling Fix Verification', () => {
   describe('33Hz Polling Support', () => {
     it('should accept 0.03 second (33Hz) polling rate', () => {
       const mockClient = {

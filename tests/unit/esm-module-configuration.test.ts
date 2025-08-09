@@ -4,7 +4,7 @@ import { configManager } from '../../src/config/index';
 import * as fs from 'fs';
 import * as path from 'path';
 
-describe('BUG-133 Fix Verification', () => {
+describe('ESM Module Configuration Verification', () => {
   it('should load the configuration without errors', () => {
     expect(configManager).toBeDefined();
   });

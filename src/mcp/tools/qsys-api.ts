@@ -177,7 +177,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           discovery: 'list_components, list_controls, get_component_controls',
           control: 'get_control_values, set_control_values, qsys_component_get',
           monitoring:
-            'create_change_group, add_controls_to_change_group, poll_change_group, set_change_group_auto_poll, list_change_groups, remove_controls_from_change_group, clear_change_group, destroy_change_group',
+            'create_change_group, add_controls_to_change_group, poll_change_group, list_change_groups, remove_controls_from_change_group, clear_change_group, destroy_change_group',
           system: 'query_core_status, query_qsys_api, echo',
         },
       },
@@ -899,90 +899,6 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           ],
         },
         {
-          name: 'set_change_group_auto_poll',
-          description:
-            'Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300 seconds)',
-          usage:
-            'Parameters: groupId (string), enabled (boolean), intervalSeconds (number, optional)',
-          parameters: {
-            groupId: 'Change group identifier',
-            enabled: 'Enable or disable automatic polling',
-            intervalSeconds:
-              'Polling interval in seconds (0.1-300, default: 1.0)',
-          },
-          example: {
-            tool: 'set_change_group_auto_poll',
-            arguments: {
-              groupId: 'mixer-controls',
-              enabled: true,
-              intervalSeconds: 0.5,
-            },
-          },
-          examples: [
-            {
-              arguments: {
-                groupId: 'realtime-meters',
-                enabled: true,
-                intervalSeconds: 0.1,
-              },
-              description: 'Fast polling for real-time meters (100ms)',
-            },
-            {
-              arguments: {
-                groupId: 'ui-controls',
-                enabled: true,
-                intervalSeconds: 0.5,
-              },
-              description: 'Standard UI update rate (500ms)',
-            },
-            {
-              arguments: {
-                groupId: 'status-monitors',
-                enabled: true,
-                intervalSeconds: 5.0,
-              },
-              description: 'Slow polling for status indicators (5s)',
-            },
-            {
-              arguments: { groupId: 'mixer-controls', enabled: false },
-              description: 'Disable auto-polling',
-            },
-          ],
-          returns: {
-            success: 'true/false indicating operation success',
-            groupId: 'The group identifier',
-            autoPollEnabled: 'Current auto-poll state',
-            intervalSeconds: 'Current interval (when enabled)',
-            message: 'Success message',
-          },
-          important_notes: [
-            'Minimum interval: 0.1 seconds (100ms)',
-            'Maximum interval: 300 seconds (5 minutes)',
-            'Auto-poll stops automatically after 10 consecutive failures',
-            'Only one auto-poll timer per group (new settings replace existing)',
-            'Use enabled:false to stop polling',
-          ],
-          use_cases: [
-            'Real-time UI updates for control surfaces',
-            'Continuous monitoring for alarm conditions',
-            'Background state tracking',
-            'Meter and level monitoring',
-            'Activity detection and timeout handling',
-          ],
-          performance_considerations: [
-            'Higher frequencies increase network and CPU load',
-            'Consider round-trip time when setting intervals',
-            'Each auto-poll group runs independently',
-            'Balance responsiveness with system resources',
-          ],
-          errors: [
-            'Throws if groupId is empty',
-            'Throws if intervalSeconds is outside 0.1-300 range',
-            "Throws if change group doesn't exist",
-            'Throws if Q-SYS Core is not connected',
-          ],
-        },
-        {
           name: 'list_change_groups',
           description:
             'List all active change groups showing ID, control count, and auto-poll status',
@@ -1237,7 +1153,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           steps: [
             '1. Use create_change_group to create a monitoring group',
             '2. Use add_controls_to_change_group to add controls to monitor',
-            '3. Use poll_change_group periodically or set_change_group_auto_poll for automatic updates',
+            '3. Use poll_change_group manually if needed (auto-polling is automatic)',
             '4. Use destroy_change_group when monitoring is complete',
           ],
         },
@@ -1246,7 +1162,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           steps: [
             "1. Create change group for UI page: create_change_group({groupId: 'page-1'})",
             "2. Add all UI controls: add_controls_to_change_group({groupId: 'page-1', controlNames: [...]})",
-            "3. Enable auto-polling: set_change_group_auto_poll({groupId: 'page-1', enabled: true, intervalSeconds: 0.5})",
+            "3. Receive automatic updates at configured poll rate",
             '4. Update UI only for changed controls from poll results',
             "5. Destroy group on page exit: destroy_change_group({groupId: 'page-1'})",
           ],
@@ -1256,7 +1172,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           steps: [
             "1. Create alarm group: create_change_group({groupId: 'alarms'})",
             "2. Add alarm controls: add_controls_to_change_group({groupId: 'alarms', controlNames: ['System.alarm1', 'System.alarm2']})",
-            "3. Set slow auto-poll: set_change_group_auto_poll({groupId: 'alarms', enabled: true, intervalSeconds: 5})",
+            "3. Receive automatic updates at configured poll rate",
             '4. Process changes to trigger alerts',
           ],
         },

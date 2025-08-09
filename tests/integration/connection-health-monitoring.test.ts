@@ -1,12 +1,12 @@
 /**
- * Simple integration test to verify BUG-162 fix
+ * Simple integration test to verify connection resilience fix
  * Tests that health monitoring and circuit breaker features are available
  */
 
 import { OfficialQRWCClient } from '../../src/qrwc/officialClient.js';
 import { ConnectionState } from '../../src/shared/types/common.js';
 
-describe('BUG-162 Fix - Connection Resilience Features', () => {
+describe('Connection Resilience Features', () => {
   let client: OfficialQRWCClient;
 
   afterEach(() => {

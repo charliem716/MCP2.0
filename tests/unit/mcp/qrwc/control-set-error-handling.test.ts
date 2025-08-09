@@ -1,5 +1,5 @@
 /**
- * BUG-060: Test to verify undefined variable fix in Control.Set
+ * Test to verify undefined variable fix in Control.Set
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
@@ -31,7 +31,7 @@ const { globalLogger } = await import('../../../../src/shared/utils/logger');
 const { QRWCClientAdapter } = await import('../../../../src/mcp/qrwc/adapter');
 const { OfficialQRWCClient } = await import('../../../../src/qrwc/officialClient');
 
-describe('BUG-060: Control.Set undefined variable fix', () => {
+describe('Control.Set undefined variable fix', () => {
   let adapter: QRWCClientAdapter;
   let mockOfficialClient: jest.Mocked<OfficialQRWCClient>;
 
@@ -106,7 +106,7 @@ describe('BUG-060: Control.Set undefined variable fix', () => {
       Error: expect.stringContaining('Numeric control expects'),
     });
     
-    // The main goal of BUG-060 was to ensure no ReferenceError occurs
+    // The main goal was to ensure no ReferenceError occurs
     // and that the control name is properly included in the error response
     // which we've verified above
   });

@@ -1,7 +1,7 @@
 import { DestroyChangeGroupTool } from '../../src/mcp/tools/change-groups.js';
 import type { IControlSystem } from '../../src/mcp/interfaces/control-system.js';
 
-describe('BUG-187: Destroy change group stops polling and recording', () => {
+describe('Destroy change group stops polling and recording', () => {
   let mockControlSystem: IControlSystem;
   let commandsSent: Array<{ method: string; params: any }> = [];
 

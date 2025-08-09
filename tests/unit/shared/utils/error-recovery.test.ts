@@ -1,6 +1,6 @@
 /**
- * Comprehensive tests for error-recovery.ts to achieve 80%+ coverage
- * Addresses BUG-142: Critical Low Coverage Files Risk Production Stability
+ * Comprehensive tests for error-recovery.ts to achieve high coverage
+ * Addresses critical low coverage files and production stability
  */
 
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';

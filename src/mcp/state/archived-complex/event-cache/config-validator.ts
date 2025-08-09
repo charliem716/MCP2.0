@@ -132,7 +132,7 @@ function validateCrossConfiguration(config: EventCacheConfig, warnings: string[]
 }
 
 function validatePerformanceImpact(config: EventCacheConfig, warnings: string[]): void {
-  const totalPossibleEvents = config.maxEvents || 100000;
+  const totalPossibleEvents = config.maxEvents ?? 100000;
   const memoryPerEvent = 1024; // Rough estimate: 1KB per event
   const estimatedMemoryMB = (totalPossibleEvents * memoryPerEvent) / (1024 * 1024);
   

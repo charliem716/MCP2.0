@@ -669,7 +669,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         name: control.name,
         value: control.value,
         success: false,
-        error: qsysResponse.error!.message || 'Q-SYS error',
+        error: qsysResponse.error!.message ?? 'Q-SYS error',
       }));
     }
     
@@ -711,7 +711,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         name: control.name,
         value: control.value,
         success: false,
-        error: controlResult.Error || 'Control set failed',
+        error: controlResult.Error ?? 'Control set failed',
       };
     }
     
@@ -840,7 +840,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       }
 
       // Separate controls into named and component groups
-      const { namedControls, componentGroups } = this.separateControls(params.controls);
+      const { namedControls, componentGroups } = this.separateControls(params.controls as any);
       
       // Collect all results
       const allResults: ControlSetResponse[] = [];
@@ -856,9 +856,9 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
           result?: Array<{ Name: string; Result: string; Error?: string }>;
         };
         
-        // Process named control results
+        // Process named control results  
         const namedControlsOriginal = params.controls.filter(c => !c.name.includes('.'));
-        const namedResults = this.processControlSetResponse(qsysResponse, namedControlsOriginal, false);
+        const namedResults = this.processControlSetResponse(qsysResponse, namedControlsOriginal as any, false);
         allResults.push(...namedResults);
       }
       
@@ -880,7 +880,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         );
         const componentResults = this.processControlSetResponse(
           qsysResponse, 
-          componentControlsOriginal, 
+          componentControlsOriginal as any, 
           true, 
           componentName
         );
@@ -939,19 +939,22 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     } catch (error) {
       this.logger.error('Failed to set control values', { error, context });
       
-      // Return formatted error instead of throwing
+      // When an error occurs, return an array of failed results for each control
+      // This maintains consistency with partial failure scenarios
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const failedResults = params.controls.map(control => ({
+        name: control.name,
+        value: control.value,
+        success: false,
+        error: errorMessage
+      }));
+      
+      // Return the array of results, not an error object
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              error: 'SET_CONTROL_VALUES_ERROR',
-              message: error instanceof Error ? error.message : 'Unknown error occurred',
-              details: {
-                controlsCount: params.controls.length,
-                validate: params.validate !== false
-              }
-            }),
+            text: JSON.stringify(failedResults),
           },
         ],
         isError: true,

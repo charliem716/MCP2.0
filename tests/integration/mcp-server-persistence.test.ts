@@ -1,5 +1,5 @@
 /**
- * Test for BUG-180: MCP Server connection persistence
+ * Test for MCP Server connection persistence
  * 
  * This test verifies that the MCP server stays alive after initialization
  * and continues to respond to multiple requests.
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('BUG-180: MCP Server Connection Persistence', () => {
+describe('MCP Server Connection Persistence', () => {
   let serverProcess: ChildProcess;
   
   afterEach(async () => {

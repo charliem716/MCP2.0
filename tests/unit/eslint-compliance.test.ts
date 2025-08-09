@@ -1,12 +1,12 @@
 /**
- * BUG-103: ESLint errors verification test
+ * ESLint compliance verification test
  * Ensures that the codebase passes ESLint without errors
  */
 
 import { describe, it, expect } from '@jest/globals';
 import { execSync } from 'child_process';
 
-describe('BUG-103: ESLint Verification', () => {
+describe('ESLint Compliance Verification', () => {
   it('should pass ESLint without errors', () => {
     let output: string = '';
     let hasErrors = false;
@@ -42,7 +42,7 @@ describe('BUG-103: ESLint Verification', () => {
     }
 
     // Expect no errors (warnings are acceptable)
-    // BUG-103 has been resolved - all ESLint errors have been fixed
+    // All ESLint errors have been fixed
     expect(errorDetails.errors).toBe(0);
   });
 });

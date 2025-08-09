@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import type { QRWCClientInterface } from '../../src/mcp/qrwc/adapter';
 import { CreateChangeGroupTool } from '../../src/mcp/tools/change-groups';
 
-describe('BUG-066: create_change_group silently overwrites existing groups', () => {
+describe('create_change_group overwrites existing groups', () => {
   let mockAdapter: jest.Mocked<QRWCClientInterface>;
   let tool: CreateChangeGroupTool;
 
@@ -63,7 +63,7 @@ describe('BUG-066: create_change_group silently overwrites existing groups', () 
     const result2 = await tool.execute({ groupId });
     expect(JSON.parse(result2.content[0].text).success).toBe(true);
 
-    // Bug: The group's controls are reset (overwritten)
+    // The group's controls are reset (overwritten)
     expect(mockAdapter.changeGroups.get(groupId).controls).toHaveLength(0);
 
     // No error or warning is returned

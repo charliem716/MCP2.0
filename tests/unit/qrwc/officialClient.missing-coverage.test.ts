@@ -1,6 +1,6 @@
 /**
  * Targeted tests for the last few uncovered lines in OfficialQRWCClient
- * Final push to achieve 80%+ coverage for BUG-142
+ * Comprehensive coverage tests
  */
 
 import {

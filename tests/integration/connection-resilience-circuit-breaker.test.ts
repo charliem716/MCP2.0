@@ -1,5 +1,5 @@
 /**
- * Integration test to verify BUG-162 fix
+ * Integration test to verify connection resilience fix
  * Tests connection resilience with exponential backoff and circuit breaker
  */
 
@@ -32,7 +32,7 @@ jest.mock('ws', () => ({
   CLOSED: 3,
 }));
 
-describe('BUG-162 Fix Verification', () => {
+describe('Connection Resilience Fix Verification', () => {
   let client: OfficialQRWCClient;
   let mockWebSocket: any;
 

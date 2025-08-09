@@ -1,6 +1,6 @@
 /**
  * Tests for Centralized Configuration Manager
- * Verifies BUG-133 fix for configuration fragmentation
+ * Verifies fix for configuration fragmentation
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';

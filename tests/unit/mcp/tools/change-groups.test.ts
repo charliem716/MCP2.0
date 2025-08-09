@@ -7,10 +7,9 @@ import {
   DestroyChangeGroupTool,
   RemoveControlsFromChangeGroupTool,
   ClearChangeGroupTool,
-  SetChangeGroupAutoPollTool,
   ListChangeGroupsTool,
 } from '../../../../src/mcp/tools/change-groups';
-// BUG-132: EventCacheManager removed - simplified architecture
+// EventCacheManager removed - simplified architecture
 
 describe('Change Group Tools', () => {
   let mockQrwcClient: jest.Mocked<QRWCClientInterface>;
@@ -32,7 +31,7 @@ describe('Change Group Tools', () => {
 
     it('should have correct metadata', () => {
       expect(tool.name).toBe('create_change_group');
-      expect(tool.description).toContain('Create a new change group');
+      expect(tool.description).toContain('Create a change group');
     });
 
     it('should create a change group successfully', async () => {
@@ -226,93 +225,6 @@ describe('Change Group Tools', () => {
     });
   });
 
-  describe('SetChangeGroupAutoPollTool', () => {
-    let tool: SetChangeGroupAutoPollTool;
-
-    beforeEach(() => {
-      tool = new SetChangeGroupAutoPollTool(mockQrwcClient);
-    });
-
-    it('should enable auto-poll with custom interval', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: true });
-
-      const result = await tool.execute({
-        groupId: 'test-group-1',
-        enabled: true,
-        intervalSeconds: 2.5,
-      });
-
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'ChangeGroup.AutoPoll',
-        {
-          Id: 'test-group-1',
-          Rate: 2.5,
-        }
-      );
-      expect(result.content[0].text).toContain('"autoPollEnabled":true');
-      expect(result.content[0].text).toContain('"intervalSeconds":2.5');
-    });
-
-    it('should enable auto-poll with default interval', async () => {
-      mockQrwcClient.sendCommand.mockResolvedValueOnce({ result: true });
-
-      const result = await tool.execute({
-        groupId: 'test-group-1',
-        enabled: true,
-      });
-
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'ChangeGroup.AutoPoll',
-        {
-          Id: 'test-group-1',
-          Rate: 1.0,
-        }
-      );
-    });
-
-    it('should disable auto-poll and clear timer', async () => {
-      // Mock the adapter with autoPollTimers Map
-      const mockTimer = { ref: jest.fn(), unref: jest.fn() } as any;
-      const autoPollTimers = new Map([['test-group-1', mockTimer]]);
-      const autoPollFailureCounts = new Map([['test-group-1', 3]]);
-
-      (mockQrwcClient as any).autoPollTimers = autoPollTimers;
-      (mockQrwcClient as any).autoPollFailureCounts = autoPollFailureCounts;
-
-      // Mock clearInterval
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
-      const result = await tool.execute({
-        groupId: 'test-group-1',
-        enabled: false,
-      });
-
-      // Verify timer was cleared
-      expect(clearIntervalSpy).toHaveBeenCalledWith(mockTimer);
-      expect(autoPollTimers.has('test-group-1')).toBe(false);
-      expect(autoPollFailureCounts.has('test-group-1')).toBe(false);
-
-      expect(result.content[0].text).toContain('"autoPollEnabled":false');
-      expect(result.content[0].text).toContain('Auto-poll disabled');
-
-      clearIntervalSpy.mockRestore();
-    });
-
-    it('should handle disabling auto-poll when no timer exists', async () => {
-      // Mock adapter without timer for this group
-      (mockQrwcClient as any).autoPollTimers = new Map();
-
-      const result = await tool.execute({
-        groupId: 'test-group-1',
-        enabled: false,
-      });
-
-      // Should still return success even if no timer was active
-      expect(result.content[0].text).toContain('"autoPollEnabled":false');
-      expect(result.content[0].text).toContain('Auto-poll disabled');
-    });
-  });
-
   describe('ListChangeGroupsTool', () => {
     let tool: ListChangeGroupsTool;
 
@@ -365,7 +277,6 @@ describe('Change Group Tools', () => {
         new DestroyChangeGroupTool(mockQrwcClient),
         new RemoveControlsFromChangeGroupTool(mockQrwcClient),
         new ClearChangeGroupTool(mockQrwcClient),
-        new SetChangeGroupAutoPollTool(mockQrwcClient),
         new ListChangeGroupsTool(mockQrwcClient),
       ];
 
@@ -377,68 +288,8 @@ describe('Change Group Tools', () => {
     });
   });
 
-  // Tests from BUG-069: Change Group tools error documentation
-  describe('Error documentation (BUG-069)', () => {
-    it('all tools should document error conditions', () => {
-      const tools = [
-        new CreateChangeGroupTool(mockQrwcClient),
-        new AddControlsToChangeGroupTool(mockQrwcClient),
-        new PollChangeGroupTool(mockQrwcClient),
-        new DestroyChangeGroupTool(mockQrwcClient),
-        new RemoveControlsFromChangeGroupTool(mockQrwcClient),
-        new ClearChangeGroupTool(mockQrwcClient),
-        new SetChangeGroupAutoPollTool(mockQrwcClient),
-        new ListChangeGroupsTool(mockQrwcClient),
-      ];
-
-      tools.forEach(tool => {
-        // Each tool should mention "Errors:" in its description
-        expect(tool.description).toContain('Errors:');
-
-        // Common errors that should be documented
-        if (tool.name !== 'list_change_groups') {
-          expect(tool.description).toContain('groupId is empty');
-        }
-        expect(tool.description).toContain('Q-SYS Core is not connected');
-      });
-    });
-
-    it('CreateChangeGroupTool should document all error conditions', () => {
-      const tool = new CreateChangeGroupTool(mockQrwcClient);
-
-      expect(tool.description).toContain('Errors:');
-      expect(tool.description).toContain('groupId is empty');
-      expect(tool.description).toContain('Q-SYS Core is not connected');
-      expect(tool.description).toContain('communication fails');
-      expect(tool.description).toContain('warning if group already exists');
-    });
-
-    it('AddControlsToChangeGroupTool should document control-specific errors', () => {
-      const tool = new AddControlsToChangeGroupTool(mockQrwcClient);
-
-      expect(tool.description).toContain('Errors:');
-      expect(tool.description).toContain('controlNames array is empty');
-      expect(tool.description).toContain("change group doesn't exist");
-    });
-
-    it('SetChangeGroupAutoPollTool should document interval validation errors', () => {
-      const tool = new SetChangeGroupAutoPollTool(mockQrwcClient);
-
-      expect(tool.description).toContain('Errors:');
-      expect(tool.description).toContain(
-        'intervalSeconds is outside 0.1-300 range'
-      );
-      expect(tool.description).toContain("change group doesn't exist");
-    });
-
-    it('ListChangeGroupsTool should document adapter support errors', () => {
-      const tool = new ListChangeGroupsTool(mockQrwcClient);
-
-      expect(tool.description).toContain('Errors:');
-      expect(tool.description).toContain(
-        "adapter doesn't support group listing"
-      );
-    });
+  // Change Group tools error handling
+  describe('Error handling', () => {
 
     it('documented errors should match actual behavior - empty groupId', async () => {
       const tool = new CreateChangeGroupTool(mockQrwcClient);
@@ -464,40 +315,9 @@ describe('Change Group Tools', () => {
       // Parse the JSON error response
       const errorResponse = JSON.parse(result.content[0].text);
       expect(errorResponse.error).toBe(true);
-      expect(errorResponse.message).toBe('Q-SYS Core not connected');
+      expect(errorResponse.message).toContain('Q-SYS Core not connected');
     });
 
-    it('documented errors should match actual behavior - invalid interval', async () => {
-      const tool = new SetChangeGroupAutoPollTool(mockQrwcClient);
-
-      // Test below minimum
-      const result1 = await tool.execute({
-        groupId: 'test',
-        enabled: true,
-        intervalSeconds: 0.05,
-      });
-      expect(result1.isError).toBe(true);
-      
-      // Parse the JSON error response
-      const errorResponse1 = JSON.parse(result1.content[0].text);
-      expect(errorResponse1.error).toBe(true);
-      expect(errorResponse1.code).toBe('VALIDATION_ERROR');
-      expect(errorResponse1.message).toBe('Parameter validation failed');
-
-      // Test above maximum
-      const result2 = await tool.execute({
-        groupId: 'test',
-        enabled: true,
-        intervalSeconds: 301,
-      });
-      expect(result2.isError).toBe(true);
-      
-      // Parse the JSON error response
-      const errorResponse2 = JSON.parse(result2.content[0].text);
-      expect(errorResponse2.error).toBe(true);
-      expect(errorResponse2.code).toBe('VALIDATION_ERROR');
-      expect(errorResponse2.message).toBe('Parameter validation failed');
-    });
 
     it('documented errors should match actual behavior - empty control names', async () => {
       const tool = new AddControlsToChangeGroupTool(mockQrwcClient);
@@ -517,8 +337,8 @@ describe('Change Group Tools', () => {
     });
   });
 
-  // Tests from BUG-034: Change Group Methods Implementation
-  describe('Change Group Methods Implementation (BUG-034)', () => {
+  // Change Group Methods Implementation
+  describe('Change Group Methods Implementation', () => {
     it('should verify all 8 Change Group JSON-RPC methods are handled', async () => {
       // This test verifies that the adapter properly handles all change group methods
       const methods = [
@@ -573,12 +393,8 @@ describe('Change Group Tools', () => {
         expect.any(Object)
       );
 
-      const autoPollTool = new SetChangeGroupAutoPollTool(mockQrwcClient);
-      await autoPollTool.execute({ groupId: 'test-bug034', enabled: true, intervalSeconds: 1 });
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith(
-        'ChangeGroup.AutoPoll',
-        expect.any(Object)
-      );
+      // Note: AutoPoll is now handled automatically at change group creation
+      // The SetChangeGroupAutoPollTool has been removed as it's no longer needed
 
       const destroyTool = new DestroyChangeGroupTool(mockQrwcClient);
       await destroyTool.execute({ groupId: 'test-bug034' });

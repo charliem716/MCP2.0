@@ -1,5 +1,5 @@
 /**
- * BUG-043 Error Handling Consistency Verification
+ * Error Handling Consistency Verification
  */
 
 import { describe, it, expect, jest } from '@jest/globals';
@@ -8,7 +8,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
-describe('BUG-043: Error Handling Consistency Verification', () => {
+describe('Error Handling Consistency Verification', () => {
   jest.setTimeout(30000); // 30 second timeout for integration tests
   
   describe('Generic Error Detection', () => {

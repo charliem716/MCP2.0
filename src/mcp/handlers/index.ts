@@ -24,7 +24,6 @@ import {
   createDestroyChangeGroupTool,
   createRemoveControlsFromChangeGroupTool,
   createClearChangeGroupTool,
-  createSetChangeGroupAutoPollTool,
   createListChangeGroupsTool,
   // BUG-132: EventCache-dependent tools removed
   // createReadChangeGroupEventsTool,
@@ -130,7 +129,6 @@ export class MCPToolRegistry {
       createDestroyChangeGroupTool(this.controlSystem),
       createRemoveControlsFromChangeGroupTool(this.controlSystem),
       createClearChangeGroupTool(this.controlSystem),
-      createSetChangeGroupAutoPollTool(this.controlSystem),
       createListChangeGroupsTool(this.controlSystem),
       // Event monitoring tools - always register, let them handle availability
       createQueryChangeEventsTool(this.controlSystem),

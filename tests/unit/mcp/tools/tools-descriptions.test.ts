@@ -8,7 +8,7 @@ import {
 import { QueryCoreStatusTool } from '../../../../src/mcp/tools/status';
 import { GetAllControlsTool } from '../../../../src/mcp/tools/discovery';
 
-// BUG-048 regression tests - ensure all MCP tools have detailed, helpful descriptions
+// Tool description regression tests - ensure all MCP tools have detailed, helpful descriptions
 describe('Tool Descriptions Validation', () => {
   const mockQrwcClient = {};
 

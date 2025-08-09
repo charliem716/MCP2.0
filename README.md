@@ -148,22 +148,22 @@ EVENT_MONITORING_FLUSH_INTERVAL=100
    EVENT_MONITORING_ENABLED=true
    ```
 
-2. **Create a Change Group**
-   Use the MCP tools to create a change group with the controls you want to monitor:
+2. **Create a Change Group with Auto-Polling**
+   Create a change group that automatically polls at the specified rate:
    ```javascript
-   // Example: Monitor volume controls
+   // Example: Create group with 33Hz polling (30ms intervals)
    await mcp.callTool('create_change_group', {
-     id: 'volume-monitoring',
-     controls: ['Zone1.Volume', 'Zone2.Volume', 'MainMix.Volume']
+     groupId: 'volume-monitoring',
+     pollRate: 0.03  // Poll rate in seconds (0.03 = 33Hz)
    });
    ```
 
-3. **Enable Auto-Polling**
-   Subscribe to the change group with a polling interval (in milliseconds):
+3. **Add Controls to Monitor**
+   Add the controls you want to track to the change group:
    ```javascript
-   await mcp.callTool('set_change_group_auto_poll', {
-     changeGroupId: 'volume-monitoring',
-     interval: 30  // Poll every 30ms for high-frequency monitoring
+   await mcp.callTool('add_controls_to_change_group', {
+     groupId: 'volume-monitoring',
+     controlNames: ['Zone1.Volume', 'Zone2.Volume', 'MainMix.Volume']
    });
    ```
 

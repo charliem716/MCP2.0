@@ -1,5 +1,5 @@
 /**
- * BUG-138 Verification Test
+ * Configuration Sprawl Verification Test
  * Ensures all configuration access goes through ConfigManager
  */
 
@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
-describe('BUG-138: Configuration Sprawl Verification', () => {
+describe('Configuration Sprawl Verification', () => {
   const srcPath = path.join(process.cwd(), 'src');
   const allowedPaths = [
     'src/config/index.ts', 

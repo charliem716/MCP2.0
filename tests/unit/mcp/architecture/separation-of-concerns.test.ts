@@ -1,5 +1,5 @@
 /**
- * Test for BUG-135: Architecture Concerns - Separation of Concerns
+ * Architecture Concerns - Separation of Concerns Test
  * 
  * Verifies that the MCP layer is properly decoupled from Q-SYS implementation
  */
@@ -11,7 +11,7 @@ import { MCPToolRegistry } from '../../../../src/mcp/handlers';
 import { BaseQSysTool } from '../../../../src/mcp/tools/base';
 import { z } from 'zod';
 
-describe('BUG-135: Architecture - Separation of Concerns', () => {
+describe('Architecture - Separation of Concerns', () => {
   let container: DIContainer;
   let mockControlSystem: jest.Mocked<IControlSystem>;
 

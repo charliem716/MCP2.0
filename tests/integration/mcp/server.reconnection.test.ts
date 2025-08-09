@@ -1,6 +1,6 @@
 /**
- * Integration tests for MCP Server reconnection handling (BUG-050)
- * Updated for BUG-105 resolution
+ * Integration tests for MCP Server reconnection handling
+ * Verifies server reconnection functionality
  */
 
 import { describe, it, expect, jest } from '@jest/globals';

@@ -131,11 +131,11 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
                   message:
                     'Event monitoring is not active. Please create and subscribe to a change group with auto-polling to start recording events.',
                   configuration: {
-                    EVENT_MONITORING_ENABLED: process.env['EVENT_MONITORING_ENABLED'] || 'false',
-                    EVENT_MONITORING_DB_PATH: process.env['EVENT_MONITORING_DB_PATH'] || './data/events',
-                    EVENT_MONITORING_RETENTION_DAYS: process.env['EVENT_MONITORING_RETENTION_DAYS'] || '30',
-                    EVENT_MONITORING_BUFFER_SIZE: process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000',
-                    EVENT_MONITORING_FLUSH_INTERVAL: process.env['EVENT_MONITORING_FLUSH_INTERVAL'] || '100',
+                    EVENT_MONITORING_ENABLED: process.env['EVENT_MONITORING_ENABLED'] ?? 'false',
+                    EVENT_MONITORING_DB_PATH: process.env['EVENT_MONITORING_DB_PATH'] ?? './data/events',
+                    EVENT_MONITORING_RETENTION_DAYS: process.env['EVENT_MONITORING_RETENTION_DAYS'] ?? '30',
+                    EVENT_MONITORING_BUFFER_SIZE: process.env['EVENT_MONITORING_BUFFER_SIZE'] ?? '1000',
+                    EVENT_MONITORING_FLUSH_INTERVAL: process.env['EVENT_MONITORING_FLUSH_INTERVAL'] ?? '100',
                   },
                 },
                 null,
@@ -176,10 +176,10 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
         },
         configuration: {
           enabled: true,
-          dbPath: process.env['EVENT_MONITORING_DB_PATH'] || './data/events',
-          retentionDays: parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] || '30', 10),
-          bufferSize: parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] || '1000', 10),
-          flushInterval: parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] || '100', 10),
+          dbPath: process.env['EVENT_MONITORING_DB_PATH'] ?? './data/events',
+          retentionDays: parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] ?? '30', 10),
+          bufferSize: parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] ?? '1000', 10),
+          flushInterval: parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] ?? '100', 10),
         },
         executionTimeMs: Date.now() - startTime,
       };

@@ -1,6 +1,6 @@
 /**
  * Simple coverage tests for OfficialQRWCClient - minimal mocking approach
- * Addresses BUG-141: Test Coverage Below 80% Threshold
+ * Addresses test coverage improvements
  */
 
 import {

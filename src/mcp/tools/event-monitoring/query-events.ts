@@ -175,7 +175,7 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
         changeGroupId?: string;
         controlPaths?: string[];
       } = {
-        limit: params.limit || 1000,
+        limit: params.limit ?? 1000,
       };
       
       if (params.startTime !== undefined) queryParams.startTime = params.startTime;
@@ -244,7 +244,7 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
           changeGroupId: params.changeGroupId,
           controlNames: params.controlNames,
           componentNames: params.componentNames,
-          limit: params.limit || 1000,
+          limit: params.limit ?? 1000,
           offset: params.offset,
         },
         executionTimeMs: Date.now() - startTime,

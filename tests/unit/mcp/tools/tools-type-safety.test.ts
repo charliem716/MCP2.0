@@ -14,7 +14,7 @@ import {
 } from '../../../../src/mcp/tools/components';
 import type { QRWCClientInterface } from '../../../../src/mcp/qrwc/adapter';
 
-// BUG-036 regression tests - ensure type safety for all Q-SYS tools
+// Type safety regression tests - ensure type safety for all Q-SYS tools
 describe('Tools Type Safety', () => {
   // Mock QRWC client that implements the interface
   const mockQrwcClient: QRWCClientInterface = {

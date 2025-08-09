@@ -1,5 +1,5 @@
 /**
- * Integration test for BUG-136: Production Readiness Features
+ * Integration test for Production Readiness Features
  * Verifies that all production features are properly implemented and working
  */
 
@@ -15,7 +15,7 @@ import { MCPAuthenticator } from '../../src/mcp/middleware/auth.js';
 // Track all components that need cleanup
 const componentsToCleanup: Array<{ stop: () => void }> = [];
 
-describe('BUG-136: Production Readiness Features', () => {
+describe('Production Readiness Features', () => {
   let server: MCPServer;
   
   beforeAll(() => {

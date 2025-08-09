@@ -155,7 +155,7 @@ export class SecurityHeadersProvider {
     
     if (allowedOrigin === true) {
       // Allow any origin
-      headers['Access-Control-Allow-Origin'] = origin || '*';
+      headers['Access-Control-Allow-Origin'] = origin ?? '*';
     } else if (typeof allowedOrigin === 'string') {
       // Allow specific origin
       headers['Access-Control-Allow-Origin'] = allowedOrigin;

@@ -414,6 +414,13 @@ export class MCPServer {
   }
 
   /**
+   * Check if the server is currently running
+   */
+  isRunning(): boolean {
+    return this.isConnected;
+  }
+
+  /**
    * Shutdown the server and clean up resources
    */
   // eslint-disable-next-line max-statements -- Complex shutdown sequence requires proper cleanup of all resources

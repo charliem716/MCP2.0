@@ -1,5 +1,5 @@
 /**
- * BUG-139: Tests for refactored MCPServer methods
+ * Tests for refactored MCPServer methods
  * Verifies that the extracted methods work correctly in isolation
  */
 
@@ -16,7 +16,7 @@ jest.mock('../../../src/shared/utils/logger.js', () => ({
   })),
 }));
 
-describe('BUG-139: MCPServer Refactored Methods', () => {
+describe('MCPServer Refactored Methods', () => {
   // Since we can't easily test private methods, we'll test the overall behavior
   // by verifying the linting passes and the code structure is improved
   

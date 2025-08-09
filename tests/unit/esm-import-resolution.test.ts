@@ -1,5 +1,5 @@
 /**
- * BUG-133: Test to verify module configuration consistency
+ * Test to verify module configuration consistency
  * This test ensures that ESM modules work correctly with Jest and TypeScript
  */
 
@@ -7,7 +7,7 @@ import { describe, it, expect } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'fs';
 
-describe('BUG-133: Module Configuration Consistency', () => {
+describe('Module Configuration Consistency', () => {
   it('should successfully import ES modules', async () => {
     // Test dynamic import of an ES module
     const loggerModule = await import('../../src/shared/utils/logger');

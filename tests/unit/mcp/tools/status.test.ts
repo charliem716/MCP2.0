@@ -394,8 +394,8 @@ describe('QueryCoreStatusTool', () => {
   });
 });
 
-// BUG-055 regression tests for QueryCoreStatusTool
-describe('QueryCoreStatusTool - BUG-055 regression', () => {
+// Type handling regression tests for QueryCoreStatusTool
+describe('QueryCoreStatusTool - Type handling regression', () => {
   let mockQrwcClient: any;
   let tool: QueryCoreStatusTool;
 
@@ -470,8 +470,8 @@ describe('QueryCoreStatusTool - BUG-055 regression', () => {
     expect(status.networkInfo.dnsServers).toEqual([]);
   });
 
-  // Tests from BUG-057: Status tool fallback detection
-  describe('Status tool fallback detection (BUG-057)', () => {
+  // Status tool fallback detection tests
+  describe('Status tool fallback detection', () => {
     it('should detect adapter fallback data and trigger component scanning', async () => {
       // Mock adapter returning fallback data (not throwing error)
       mockQrwcClient.sendCommand
