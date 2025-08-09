@@ -20,10 +20,9 @@ The MCP Q-SYS Server provides a comprehensive set of tools for controlling and m
 - `get_all_controls` - Comprehensive control discovery
 
 ### 🔄 Change Groups
-- `create_change_group` - Create a new change group
+- `create_change_group` - Create a new change group with auto-polling
 - `add_controls_to_change_group` - Add controls to monitor
 - `poll_change_group` - Get latest changes
-- `set_change_group_auto_poll` - Enable/disable auto-polling
 - `list_change_groups` - List active change groups
 - `remove_controls_from_change_group` - Remove specific controls
 - `clear_change_group` - Clear all controls
@@ -289,13 +288,13 @@ Discovers all available controls across all components.
 
 ### 8. `create_change_group`
 
-Creates a new change group for monitoring control changes.
+Creates a new change group with automatic polling for monitoring control changes. Q-SYS Core handles the polling automatically.
 
 **Parameters:**
 ```typescript
 {
-  id: string;           // Unique identifier for the group
-  pollInterval?: number; // Auto-poll interval in ms (min: 30ms)
+  groupId: string;      // Unique identifier for the group
+  pollRate?: number;    // Polling rate in seconds (default: 1.0, min: 0.03, max: 3600)
 }
 ```
 
@@ -304,11 +303,13 @@ Creates a new change group for monitoring control changes.
 {
   "tool": "create_change_group",
   "arguments": {
-    "id": "mixer-monitor",
-    "pollInterval": 100
+    "groupId": "mixer-monitor",
+    "pollRate": 0.1
   }
 }
 ```
+
+**Note:** Auto-polling starts immediately at the specified rate. The poll rate is fixed after creation.
 
 ---
 
@@ -371,22 +372,7 @@ Polls a change group for recent changes.
 
 ---
 
-### 11. `set_change_group_auto_poll`
-
-Enables or disables automatic polling for a change group.
-
-**Parameters:**
-```typescript
-{
-  id: string;           // Change group ID
-  enabled: boolean;     // Enable/disable auto-polling
-  interval?: number;    // Poll interval in ms (if enabling)
-}
-```
-
----
-
-### 12. `list_change_groups`
+### 11. `list_change_groups`
 
 Lists all active change groups.
 
@@ -399,19 +385,19 @@ Lists all active change groups.
     {
       "id": "mixer-monitor",
       "controlCount": 2,
-      "autoPoll": true,
-      "pollInterval": 100,
-      "created": 1642000000000
+      "hasAutoPoll": true
     }
-  ]
+  ],
+  "totalGroups": 1,
+  "message": "Found 1 active change group(s)"
 }
 ```
 
 ---
 
-### 13. `query_change_events`
+### 12. `query_change_events`
 
-Queries historical control change events from the monitoring system.
+Queries historical control change events from the monitoring system. Returns events recorded from change groups created with auto-polling. Events are automatically recorded when EVENT_MONITORING_ENABLED=true and change groups are actively polling.
 
 **Parameters:**
 ```typescript
@@ -441,25 +427,41 @@ Queries historical control change events from the monitoring system.
 **Example Response:**
 ```json
 {
+  "eventCount": 2,
   "events": [
     {
       "timestamp": 1642000001000,
-      "changeGroupId": "mixer-monitor",
-      "component": "MainMixer",
-      "control": "gain",
-      "oldValue": -10.5,
-      "newValue": -5.0,
-      "string": "-5.0 dB"
+      "change_group_id": "mixer-monitor",
+      "control_path": "MainMixer.gain",
+      "component_name": "MainMixer",
+      "control_name": "gain",
+      "value": -5.0,
+      "string_value": "-5.0 dB",
+      "source": "qsys"
+    },
+    {
+      "timestamp": 1642000002000,
+      "change_group_id": "mixer-monitor",
+      "control_path": "MainMixer.mute",
+      "component_name": "MainMixer",
+      "control_name": "mute",
+      "value": 1,
+      "string_value": "true",
+      "source": "qsys"
     }
   ],
-  "count": 1,
-  "hasMore": false
+  "query": {
+    "changeGroupId": "mixer-monitor",
+    "limit": 100,
+    "startTime": 1642000000000
+  },
+  "executionTimeMs": 15
 }
 ```
 
 ---
 
-### 14. `get_event_statistics`
+### 13. `get_event_statistics`
 
 Gets statistical summary of recorded events.
 
@@ -488,6 +490,35 @@ Gets statistical summary of recorded events.
     "eventsPerSecond": 0.42,
     "peakEventsPerSecond": 5.2
   }
+}
+```
+
+---
+
+### 14. `clear_change_group`
+
+Clears all controls from a change group.
+
+**Parameters:**
+```typescript
+{
+  groupId: string;  // ID of the change group to clear
+}
+```
+
+**Example Request:**
+```json
+{
+  "groupId": "mixer-monitor"
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "groupId": "mixer-monitor",
+  "message": "Change group cleared successfully"
 }
 ```
 
@@ -581,8 +612,8 @@ Use change groups for efficient real-time monitoring:
 {
   "tool": "create_change_group",
   "arguments": {
-    "id": "monitor-1",
-    "pollInterval": 100
+    "groupId": "monitor-1",
+    "pollRate": 0.1
   }
 }
 ```
@@ -602,24 +633,24 @@ Set multiple controls in a single call:
 ```
 
 ### 5. Event Monitoring
-Enable event monitoring for historical analysis:
+Event monitoring is automatically enabled when change groups are created with auto-polling:
 ```json
 {
-  "tool": "set_change_group_auto_poll",
+  "tool": "create_change_group",
   "arguments": {
-    "id": "monitor-1",
-    "enabled": true,
-    "interval": 100
+    "groupId": "monitor-1",
+    "pollRate": 0.1
   }
 }
 ```
+Note: Events are recorded automatically if EVENT_MONITORING_ENABLED is set to true.
 
 ---
 
 ## Rate Limits and Performance
 
 ### Recommended Limits
-- **Poll Interval**: Minimum 30ms, recommended 100ms+
+- **Poll Rate**: Minimum 0.03s (33Hz), recommended 0.1s+ (10Hz or slower)
 - **Batch Size**: Maximum 100 controls per operation
 - **Event Query**: Maximum 10,000 events per query
 - **Concurrent Change Groups**: Recommended maximum 10
@@ -664,28 +695,27 @@ await callTool('set_control_values', {
 
 ### Example 2: Real-time Monitoring
 ```javascript
-// Create monitoring group
+// Create monitoring group with 10Hz auto-polling
 await callTool('create_change_group', {
-  id: 'room-monitor',
-  pollInterval: 100
+  groupId: 'room-monitor',
+  pollRate: 0.1  // 10Hz polling
 });
 
 // Add controls to monitor
 await callTool('add_controls_to_change_group', {
-  id: 'room-monitor',
-  controls: [
-    { component: 'RoomMic', name: 'level' },
-    { component: 'RoomSpeaker', name: 'gain' }
+  groupId: 'room-monitor',
+  controlNames: [
+    'RoomMic.level',
+    'RoomSpeaker.gain'
   ]
 });
 
-// Enable auto-polling
-await callTool('set_change_group_auto_poll', {
-  id: 'room-monitor',
-  enabled: true
+// Poll manually if needed
+const changes = await callTool('poll_change_group', {
+  groupId: 'room-monitor'
 });
 
-// Query historical events
+// Query historical events (if monitoring enabled)
 const events = await callTool('query_change_events', {
   changeGroupId: 'room-monitor',
   limit: 100
@@ -711,7 +741,7 @@ const events = await callTool('query_change_events', {
 ### Event Monitoring Issues
 1. Ensure `EVENT_MONITORING_ENABLED=true`
 2. Check database path permissions
-3. Verify change group has auto-poll enabled
+3. Verify change group was created with appropriate poll rate
 4. Check available disk space
 
 ---

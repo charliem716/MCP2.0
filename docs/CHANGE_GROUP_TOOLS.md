@@ -11,11 +11,15 @@ tracking system state changes, or building reactive applications.
 
 ### 1. create_change_group
 
-Creates a new change group for monitoring control value changes.
+Creates a new change group with automatic polling for monitoring control value changes. Q-SYS Core automatically polls the group at the specified rate.
 
 **Parameters:**
 
 - `groupId` (string, required): Unique identifier for the change group. Must be non-empty.
+- `pollRate` (number, optional): Polling rate in seconds (default: 1.0)
+  - Minimum: 0.03 seconds (33Hz)
+  - Maximum: 3600 seconds (1 hour)
+  - Common values: 0.03 (33Hz), 0.1 (10Hz), 0.5 (2Hz), 1 (1Hz)
 
 **Returns:**
 
@@ -23,7 +27,10 @@ Creates a new change group for monitoring control value changes.
 {
   "success": true,
   "groupId": "mixer-controls",
-  "message": "Change group 'mixer-controls' created successfully"
+  "message": "Change group 'mixer-controls' created with auto-polling",
+  "pollRate": 0.1,
+  "frequency": "10.0Hz",
+  "recording": true
 }
 ```
 
@@ -31,7 +38,8 @@ Creates a new change group for monitoring control value changes.
 
 ```json
 {
-  "groupId": "mixer-controls"
+  "groupId": "mixer-controls",
+  "pollRate": 0.1
 }
 ```
 
@@ -40,6 +48,13 @@ Creates a new change group for monitoring control value changes.
 - Initialize a monitoring session for a specific UI page
 - Create separate groups for different subsystems (audio, video, control)
 - Set up monitoring for user-adjustable controls
+
+**Important Notes:**
+
+- Auto-polling starts immediately when the group is created
+- Q-SYS Core handles the polling automatically at the specified rate
+- If event monitoring is enabled, changes are automatically recorded to the database
+- The poll rate determines both the Core's polling frequency and event recording rate
 
 ---
 
@@ -134,49 +149,7 @@ values have changed.
 
 ---
 
-### 4. set_change_group_auto_poll
-
-Configures automatic polling for a change group. When enabled, the group will be polled
-automatically at the specified interval.
-
-**Parameters:**
-
-- `groupId` (string, required): The change group identifier
-- `enabled` (boolean, required): Enable or disable automatic polling
-- `intervalSeconds` (number, optional): Polling interval in seconds (0.1 to 300, default: 1.0)
-
-**Returns:**
-
-```json
-{
-  "success": true,
-  "groupId": "mixer-controls",
-  "autoPollEnabled": true,
-  "intervalSeconds": 2,
-  "message": "Auto-poll enabled for change group 'mixer-controls' at 2s intervals"
-}
-```
-
-**Example Usage:**
-
-```json
-{
-  "groupId": "mixer-controls",
-  "enabled": true,
-  "intervalSeconds": 0.5
-}
-```
-
-**Important Notes:**
-
-- Minimum interval: 0.1 seconds (100ms)
-- Maximum interval: 300 seconds (5 minutes)
-- Auto-poll stops automatically after 10 consecutive failures
-- Only one auto-poll timer per group (new settings replace existing)
-
----
-
-### 5. list_change_groups
+### 4. list_change_groups
 
 Lists all active change groups and their current status.
 
@@ -211,7 +184,7 @@ Lists all active change groups and their current status.
 
 ---
 
-### 6. remove_controls_from_change_group
+### 5. remove_controls_from_change_group
 
 Removes specific controls from a change group without destroying the group.
 
@@ -242,10 +215,10 @@ Removes specific controls from a change group without destroying the group.
 
 ---
 
-### 7. clear_change_group
+### 6. clear_change_group
 
 Removes all controls from a change group while keeping the group active. Useful for reconfiguring
-monitoring.
+monitoring. Auto-polling continues at the originally configured rate.
 
 **Parameters:**
 
@@ -271,9 +244,9 @@ monitoring.
 
 ---
 
-### 8. destroy_change_group
+### 7. destroy_change_group
 
-Destroys a change group and cleans up all associated resources including auto-poll timers.
+Destroys a change group and stops Q-SYS Core from polling it. Also cleans up all associated resources.
 
 **Parameters:**
 
@@ -299,8 +272,9 @@ Destroys a change group and cleans up all associated resources including auto-po
 
 **Notes:**
 
-- Automatically stops any active auto-poll timers
+- Stops Q-SYS Core from auto-polling this group
 - Clears all stored control values and history
+- Stops event recording for this group if monitoring is enabled
 - Group ID can be reused after destruction
 
 ---
@@ -315,9 +289,12 @@ Destroys a change group and cleans up all associated resources including auto-po
 
 ### 2. Polling Strategy
 
-- Use auto-poll for UI updates (0.5-2 second intervals)
-- Use manual poll for event-driven updates
-- Consider network and CPU load when setting intervals
+- Configure poll rate during group creation based on needs:
+  - UI updates: 0.1-0.5 seconds (10Hz-2Hz)
+  - Status monitoring: 1-5 seconds
+  - Background checks: 10-60 seconds
+- Use manual `poll_change_group` for event-driven updates
+- Q-SYS Core handles the automatic polling efficiently
 
 ### 3. Lifecycle Management
 
@@ -336,16 +313,14 @@ Destroys a change group and cleans up all associated resources including auto-po
 ### UI Page Monitoring
 
 ```javascript
-// When entering a page
-create_change_group({ groupId: 'mixer-page' });
+// When entering a page - auto-polling starts immediately
+create_change_group({ 
+  groupId: 'mixer-page',
+  pollRate: 0.5  // 2Hz polling for responsive UI
+});
 add_controls_to_change_group({
   groupId: 'mixer-page',
   controlNames: getAllMixerControls(),
-});
-set_change_group_auto_poll({
-  groupId: 'mixer-page',
-  enabled: true,
-  intervalSeconds: 0.5,
 });
 
 // When leaving the page
@@ -355,7 +330,7 @@ destroy_change_group({ groupId: 'mixer-page' });
 ### Event-Driven Updates
 
 ```javascript
-// Set up monitoring
+// Set up monitoring with 1Hz polling (default)
 create_change_group({ groupId: 'critical-controls' });
 add_controls_to_change_group({
   groupId: 'critical-controls',
@@ -372,8 +347,11 @@ if (result.hasChanges) {
 ### Dynamic Monitoring
 
 ```javascript
-// Start with core controls
-create_change_group({ groupId: 'dynamic-group' });
+// Start with core controls - 1 second poll rate
+create_change_group({ 
+  groupId: 'dynamic-group',
+  pollRate: 1.0
+});
 add_controls_to_change_group({
   groupId: 'dynamic-group',
   controlNames: coreControls,
@@ -399,13 +377,17 @@ if (userClosesMixer) {
 ## Performance Considerations
 
 1. **Polling Frequency**: Higher frequencies increase network and CPU load
+   - Q-SYS Core handles polling efficiently, but consider overall system load
+   - 33Hz (0.03s) is maximum rate, suitable for real-time meters
+   - 1-10Hz typical for UI updates
 2. **Group Size**: Larger groups take longer to process
-3. **Network Latency**: Consider round-trip time when setting intervals
-4. **Concurrent Groups**: Each auto-poll group runs independently
+3. **Network Latency**: Consider round-trip time when setting poll rates
+4. **Concurrent Groups**: Each group polls independently at Q-SYS Core level
 
 ## Limitations
 
-- Maximum 10 consecutive poll failures before auto-poll stops
 - Control names must match exactly (case-sensitive)
 - Groups are not persisted across server restarts
 - No built-in change history (only current vs last poll)
+- Poll rate is fixed after group creation (recreate group to change rate)
+- Q-SYS Core manages all automatic polling internally

@@ -4,9 +4,9 @@
 
 ### create_change_group
 
-> Create a new change group for monitoring control value changes. Groups allow efficient polling of
-> multiple controls at once. Example: {groupId:'mixer-controls'} creates a group for monitoring
-> mixer-related controls. Group IDs must be unique and non-empty.
+> Create a new change group with automatic polling for monitoring control value changes. Q-SYS Core
+> polls the group automatically at the specified rate. Example: {groupId:'mixer-controls',pollRate:0.1}
+> creates a group with 10Hz polling. Group IDs must be unique. Default poll rate is 1 second.
 
 ### add_controls_to_change_group
 
@@ -22,13 +22,6 @@
 > array of changed controls with Name, Value, and String properties. Use for efficient UI updates or
 > state monitoring.
 
-### set_change_group_auto_poll
-
-> Configure automatic polling for a change group. When enabled, polls at specified interval (0.1-300
-> seconds). Auto-stops after 10 consecutive failures. Example:
-> {groupId:'mixer-controls',enabled:true,intervalSeconds:0.5} polls every 500ms. Set enabled:false
-> to stop polling.
-
 ### list_change_groups
 
 > List all active change groups showing ID, control count, and auto-poll status. No parameters
@@ -43,22 +36,22 @@
 
 ### clear_change_group
 
-> Remove all controls from a change group while keeping it active. Useful for reconfiguring
-> monitoring without destroying/recreating the group. Example: {groupId:'mixer-controls'} clears all
-> controls but keeps the group ready for new additions.
+> Remove all controls from a change group while keeping it active. Auto-polling continues at the
+> originally configured rate. Useful for reconfiguring monitoring without destroying/recreating the
+> group. Example: {groupId:'mixer-controls'} clears all controls but keeps the group and polling active.
 
 ### destroy_change_group
 
-> Destroy a change group and clean up all resources including auto-poll timers. Always destroy
-> groups when no longer needed to prevent memory leaks. Example: {groupId:'mixer-controls'} destroys
-> the group and stops any associated polling.
+> Destroy a change group and stop Q-SYS Core from polling it. Always destroy groups when no longer
+> needed to prevent memory leaks. Example: {groupId:'mixer-controls'} destroys the group and stops
+> Core polling. Also stops event recording if monitoring is enabled.
 
 ## Quick Examples
 
 ### Basic Monitoring Setup
 
 ```javascript
-// 1. Create group
+// 1. Create group with auto-polling (default 1Hz)
 create_change_group({ groupId: 'ui-page-1' });
 
 // 2. Add controls
@@ -78,18 +71,20 @@ destroy_change_group({ groupId: 'ui-page-1' });
 ### Auto-Polling Setup
 
 ```javascript
-// Enable auto-polling every 500ms
-set_change_group_auto_poll({
+// Create group with 500ms (2Hz) polling for real-time meters
+create_change_group({
   groupId: 'realtime-meters',
-  enabled: true,
-  intervalSeconds: 0.5,
+  pollRate: 0.5
 });
 
-// Disable auto-polling
-set_change_group_auto_poll({
-  groupId: 'realtime-meters',
-  enabled: false,
+// For high-frequency updates (33Hz)
+create_change_group({
+  groupId: 'audio-meters',
+  pollRate: 0.03
 });
+
+// Note: Poll rate is fixed after creation. To change rate,
+// destroy and recreate the group.
 ```
 
 ### Dynamic Control Management

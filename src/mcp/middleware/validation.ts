@@ -161,7 +161,7 @@ export class InputValidator {
   /**
    * Validate tool input
    */
-  validate(toolNameOrInput: string | unknown, inputOrSchema?: unknown): {
+  validate(toolNameOrInput: unknown, inputOrSchema?: unknown): {
     valid: boolean;
     data?: unknown;
     error?: ReturnType<typeof formatValidationError> | string;

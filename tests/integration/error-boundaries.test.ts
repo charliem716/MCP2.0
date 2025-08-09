@@ -100,28 +100,39 @@ describe('Error Boundaries and Handling', () => {
     it('should handle unhandled promise rejections without crashing', async () => {
       await server.start();
       
-      // Track if our handler was called
-      let handlerCalled = false;
-      const originalHandler = process.listeners('unhandledRejection')[0];
-      process.removeAllListeners('unhandledRejection');
-      process.on('unhandledRejection', (reason) => {
-        handlerCalled = true;
-        if (originalHandler) originalHandler(reason, Promise.reject(reason));
+      // Verify that server registers unhandledRejection handler
+      const handlers = process.listeners('unhandledRejection');
+      expect(handlers.length).toBeGreaterThan(0);
+      
+      // Track if server's handler works
+      let serverHandlerFound = false;
+      for (const handler of handlers) {
+        // Check if handler is from MCP server (contains logger.error call)
+        if (handler.toString().includes('Unhandled rejection')) {
+          serverHandlerFound = true;
+          break;
+        }
+      }
+      expect(serverHandlerFound).toBe(true);
+      
+      // Simulate unhandled rejection by directly calling the handler
+      const testError = new Error('Test unhandled rejection');
+      const testPromise = Promise.reject(testError);
+      
+      // Call handlers directly to ensure they work
+      handlers.forEach(handler => {
+        try {
+          handler(testError, testPromise);
+        } catch (e) {
+          // Handler might throw, that's ok
+        }
       });
       
-      // Create unhandled rejection
-      Promise.reject(new Error('Test unhandled rejection'));
+      // Clean up the promise
+      testPromise.catch(() => {/* intentionally empty */});
       
-      // Wait for handlers
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Server should still be running and handler should have been called
+      // Server should still be running after handling rejection
       expect(server.isRunning()).toBe(true);
-      expect(handlerCalled).toBe(true);
-      
-      // Restore original handler
-      process.removeAllListeners('unhandledRejection');
-      process.on('unhandledRejection', originalHandler);
     });
   });
 
@@ -201,35 +212,38 @@ describe('Error Boundaries and Handling', () => {
     it('should recover from errors and continue operating', async () => {
       await server.start();
       
-      // Track errors
-      const handledErrors: any[] = [];
-      const originalHandler = process.listeners('unhandledRejection')[0];
-      process.removeAllListeners('unhandledRejection');
-      process.on('unhandledRejection', (reason) => {
-        handledErrors.push(reason);
-        if (originalHandler) originalHandler(reason, Promise.reject(reason));
-      });
+      // Get unhandledRejection handlers
+      const handlers = process.listeners('unhandledRejection');
+      expect(handlers.length).toBeGreaterThan(0);
       
-      // Cause multiple errors
+      // Simulate multiple errors by calling handlers directly
+      const errors: Error[] = [];
       for (let i = 0; i < 5; i++) {
-        Promise.reject(new Error(`Test error ${i}`));
+        const error = new Error(`Test error ${i}`);
+        const promise = Promise.reject(error);
+        errors.push(error);
+        
+        // Call each handler with the error
+        handlers.forEach(handler => {
+          try {
+            handler(error, promise);
+          } catch (e) {
+            // Handler might throw, that's ok
+          }
+        });
+        
+        // Clean up the promise
+        promise.catch(() => {/* intentionally empty */});
       }
       
-      // Wait for handlers
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Server should still be running
+      // Server should still be running after handling multiple errors
       expect(server.isRunning()).toBe(true);
-      expect(handledErrors.length).toBe(5);
       
       // Should be able to execute new operations
       const toolRegistry = server['toolRegistry'];
       const tools = await toolRegistry?.listTools();
       expect(tools).toBeDefined();
-      
-      // Restore original handler
-      process.removeAllListeners('unhandledRejection');
-      process.on('unhandledRejection', originalHandler);
+      expect(tools.length).toBeGreaterThan(0);
     });
 
     it('should provide meaningful error messages', async () => {

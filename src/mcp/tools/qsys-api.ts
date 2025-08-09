@@ -701,36 +701,46 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
         {
           name: 'create_change_group',
           description:
-            'Create a new change group for monitoring control value changes. Groups allow efficient polling of multiple controls at once',
-          usage: 'Parameters: groupId (string, required)',
+            'Create a new change group with automatic polling for monitoring control value changes. Q-SYS Core handles polling automatically at the specified rate',
+          usage: 'Parameters: groupId (string, required), pollRate (number, optional)',
           parameters: {
             groupId:
               'Unique identifier for the change group. Must be non-empty string',
+            pollRate:
+              'Polling rate in seconds (default: 1.0, min: 0.03=33Hz, max: 3600=1hr). Core polls automatically at this rate',
           },
           example: {
             tool: 'create_change_group',
             arguments: {
               groupId: 'mixer-controls',
+              pollRate: 0.1,
             },
           },
           examples: [
             {
-              arguments: { groupId: 'mixer-controls' },
-              description: 'Create group for monitoring mixer-related controls',
+              arguments: { groupId: 'mixer-controls', pollRate: 0.1 },
+              description: 'Create group with 10Hz polling for responsive mixer controls',
             },
             {
-              arguments: { groupId: 'ui-page-1' },
-              description: 'Create group for specific UI page monitoring',
+              arguments: { groupId: 'ui-page-1', pollRate: 0.5 },
+              description: 'Create group with 2Hz polling for UI page monitoring',
             },
             {
-              arguments: { groupId: 'critical-alarms' },
-              description: 'Create group for system alarm monitoring',
+              arguments: { groupId: 'critical-alarms', pollRate: 1 },
+              description: 'Create group with 1Hz polling for system alarm monitoring',
+            },
+            {
+              arguments: { groupId: 'meters', pollRate: 0.03 },
+              description: 'Create group with 33Hz polling for real-time audio meters',
             },
           ],
           returns: {
             success: 'true/false indicating operation success',
             groupId: 'The created group identifier',
             message: 'Success or warning message',
+            pollRate: 'The configured polling rate in seconds',
+            frequency: 'Human-readable frequency (e.g., "10.0Hz")',
+            recording: 'Whether event monitoring is enabled',
             warning: 'Present if group already exists',
           },
           use_cases: [
@@ -745,6 +755,8 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
             'Create logical groups based on UI pages or functional areas',
             'Always destroy groups when no longer needed',
             'Check for existing groups with list_change_groups before creating',
+            'Choose appropriate poll rates: 0.03s for meters, 0.1-0.5s for UI, 1-5s for monitoring',
+            'Poll rate is fixed after creation - recreate group to change rate',
           ],
           errors: [
             'Throws if groupId is empty string',
@@ -901,7 +913,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
         {
           name: 'list_change_groups',
           description:
-            'List all active change groups showing ID, control count, and auto-poll status',
+            'List all active change groups showing ID, control count, and polling status',
           usage: 'No parameters required',
           parameters: {},
           example: {
@@ -914,7 +926,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
               returns: {
                 groups: [
                   { id: 'mixer-controls', controlCount: 4, hasAutoPoll: true },
-                  { id: 'room-controls', controlCount: 8, hasAutoPoll: false },
+                  { id: 'room-controls', controlCount: 8, hasAutoPoll: true },
                 ],
                 totalGroups: 2,
                 message: 'Found 2 active change group(s)',
@@ -933,7 +945,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           ],
           returns: {
             groups:
-              'Array of group objects with id, controlCount, and hasAutoPoll',
+              'Array of group objects with id, controlCount, and hasAutoPoll (always true)',
             totalGroups: 'Total number of active groups',
             message: 'Summary message',
           },
@@ -1053,9 +1065,10 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
             'Prepare group for completely new set of controls',
           ],
           advantages: [
-            'Preserves group ID and auto-poll settings',
+            'Preserves group ID and polling configuration',
             'More efficient than destroy/create cycle',
-            'Maintains any group-specific configuration',
+            'Maintains poll rate from original creation',
+            'Continues automatic polling at same rate',
           ],
           errors: [
             'Throws if groupId is empty',
@@ -1066,7 +1079,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
         {
           name: 'destroy_change_group',
           description:
-            'Destroy a change group and clean up all resources including auto-poll timers. Always destroy groups when no longer needed',
+            'Destroy a change group and stop Q-SYS Core from polling it. Always destroy groups when no longer needed to prevent memory leaks',
           usage: 'Parameters: groupId (string, required)',
           parameters: {
             groupId: 'Change group identifier to destroy',
@@ -1097,9 +1110,10 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
             message: 'Success message',
           },
           cleanup_actions: [
-            'Stops any active auto-poll timers',
+            'Stops Q-SYS Core from polling this group',
             'Clears all stored control values and history',
             'Removes group from active groups list',
+            'Stops event recording if monitoring is enabled',
             'Frees all associated memory',
           ],
           use_cases: [
@@ -1130,7 +1144,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
         'Add ramp parameter for smooth audio transitions',
         'Use change groups for efficient monitoring of multiple controls',
         'Always destroy change groups when no longer needed to prevent memory leaks',
-        'Set appropriate auto-poll intervals based on use case (0.1s for meters, 0.5-2s for UI)',
+        'Set appropriate poll rates during group creation: 0.03s (33Hz) for meters, 0.1-0.5s for UI, 1-5s for monitoring',
         'Group related controls logically (by UI page, subsystem, or function)',
       ],
       common_workflows: [
@@ -1153,16 +1167,16 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           steps: [
             '1. Use create_change_group to create a monitoring group',
             '2. Use add_controls_to_change_group to add controls to monitor',
-            '3. Use poll_change_group manually if needed (auto-polling is automatic)',
+            '3. Poll automatically happens at configured rate, use poll_change_group for manual checks',
             '4. Use destroy_change_group when monitoring is complete',
           ],
         },
         {
           task: 'Build reactive UI',
           steps: [
-            "1. Create change group for UI page: create_change_group({groupId: 'page-1'})",
+            "1. Create change group with poll rate: create_change_group({groupId: 'page-1', pollRate: 0.5})",
             "2. Add all UI controls: add_controls_to_change_group({groupId: 'page-1', controlNames: [...]})",
-            "3. Receive automatic updates at configured poll rate",
+            "3. Q-SYS Core polls automatically at configured rate (events recorded if monitoring enabled)",
             '4. Update UI only for changed controls from poll results',
             "5. Destroy group on page exit: destroy_change_group({groupId: 'page-1'})",
           ],
@@ -1170,9 +1184,9 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
         {
           task: 'Monitor system alarms',
           steps: [
-            "1. Create alarm group: create_change_group({groupId: 'alarms'})",
+            "1. Create alarm group: create_change_group({groupId: 'alarms', pollRate: 1})",
             "2. Add alarm controls: add_controls_to_change_group({groupId: 'alarms', controlNames: ['System.alarm1', 'System.alarm2']})",
-            "3. Receive automatic updates at configured poll rate",
+            "3. Q-SYS Core polls automatically every second",
             '4. Process changes to trigger alerts',
           ],
         },
@@ -1180,7 +1194,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
       change_group_patterns: {
         ui_monitoring: {
           description: 'Monitor controls for a UI page',
-          pattern: 'create → add controls → enable auto-poll → destroy on exit',
+          pattern: 'create (with poll rate) → add controls → automatic polling → destroy on exit',
         },
         event_driven: {
           description: 'Check for changes on demand',
