@@ -172,7 +172,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-          {
+            {
             Name: 'volume_control',
             Type: 'Float',
             String: '-20.5 dB',
@@ -190,7 +190,8 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
             String: '50%', // Not dB, so won't be gain
             Value: 50
           }
-        ]
+          ]
+        }
       });
 
       const result = await tool.execute({ component: "TestComponent" });
@@ -206,9 +207,10 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-          { Name: 'router.input.select', Value: 1 },
+            { Name: 'router.input.select', Value: 1 },
           { Name: 'matrix.output.select', Value: 2 }
-        ]
+          ]
+        }
       });
 
       const result = await tool.execute({ component: "TestComponent" });
@@ -225,15 +227,16 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [{
-          Name: 'test',
-          Value: 0,
-          ValueMin: -100,
-          ValueMax: 20,
-          StringMin: '-100 dB',
-          StringMax: '20 dB',
-          Direction: 'Read/Write',
-          Position: 0.5
-        }]
+            Name: 'test',
+            Value: 0,
+            ValueMin: -100,
+            ValueMax: 20,
+            StringMin: '-100 dB',
+            StringMax: '20 dB',
+            Direction: 'Read/Write',
+            Position: 0.5
+          }]
+        }
       });
 
       const result = await tool.execute({ component: "TestComponent" });
@@ -254,16 +257,17 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [{
-          Name: 'test',
-          Value: 0,
-          Properties: {
-            MinValue: -80,
-            MaxValue: 12,
-            Units: 'dB',
-            Step: 0.5,
-            ValueType: 'Float'
-          }
-        }]
+            Name: 'test',
+            Value: 0,
+            Properties: {
+              MinValue: -80,
+              MaxValue: 12,
+              Units: 'dB',
+              Step: 0.5,
+              ValueType: 'Float'
+            }
+          }]
+        }
       });
 
       const result = await tool.execute({ component: "TestComponent" });
@@ -283,15 +287,16 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [{
-          Name: 'test',
-          Value: 0,
-          ValueMin: -100,
-          ValueMax: 20,
-          Properties: {
-            Units: 'dB',
-            Step: 0.1
-          }
-        }]
+            Name: 'test',
+            Value: 0,
+            ValueMin: -100,
+            ValueMax: 20,
+            Properties: {
+              Units: 'dB',
+              Step: 0.1
+            }
+          }]
+        }
       });
 
       const result = await tool.execute({ component: "TestComponent" });
@@ -312,10 +317,11 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-          { Name: 'SimpleControl', Value: 1 },
+            { Name: 'SimpleControl', Value: 1 },
           { Name: 'AnotherControl', Value: 2 },
           { Name: 'Gain', Value: 3 }
-        ]
+          ]
+        }
       });
 
       const result = await tool.execute({ component: "TestComponent" });
@@ -335,12 +341,13 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-          { Name: 'ctrl1', Value: null },
+            { Name: 'ctrl1', Value: null },
           { Name: 'ctrl2', Value: undefined },
           { Name: 'ctrl3', Value: { complex: 'object' } },
           { Name: 'ctrl4', Value: [1, 2, 3] },
           { Name: 'ctrl5' } // No Value property
-        ]
+          ]
+        }
       });
 
       const result = await tool.execute({ component: "TestComponent" });
@@ -381,10 +388,11 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-          { Name: 'gain', Component: 'Mixer1', Value: -10 },
+            { Name: 'gain', Component: 'Mixer1', Value: -10 },
           { Name: 'gain', Component: 'Mixer2', Value: -5 },
           { Name: 'mute', Component: 'Mixer1', Value: false }
-        ]
+          ]
+        }
       });
 
       // When component is specified but response is array format (GetAllControls was used)
