@@ -292,7 +292,12 @@ export class EventDatabaseBackupManager {
     
     try {
       const exportContent = fs.readFileSync(exportPath, 'utf-8');
-      const exportData = assertDatabaseExportData(JSON.parse(exportContent));
+      let exportData: DatabaseExportData;
+      try {
+        exportData = assertDatabaseExportData(JSON.parse(exportContent));
+      } catch (error) {
+        throw new Error('Invalid export file format');
+      }
       
       if (!exportData.events || !Array.isArray(exportData.events)) {
         throw new Error('Invalid export file format');

@@ -30,13 +30,11 @@ export interface DatabaseExportResult {
 }
 
 export interface DatabaseExportData {
+  exportedAt: string;
+  eventsCount: number;
+  startTime?: string;
+  endTime?: string;
   events: DatabaseEventRow[];
-  metadata: {
-    exportTime: string;
-    totalEvents: number;
-    startTime?: number;
-    endTime?: number;
-  };
 }
 
 export interface DatabaseEventRow {
@@ -125,9 +123,10 @@ export function isDatabaseExportData(value: unknown): value is DatabaseExportDat
   return (
     typeof value === 'object' &&
     value !== null &&
+    'exportedAt' in value &&
+    'eventsCount' in value &&
     'events' in value &&
-    Array.isArray((value as DatabaseExportData).events) &&
-    'metadata' in value
+    Array.isArray((value as DatabaseExportData).events)
   );
 }
 
