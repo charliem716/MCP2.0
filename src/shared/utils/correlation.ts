@@ -56,7 +56,7 @@ export function getCorrelationContext(): {
  * Create a correlation middleware for MCP requests
  */
 export function createCorrelationMiddleware() {
-  return (request: any, next: () => any) => {
+  return (request: { method?: string }, next: () => unknown) => {
     const correlationId = generateCorrelationId();
     return runWithCorrelation(correlationId, next, { 
       method: request.method,

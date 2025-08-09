@@ -117,7 +117,7 @@ export function handleGetControls(
 
       // Only add Position if it exists - safely check for the property
       if (control && typeof control === 'object' && 'Position' in control) {
-        const pos = (control as any).Position;
+        const pos = (control as { Position?: unknown }).Position;
         if (typeof pos === 'number') {
           result.Position = pos;
         }
@@ -327,7 +327,7 @@ export function handleControlGetValues(
   
   // Parse and group controls
   for (let index = 0; index < controlNames.length; index++) {
-    const fullName = controlNames[index];
+    const fullName = controlNames[index] as string;
     resultOrder.set(fullName, index);
     
     if (typeof fullName !== 'string') {
@@ -387,9 +387,9 @@ export function handleControlGetValues(
         let stringValue = valueToString(value);
         
         if (control && typeof control === 'object' && 'state' in control) {
-          const state = (control as any).state;
+          const state = (control as { state?: { String?: unknown } }).state;
           if (state && typeof state === 'object' && 'String' in state) {
-            stringValue = state.String;
+            stringValue = state.String as string;
           }
         }
         

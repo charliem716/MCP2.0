@@ -161,7 +161,7 @@ export class InputValidator {
   /**
    * Validate tool input
    */
-  validate(toolNameOrInput: any, inputOrSchema?: unknown): {
+  validate(toolNameOrInput: string | unknown, inputOrSchema?: unknown): {
     valid: boolean;
     data?: unknown;
     error?: ReturnType<typeof formatValidationError> | string;
@@ -169,7 +169,7 @@ export class InputValidator {
     this.validationStats.total++;
 
     // Support both signatures
-    let schema: any;
+    let schema: { parse: (input: unknown) => unknown } | undefined;
     let input: unknown;
     let toolName: string | undefined;
     
@@ -192,7 +192,7 @@ export class InputValidator {
     }
 
     try {
-      const validated = schema.parse(input);
+      const validated = schema ? schema.parse(input) : input;
       this.validationStats.passed++;
       
       this.logger.debug('Validation passed', { 
@@ -272,8 +272,8 @@ export class InputValidator {
   /**
    * Create middleware function for request validation
    */
-  middleware(schemas: Record<string, any>) {
-    return async (context: any, next: Function) => {
+  middleware(schemas: Record<string, { parse: (input: unknown) => unknown }>) {
+    return async (context: { method: string; params?: unknown }, next: () => Promise<unknown>) => {
       const schema = schemas[context.method];
       if (schema) {
         const result = this.validate(context.params, schema);

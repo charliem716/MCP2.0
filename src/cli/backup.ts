@@ -12,6 +12,18 @@ import { globalLogger as logger } from '../shared/utils/logger.js';
 import { cliOutput } from './output.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import type { 
+  BackupCommandOptions,
+  RestoreCommandOptions,
+  ListCommandOptions,
+  ExportCommandOptions,
+  DatabaseIntegrityCheck,
+  DatabaseCountResult
+} from '../shared/types/external-apis.js';
+import {
+  assertDatabaseIntegrityCheck,
+  assertDatabaseCountResult
+} from '../shared/types/external-apis.js';
 
 const program = new Command();
 
@@ -24,7 +36,7 @@ program
   .command('backup')
   .description('Create a backup of the event database')
   .option('-d, --db <path>', 'Database path', './data/events')
-  .action(async (options) => {
+  .action(async (options: BackupCommandOptions) => {
     try {
       const monitor = new SQLiteEventMonitor();
       await monitor.initialize();
@@ -58,7 +70,7 @@ program
   .description('Restore database from a backup file')
   .option('-t, --target <path>', 'Target database path', './data/events')
   .option('-f, --force', 'Force restore without confirmation')
-  .action(async (backupFile, options) => {
+  .action(async (backupFile: string, options: RestoreCommandOptions) => {
     try {
       if (!fs.existsSync(backupFile)) {
         throw new Error(`Backup file not found: ${backupFile}`);
@@ -134,7 +146,7 @@ program
   .option('-s, --start <timestamp>', 'Start timestamp (Unix ms)', parseInt)
   .option('-e, --end <timestamp>', 'End timestamp (Unix ms)', parseInt)
   .option('-d, --days <days>', 'Export last N days', parseInt)
-  .action(async (options) => {
+  .action(async (options: BackupCommandOptions) => {
     try {
       const monitor = new SQLiteEventMonitor();
       await monitor.initialize();
@@ -173,7 +185,7 @@ program
 program
   .command('import <export-file>')
   .description('Import event data from JSON export')
-  .action(async (exportFile) => {
+  .action(async (exportFile: string) => {
     try {
       if (!fs.existsSync(exportFile)) {
         throw new Error(`Export file not found: ${exportFile}`);
@@ -202,7 +214,7 @@ program
 program
   .command('verify <database-file>')
   .description('Verify database integrity')
-  .action(async (databaseFile) => {
+  .action(async (databaseFile: string) => {
     try {
       if (!fs.existsSync(databaseFile)) {
         throw new Error(`Database file not found: ${databaseFile}`);
@@ -211,8 +223,12 @@ program
       const Database = (await import('better-sqlite3')).default;
       const db = new Database(databaseFile, { readonly: true });
       
-      const integrityCheck = db.prepare('PRAGMA integrity_check').get() as any;
-      const stats = db.prepare('SELECT COUNT(*) as count FROM events').get() as any;
+      const integrityCheck = assertDatabaseIntegrityCheck(
+        db.prepare('PRAGMA integrity_check').get()
+      );
+      const stats = assertDatabaseCountResult(
+        db.prepare('SELECT COUNT(*) as count FROM events').get()
+      );
       
       db.close();
       

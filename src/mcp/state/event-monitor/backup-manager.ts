@@ -11,6 +11,15 @@ import * as path from 'path';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
+import type { 
+  DatabaseIntegrityCheck,
+  DatabaseCountResult,
+  DatabaseExportResult
+} from '../../../shared/types/external-apis.js';
+import {
+  assertDatabaseIntegrityCheck,
+  assertDatabaseCountResult
+} from '../../../shared/types/external-apis.js';
 
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
@@ -92,14 +101,14 @@ export class EventDatabaseBackupManager {
       const sourceDb = new Database(sourcePath, { readonly: true });
       
       // Verify integrity before backup
-      const integrityCheck = sourceDb.prepare('PRAGMA integrity_check').get() as any;
+      const integrityCheck = assertDatabaseIntegrityCheck(sourceDb.prepare('PRAGMA integrity_check').get());
       if (integrityCheck.integrity_check !== 'ok') {
         sourceDb.close();
         throw new Error('Source database integrity check failed');
       }
       
       // Get event count for metadata
-      const stats = sourceDb.prepare('SELECT COUNT(*) as count FROM events').get() as any;
+      const stats = assertDatabaseCountResult(sourceDb.prepare('SELECT COUNT(*) as count FROM events').get());
       const eventsCount = stats.count;
       
       // Perform backup using SQLite backup API
@@ -170,7 +179,7 @@ export class EventDatabaseBackupManager {
       
       // Verify backup integrity
       const backupDb = new Database(tempPath, { readonly: true });
-      const integrityCheck = backupDb.prepare('PRAGMA integrity_check').get() as any;
+      const integrityCheck = assertDatabaseIntegrityCheck(backupDb.prepare('PRAGMA integrity_check').get());
       
       if (integrityCheck.integrity_check !== 'ok') {
         backupDb.close();
@@ -181,7 +190,7 @@ export class EventDatabaseBackupManager {
       }
       
       // Get backup info
-      const stats = backupDb.prepare('SELECT COUNT(*) as count, MIN(timestamp) as min_ts, MAX(timestamp) as max_ts FROM events').get() as any;
+      const stats = backupDb.prepare('SELECT COUNT(*) as count, MIN(timestamp) as min_ts, MAX(timestamp) as max_ts FROM events').get() as { count: number; min_ts: number | null; max_ts: number | null };
       backupDb.close();
       
       // Create target directory if needed
@@ -430,7 +439,7 @@ export class EventDatabaseBackupManager {
   stopAutoBackup(): void {
     if (this.autoBackupTimer) {
       clearInterval(this.autoBackupTimer);
-      this.autoBackupTimer = undefined as any;
+      this.autoBackupTimer = undefined as unknown as NodeJS.Timeout;
       logger.info('Automatic backups stopped');
     }
   }

@@ -52,7 +52,7 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const level = mcpConfig.logLevel as LogLevel;
 
   // Add correlation ID to log entries
-  const correlationFormat = format((info: any) => {
+  const correlationFormat = format((info: Record<string, unknown>) => {
     const context = getCorrelationContext();
     if (context?.correlationId) {
       info.correlationId = context.correlationId;
@@ -184,7 +184,7 @@ class EnhancedLogger implements Logger {
   }
 
   private log(level: string, message: string, meta?: unknown): void {
-    const logData: any = { message };
+    const logData: Record<string, unknown> = { message };
     
     // Add context
     if (Object.keys(this.context).length > 0) {
@@ -201,7 +201,8 @@ class EnhancedLogger implements Logger {
     // Add performance timing if available
     const correlationContext = getCorrelationContext();
     if (correlationContext?.metadata?.['startTime']) {
-      const duration = Date.now() - (correlationContext.metadata['startTime'] as number);
+      const startTime = correlationContext.metadata['startTime'];
+      const duration = typeof startTime === 'number' ? Date.now() - startTime : 0;
       logData.duration = duration;
       
       // Add explicit performance metrics

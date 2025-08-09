@@ -131,7 +131,7 @@ export function formatUserError(error: unknown, context?: string): string {
 /**
  * Wrap a function to catch and log errors
  */
-export function errorBoundary<T extends (...args: any[]) => any>(
+export function errorBoundary<T extends (...args: never[]) => unknown>(
   fn: T,
   context: string
 ): T {

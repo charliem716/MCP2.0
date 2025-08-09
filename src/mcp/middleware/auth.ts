@@ -97,9 +97,10 @@ export class MCPAuthenticator {
     
     if (typeof methodOrContext === 'object' && methodOrContext !== null) {
       // RequestContext object passed
-      method = methodOrContext['method'];
-      actualHeaders = methodOrContext['meta'] as Record<string, string | string[]>;
-      actualMetadata = methodOrContext['metadata'];
+      const ctx = methodOrContext as { method?: string; meta?: Record<string, string | string[]>; metadata?: Record<string, unknown> };
+      method = ctx.method;
+      actualHeaders = ctx.meta;
+      actualMetadata = ctx.metadata;
     } else {
       // Original signature
       method = methodOrContext;
@@ -242,7 +243,7 @@ export class MCPAuthenticator {
       }
 
       // Parse payload
-      const payload: TokenPayload = JSON.parse(payloadStr);
+      const payload = JSON.parse(payloadStr) as TokenPayload;
       
       // Check expiration
       if (payload.exp <= Date.now() / 1000) {
@@ -355,9 +356,9 @@ export class MCPAuthenticator {
    * Create middleware function for request processing
    */
   middleware() {
-    return async (context: any, next: Function) => {
+    return async (context: { method?: string; headers?: Record<string, string | string[]>; metadata?: Record<string, unknown> }, next: () => Promise<unknown>) => {
       const authResult = this.authenticate(
-        context.method,
+        context.method ?? '',
         context.headers,
         context.metadata
       );

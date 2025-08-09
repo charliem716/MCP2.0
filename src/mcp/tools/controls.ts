@@ -774,7 +774,10 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
           componentGroups.set(componentName, []);
         }
         
-        const controlCmd: any = { Name: controlName, Value: value };
+        const controlCmd: { Name: string; Value: string | number; Ramp?: number } = { 
+          Name: controlName, 
+          Value: value 
+        };
         if (control.ramp !== undefined) {
           controlCmd.Ramp = control.ramp;
         }
@@ -782,7 +785,10 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         componentGroups.get(componentName)!.push(controlCmd);
       } else {
         // Named control: "ControlName"
-        const controlCmd: any = { Name: control.name, Value: value };
+        const controlCmd: { Name: string; Value: string | number; Ramp?: number } = { 
+          Name: control.name, 
+          Value: value 
+        };
         if (control.ramp !== undefined) {
           controlCmd.Ramp = control.ramp;
         }

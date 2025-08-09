@@ -13,6 +13,15 @@ import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { EventDatabaseBackupManager, type BackupInfo } from './backup-manager.js';
+import type { 
+  DatabaseStatsResult,
+  DatabaseExportResult,
+  DatabaseExportData
+} from '../../../shared/types/external-apis.js';
+import {
+  assertDatabaseStatsResult,
+  assertDatabaseExportData
+} from '../../../shared/types/external-apis.js';
 
 interface EventRecord {
   timestamp: number;
@@ -390,7 +399,7 @@ export class SQLiteEventMonitor extends EventEmitter {
     this.flush();
     
     try {
-      const stats = this.db.prepare(`
+      const rawStats = this.db.prepare(`
         SELECT 
           COUNT(*) as total_events,
           COUNT(DISTINCT control_path) as unique_controls,
@@ -398,7 +407,9 @@ export class SQLiteEventMonitor extends EventEmitter {
           MIN(timestamp) as oldest_event,
           MAX(timestamp) as newest_event
         FROM events
-      `).get() as any;
+      `).get();
+      
+      const stats = assertDatabaseStatsResult(rawStats);
       
       // Get database file size
       let dbSize = 0;
@@ -411,11 +422,11 @@ export class SQLiteEventMonitor extends EventEmitter {
       }
       
       return {
-        totalEvents: stats.total_events ?? 0,
-        uniqueControls: stats.unique_controls ?? 0,
-        changeGroups: stats.change_groups ?? 0,
-        oldestEvent: stats.oldest_event || null,
-        newestEvent: stats.newest_event || null,
+        totalEvents: stats.total_events,
+        uniqueControls: stats.unique_controls,
+        changeGroups: stats.change_groups,
+        oldestEvent: stats.oldest_event,
+        newestEvent: stats.newest_event,
         databaseSize: dbSize
       };
       
@@ -468,7 +479,7 @@ export class SQLiteEventMonitor extends EventEmitter {
     // Stop flush timer
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
-      this.flushTimer = undefined as any;
+      this.flushTimer = undefined as unknown as NodeJS.Timeout;
     }
     
     // Flush any remaining events
@@ -482,7 +493,7 @@ export class SQLiteEventMonitor extends EventEmitter {
     // Close database
     if (this.db) {
       this.db.close();
-      this.db = undefined as any;
+      this.db = undefined as unknown as Database.Database;
     }
     
     this.isInitialized = false;

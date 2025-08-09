@@ -17,14 +17,14 @@ export class CLIOutput {
    * Print a message to stdout (user-facing output)
    */
   print(message: string): void {
-    process.stdout.write(message + '\n');
+    process.stdout.write(`${message}\n`);
   }
   
   /**
    * Print an error message to stderr
    */
   printError(message: string): void {
-    process.stderr.write(message + '\n');
+    process.stderr.write(`${message}\n`);
   }
   
   /**
@@ -67,7 +67,7 @@ export class CLIOutput {
    */
   clearProgress(): void {
     if (this.isInteractive) {
-      process.stdout.write('\r' + ' '.repeat(80) + '\r');
+      process.stdout.write(`\r${' '.repeat(80)}\r`);
     }
   }
   

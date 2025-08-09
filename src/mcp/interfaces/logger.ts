@@ -9,23 +9,24 @@
  * Logger interface matching Winston's API
  */
 export interface ILogger {
-  info(message: string, meta?: any): void;
-  warn(message: string, meta?: any): void;
-  error(message: string, meta?: any): void;
-  debug(message: string, meta?: any): void;
-  child(meta: any): ILogger;
+  info(message: string, meta?: Record<string, unknown>): void;
+  warn(message: string, meta?: Record<string, unknown>): void;
+  error(message: string, meta?: Record<string, unknown>): void;
+  debug(message: string, meta?: Record<string, unknown>): void;
+  child(meta: Record<string, unknown>): ILogger;
 }
 
 /**
  * Type guard to check if an object implements ILogger
  */
-export function isLogger(obj: any): obj is ILogger {
+export function isLogger(obj: unknown): obj is ILogger {
   return (
-    obj &&
-    typeof obj.info === 'function' &&
-    typeof obj.warn === 'function' &&
-    typeof obj.error === 'function' &&
-    typeof obj.debug === 'function' &&
-    typeof obj.child === 'function'
+    obj !== null &&
+    typeof obj === 'object' &&
+    'info' in obj && typeof (obj as ILogger).info === 'function' &&
+    'warn' in obj && typeof (obj as ILogger).warn === 'function' &&
+    'error' in obj && typeof (obj as ILogger).error === 'function' &&
+    'debug' in obj && typeof (obj as ILogger).debug === 'function' &&
+    'child' in obj && typeof (obj as ILogger).child === 'function'
   );
 }

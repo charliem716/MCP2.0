@@ -4,7 +4,7 @@
  * Provides a health check endpoint for monitoring and alerting systems
  */
 
-import { createServer, type Server } from 'http';
+import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http';
 import type { HealthChecker } from '../health/health-check.js';
 import type { MCPMetrics } from './metrics.js';
 import type { ILogger } from '../interfaces/logger.js';
@@ -185,8 +185,8 @@ export class HealthEndpointServer {
    * Handle health check endpoint
    */
   private async handleHealth(
-    req: any,
-    res: any,
+    req: IncomingMessage,
+    res: ServerResponse,
     verbose: boolean,
     correlationId: string
   ): Promise<void> {
@@ -206,8 +206,8 @@ export class HealthEndpointServer {
    * Handle metrics endpoint (Prometheus format)
    */
   private async handleMetrics(
-    req: any,
-    res: any,
+    req: IncomingMessage,
+    res: ServerResponse,
     correlationId: string
   ): Promise<void> {
     const metricsText = this.metrics.export();
@@ -223,8 +223,8 @@ export class HealthEndpointServer {
    * Handle metrics endpoint (JSON format)
    */
   private async handleMetricsJSON(
-    req: any,
-    res: any,
+    req: IncomingMessage,
+    res: ServerResponse,
     correlationId: string
   ): Promise<void> {
     const metricsJson = this.metrics.toJSON();
@@ -241,8 +241,8 @@ export class HealthEndpointServer {
    * Handle readiness probe (for Kubernetes)
    */
   private async handleReadiness(
-    req: any,
-    res: any,
+    req: IncomingMessage,
+    res: ServerResponse,
     correlationId: string
   ): Promise<void> {
     const health = await this.healthChecker.getHealthEndpointResponse(false);
@@ -267,8 +267,8 @@ export class HealthEndpointServer {
    * Handle liveness probe (for Kubernetes)
    */
   private async handleLiveness(
-    req: any,
-    res: any,
+    req: IncomingMessage,
+    res: ServerResponse,
     correlationId: string
   ): Promise<void> {
     // Liveness is simpler - just check if the process is responsive
