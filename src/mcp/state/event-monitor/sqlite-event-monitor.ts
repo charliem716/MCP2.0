@@ -286,7 +286,7 @@ export class SQLiteEventMonitor extends EventEmitter {
   /**
    * Flush buffer to database
    */
-  private flush(): void {
+  flush(): void {
     if (!this.db || this.buffer.length === 0) return;
     
     const toFlush = [...this.buffer];
