@@ -108,10 +108,13 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
       (tool as any).parseControlsResponse = jest.fn(() => [control1, control2]);
 
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: []
+        result: {
+          Name: 'TestComponent',
+          Controls: []
+        }
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'TestComponent' });
 
       // safeJsonStringify handles circular references gracefully
       expect(result.isError).toBe(false);
@@ -154,7 +157,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
     it('should handle non-Error exceptions', async () => {
       mockQrwcClient.sendCommand.mockRejectedValue('String error');
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
 
       expect(result.isError).toBe(true);
       const errorData = JSON.parse(result.content[0].text);
@@ -166,7 +169,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
   describe('control type inference edge cases', () => {
     it('should infer type from control Type and String properties', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [
+        result: {
+          Name: "TestComponent",
+          Controls: [
           {
             Name: 'volume_control',
             Type: 'Float',
@@ -188,7 +193,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         ]
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].type).toBe('gain'); // Float + dB in String
@@ -198,13 +203,15 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
 
     it('should handle controls with input.select pattern', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [
+        result: {
+          Name: "TestComponent",
+          Controls: [
           { Name: 'router.input.select', Value: 1 },
           { Name: 'matrix.output.select', Value: 2 }
         ]
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].type).toBe('input_select');
@@ -215,7 +222,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
   describe('metadata extraction edge cases', () => {
     it('should handle Q-SYS API format metadata', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [{
+        result: {
+          Name: "TestComponent",
+          Controls: [{
           Name: 'test',
           Value: 0,
           ValueMin: -100,
@@ -227,7 +236,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         }]
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].metadata).toEqual({
@@ -242,7 +251,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
 
     it('should handle legacy Properties format', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [{
+        result: {
+          Name: "TestComponent",
+          Controls: [{
           Name: 'test',
           Value: 0,
           Properties: {
@@ -255,7 +266,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         }]
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].metadata).toMatchObject({
@@ -269,7 +280,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
 
     it('should merge both metadata formats', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [{
+        result: {
+          Name: "TestComponent",
+          Controls: [{
           Name: 'test',
           Value: 0,
           ValueMin: -100,
@@ -281,7 +294,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         }]
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].metadata).toMatchObject({
@@ -296,14 +309,16 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
   describe('component name extraction edge cases', () => {
     it('should handle control names without dots', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [
+        result: {
+          Name: "TestComponent",
+          Controls: [
           { Name: 'SimpleControl', Value: 1 },
           { Name: 'AnotherControl', Value: 2 },
           { Name: 'Gain', Value: 3 }
         ]
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
       expect(result.isError).toBe(false);
       const controls = JSON.parse(result.content[0].text);
 
@@ -317,7 +332,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
   describe('value handling edge cases', () => {
     it('should handle various value types', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [
+        result: {
+          Name: "TestComponent",
+          Controls: [
           { Name: 'ctrl1', Value: null },
           { Name: 'ctrl2', Value: undefined },
           { Name: 'ctrl3', Value: { complex: 'object' } },
@@ -326,7 +343,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         ]
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: "TestComponent" });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].value).toBe('');
@@ -361,7 +378,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
   describe('GetAllControls with component filter', () => {
     it('should filter by component when using GetAllControls', async () => {
       mockQrwcClient.sendCommand.mockResolvedValue({
-        result: [
+        result: {
+          Name: "TestComponent",
+          Controls: [
           { Name: 'gain', Component: 'Mixer1', Value: -10 },
           { Name: 'gain', Component: 'Mixer2', Value: -5 },
           { Name: 'mute', Component: 'Mixer1', Value: false }

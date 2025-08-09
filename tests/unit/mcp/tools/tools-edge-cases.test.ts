@@ -152,13 +152,16 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
     it('should handle controls with missing Value property', async () => {
       const tool = new ListControlsTool(mockQrwcClient);
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [
-          { Name: 'Control1' }, // Missing Value
-          { Name: 'Control2', Value: 0 },
-        ],
+        result: {
+          Name: 'TestComponent',
+          Controls: [
+            { Name: 'Control1' }, // Missing Value
+            { Name: 'Control2', Value: 0 },
+          ]
+        },
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({ component: 'TestComponent' });
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(2);
       expect(controls[0].name).toBe('Control1');
@@ -170,10 +173,13 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
     it('should handle includeMetadata:false branch', async () => {
       const tool = new ListControlsTool(mockQrwcClient);
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [{ Name: 'Control1', Value: 0, ValueMin: -100, ValueMax: 10 }],
+        result: {
+          Name: 'TestComponent',
+          Controls: [{ Name: 'Control1', Value: 0, ValueMin: -100, ValueMax: 10 }]
+        },
       });
 
-      const result = await tool.execute({ includeMetadata: false });
+      const result = await tool.execute({ component: 'TestComponent', includeMetadata: false });
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(1);
       expect(controls[0].name).toBe('Control1');
@@ -187,10 +193,13 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
     it('should handle unknown control type', async () => {
       const tool = new ListControlsTool(mockQrwcClient);
       mockQrwcClient.sendCommand.mockResolvedValueOnce({
-        result: [{ Name: 'UnknownControl', Value: 0 }],
+        result: {
+          Name: 'TestComponent',
+          Controls: [{ Name: 'UnknownControl', Value: 0 }]
+        },
       });
 
-      const result = await tool.execute({ controlType: 'all' });
+      const result = await tool.execute({ component: 'TestComponent', controlType: 'all' });
       const controls = JSON.parse(result.content[0].text);
       expect(controls).toHaveLength(1);
       expect(controls[0].name).toBe('UnknownControl');

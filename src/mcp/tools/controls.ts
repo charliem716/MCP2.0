@@ -924,8 +924,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         };
       }
 
-      // Check if any results failed
-      const hasErrors = jsonResults.some(r => !r.success);
+      // Return success even if individual controls failed
+      // The results array contains the detailed success/failure for each control
       
       return {
         content: [
@@ -934,14 +934,14 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             text: serializedResults,
           },
         ],
-        isError: hasErrors,
+        isError: false,
       };
     } catch (error) {
       this.logger.error('Failed to set control values', { error, context });
       
       // When an error occurs, return an array of failed results for each control
       // This maintains consistency with partial failure scenarios
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const failedResults = params.controls.map(control => ({
         name: control.name,
         value: control.value,

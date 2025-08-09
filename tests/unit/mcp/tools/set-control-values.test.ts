@@ -114,10 +114,15 @@ describe('SetControlValuesTool', () => {
           };
         }
         if (command === 'Control.Set') {
+          // Control.Set expects an array of results matching the input Controls
+          const controls = params.Controls || [];
           return {
             jsonrpc: '2.0',
             id: 3,
-            result: { success: true }
+            result: controls.map((ctrl: any) => ({
+              Name: ctrl.Name,
+              Result: 'Success'
+            }))
           };
         }
         if (command === 'Component.Set') {
@@ -157,8 +162,9 @@ describe('SetControlValuesTool', () => {
       expect(mockControlSystem.sendCommand).toHaveBeenCalledWith(
         'Control.Set',
         expect.objectContaining({
-          Name: 'GlobalMute',
-          Value: 0
+          Controls: expect.arrayContaining([
+            expect.objectContaining({ Name: 'GlobalMute', Value: 0 })
+          ])
         })
       );
     });
@@ -182,7 +188,7 @@ describe('SetControlValuesTool', () => {
             jsonrpc: '2.0',
             id: 2,
             result: [
-              { Name: 'TestComponent.test', Result: 'Error', Error: 'Control is read-only' }
+              { Name: 'test', Result: 'Error', Error: 'Control is read-only' }
             ]
           };
         }
@@ -196,10 +202,10 @@ describe('SetControlValuesTool', () => {
         validate: true
       }, mockContext);
 
-      // Should report the error but not throw
-      expect(result.isError).toBe(true);
+      // Should report the error in the results but not fail the overall operation
+      expect(result.isError).toBe(false);
       const response = JSON.parse(result.content[0].text);
-      expect(response[0]).toEqual({
+      expect(response[0]).toMatchObject({
         name: 'TestComponent.test',
         value: 42,
         success: false,

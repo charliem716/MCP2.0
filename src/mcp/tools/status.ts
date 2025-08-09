@@ -151,8 +151,8 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
       version: String(result.Version ?? 'Unknown'),
       model: String(result.Platform),
       platform: String(result.Platform),
-      serialNumber: String(record['SerialNumber']) ?? 'Unknown',
-      firmwareVersion: String(record['FirmwareVersion']) ?? String(result.Version) ?? 'Unknown',
+      serialNumber: record['SerialNumber'] ? String(record['SerialNumber']) : 'Unknown',
+      firmwareVersion: record['FirmwareVersion'] ? String(record['FirmwareVersion']) : (result.Version ? String(result.Version) : 'Unknown'),
       buildTime: String('Unknown'),
       designName: String(result.DesignName),
     };

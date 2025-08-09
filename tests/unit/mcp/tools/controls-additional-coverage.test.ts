@@ -191,7 +191,7 @@ describe('Controls Additional Coverage', () => {
     describe('parseSetResponse edge cases', () => {
       it('should handle response without id property', async () => {
         mockQrwcClient.sendCommand.mockResolvedValue({
-          // No id property
+          // No id property - invalid response format
           success: true
         });
 
@@ -202,7 +202,9 @@ describe('Controls Additional Coverage', () => {
 
         expect(result.isError).toBe(false);
         const results = JSON.parse(result.content[0].text);
-        expect(results[0].success).toBe(true);
+        // Should report failure due to unexpected response format
+        expect(results[0].success).toBe(false);
+        expect(results[0].error).toBe('Unexpected response format from Q-SYS');
       });
 
       it('should handle string response', async () => {
@@ -215,7 +217,9 @@ describe('Controls Additional Coverage', () => {
 
         expect(result.isError).toBe(false);
         const results = JSON.parse(result.content[0].text);
-        expect(results[0].success).toBe(true);
+        // String response is invalid format, should report failure
+        expect(results[0].success).toBe(false);
+        expect(results[0].error).toBe('Unexpected response format from Q-SYS');
       });
 
       it('should handle null response', async () => {
@@ -228,7 +232,9 @@ describe('Controls Additional Coverage', () => {
 
         expect(result.isError).toBe(false);
         const results = JSON.parse(result.content[0].text);
-        expect(results[0].success).toBe(true);
+        // Null response is invalid, should report failure
+        expect(results[0].success).toBe(false);
+        expect(results[0].error).toBe('Unexpected response format from Q-SYS');
       });
 
       it('should handle error property in response', async () => {
@@ -244,7 +250,8 @@ describe('Controls Additional Coverage', () => {
           validate: false
         });
 
-        expect(result.isError).toBe(true);
+        // Even with Q-SYS errors, we return success and put details in results
+        expect(result.isError).toBe(false);
         const results = JSON.parse(result.content[0].text);
         expect(results[0].success).toBe(false);
         expect(results[0].error).toContain('Invalid control name');
@@ -253,17 +260,18 @@ describe('Controls Additional Coverage', () => {
 
     describe('groupControlsByComponent edge cases', () => {
       it('should handle controls with empty component name', async () => {
-        mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+        mockQrwcClient.sendCommand.mockResolvedValue({ 
+          result: [{ Name: '.control', Result: 'Success' }]
+        });
 
         await tool.execute({
           controls: [{ name: '.control', value: 1 }], // Starts with dot
           validate: false
         });
 
-        // Should treat as named control
+        // Should treat as named control with Controls array
         expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Control.Set', {
-          Name: '.control',
-          Value: 1
+          Controls: [{ Name: '.control', Value: 1 }]
         });
       });
 
@@ -284,7 +292,16 @@ describe('Controls Additional Coverage', () => {
 
     describe('convertValue edge cases', () => {
       it('should convert string boolean values', async () => {
-        mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+        mockQrwcClient.sendCommand.mockResolvedValue({ 
+          result: [
+            { Name: 'Test1', Result: 'Success' },
+            { Name: 'Test2', Result: 'Success' },
+            { Name: 'Test3', Result: 'Success' },
+            { Name: 'Test4', Result: 'Success' },
+            { Name: 'Test5', Result: 'Success' },
+            { Name: 'Test6', Result: 'Success' }
+          ]
+        });
 
         await tool.execute({
           controls: [
@@ -299,16 +316,25 @@ describe('Controls Additional Coverage', () => {
         });
 
         const calls = mockQrwcClient.sendCommand.mock.calls;
-        expect(calls[0][1].Value).toBe(1); // true -> 1
-        expect(calls[1][1].Value).toBe(0); // false -> 0
-        expect(calls[2][1].Value).toBe(1); // yes -> 1
-        expect(calls[3][1].Value).toBe(0); // no -> 0
-        expect(calls[4][1].Value).toBe(1); // on -> 1
-        expect(calls[5][1].Value).toBe(0); // off -> 0
+        // All controls are sent in a single batch with Controls array
+        expect(calls[0][1].Controls).toEqual([
+          { Name: 'Test1', Value: 1 }, // true -> 1
+          { Name: 'Test2', Value: 0 }, // false -> 0
+          { Name: 'Test3', Value: 1 }, // yes -> 1
+          { Name: 'Test4', Value: 0 }, // no -> 0
+          { Name: 'Test5', Value: 1 }, // on -> 1
+          { Name: 'Test6', Value: 0 }  // off -> 0
+        ]);
       });
 
       it('should handle numeric strings', async () => {
-        mockQrwcClient.sendCommand.mockResolvedValue({ success: true });
+        mockQrwcClient.sendCommand.mockResolvedValue({ 
+          result: [
+            { Name: 'Test1', Result: 'Success' },
+            { Name: 'Test2', Result: 'Success' },
+            { Name: 'Test3', Result: 'Success' }
+          ]
+        });
 
         await tool.execute({
           controls: [
@@ -320,9 +346,12 @@ describe('Controls Additional Coverage', () => {
         });
 
         const calls = mockQrwcClient.sendCommand.mock.calls;
-        expect(calls[0][1].Value).toBe(123); // '123' -> 123
-        expect(calls[1][1].Value).toBe(-45.67); // '-45.67' -> -45.67
-        expect(calls[2][1].Value).toBe('not-a-number'); // Keep as string
+        // Numeric strings are kept as strings - Q-SYS handles the conversion
+        expect(calls[0][1].Controls).toEqual([
+          { Name: 'Test1', Value: '123' },      // Kept as string
+          { Name: 'Test2', Value: '-45.67' },   // Kept as string
+          { Name: 'Test3', Value: 'not-a-number' } // Kept as string
+        ]);
       });
     });
 
@@ -341,7 +370,8 @@ describe('Controls Additional Coverage', () => {
           controls: [{ name: 'Test', value: 1 }]
         });
 
-        expect(result.isError).toBe(true);
+        // Even with errors, we return success and put details in results
+        expect(result.isError).toBe(false);
         const results = JSON.parse(result.content[0].text);
         expect(results[0].success).toBe(false);
         expect(results[0].error).toContain('Control is read-only');
@@ -370,10 +400,13 @@ describe('Controls Additional Coverage', () => {
 
     describe('Result aggregation', () => {
       it('should handle mixed success and failure', async () => {
-        mockQrwcClient.sendCommand
-          .mockResolvedValueOnce({ success: true })
-          .mockRejectedValueOnce(new Error('Second control failed'))
-          .mockResolvedValueOnce({ success: true });
+        mockQrwcClient.sendCommand.mockResolvedValueOnce({
+          result: [
+            { Name: 'Control1', Result: 'Success' },
+            { Name: 'Control2', Result: 'Error', Error: 'Second control failed' },
+            { Name: 'Control3', Result: 'Success' }
+          ]
+        });
 
         const result = await tool.execute({
           controls: [
@@ -384,11 +417,13 @@ describe('Controls Additional Coverage', () => {
           validate: false
         });
 
-        expect(result.isError).toBe(true); // Some failed
+        // Even with partial failures, overall operation succeeds
+        expect(result.isError).toBe(false);
         const results = JSON.parse(result.content[0].text);
         expect(results).toHaveLength(3);
         expect(results[0].success).toBe(true);
         expect(results[1].success).toBe(false);
+        expect(results[1].error).toBe('Second control failed');
         expect(results[2].success).toBe(true);
       });
     });

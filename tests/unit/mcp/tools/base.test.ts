@@ -108,7 +108,7 @@ describe('BaseQSysTool Response Formatting', () => {
       expect(parsed).toMatchObject({
         error: true,
         toolName: 'test_tool',
-        message: 'Test error message',
+        message: 'Test error message (UNKNOWN_ERROR)',
         code: 'UNKNOWN_ERROR',
       });
       expect(parsed.timestamp).toBeDefined();
@@ -131,7 +131,7 @@ describe('BaseQSysTool Response Formatting', () => {
       expect(parsed).toMatchObject({
         error: true,
         toolName: 'test_tool',
-        message: 'String error',
+        message: 'String error (UNKNOWN_ERROR)',
         code: 'UNKNOWN_ERROR',
       });
     });
@@ -139,11 +139,11 @@ describe('BaseQSysTool Response Formatting', () => {
     it('should handle null and undefined', () => {
       const nullResult = tool.testFormatErrorResponse(null);
       const nullParsed = JSON.parse(nullResult);
-      expect(nullParsed.message).toBe('null');
+      expect(nullParsed.message).toBe('null (UNKNOWN_ERROR)');
 
       const undefinedResult = tool.testFormatErrorResponse(undefined);
       const undefinedParsed = JSON.parse(undefinedResult);
-      expect(undefinedParsed.message).toBe('undefined');
+      expect(undefinedParsed.message).toBe('undefined (UNKNOWN_ERROR)');
     });
   });
 
@@ -164,7 +164,7 @@ describe('BaseQSysTool Response Formatting', () => {
       expect(errorData).toMatchObject({
         error: true,
         toolName: 'test_tool',
-        message: 'Q-SYS Core not connected',
+        message: 'Q-SYS Core not connected (QSYS_CONNECTION_FAILED)',
       });
     });
   });

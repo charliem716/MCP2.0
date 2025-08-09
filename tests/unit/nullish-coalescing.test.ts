@@ -9,42 +9,51 @@ describe('BUG-179: Nullish Coalescing Operator Fixes', () => {
   describe('Nullish Coalescing Behavior', () => {
     it('should preserve 0 when using ?? operator', () => {
       // Test that 0 is not replaced by default
+      // eslint-disable-next-line no-constant-binary-expression
       const value1 = 0 ?? 100;
       expect(value1).toBe(0);
       
       // Test that null triggers default
+      // eslint-disable-next-line no-constant-binary-expression
       const value2 = null ?? 100;
       expect(value2).toBe(100);
       
       // Test that undefined triggers default
+      // eslint-disable-next-line no-constant-binary-expression
       const value3 = undefined ?? 100;
       expect(value3).toBe(100);
     });
 
     it('should preserve false when using ?? operator', () => {
       // Test that false is not replaced by default
+      // eslint-disable-next-line no-constant-binary-expression
       const value1 = false ?? true;
       expect(value1).toBe(false);
       
       // Test that null triggers default
+      // eslint-disable-next-line no-constant-binary-expression
       const value2 = null ?? true;
       expect(value2).toBe(true);
       
       // Test that undefined triggers default
+      // eslint-disable-next-line no-constant-binary-expression
       const value3 = undefined ?? true;
       expect(value3).toBe(true);
     });
 
     it('should preserve empty string when using ?? operator', () => {
       // Test that empty string is not replaced by default
+      // eslint-disable-next-line no-constant-binary-expression
       const value1 = '' ?? 'default';
       expect(value1).toBe('');
       
       // Test that null triggers default
+      // eslint-disable-next-line no-constant-binary-expression
       const value2 = null ?? 'default';
       expect(value2).toBe('default');
       
       // Test that undefined triggers default
+      // eslint-disable-next-line no-constant-binary-expression
       const value3 = undefined ?? 'default';
       expect(value3).toBe('default');
     });
@@ -147,12 +156,12 @@ describe('BUG-179: Nullish Coalescing Operator Fixes', () => {
     it('should handle string defaults correctly', () => {
       // Simulating the fixed string handling in status.ts
       const record1: any = { SerialNumber: '' };
-      const serialNumber1 = String(record1['SerialNumber']) ?? 'Unknown';
+      const serialNumber1 = record1['SerialNumber'] !== undefined ? String(record1['SerialNumber']) : 'Unknown';
       expect(serialNumber1).toBe(''); // Empty string preserved
       
       // Test with undefined
       const record2: any = {};
-      const serialNumber2 = String(record2['SerialNumber']) ?? 'Unknown';
+      const serialNumber2 = record2['SerialNumber'] !== undefined ? String(record2['SerialNumber']) : 'Unknown';
       expect(serialNumber2).toBe('undefined'); // String() converts undefined to 'undefined'
       
       // Better approach with nullish coalescing on the value itself
