@@ -581,7 +581,9 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
         this.connectionManager.connectWithRetry(async () => {
           await this.performConnection();
         }).catch((error) => {
-          this.logger.error('Reconnection failed', { error });
+          this.logger.error('Reconnection failed', { 
+            error: error instanceof Error ? error.message : String(error) 
+          });
         });
       }
     });

@@ -98,7 +98,7 @@ export class MCPAuthenticator {
     if (typeof methodOrContext === 'object' && methodOrContext !== null) {
       // RequestContext object passed
       const ctx = methodOrContext as { method?: string; meta?: Record<string, string | string[]>; metadata?: Record<string, unknown> };
-      method = ctx.method;
+      method = ctx.method ?? '';
       actualHeaders = ctx.meta;
       actualMetadata = ctx.metadata;
     } else {

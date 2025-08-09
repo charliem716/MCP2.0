@@ -5,6 +5,7 @@ import type { IControlSystem } from '../../interfaces/control-system.js';
 import type { ToolCallResult } from '../../handlers/index.js';
 import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import type { QRWCClientAdapter } from '../../qrwc/adapter.js';
+import type { DatabaseEventRow } from '../../../shared/types/external-apis.js';
 
 /**
  * Parameters for querying historical change events
@@ -183,7 +184,7 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
       if (params.changeGroupId !== undefined) queryParams.changeGroupId = params.changeGroupId;
       if (params.controlNames !== undefined) queryParams.controlPaths = params.controlNames;
 
-      let events: any[];
+      let events: DatabaseEventRow[];
       try {
         // Query with timeout to prevent hanging
         const queryPromise = eventMonitor.queryEvents(queryParams);
@@ -191,7 +192,7 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
           setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000);
         });
         
-        events = await Promise.race([queryPromise, timeoutPromise]) as any[];
+        events = await Promise.race([queryPromise, timeoutPromise]) as DatabaseEventRow[];
       } catch (queryError) {
         logger.error('Failed to query events from monitor', {
           error: queryError instanceof Error ? queryError.message : String(queryError),
@@ -214,15 +215,15 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
       }
 
       // Safely format events with null checking
-      let formattedEvents: any[];
+      let formattedEvents: (DatabaseEventRow | null)[];
       try {
-        formattedEvents = (events || []).map((event: any) => {
+        formattedEvents = (events || []).map((event: DatabaseEventRow) => {
           if (!event) return null;
           
           return {
             ...event,
             value: event.value ?? null,
-            stringValue: event.stringValue ?? null,
+            stringValue: event.string_value ?? null,
           };
         }).filter(Boolean); // Remove any null entries
       } catch (formatError) {
@@ -277,7 +278,7 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
             type: 'text',
             text: JSON.stringify({
               error: true,
-              message: `Unexpected error: ${error?.message || String(error)}`,
+              message: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`,
               hint: 'An unexpected error occurred. Please check the logs for details.',
               executionTimeMs: Date.now() - startTime,
             }),

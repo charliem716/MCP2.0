@@ -111,7 +111,15 @@ export class SQLiteEventMonitor extends EventEmitter {
       
       // Listen to adapter's poll events if available
       if (this.adapter) {
-        this.adapter.on('changeGroup:poll', (event) => {
+        this.adapter.on('changeGroup:poll', (event: {
+          groupId: string;
+          controls: Array<{
+            Name: string;
+            Value: number;
+            String: string;
+          }>;
+          timestamp: number;
+        }) => {
           this.recordPollEvent(event);
         });
       }
@@ -366,7 +374,7 @@ export class SQLiteEventMonitor extends EventEmitter {
     
     try {
       const stmt = this.db.prepare(query);
-      return stmt.all(...queryParams) as EventRecord[];
+      return stmt.all(...(queryParams as (string | number)[])) as EventRecord[];
     } catch (error) {
       logger.error('Failed to query events', { error });
       return [];

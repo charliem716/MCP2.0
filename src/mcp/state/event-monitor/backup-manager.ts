@@ -14,11 +14,14 @@ import { globalLogger as logger } from '../../../shared/utils/logger.js';
 import type { 
   DatabaseIntegrityCheck,
   DatabaseCountResult,
-  DatabaseExportResult
+  DatabaseExportResult,
+  DatabaseEventRow,
+  DatabaseExportData
 } from '../../../shared/types/external-apis.js';
 import {
   assertDatabaseIntegrityCheck,
-  assertDatabaseCountResult
+  assertDatabaseCountResult,
+  assertDatabaseExportData
 } from '../../../shared/types/external-apis.js';
 
 const gzip = promisify(zlib.gzip);
@@ -212,8 +215,8 @@ export class EventDatabaseBackupManager {
         targetPath,
         eventsCount: stats.count,
         dateRange: {
-          from: new Date(stats.min_ts),
-          to: new Date(stats.max_ts)
+          from: stats.min_ts ? new Date(stats.min_ts) : new Date(),
+          to: stats.max_ts ? new Date(stats.max_ts) : new Date()
         }
       });
       
@@ -235,7 +238,7 @@ export class EventDatabaseBackupManager {
     
     try {
       let query = 'SELECT * FROM events WHERE 1=1';
-      const params: any[] = [];
+      const params: (number | string)[] = [];
       
       if (startTime) {
         query += ' AND timestamp >= ?';
@@ -249,7 +252,7 @@ export class EventDatabaseBackupManager {
       
       query += ' ORDER BY timestamp ASC';
       
-      const events = db.prepare(query).all(...params);
+      const events = db.prepare(query).all(...params) as DatabaseEventRow[];
       
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const exportPath = path.join(this.config.backupPath, `events-export-${timestamp}.json`);
@@ -289,7 +292,7 @@ export class EventDatabaseBackupManager {
     
     try {
       const exportContent = fs.readFileSync(exportPath, 'utf-8');
-      const exportData = JSON.parse(exportContent);
+      const exportData = assertDatabaseExportData(JSON.parse(exportContent));
       
       if (!exportData.events || !Array.isArray(exportData.events)) {
         throw new Error('Invalid export file format');
@@ -302,7 +305,7 @@ export class EventDatabaseBackupManager {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
       
-      const transaction = db.transaction((events: any[]) => {
+      const transaction = db.transaction((events: DatabaseEventRow[]) => {
         for (const event of events) {
           stmt.run(
             event.timestamp,
@@ -424,7 +427,9 @@ export class EventDatabaseBackupManager {
           logger.info('Automatic backup completed');
         })
         .catch((error) => {
-          logger.error('Automatic backup failed', { error });
+          logger.error('Automatic backup failed', { 
+            error: error instanceof Error ? error.message : String(error) 
+          });
         });
     }, this.config.autoBackupInterval);
     

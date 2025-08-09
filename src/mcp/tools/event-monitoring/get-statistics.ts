@@ -211,7 +211,7 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
             type: 'text',
             text: JSON.stringify({
               error: true,
-              message: `Unexpected error: ${error?.message || String(error)}`,
+              message: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`,
               hint: 'An unexpected error occurred. Please check the logs for details.',
               executionTimeMs: Date.now() - startTime,
             }),

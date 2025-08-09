@@ -118,10 +118,11 @@ class ConfigManager {
       
       if (configPath) {
         const configContent = fs.readFileSync(configPath, 'utf-8');
-        const parsed = JSON.parse(configContent);
+        const parsed = JSON.parse(configContent) as unknown;
         // Extract the qsysCore property from the JSON
         if (parsed && typeof parsed === 'object' && 'qsysCore' in parsed) {
-          fileConfig = (parsed).qsysCore as FileConfig;
+          const configObj = parsed as { qsysCore?: unknown };
+          fileConfig = configObj.qsysCore as FileConfig;
         }
       }
     } catch (error) {

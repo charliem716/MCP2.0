@@ -206,7 +206,7 @@ export class SecurityHeadersProvider {
    * Get security headers as middleware (Express-style)
    */
   middleware() {
-    return (req: { headers: { origin?: string } }, res: any, next: () => void) => {
+    return (req: { headers: { origin?: string } }, res: { setHeader: (name: string, value: string) => void }, next: () => void) => {
       this.applyHeaders(res, req.headers.origin);
       next();
     };

@@ -163,7 +163,7 @@ export class QRWCClientAdapter
   setStateManager(manager: IStateRepository): void {
     this.stateManager = manager;
     logger.debug('State manager attached to QRWC adapter', {
-      hasEventMonitor: !!('getEventMonitor' in manager && typeof (manager as any).getEventMonitor === 'function')
+      hasEventMonitor: !!('getEventMonitor' in manager && typeof (manager as { getEventMonitor?: unknown }).getEventMonitor === 'function')
     });
   }
 
@@ -1120,7 +1120,7 @@ export class QRWCClientAdapter
     if (this.stateManager && 'shutdown' in this.stateManager) {
       try {
         logger.info('Shutting down state manager...');
-        await (this.stateManager as any).shutdown();
+        await (this.stateManager as { shutdown: () => Promise<void> }).shutdown();
         logger.info('State manager shutdown completed');
       } catch (error) {
         logger.error('Error shutting down state manager', { error });

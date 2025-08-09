@@ -336,7 +336,7 @@ export class MCPToolRegistry {
     if (this.controlSystem && 'dispose' in this.controlSystem && typeof this.controlSystem.dispose === 'function') {
       try {
         logger.info('Disposing control system adapter...');
-        await (this.controlSystem as any).dispose();
+        await (this.controlSystem as { dispose: () => Promise<void> }).dispose();
         logger.info('Control system adapter disposed');
       } catch (error) {
         logger.error('Error disposing control system adapter', { error });

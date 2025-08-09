@@ -188,7 +188,7 @@ export class InputValidator {
     } else {
       // Test signature: validate(params, schema)
       input = toolNameOrInput;
-      schema = inputOrSchema;
+      schema = inputOrSchema as { parse: (input: unknown) => unknown } | undefined;
     }
 
     try {

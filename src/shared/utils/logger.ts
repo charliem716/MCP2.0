@@ -52,12 +52,12 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const level = mcpConfig.logLevel as LogLevel;
 
   // Add correlation ID to log entries
-  const correlationFormat = format((info: Record<string, unknown>) => {
+  const correlationFormat = format((info: any) => {
     const context = getCorrelationContext();
     if (context?.correlationId) {
-      info.correlationId = context.correlationId;
+      info['correlationId'] = context.correlationId;
       if (context.metadata) {
-        info.requestMetadata = context.metadata;
+        info['requestMetadata'] = context.metadata;
       }
     }
     return info;
@@ -184,7 +184,7 @@ class EnhancedLogger implements Logger {
   }
 
   private log(level: string, message: string, meta?: unknown): void {
-    const logData: Record<string, unknown> = { message };
+    const logData: Record<string, any> = { message };
     
     // Add context
     if (Object.keys(this.context).length > 0) {
@@ -195,7 +195,7 @@ class EnhancedLogger implements Logger {
     if (meta && typeof meta === 'object') {
       Object.assign(logData, meta);
     } else if (meta !== undefined) {
-      logData.data = meta;
+      logData['data'] = meta;
     }
     
     // Add performance timing if available
@@ -203,14 +203,14 @@ class EnhancedLogger implements Logger {
     if (correlationContext?.metadata?.['startTime']) {
       const startTime = correlationContext.metadata['startTime'];
       const duration = typeof startTime === 'number' ? Date.now() - startTime : 0;
-      logData.duration = duration;
+      logData['duration'] = duration;
       
       // Add explicit performance metrics
-      if (!logData.performanceMetrics) {
-        logData.performanceMetrics = {};
+      if (!logData['performanceMetrics']) {
+        logData['performanceMetrics'] = {};
       }
-      if (typeof logData.performanceMetrics === 'object') {
-        Object.assign(logData.performanceMetrics, {
+      if (typeof logData['performanceMetrics'] === 'object' && logData['performanceMetrics'] !== null) {
+        Object.assign(logData['performanceMetrics'] as object, {
           executionTimeMs: duration,
           timestamp: new Date().toISOString()
         });

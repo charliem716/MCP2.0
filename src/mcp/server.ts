@@ -349,7 +349,9 @@ export class MCPServer {
         this.setupReconnectionHandlers();
       })
       .catch(error => {
-        logger.warn('Q-SYS Core connection failed - tools will handle this gracefully', { error });
+        logger.warn('Q-SYS Core connection failed - tools will handle this gracefully', { 
+          error: error instanceof Error ? error.message : String(error) 
+        });
         // Tools will return user-friendly errors when Q-SYS is not connected
       });
   }
@@ -587,7 +589,7 @@ export class MCPServer {
     // This would be implemented for HTTP/WebSocket transports
     // For now, check if request has headers property
     if (typeof request === 'object' && request !== null && 'headers' in request) {
-      return (request as any).headers;
+      return (request as { headers?: Record<string, string | string[]> }).headers;
     }
     return undefined;
   }

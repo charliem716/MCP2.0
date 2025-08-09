@@ -657,7 +657,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       error?: { code: number; message: string };
       result?: Array<{ Name: string; Result: string; Error?: string }>;
     },
-    controls: Array<{ name: string; value: ControlValue; ramp?: number }>,
+    controls: Array<{ name: string; value: ControlValue; ramp?: number | undefined }>,
     isComponentResponse = false,
     componentName?: string
   ): ControlSetResponse[] {
@@ -702,7 +702,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
    * Create response for a single control with reduced nesting
    */
   private createControlResponse(
-    control: { name: string; value: ControlValue; ramp?: number },
+    control: { name: string; value: ControlValue; ramp?: number | undefined },
     controlResult?: { Name: string; Result: string; Error?: string }
   ): ControlSetResponse {
     // Control failed
@@ -754,7 +754,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
   /**
    * Separate controls into named and component groups
    */
-  private separateControls(controls: Array<{ name: string; value: ControlValue; ramp?: number }>): {
+  private separateControls(controls: Array<{ name: string; value: ControlValue; ramp?: number | undefined }>): {
     namedControls: Array<{ Name: string; Value: number | string; Ramp?: number }>;
     componentGroups: Map<string, Array<{ Name: string; Value: number | string; Ramp?: number }>>;
   } {
@@ -846,7 +846,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       }
 
       // Separate controls into named and component groups
-      const { namedControls, componentGroups } = this.separateControls(params.controls as any);
+      const { namedControls, componentGroups } = this.separateControls(params.controls);
       
       // Collect all results
       const allResults: ControlSetResponse[] = [];
@@ -864,7 +864,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         
         // Process named control results  
         const namedControlsOriginal = params.controls.filter(c => !c.name.includes('.'));
-        const namedResults = this.processControlSetResponse(qsysResponse, namedControlsOriginal as any, false);
+        const namedResults = this.processControlSetResponse(qsysResponse, namedControlsOriginal, false);
         allResults.push(...namedResults);
       }
       
@@ -886,7 +886,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         );
         const componentResults = this.processControlSetResponse(
           qsysResponse, 
-          componentControlsOriginal as any, 
+          componentControlsOriginal, 
           true, 
           componentName
         );
