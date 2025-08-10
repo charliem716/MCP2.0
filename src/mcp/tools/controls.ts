@@ -111,7 +111,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     super(
       qrwcClient,
       'list_controls',
-      "List controls for a specific component with optional filtering. Component parameter is required. Use includeMetadata=true for values/ranges/positions. Example: {component:'Main Mixer',includeMetadata:true}.",
+      "List controls for a specific component. REQUIRED: Use exact component name from list_components (may include spaces/special chars). Returns control names for use in get/set operations. Example: {component:'Matrix_Mixer 9x6'} returns ['input.1.gain','input.1.mute']. Use includeMetadata=true for min/max values.",
       ListControlsParamsSchema
     );
   }
@@ -403,7 +403,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
     super(
       qrwcClient,
       'get_control_values',
-      "Get current values of Q-SYS controls. Supports complex naming: 'Zone.1.Audio.gain', 'Main Mixer.gain'. BULK TIP: For many controls (>20), use list_components then get_component_controls for each component instead - it's more efficient. This tool is optimized for getting specific known controls (1-20). Returns values with timestamps. Max 100 controls per request.",
+      "Get current values of Q-SYS controls. FORMAT: Use EXACT control names from list_controls output (e.g., 'input.1.gain', 'threshold_1'). For component controls, use 'ComponentName.controlName' format where ComponentName matches list_components output exactly (including spaces). Example: ['Matrix_Mixer 9x6.input.1.gain', 'Main Gain.mute']. Max 100 controls. Returns [{name,value,timestamp}].",
       GetControlValuesParamsSchema
     );
   }
@@ -591,12 +591,19 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
 /**
  * Tool to set values for specific controls
  * 
+ * VALIDATION BEHAVIOR:
+ * The 'validate' parameter controls ERROR REPORTING, not actual Q-SYS behavior:
+ * - validate:true (default): Provides honest feedback - tells you exactly what worked/failed
+ * - validate:false: Provides optimistic feedback - claims all controls succeeded
+ * - In BOTH cases: Only real controls actually change in Q-SYS (fake controls always fail at core level)
+ * 
  * BULK OPERATIONS NOTE:
  * This tool processes controls individually for safety and validation.
  * For bulk updates across many controls:
  * 1. Group controls by component when possible
  * 2. Consider using change groups for atomic updates
  * 3. For >20 controls, batch them in smaller groups to avoid timeouts
+ * 4. Use validate:false for known-good bulk operations to avoid partial failures
  */
 export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
   // Validation cache with TTL (30 seconds)
@@ -610,7 +617,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     super(
       qrwcClient,
       'set_control_values',
-      "Set Q-SYS control values. Supports multiple controls with optional ramp time for smooth transitions. Values: gains in dB (-100 to 20), mutes as boolean, positions 0-1. Example: [{name:'Main.gain',value:-10,ramp:2.5}] for 2.5s fade. Set validate:false to skip validation for performance.",
+      "Set Q-SYS control values. FORMAT: 'ComponentName.controlName' where ComponentName is from list_components (exact match with spaces). Example: [{name:'Matrix_Mixer 9x6.input.1.gain',value:-10,ramp:2.5}]. VALIDATION BEHAVIOR: validate:true (default) provides honest error reporting - tells you which controls exist/don't exist. validate:false provides optimistic reporting - all controls report success in the response, but only real controls actually change in Q-SYS (fake controls are silently ignored by the core). Use validate:true for debugging, validate:false for bulk operations where you want to avoid partial failure stopping the batch. Values: gains in dB (-100 to 20), mutes as boolean, positions 0-1.",
       SetControlValuesParamsSchema
     );
   }
@@ -691,7 +698,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         : control.name;
       
       const controlResult = qsysResponse.result.find(r => r.Name === searchName);
-      const response = this.createControlResponse(control, controlResult);
+      const response = this.createControlResponse(control, controlResult, false);
       jsonResults.push(response);
     }
     
@@ -700,22 +707,27 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
 
   /**
    * Create response for a single control with reduced nesting
+   * Note: When validate:false, Q-SYS may silently ignore invalid controls
+   * but we still report them as "successful" per the optimistic reporting mode
    */
   private createControlResponse(
     control: { name: string; value: ControlValue; ramp?: number | undefined },
-    controlResult?: { Name: string; Result: string; Error?: string }
+    controlResult?: { Name: string; Result: string; Error?: string },
+    validationSkipped = false
   ): ControlSetResponse {
-    // Control failed
+    // Control explicitly failed at Q-SYS level
     if (controlResult?.Result === 'Error') {
       return {
         name: control.name,
         value: control.value,
         success: false,
-        error: controlResult.Error ?? 'Control set failed',
+        error: controlResult.Error ?? 'Control rejected by Q-SYS',
       };
     }
     
     // Control succeeded (either explicit success or not found in response)
+    // Note: With validate:false, fake controls appear here as "success" even though
+    // Q-SYS silently ignored them
     const response: ControlSetResponse = {
       name: control.name,
       value: control.value,
@@ -806,47 +818,51 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      // Only validate if requested (default is true for safety)
+      // Track validation results but don't abort on errors
+      let validControls = params.controls;
+      const validationErrorResults: ControlSetResponse[] = [];
+      
+      // Validation controls error REPORTING, not Q-SYS behavior
+      // validate:true = honest reporting (tells you what exists/doesn't exist)
+      // validate:false = optimistic reporting (claims everything works, but Q-SYS still rejects fake controls)
       if (params.validate !== false) {
         const validationErrors = await this.validateControlsExistOptimized(
           params.controls
         );
+        
         if (validationErrors.length > 0) {
-          // Return error response with validation failures
-          const errorResults = validationErrors.map(error => ({
+          // Separate valid from invalid controls
+          const invalidControlNames = new Set(validationErrors.map(e => e.controlName));
+          validControls = params.controls.filter(c => !invalidControlNames.has(c.name));
+          
+          // Create error results for invalid controls with clear messaging
+          validationErrorResults.push(...validationErrors.map(error => ({
             name: error.controlName,
             value: error.value,
             success: false,
-            error: error.message,
-          }));
-
-          // Try to serialize error results with proper error handling
-          let serializedErrors: string;
-          try {
-            serializedErrors = safeJsonStringify(errorResults);
-          } catch (jsonError) {
-            this.logger.error('Failed to serialize validation errors', { error: jsonError, context });
-            serializedErrors = JSON.stringify({
-              error: 'VALIDATION_SERIALIZATION_ERROR',
-              message: 'Failed to serialize validation errors',
-              errorCount: errorResults.length
-            });
-          }
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: serializedErrors,
-              },
-            ],
-            isError: true,
-          };
+            error: `${error.message} (validation prevented attempt)`,
+          })));
+          
+          // Log validation failures but continue with valid controls
+          this.logger.warn('Pre-validation rejected invalid controls, processing valid ones', {
+            invalidCount: validationErrors.length,
+            validCount: validControls.length,
+            validate: params.validate,
+            context
+          });
         }
+      } else {
+        // With validate:false, we send ALL controls to Q-SYS
+        // Q-SYS will silently ignore fake controls but we'll report them as "successful"
+        this.logger.debug('Skipping validation, will send all controls to Q-SYS', {
+          controlCount: params.controls.length,
+          validate: false,
+          context
+        });
       }
 
-      // Separate controls into named and component groups
-      const { namedControls, componentGroups } = this.separateControls(params.controls);
+      // Separate valid controls into named and component groups
+      const { namedControls, componentGroups } = this.separateControls(validControls);
       
       // Collect all results
       const allResults: ControlSetResponse[] = [];
@@ -863,7 +879,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         };
         
         // Process named control results  
-        const namedControlsOriginal = params.controls.filter(c => !c.name.includes('.'));
+        const namedControlsOriginal = validControls.filter(c => !c.name.includes('.'));
         const namedResults = this.processControlSetResponse(qsysResponse, namedControlsOriginal, false);
         allResults.push(...namedResults);
       }
@@ -881,7 +897,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         };
         
         // Process component control results, restoring full control names
-        const componentControlsOriginal = params.controls.filter(c => 
+        const componentControlsOriginal = validControls.filter(c => 
           c.name.startsWith(`${componentName}.`)
         );
         const componentResults = this.processControlSetResponse(
@@ -893,7 +909,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         allResults.push(...componentResults);
       }
       
-      const jsonResults = allResults;
+      // Combine validation errors with processing results
+      const jsonResults = [...validationErrorResults, ...allResults];
 
       // Try to serialize results with proper error handling
       let serializedResults: string;
@@ -930,9 +947,12 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         };
       }
 
-      // Return success even if individual controls failed
-      // The results array contains the detailed success/failure for each control
+      // Determine if this is a partial failure (some controls failed validation or setting)
+      const hasFailures = jsonResults.some(r => !r.success);
+      const hasSuccesses = jsonResults.some(r => r.success);
       
+      // Return results with appropriate error flag
+      // Only set isError to true if ALL controls failed
       return {
         content: [
           {
@@ -940,7 +960,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
             text: serializedResults,
           },
         ],
-        isError: false,
+        isError: hasFailures && !hasSuccesses,
       };
     } catch (error) {
       this.logger.error('Failed to set control values', { error, context });
