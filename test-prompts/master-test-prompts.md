@@ -1,131 +1,332 @@
-# Master Test Prompts - Comprehensive Q-SYS MCP Testing Guide
+# Master Test Prompts - Q-SYS MCP Agent Testing Guide
 
-## Overview
-This guide provides a comprehensive series of test prompts designed to validate every aspect of the Q-SYS MCP server codebase. Tests progress from simple connectivity checks to complex multi-system orchestration, ensuring thorough coverage of all features, edge cases, and integration points.
+## WORKFLOW INSTRUCTIONS
+Each test below is formatted as a complete prompt that can be copied to an MCP agent. The agent should:
+1. Execute the test steps
+2. Report results, errors, and any issues found
+3. Provide detailed feedback that can be used for fixes
 
-## Testing Philosophy
-- **Progressive Complexity**: Start simple, build to complex scenarios
-- **Real-World Focus**: Test actual production use cases
-- **Error Recovery**: Include failure scenarios and recovery patterns
-- **Performance Validation**: Measure and optimize response times
-- **Integration Testing**: Verify all components work together
+Copy the entire prompt block (including expected output format) for each test.
 
 ---
 
 ## SECTION 1: BASIC CONNECTIVITY & DISCOVERY
-Tests fundamental connection and component discovery
 
 ### Test 1.1: Initial Connection Verification
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Verify the Q-SYS connection is working:
-1. Check the connection status to the Q-SYS Core
-2. Report the Core's firmware version and model
-3. Count total components available
-4. Identify any connection warnings or errors
+TEST: Initial Connection Verification
+
+Please execute the following test and report results:
+
+1. Use the echo tool with message "connection test" to verify MCP connectivity
+2. Use query_core_status to check the Q-SYS Core connection status
+3. Report the Core's firmware version, model, and design name
+4. Report total component count if available
+5. Note any connection warnings, errors, or unexpected responses
+
+EXPECTED OUTPUT FORMAT:
+- Echo Response: [success/failure - actual response]
+- Core Status: [connected/disconnected]
+- Core Model: [model name]
+- Firmware Version: [version]
+- Design Name: [name]
+- Component Count: [number or "not available"]
+- Errors/Warnings: [list any issues]
+- Overall Result: [PASS/FAIL with reason]
+
+Report any unexpected behavior or deviations from expected results.
 ```
 
 ### Test 1.2: Component Discovery
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Discover and categorize all components:
+TEST: Component Discovery
+
+Please execute the following test and report results:
+
 1. Use list_components to get all available components
-2. Group components by type (audio, video, control, etc.)
-3. Identify components with special characters or spaces in names
-4. Report total count per category
-5. Flag any components with unusual naming patterns
+2. Count total components found
+3. Group components by type (look for patterns like gain, mixer, router, etc.)
+4. Identify any components with special characters or spaces in names
+5. List the first 5 component names as examples
+6. Flag any components with unusual naming patterns
+
+EXPECTED OUTPUT FORMAT:
+- Total Components Found: [number]
+- Component Types Identified: [list of types with counts]
+- Components with Special Characters: [list examples or "none found"]
+- Components with Spaces: [list examples or "none found"]
+- First 5 Components: [list names]
+- Unusual Patterns: [describe any found or "none"]
+- Tool Errors: [any errors from list_components]
+- Overall Result: [PASS/FAIL with reason]
+
+Note if list_components returns unexpected format or errors.
 ```
 
 ### Test 1.3: Control Enumeration
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Map all controls in the system:
-1. For the first 5 components, list all their controls
-2. Identify control naming patterns (dots, underscores, spaces)
-3. Count controls by type (gain, mute, position, string, trigger)
-4. Document the exact format required for control names
+TEST: Control Enumeration
+
+Please execute the following test and report results:
+
+1. Use list_components to get available components
+2. For the FIRST 3 components found, use list_controls to get their controls
+3. Document the exact control name format you observe (dots, underscores, spaces)
+4. Count controls by type (gain, mute, position, string, trigger, etc.)
 5. Note any controls with metadata or special properties
+6. Report if any component has no controls
+
+EXPECTED OUTPUT FORMAT:
+- Components Tested: [list the 3 component names]
+- Control Name Formats Found:
+  * Format 1: [example like "component.control"]
+  * Format 2: [example like "component_control"]
+  * Other: [any other patterns]
+- Control Types Found:
+  * gain: [count]
+  * mute: [count]
+  * position: [count]
+  * string: [count]
+  * trigger: [count]
+  * other: [count and types]
+- Controls with Metadata: [list or "none found"]
+- Components with No Controls: [list or "none"]
+- Tool Errors: [any errors encountered]
+- Overall Result: [PASS/FAIL with reason]
+
+Include specific examples of control names for reference.
 ```
 
 ---
 
 ## SECTION 2: BASIC CONTROL OPERATIONS
-Tests fundamental get/set operations
 
 ### Test 2.1: Simple Get Operations
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test basic value retrieval:
-1. First, use list_components to discover available components
-2. For components found, use list_controls to find gain controls
-3. Get values for 5 discovered gain controls
-4. Find and get values for 5 discovered mute controls  
-5. Get values for any position/level controls found
-6. Verify value types match expectations (number vs boolean vs string)
-7. Check for any null or undefined values
+TEST: Simple Get Operations
+
+Please execute the following test and report results:
+
+1. Use list_components to discover available components
+2. Use list_controls on multiple components to find:
+   - At least 3 gain controls
+   - At least 3 mute controls
+   - At least 2 position/level controls (if available)
+3. Use get_control_values to retrieve all found control values
+4. Document the value type for each control type (number/boolean/string)
+5. Check for any null, undefined, or unexpected values
+
+EXPECTED OUTPUT FORMAT:
+- Gain Controls Found:
+  * Control 1: [name] = [value] (type: [number/string/boolean])
+  * Control 2: [name] = [value] (type: [number/string/boolean])
+  * Control 3: [name] = [value] (type: [number/string/boolean])
+- Mute Controls Found:
+  * Control 1: [name] = [value] (type: [number/string/boolean])
+  * Control 2: [name] = [value] (type: [number/string/boolean])
+  * Control 3: [name] = [value] (type: [number/string/boolean])
+- Position/Level Controls Found:
+  * Control 1: [name] = [value] (type: [number/string/boolean])
+  * Control 2: [name] = [value] (type: [number/string/boolean])
+- Unexpected Values: [list any null/undefined/strange values]
+- Tool Errors: [any errors from get_control_values]
+- Overall Result: [PASS/FAIL with reason]
+
+Note if get_control_values accepts the control name format you're using.
 ```
 
 ### Test 2.2: Simple Set Operations
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test basic value setting:
-1. Use list_components and list_controls to find a real gain control
-2. Get its current value and save it
-3. Set the discovered gain control to -20 dB
-4. Find a real mute control and get its current value
-5. Set the discovered mute control to true
-6. Wait 2 seconds
-7. Get both values to verify they changed
-8. Set them back to original values
+TEST: Simple Set Operations
+
+Please execute the following test and report results:
+
+1. Use list_components and list_controls to find:
+   - One real gain control
+   - One real mute control
+2. Use get_control_values to save current values
+3. Use set_control_values to set gain to -20 (with validate:false)
+4. Use set_control_values to set mute to true (with validate:false)
+5. Wait 2 seconds
+6. Use get_control_values to verify both changed
+7. Use set_control_values to restore original values
+8. Verify restoration succeeded
+
+EXPECTED OUTPUT FORMAT:
+- Gain Control Used: [name]
+  * Original Value: [value]
+  * Set to: -20
+  * Actual Value After Set: [value]
+  * Restored to: [value]
+  * Final Value: [value]
+- Mute Control Used: [name]
+  * Original Value: [value]
+  * Set to: true
+  * Actual Value After Set: [value]
+  * Restored to: [value]
+  * Final Value: [value]
+- Set Operations Status:
+  * Initial Set Success: [yes/no with details]
+  * Restoration Success: [yes/no with details]
+- Tool Errors: [any errors encountered]
+- Overall Result: [PASS/FAIL with reason]
+
+Report if validate:false was required for success.
 ```
 
 ### Test 2.3: Ramp Testing
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test ramp functionality:
-1. Use list_components and list_controls to find a real gain control
-2. Get and save its current value
-3. Set the gain from current value to -40 with 5 second ramp
-4. Immediately get the value (should show starting point)
-5. Get value after 2.5 seconds (should show mid-ramp)
-6. Get value after 5 seconds (should show target)
-7. Verify smooth transition occurred
+TEST: Ramp Functionality
+
+Please execute the following test and report results:
+
+1. Use list_components and list_controls to find a gain control
+2. Use get_control_values to save current value
+3. Use set_control_values with ramp parameter:
+   - Set gain to -40 with ramp:5 (5 second ramp)
+4. Immediately use get_control_values (T+0 seconds)
+5. Wait 2.5 seconds, then get_control_values (T+2.5 seconds)
+6. Wait another 2.5 seconds, then get_control_values (T+5 seconds)
+7. Document if smooth transition occurred
 8. Optionally restore original value
+
+EXPECTED OUTPUT FORMAT:
+- Gain Control Used: [name]
+- Original Value: [value]
+- Target Value: -40
+- Ramp Duration: 5 seconds
+- Value at T+0: [value] (should be near original)
+- Value at T+2.5: [value] (should be mid-transition)
+- Value at T+5: [value] (should be near -40)
+- Smooth Transition: [yes/no - explain]
+- Ramp Command Format Used: [exact format that worked]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with reason]
+
+Note the exact syntax required for the ramp parameter.
 ```
 
 ---
 
 ## SECTION 3: BATCH OPERATIONS & PERFORMANCE
-Tests batch processing and performance limits
 
 ### Test 3.1: Small Batch Operations
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test batch operations with 10 controls:
-1. Use list_components to discover available components
-2. Use list_controls on multiple components to find gain controls
-3. Build a list of exactly 10 real gain controls from different components
-4. Get all 10 values in a single call
-5. Set all 10 to -15 dB in a single call WITHOUT validation
-6. Measure time taken for the batch set
-7. Verify all values changed correctly
+TEST: Small Batch Operations (10 Controls)
+
+Please execute the following test and report results:
+
+1. Use list_components to discover components
+2. Use list_controls to find at least 10 gain controls
+3. Build list of exactly 10 gain control names
+4. Use get_control_values to get all 10 in ONE call
+5. Use set_control_values to set all 10 to -15 (validate:false) in ONE call
+6. Measure and report time taken
+7. Use get_control_values to verify all changed to -15
+
+EXPECTED OUTPUT FORMAT:
+- Controls Used: [list 10 control names]
+- Initial Values: [list values]
+- Batch Get Time: [milliseconds]
+- Batch Set Time: [milliseconds]
+- Final Values: [list values - should all be -15]
+- Success Rate: [X/10 controls changed successfully]
+- Batch Command Format: [show exact format used]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with reason]
+
+Report if batch operations work as expected.
 ```
 
-### Test 3.2: Medium Batch with Validation
+### Test 3.2: Validation Comparison
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test validation impact on 30 controls:
-1. Use list_components to discover components
-2. Use list_controls to find controls of different types
-3. Build a list of 30 real controls of mixed types (gain, mute, position)
-4. Set all 30 WITH validation (validate:true)
-5. Record time and any failures
-6. Set same 30 WITHOUT validation (validate:false)
-7. Compare times and success rates
+TEST: Validation Impact on Performance
+
+Please execute the following test and report results:
+
+1. Find 20 real controls of mixed types (gain, mute, position)
+2. Create test with 10 REAL controls and 10 FAKE control names
+3. Test WITH validation (validate:true):
+   - Set all 20 controls
+   - Record time and which ones succeed/fail
+4. Test WITHOUT validation (validate:false):
+   - Set same 20 controls
+   - Record time and which ones succeed/fail
+5. Compare results
+
+EXPECTED OUTPUT FORMAT:
+- Real Controls: [list 10 names]
+- Fake Controls: [list 10 fake names]
+- WITH Validation (validate:true):
+  * Time: [milliseconds]
+  * Real Controls Success: [X/10]
+  * Fake Controls Success: [X/10]
+  * Errors: [list any errors]
+- WITHOUT Validation (validate:false):
+  * Time: [milliseconds]
+  * Real Controls Success: [X/10]
+  * Fake Controls Success: [X/10]
+  * Errors: [list any errors]
+- Performance Difference: [X ms faster/slower]
+- Behavioral Difference: [describe key differences]
+- Overall Result: [PASS/FAIL with reason]
+
+Document how validation affects fake vs real controls.
 ```
 
 ### Test 3.3: Maximum Batch Limits
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test system limits with 100 controls:
-1. Use list_components to discover all available components
-2. Use list_controls on each component to enumerate all controls
-3. Build list of exactly 100 real controls from the discovered set
-4. Attempt to GET all 100 values
-5. Verify the 100-control limit is enforced
-6. Set 95 controls simultaneously
-7. Measure performance and verify success
+TEST: Maximum Batch Size Limits
+
+Please execute the following test and report results:
+
+1. Use list_components and list_controls to find ALL available controls
+2. Build list of exactly 100 real control names
+3. Test GET limit:
+   - Try get_control_values with all 100 controls
+   - Document if there's a limit or if it succeeds
+4. Test SET limit:
+   - Try set_control_values with 95 controls (validate:false)
+   - Document success/failure
+5. If limits exist, find the maximum that works
+
+EXPECTED OUTPUT FORMAT:
+- Total Controls Found: [number]
+- 100 Control GET Test:
+  * Success: [yes/no]
+  * Time: [milliseconds]
+  * Error: [if failed, what error]
+- 95 Control SET Test:
+  * Success: [yes/no]
+  * Time: [milliseconds]
+  * Error: [if failed, what error]
+- Maximum Working Batch Size:
+  * GET: [number]
+  * SET: [number]
+- Performance at Max Size:
+  * GET Time: [milliseconds]
+  * SET Time: [milliseconds]
+- Overall Result: [PASS/FAIL with reason]
+
+Report the practical limits for batch operations.
 ```
 
 ---
@@ -182,18 +383,46 @@ Test state management:
 7. Verify restoration succeeded
 ```
 
-### Test 5.2: Change Group Management  
+### Test 5.2: Change Group Management
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test ALL change group tools:
-1. create_change_group with ID "test-batch"
-2. add_controls_to_change_group - add 10 controls with values
-3. poll_change_group to monitor for external changes
-4. list_change_groups to see all active groups
-5. remove_controls_from_change_group - remove 3 controls
-6. clear_change_group to remove remaining controls
-7. add_controls_to_change_group - add different controls
-8. destroy_change_group to clean up
-9. list_change_groups to verify it's gone
+TEST: Complete Change Group Lifecycle
+
+Please execute the following test to verify ALL 7 change group tools:
+
+1. Use create_change_group to create group with ID "test-batch"
+2. Use add_controls_to_change_group to add 5 real controls
+3. Use poll_change_group to check for changes
+4. Use list_change_groups to verify group exists
+5. Use remove_controls_from_change_group to remove 2 controls
+6. Use clear_change_group to empty the group
+7. Use add_controls_to_change_group to add 3 different controls
+8. Use destroy_change_group to delete the group
+9. Use list_change_groups to verify it's gone
+
+EXPECTED OUTPUT FORMAT:
+- Step 1 - Create: [success/fail - group ID created]
+- Step 2 - Add Controls: [list controls added]
+- Step 3 - Poll Result: [any changes detected]
+- Step 4 - List Groups: [shows "test-batch" - yes/no]
+- Step 5 - Remove Controls: [which 2 removed]
+- Step 6 - Clear Result: [success/fail]
+- Step 7 - Add New Controls: [list 3 new controls]
+- Step 8 - Destroy: [success/fail]
+- Step 9 - Final List: [confirms group gone - yes/no]
+- Tool Errors: [any errors from any tool]
+- All 7 Tools Tested: [checklist]
+  ✓ create_change_group
+  ✓ add_controls_to_change_group
+  ✓ poll_change_group
+  ✓ list_change_groups
+  ✓ remove_controls_from_change_group
+  ✓ clear_change_group
+  ✓ destroy_change_group
+- Overall Result: [PASS/FAIL with reason]
+
+Verify each tool works as expected.
 ```
 
 ### Test 5.3: Persistent State Recovery
@@ -210,40 +439,108 @@ Test persistence across restarts:
 ---
 
 ## SECTION 6: EVENT MONITORING & TRACKING
-Tests event monitoring and query capabilities
 
 ### Test 6.1: Basic Event Monitoring
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test event capture:
-1. Use get_event_statistics to check if monitoring is enabled
-2. Make 10 control changes using set_control_values
-3. Query recent events using query_change_events
-4. Verify all 10 changes were captured
-5. Check event timestamps and metadata
-6. Use get_event_statistics to verify counts increased
+TEST: Basic Event Monitoring
+
+Please execute the following test and report results:
+
+1. Use get_event_statistics to check monitoring status
+2. Note the current total event count
+3. Use set_control_values to change 5 different controls
+4. Wait 2 seconds for events to be recorded
+5. Use query_change_events with no filters to get recent events
+6. Verify your 5 changes appear in the results
+7. Use get_event_statistics again to verify count increased by 5
+
+EXPECTED OUTPUT FORMAT:
+- Initial Statistics:
+  * Monitoring Enabled: [yes/no]
+  * Initial Event Count: [number]
+- Controls Changed: [list 5 control names and values]
+- Query Results:
+  * Events Found: [number]
+  * Your Changes Present: [yes/no - list them]
+  * Timestamps Correct: [yes/no]
+- Final Statistics:
+  * Final Event Count: [number]
+  * Count Increased By: [should be 5 or more]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with reason]
+
+Confirm event monitoring is capturing changes.
 ```
 
-### Test 6.2: Event Filtering and Queries
+### Test 6.2: Event Query Filtering
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test event query capabilities with query_change_events:
-1. Generate events for multiple components
-2. Query events filtering by componentNames parameter
-3. Query events filtering by controlNames parameter
-4. Query events filtering by startTime and endTime
-5. Query events filtering by changeGroupId (if using change groups)
-6. Test limit parameter (max 10000)
-7. Test offset parameter for pagination
-8. Combine multiple filters in one query
+TEST: Event Query Filtering
+
+Please execute the following test and report results:
+
+1. Make 3 changes to component "Gain1" (if it exists)
+2. Make 3 changes to component "Gain2" (if it exists)
+3. Test query_change_events filters:
+   - Query with componentNames:["Gain1"] 
+   - Query with limit:5
+   - Query with offset:2
+   - Query last 60 seconds (use startTime)
+   - Combine componentNames + limit filters
+4. Verify each filter works correctly
+
+EXPECTED OUTPUT FORMAT:
+- Changes Made:
+  * Gain1: [list 3 changes]
+  * Gain2: [list 3 changes]
+- Filter Tests:
+  * componentNames Filter: [returns only Gain1 - yes/no]
+  * limit:5 Filter: [returns max 5 - yes/no]
+  * offset:2 Filter: [skips first 2 - yes/no]
+  * Time Filter: [returns recent only - yes/no]
+  * Combined Filters: [work together - yes/no]
+- Query Syntax That Worked: [show exact format]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with reason]
+
+Document the correct filter syntax.
 ```
 
-### Test 6.3: Event Statistics
+### Test 6.3: Event Statistics Analysis
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test statistical analysis:
-1. Generate 100 varied events over 5 minutes
-2. Use get_event_statistics to analyze
-3. Verify component counts are accurate
-4. Check hourly distribution data
-5. Validate control type breakdowns
+TEST: Event Statistics Analysis
+
+Please execute the following test and report results:
+
+1. Use get_event_statistics to get baseline
+2. Make 20 rapid changes across 5 different components
+3. Wait 3 seconds for processing
+4. Use get_event_statistics again
+5. Verify statistics accurately reflect your changes
+
+EXPECTED OUTPUT FORMAT:
+- Baseline Statistics:
+  * Total Events: [number]
+  * Unique Controls: [number]
+  * Database Size: [bytes]
+- Changes Made: [brief summary of 20 changes]
+- Updated Statistics:
+  * Total Events: [increased by ~20]
+  * Unique Controls: [number]
+  * Events by Component: [show top 5]
+  * Hourly Distribution: [if available]
+- Statistics Accuracy:
+  * Event Count Correct: [yes/no]
+  * Component Breakdown Correct: [yes/no]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with reason]
+
+Verify statistics are tracking correctly.
 ```
 
 ### Test 6.4: High-Frequency Event Handling
@@ -417,48 +714,69 @@ Test simultaneous operations:
 ---
 
 ## SECTION 11: MCP PROTOCOL TESTING
-Tests Model Context Protocol implementation
 
-### Test 11.1: Tool Discovery & Complete Coverage
+### Test 11.1: Complete MCP Tool Coverage
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test ALL 16 MCP tools are available and working:
+TEST: Verify All 16 MCP Tools
 
-CORE CONTROL TOOLS (5):
-1. list_components - List all Q-SYS components
-2. list_controls - List controls for a specific component
-3. get_control_values - Get current values of controls
-4. set_control_values - Set control values with optional validation
-5. qsys_component_get - Get detailed component information
+Please test EVERY MCP tool to ensure all are working:
 
-SYSTEM STATUS TOOLS (1):
-6. query_core_status - Get Q-SYS Core status and health
+CORE CONTROL TOOLS (test all 5):
+1. list_components - Call with no parameters
+2. list_controls - Call with a valid component name
+3. get_control_values - Get 3 control values
+4. set_control_values - Set 2 controls (validate:false)
+5. qsys_component_get - Get details for one component
 
-CHANGE GROUP TOOLS (7):
-7. create_change_group - Create a new change group
-8. add_controls_to_change_group - Add controls to group
-9. poll_change_group - Poll for control changes
-10. list_change_groups - List all active change groups
-11. remove_controls_from_change_group - Remove specific controls
-12. clear_change_group - Clear all controls from group
-13. destroy_change_group - Destroy a change group
+SYSTEM STATUS (test 1):
+6. query_core_status - Call and verify response
 
-EVENT MONITORING TOOLS (2):
-14. query_change_events - Query historical control changes
-15. get_event_statistics - Get event database statistics
+CHANGE GROUP TOOLS (test all 7):
+7. create_change_group - Create group "test-all-tools"
+8. add_controls_to_change_group - Add 2 controls
+9. poll_change_group - Poll the group
+10. list_change_groups - List all groups
+11. remove_controls_from_change_group - Remove 1 control
+12. clear_change_group - Clear the group
+13. destroy_change_group - Destroy "test-all-tools"
 
-UTILITY TOOLS (1):
-16. query_qsys_api - Send raw Q-SYS API commands
+EVENT MONITORING (test both):
+14. query_change_events - Query last 10 events
+15. get_event_statistics - Get current stats
 
-TESTING TOOLS (1):
-17. echo - Test MCP connectivity
+UTILITY (test 1):
+16. query_qsys_api - Send "StatusGet" command
 
-TOTAL: 16 TOOLS (5+1+7+2+1 = 16)
+TESTING (test 1):
+17. echo - Echo "tool test complete"
 
-VERIFY EACH TOOL:
-- Call with valid parameters
-- Call with missing parameters (should error gracefully)
-- Call with invalid parameters (should error gracefully)
-- Verify response format matches MCP specification
+EXPECTED OUTPUT FORMAT:
+Tool Coverage Checklist:
+[ ] 1. list_components - [PASS/FAIL]
+[ ] 2. list_controls - [PASS/FAIL]
+[ ] 3. get_control_values - [PASS/FAIL]
+[ ] 4. set_control_values - [PASS/FAIL]
+[ ] 5. qsys_component_get - [PASS/FAIL]
+[ ] 6. query_core_status - [PASS/FAIL]
+[ ] 7. create_change_group - [PASS/FAIL]
+[ ] 8. add_controls_to_change_group - [PASS/FAIL]
+[ ] 9. poll_change_group - [PASS/FAIL]
+[ ] 10. list_change_groups - [PASS/FAIL]
+[ ] 11. remove_controls_from_change_group - [PASS/FAIL]
+[ ] 12. clear_change_group - [PASS/FAIL]
+[ ] 13. destroy_change_group - [PASS/FAIL]
+[ ] 14. query_change_events - [PASS/FAIL]
+[ ] 15. get_event_statistics - [PASS/FAIL]
+[ ] 16. query_qsys_api - [PASS/FAIL]
+[ ] 17. echo - [PASS/FAIL]
+
+Total Working: [X/17]
+Failed Tools: [list any that failed]
+Overall Result: [PASS if 16+/17, FAIL otherwise]
+
+Report any tools that don't work or return errors.
 ```
 
 ### Test 11.2: Tool Chaining & Integration
@@ -1235,8 +1553,46 @@ setInterval(async () => {
 
 ---
 
+## QUICK TEST SUMMARY
+
+### Priority 1: Core Functionality (Must Pass)
+1. **Test 1.1** - Initial Connection Verification
+2. **Test 2.1** - Simple Get Operations  
+3. **Test 2.2** - Simple Set Operations
+4. **Test 11.1** - Complete MCP Tool Coverage (all 17 tools)
+
+### Priority 2: Critical Features (Should Pass)
+5. **Test 3.1** - Small Batch Operations
+6. **Test 3.2** - Validation Comparison
+7. **Test 5.2** - Change Group Management (all 7 tools)
+8. **Test 6.1** - Basic Event Monitoring
+9. **Test 6.2** - Event Query Filtering
+
+### Priority 3: Advanced Features (Nice to Have)
+10. **Test 2.3** - Ramp Testing
+11. **Test 3.3** - Maximum Batch Limits
+12. **Test 6.3** - Event Statistics Analysis
+
+## HOW TO USE THIS GUIDE
+
+1. **Copy the entire prompt block** for each test (everything in the code block)
+2. **Paste to your MCP agent** exactly as formatted
+3. **Wait for the agent's response** with test results
+4. **Copy the agent's response** back here for analysis
+5. **We'll fix any issues** found and re-test
+
+## SCORING CRITERIA
+
+- **PASS**: Tool works as expected with correct output
+- **FAIL**: Tool errors, returns unexpected data, or doesn't work
+- **PARTIAL**: Tool works but with limitations or workarounds needed
+
 ## CONCLUSION
 
-This comprehensive testing guide ensures thorough validation of the Q-SYS MCP server. Execute tests progressively, document results carefully, and use findings to improve system reliability and performance.
+This testing guide is optimized for the workflow where:
+- You copy individual test prompts to an MCP agent
+- The agent executes and reports detailed results
+- You bring back the results for fixes/improvements
+- We iterate until all tests pass
 
-Remember: **Complete each phase to 100% before moving to the next.**
+Start with Priority 1 tests to ensure core functionality, then proceed to Priority 2 and 3 as needed.
