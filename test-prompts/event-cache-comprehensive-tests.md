@@ -5,6 +5,14 @@ Each prompt below is self-contained and tests a specific aspect of the event cac
 
 **IMPORTANT NOTES**: 
 
+### System Architecture - 33Hz Maximum Polling Rate
+The event monitoring system is **polling-based** with a maximum rate of 33Hz (30ms intervals). This means:
+- Maximum capture rate: 33 events per second per control
+- Changes faster than 30ms apart will be aggregated
+- Only the value at each polling interval is captured
+- This is by design - not a limitation to be "fixed"
+- Test expectations should account for this architecture
+
 ### Parameter Types
 All numeric parameters (pollRate, limit, offset, etc.) now accept both string and number values. The MCP server will automatically convert string numbers to numeric values. For example:
 - pollRate: 0.1 (numeric) or "0.1" (string) - both work
@@ -61,16 +69,16 @@ Please format results as:
 
 ---
 
-## TEST 2: Basic Event Recording (UPDATED)
+## TEST 2: Basic Event Recording (UPDATED FOR 33Hz MAX)
 ```
-Test basic event recording functionality with proper change detection:
+Test basic event recording functionality with polling-based system:
 
-IMPORTANT: The system now only records ACTUAL CHANGES, not every poll. This means:
-- First poll records initial values for all controls
-- Subsequent polls only record controls that have changed
-- Rapid changes need sufficient time between them to be detected
+IMPORTANT: System is polling-based with max 33Hz (30ms intervals). Key points:
+- Each poll captures current values at that moment
+- Changes within polling intervals are aggregated (only final value captured)
+- Maximum theoretical capture rate is 33 events/second per control
 
-1. Create change group "basic_test_001" with pollRate=1 (1Hz - slower for reliable change detection)
+1. Create change group "basic_test_001" with pollRate=0.1 (10Hz - balanced for testing)
 
 2. Add these controls to the group (adjust names based on what's available):
    - Any gain control
@@ -79,28 +87,27 @@ IMPORTANT: The system now only records ACTUAL CHANGES, not every poll. This mean
 
 3. Set control values 3 times with different values:
    - First set: gain=-10, mute=false, position=0.5
-   - Wait 2 seconds (allow at least 2 polls to detect the change)
+   - Wait 1 second (allow ~10 polls to capture)
    - Second set: gain=-20, mute=true, position=0.75
-   - Wait 2 seconds
+   - Wait 1 second
    - Third set: gain=-5, mute=false, position=0.25
-   - Wait 2 seconds
+   - Wait 1 second
 
-4. Wait 2 more seconds for final recording
+4. Wait 1 more second for final recording
 
 5. Query events with query_change_events (changeGroupId="basic_test_001", limit=50)
 
 6. Verify and report:
-   - Initial values captured (first poll)
-   - Were all 9 changes captured? (3 controls × 3 changes)
+   - How many events were captured total?
    - Are timestamps in correct order?
-   - Do values match what was set?
+   - Do final values match what was set?
 
 Expected behavior:
-- First poll: Records initial state of all 3 controls
-- After each value change: Records only the controls that changed
-- Total events: ~12 (3 initial + 9 changes)
+- Total events: ~40 (10Hz × 4 seconds × 3 controls)
+- Each control should show value progression over time
+- Final values should match last set operation
 
-Report: Total events captured, change detection accuracy, any missing events
+Report: Total events captured, polling consistency, value accuracy
 ```
 
 ---
@@ -210,23 +217,24 @@ Report any filtering failures or unexpected results
 
 ---
 
-## TEST 5: Memory Pressure Test
+## TEST 5: Memory Pressure Test (33Hz AWARE)
 ```
 Test system behavior under memory pressure:
 
 1. Get initial statistics with get_event_statistics
 
-2. Create change group "memory_test" with pollRate=0.03
+2. Create change group "memory_test" with pollRate=0.03 (33Hz max rate)
 
 3. Add 10 controls to the group
 
-4. Generate 500 rapid changes:
-   - Change all 10 controls 50 times
-   - Use random values
-   - Minimal delay between changes
+4. Run for 15 seconds at maximum polling rate:
+   - Expected polls: 15 seconds × 33Hz = 495 polls
+   - Maximum possible events: 495 × 10 controls = 4,950 events
+   - Change control values every 100ms (10Hz change rate)
+   - Total changes: 150 (15 seconds × 10Hz)
 
 5. Monitor during test:
-   - Call get_event_statistics every 100 changes
+   - Call get_event_statistics every 5 seconds
    - Watch for buffer overflow count increases
    - Note any compression events
 
@@ -236,11 +244,13 @@ Test system behavior under memory pressure:
    - Calculate capture rate
 
 Report:
-- Events captured vs expected (500)
+- Events captured (should be ≤4,950)
+- Actual capture rate (events/second)
 - Buffer overflows detected
 - Compression events triggered
 - Performance degradation observed?
-- Memory usage growth
+
+Note: With 33Hz polling and 10Hz changes, system should capture most changes
 ```
 
 ---
@@ -340,30 +350,36 @@ Report: All types handled? Any conversion issues?
 
 ---
 
-## TEST 10: Statistics Accuracy Test
+## TEST 10: Statistics Accuracy Test (POLLING-BASED)
 ```
-Verify statistics accuracy:
+Verify statistics accuracy with polling architecture:
 
 1. Get initial statistics (record all values)
 
-2. Generate exactly 100 events:
-   - Use 5 unique controls
-   - 20 changes each
+2. Run controlled test:
+   - Create change group with 5 unique controls
+   - Set pollRate=0.1 (10Hz for predictable results)
+   - Run for exactly 10 seconds
+   - Change values every 500ms (20 total changes)
+   - Expected polls: 10 seconds × 10Hz = 100 polls
+   - Maximum events: 100 polls × 5 controls = 500 events
 
 3. Get final statistics
 
 4. Verify:
-   - Total events increased by exactly 100
-   - Unique controls increased by up to 5
+   - Total events increased (should be ≤500)
+   - Unique controls count correct
    - Database size increased appropriately
    - Buffer statistics are reasonable
    - No overflow count increases
 
 5. Calculate and report:
-   - Events per second captured
+   - Events captured per second
+   - Actual vs theoretical capture rate
    - Database growth per event (bytes)
-   - Buffer efficiency percentage
+   - Polling efficiency (events/polls)
 
+Expected: With changes every 500ms and 100ms polling, should capture most changes
 Report all calculations and any discrepancies
 ```
 
@@ -373,9 +389,15 @@ Report all calculations and any discrepancies
 ```
 Test cleanup operations:
 
-1. Create 3 change groups with different poll rates
+1. Create 3 change groups with different poll rates:
+   - Group A: pollRate=0.03 (33Hz - maximum)
+   - Group B: pollRate=0.1 (10Hz - medium)
+   - Group C: pollRate=1.0 (1Hz - slow)
 
-2. Add controls and generate 20 events each
+2. Add 2 controls to each group and run for 2 seconds:
+   - Group A: ~66 polls × 2 controls = ~132 events max
+   - Group B: ~20 polls × 2 controls = ~40 events max
+   - Group C: ~2 polls × 2 controls = ~4 events max
 
 3. Destroy change groups one by one:
    - Verify each destruction succeeds
@@ -390,37 +412,42 @@ Test cleanup operations:
    - All groups destroyed
    - System ready for new tests
 
-Report: Cleanup successful? Historical data preserved?
+Report: Cleanup successful? Historical data preserved? Event counts as expected?
 ```
 
 ---
 
-## TEST 12: Stress Burst Test
+## TEST 12: Stress Burst Test (33Hz MAXIMUM)
 ```
 Test system response to sudden load bursts:
 
-1. Create change group "burst_test" with pollRate=0.03
+1. Create change group "burst_test" with pollRate=0.03 (33Hz max)
 
 2. Add 5 controls
 
-3. Perform burst pattern:
-   - Burst 1: 50 changes in 1 second
+3. Perform burst pattern (understanding 33Hz limits):
+   - Burst 1: 50 changes in 2 seconds (25 changes/sec)
+     * Max capturable: 2 sec × 33Hz × 5 controls = 330 events
    - Pause 5 seconds
-   - Burst 2: 100 changes in 2 seconds
+   - Burst 2: 100 changes in 3 seconds (33 changes/sec)
+     * Max capturable: 3 sec × 33Hz × 5 controls = 495 events
    - Pause 5 seconds
-   - Burst 3: 200 changes in 3 seconds
+   - Burst 3: 150 changes in 5 seconds (30 changes/sec)
+     * Max capturable: 5 sec × 33Hz × 5 controls = 825 events
 
 4. Monitor after each burst:
    - Check statistics for overflows
    - Query captured events
-   - Calculate capture percentage
+   - Calculate actual capture rate
 
 Report:
-- Burst 1: X/50 captured
-- Burst 2: X/100 captured
-- Burst 3: X/200 captured
-- Recovery time between bursts
+- Burst 1: X events captured (max 330)
+- Burst 2: X events captured (max 495)
+- Burst 3: X events captured (max 825)
+- Actual events/second for each burst
 - System stability maintained?
+
+Note: Changes faster than 33Hz cannot be individually captured
 ```
 
 ---
