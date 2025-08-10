@@ -27,9 +27,7 @@ export const QueryQSysAPIParamsSchema = z.object({
     .enum([
       'Authentication',
       'Component',
-      'Mixer',
       'Control',
-      'Snapshot',
       'ChangeGroup',
       'Status',
     ])

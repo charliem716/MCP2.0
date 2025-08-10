@@ -52,31 +52,39 @@ Tests fundamental get/set operations
 ### Test 2.1: Simple Get Operations
 ```
 Test basic value retrieval:
-1. Get values for 5 different gain controls
-2. Get values for 5 different mute controls
-3. Get values for any position/level controls
-4. Verify value types match expectations (number vs boolean vs string)
-5. Check for any null or undefined values
+1. First, use list_components to discover available components
+2. For components found, use list_controls to find gain controls
+3. Get values for 5 discovered gain controls
+4. Find and get values for 5 discovered mute controls  
+5. Get values for any position/level controls found
+6. Verify value types match expectations (number vs boolean vs string)
+7. Check for any null or undefined values
 ```
 
 ### Test 2.2: Simple Set Operations
 ```
 Test basic value setting:
-1. Set a single gain control to -20 dB
-2. Set a single mute control to true
-3. Wait 2 seconds
-4. Get both values to verify they changed
-5. Set them back to original values
+1. Use list_components and list_controls to find a real gain control
+2. Get its current value and save it
+3. Set the discovered gain control to -20 dB
+4. Find a real mute control and get its current value
+5. Set the discovered mute control to true
+6. Wait 2 seconds
+7. Get both values to verify they changed
+8. Set them back to original values
 ```
 
 ### Test 2.3: Ramp Testing
 ```
 Test ramp functionality:
-1. Set a gain from current value to -40 with 5 second ramp
-2. Immediately get the value (should show starting point)
-3. Get value after 2.5 seconds (should show mid-ramp)
-4. Get value after 5 seconds (should show target)
-5. Verify smooth transition occurred
+1. Use list_components and list_controls to find a real gain control
+2. Get and save its current value
+3. Set the gain from current value to -40 with 5 second ramp
+4. Immediately get the value (should show starting point)
+5. Get value after 2.5 seconds (should show mid-ramp)
+6. Get value after 5 seconds (should show target)
+7. Verify smooth transition occurred
+8. Optionally restore original value
 ```
 
 ---
@@ -87,31 +95,37 @@ Tests batch processing and performance limits
 ### Test 3.1: Small Batch Operations
 ```
 Test batch operations with 10 controls:
-1. Discover 10 gain controls from different components
-2. Get all 10 values in a single call
-3. Set all 10 to -15 dB in a single call WITHOUT validation
-4. Measure time taken for the batch set
-5. Verify all values changed correctly
+1. Use list_components to discover available components
+2. Use list_controls on multiple components to find gain controls
+3. Build a list of exactly 10 real gain controls from different components
+4. Get all 10 values in a single call
+5. Set all 10 to -15 dB in a single call WITHOUT validation
+6. Measure time taken for the batch set
+7. Verify all values changed correctly
 ```
 
 ### Test 3.2: Medium Batch with Validation
 ```
 Test validation impact on 30 controls:
-1. Find 30 controls of mixed types (gain, mute, position)
-2. Set all 30 WITH validation (validate:true)
-3. Record time and any failures
-4. Set same 30 WITHOUT validation (validate:false)
-5. Compare times and success rates
+1. Use list_components to discover components
+2. Use list_controls to find controls of different types
+3. Build a list of 30 real controls of mixed types (gain, mute, position)
+4. Set all 30 WITH validation (validate:true)
+5. Record time and any failures
+6. Set same 30 WITHOUT validation (validate:false)
+7. Compare times and success rates
 ```
 
 ### Test 3.3: Maximum Batch Limits
 ```
 Test system limits with 100 controls:
-1. Build list of exactly 100 real controls
-2. Attempt to GET all 100 values
-3. Verify the 100-control limit is enforced
-4. Set 95 controls simultaneously
-5. Measure performance and verify success
+1. Use list_components to discover all available components
+2. Use list_controls on each component to enumerate all controls
+3. Build list of exactly 100 real controls from the discovered set
+4. Attempt to GET all 100 values
+5. Verify the 100-control limit is enforced
+6. Set 95 controls simultaneously
+7. Measure performance and verify success
 ```
 
 ---
@@ -122,11 +136,13 @@ Deep dive into validation system behavior
 ### Test 4.1: Validation Edge Cases
 ```
 Test validation with edge cases:
-1. Set 5 REAL controls + 5 FAKE controls WITH validation
-2. Document which succeed and which fail
-3. Set same mix WITHOUT validation
-4. Compare behavior differences
-5. Check if real controls actually changed despite validation errors
+1. Use list_components and list_controls to identify 5 REAL controls
+2. Create 5 FAKE control names that don't exist
+3. Set 5 REAL controls + 5 FAKE controls WITH validation
+4. Document which succeed and which fail
+5. Set same mix WITHOUT validation
+6. Compare behavior differences
+7. Check if real controls actually changed despite validation errors
 ```
 
 ### Test 4.2: Format Sensitivity
@@ -157,12 +173,13 @@ Tests state tracking and recovery
 ### Test 5.1: State Save and Restore
 ```
 Test state management:
-1. Get current values for 20 important controls
-2. Save this state snapshot
-3. Change all 20 controls to different values
-4. Verify changes applied
-5. Restore original state from snapshot
-6. Verify restoration succeeded
+1. Use list_components and list_controls to find 20 real controls
+2. Get current values for these 20 controls
+3. Save this state snapshot
+4. Change all 20 controls to different values
+5. Verify changes applied
+6. Restore original state from snapshot
+7. Verify restoration succeeded
 ```
 
 ### Test 5.2: Change Group Management  
@@ -247,31 +264,38 @@ Tests complex audio routing scenarios
 ### Test 7.1: Basic Audio Routing
 ```
 Test routing changes:
-1. Discover router/matrix components
-2. Identify current routing configuration
-3. Change 4 routing points
-4. Verify routes changed
-5. Create a routing preset
+1. Use list_components to discover all components
+2. Look for router/matrix/crosspoint components in the list
+3. If found, use list_controls to get their routing controls
+4. Identify current routing configuration
+5. Change 4 routing points (if available)
+6. Verify routes changed
+7. Create a routing preset
+Note: Skip if no router/matrix components are found
 ```
 
 ### Test 7.2: Audio Cross-fades
 ```
 Test smooth transitions:
-1. Find two input channels
-2. Set first channel to 0 dB
-3. Set second channel to -60 dB
-4. Cross-fade over 3 seconds (first down, second up)
-5. Verify smooth transition completed
+1. Use list_components to find input/channel components
+2. Use list_controls to find gain controls on at least 2 channels
+3. Set first channel gain to 0 dB
+4. Set second channel gain to -60 dB
+5. Cross-fade over 3 seconds (first down, second up) using ramp
+6. Verify smooth transition completed
+Note: Skip if insufficient channel components are found
 ```
 
 ### Test 7.3: Complex Mix Scenarios
 ```
 Test mixing operations:
-1. Find all input channels for a mixer
-2. Set up a standard mix (drums, bass, vocals, etc.)
-3. Apply EQ to specific channels
-4. Set up aux sends
-5. Create and recall mix snapshots
+1. Use list_components to find mixer components
+2. Use list_controls to find all input channel controls
+3. Set up a standard mix using discovered controls
+4. Apply EQ adjustments if EQ controls are found
+5. Set up aux sends if aux controls are available
+6. Create and recall mix snapshots
+Note: Adapt test based on actual components found
 ```
 
 ---
@@ -282,31 +306,36 @@ Tests multi-zone audio systems
 ### Test 8.1: Zone Linking
 ```
 Test linked zone control:
-1. Find all zone components
-2. Link 5 zones together
-3. Change master volume
-4. Verify all linked zones follow
-5. Unlink and verify independence
+1. Use list_components to find zone-related components
+2. Use list_controls to find zone volume/mute controls
+3. If 5+ zones found, link them together
+4. Change master volume on first zone
+5. Verify all linked zones follow
+6. Unlink and verify independence
+Note: Adjust test based on actual zone count found
 ```
 
 ### Test 8.2: Room Combining
 ```
 Test room combine scenarios:
-1. Identify combinable rooms/partitions
-2. Combine rooms A and B
-3. Verify audio routing adjusted
-4. Test combined room volume control
-5. Separate rooms and verify isolation
+1. Use list_components to find room/partition components
+2. Use list_controls to identify combine controls
+3. If combinable rooms found, combine first two
+4. Verify audio routing adjusted
+5. Test combined room volume control
+6. Separate rooms and verify isolation
+Note: Skip if no room combine components found
 ```
 
 ### Test 8.3: Emergency Mute Scenarios
 ```
 Test emergency procedures:
-1. Save current state of all zones
-2. Emergency mute ALL outputs instantly
-3. Verify complete silence achieved
-4. Gradually restore zones one by one
-5. Return to saved state
+1. Use list_components to find all output/zone components
+2. Use get_control_values to save current state of all mute controls
+3. Emergency mute ALL discovered outputs instantly (validate:false)
+4. Verify complete silence achieved
+5. Gradually restore zones one by one
+6. Return to saved state
 ```
 
 ---
@@ -317,31 +346,37 @@ Tests audio processing components
 ### Test 9.1: EQ Control
 ```
 Test equalizer adjustments:
-1. Find parametric EQ components
-2. Adjust frequency, gain, and Q for 3 bands
-3. Create a "speech intelligibility" preset
-4. Create a "music" preset
-5. Switch between presets with ramps
+1. Use list_components to find EQ components
+2. Use list_controls to find frequency, gain, and Q controls
+3. If found, adjust 3 bands
+4. Create a "speech intelligibility" preset
+5. Create a "music" preset
+6. Switch between presets with ramps
+Note: Skip if no EQ components found
 ```
 
 ### Test 9.2: Dynamics Processing
 ```
 Test compressor/limiter control:
-1. Find dynamics processors
-2. Adjust threshold to -20 dB
-3. Set ratio to 4:1
-4. Adjust attack and release times
-5. Monitor gain reduction meter
+1. Use list_components to find dynamics processor components
+2. Use list_controls to find threshold, ratio, attack, release controls
+3. If found, adjust threshold to -20 dB
+4. Set ratio to 4:1
+5. Adjust attack and release times
+6. Monitor gain reduction meter if available
+Note: Skip if no dynamics components found
 ```
 
 ### Test 9.3: Acoustic Echo Cancellation
 ```
 Test AEC configuration:
-1. Find AEC components
-2. Enable/disable AEC processing
-3. Adjust reference levels
-4. Test non-linear processing settings
-5. Monitor AEC convergence status
+1. Use list_components to find AEC components
+2. Use list_controls to find AEC enable/disable and parameter controls
+3. If found, enable/disable AEC processing
+4. Adjust reference levels if controls available
+5. Test non-linear processing settings if available
+6. Monitor AEC convergence status if available
+Note: Skip if no AEC components found
 ```
 
 ---
@@ -616,13 +651,45 @@ get_event_statistics:
 
 ### Test 11.5.5: Utility & Testing Tools (2 tools)
 ```
-query_qsys_api (Utility):
-- Send "Component.GetComponents" command
-- Send "Component.GetControls" with params
-- Send "Mixer.GetCrosspoints" if mixer exists
-- Send invalid command (error handling)
-- Compare with tool equivalents
-- Test command timeout handling
+query_qsys_api (Utility) - COMPREHENSIVE TESTING:
+
+BASIC COMMANDS:
+- Send "Component.GetComponents" with no params to list all components
+- Send "Component.GetControls" with {"Name": "ComponentName"} params
+- Send "Component.Get" with {"Name": "ComponentName"} to get details
+- Send "Control.Get" with control list array
+- Send "Control.Set" with control values array
+
+COMPONENT-SPECIFIC COMMANDS:
+- Send "Mixer.GetCrosspoints" with mixer component name
+- Send "Router.GetStatus" if router component exists
+- Send "Snapshot.Load" with snapshot number (if snapshots exist)
+- Send "ChangeGroup.Create" with Id parameter
+- Send "ChangeGroup.AddControl" with group Id and controls
+
+STATUS & MONITORING:
+- Send "StatusGet" with no params for Core status
+- Send "Component.GetStatus" with component name
+- Send "LogEntry" to add a log entry
+
+ERROR HANDLING:
+- Send invalid command like "InvalidCommand" (should error)
+- Send valid command with wrong params (should error)
+- Send command with malformed JSON params
+- Send empty method name
+- Test timeout with long-running command
+
+COMPARISON TESTS:
+- Send "Component.GetComponents" and compare with list_components tool
+- Send "Component.GetControls" and compare with list_controls tool  
+- Send "Control.Get" and compare with get_control_values tool
+- Send "Control.Set" and compare with set_control_values tool
+
+ADVANCED USAGE:
+- Send batch commands if supported
+- Test command rate limiting
+- Verify response format consistency
+- Test with component names containing special characters
 
 echo:
 - Echo simple string "test"
@@ -635,17 +702,101 @@ echo:
 
 ---
 
+## SECTION 11.6: RAW Q-SYS API DEEP DIVE
+Comprehensive testing of query_qsys_api tool
+
+### Test 11.6.1: Discovery Commands
+```
+Test component and control discovery via raw API:
+1. Use query_qsys_api with "Component.GetComponents" method
+2. Parse response to get component list
+3. For first 3 components, send "Component.GetControls" with their names
+4. Send "Component.Get" for detailed component properties
+5. Compare all results with standard MCP tools (list_components, list_controls)
+6. Document any differences in response format
+```
+
+### Test 11.6.2: Control Operations
+```
+Test control manipulation via raw API:
+1. First use list_controls to find real control names
+2. Use query_qsys_api with "Control.Get" method:
+   - params: [{"Name": "ComponentName.ControlName"}]
+3. Use query_qsys_api with "Control.Set" method:
+   - params: [{"Name": "ComponentName.ControlName", "Value": -20}]
+4. Test with multiple controls in single command:
+   - params: [{"Name": "Control1", "Value": 0}, {"Name": "Control2", "Value": 1}]
+5. Test with ramp parameter:
+   - params: [{"Name": "ControlName", "Value": -40, "Ramp": 5}]
+6. Compare results with get_control_values and set_control_values tools
+```
+
+### Test 11.6.3: Change Group Management
+```
+Test change group operations via raw API:
+1. Send "ChangeGroup.Create" with {"Id": "test-api-group"}
+2. Send "ChangeGroup.AddControl" with:
+   - {"Id": "test-api-group", "Controls": ["Control1", "Control2"]}
+3. Send "ChangeGroup.AddComponentControl" for component controls
+4. Send "ChangeGroup.Poll" to check for changes
+5. Send "ChangeGroup.Clear" to empty the group
+6. Send "ChangeGroup.Destroy" to remove it
+7. Compare with standard change group tools
+```
+
+### Test 11.6.4: System Commands
+```
+Test system-level commands:
+1. Send "StatusGet" for Core status (no params)
+2. Send "Component.GetStatus" for component health
+3. Send "LogEntry" with message to add system log:
+   - params: {"Message": "Test log from MCP"}
+4. Send "Design.Get" to get design information
+5. Send "Mixer.GetCrosspoints" if mixer components exist
+6. Send "Router.GetStatus" if router components exist
+7. Document all successful commands for reference
+```
+
+### Test 11.6.5: Error Scenarios
+```
+Test error handling with invalid commands:
+1. Send completely invalid method: "This.Does.Not.Exist"
+2. Send valid method with wrong params:
+   - "Component.GetControls" with {"InvalidParam": "value"}
+3. Send malformed params:
+   - "Control.Set" with non-JSON params
+4. Send empty method: ""
+5. Send null params vs empty params vs no params
+6. Test very long method names (1000+ chars)
+7. Verify all errors are handled gracefully
+```
+
+### Test 11.6.6: Performance Comparison
+```
+Compare raw API vs MCP tools performance:
+1. Time 100 operations using get_control_values
+2. Time same 100 operations using query_qsys_api with "Control.Get"
+3. Time batch operations with both approaches
+4. Compare response parsing overhead
+5. Identify when to use raw API vs MCP tools
+6. Document performance differences
+```
+
+---
+
 ## SECTION 12: PERFORMANCE & LOAD TESTING
 Tests system performance under load
 
 ### Test 12.1: Rapid Sequential Updates
 ```
 Test update rate limits:
-1. Find a single gain control
-2. Update it 100 times rapidly (different values)
-3. Measure total time and success rate
-4. Calculate updates per second
-5. Identify any rate limiting
+1. Use list_components and list_controls to find a single gain control
+2. Get its current value and save it
+3. Update it 100 times rapidly (different values)
+4. Measure total time and success rate
+5. Calculate updates per second
+6. Identify any rate limiting
+7. Restore original value
 ```
 
 ### Test 12.2: Parallel Operations
@@ -676,19 +827,21 @@ Tests complex real-world use cases
 ### Test 13.1: Conference Room Automation
 ```
 Simulate conference room control:
-1. Set up "Meeting Start" sequence:
-   - Unmute podium mic
-   - Set room speakers to -12 dB
-   - Enable acoustic echo cancellation
-   - Adjust lighting (if integrated)
-2. Create "Presentation Mode":
-   - Mute all mics except presenter
-   - Route laptop audio to speakers
-   - Adjust EQ for speech
-3. Implement "Meeting End":
-   - Mute all audio
-   - Reset to defaults
-   - Log usage statistics
+1. Use list_components to discover all audio components
+2. Use list_controls to identify mic, speaker, and AEC controls
+3. Set up "Meeting Start" sequence:
+   - Find and unmute microphone controls
+   - Find and set speaker gain controls to -12 dB
+   - Enable AEC if AEC controls found
+   - Adjust any lighting controls if found
+4. Create "Presentation Mode":
+   - Mute all discovered mic controls except one
+   - Route audio if routing controls found
+   - Adjust EQ if EQ controls found
+5. Implement "Meeting End":
+   - Mute all discovered audio outputs
+   - Reset controls to original values
+   - Use query_change_events to log changes
 ```
 
 ### Test 13.2: Live Event Management
@@ -716,11 +869,14 @@ Simulate live event control using all relevant tools:
 ### Test 13.3: Multi-Room Audio Distribution
 ```
 Test distributed audio system:
-1. Configure 8 zones with different sources
-2. Implement "All Page" override
-3. Test priority ducking (fire alarm simulation)
-4. Create day/night presets
-5. Test scheduled transitions
+1. Use list_components to find all zone/room components
+2. Use list_controls to find source selection and volume controls
+3. Configure discovered zones with different sources (up to 8)
+4. Implement "All Page" override on all found zones
+5. Test priority ducking if ducking controls found
+6. Create day/night presets for discovered zones
+7. Test scheduled transitions
+Note: Adapt to actual zone count found
 ```
 
 ---
@@ -756,6 +912,79 @@ Test abuse prevention:
 3. Test recovery after rate limit
 4. Verify no service disruption
 5. Check resource consumption
+```
+
+---
+
+## Q-SYS API COMMAND REFERENCE
+Quick reference for query_qsys_api tool usage
+
+### Common Commands
+```javascript
+// Component Discovery
+{"method": "Component.GetComponents", "params": {}}
+
+// Get controls for a specific component  
+{"method": "Component.GetControls", "params": {"Name": "ComponentName"}}
+
+// Get component details
+{"method": "Component.Get", "params": {"Name": "ComponentName"}}
+
+// Get control values (single)
+{"method": "Control.Get", "params": [{"Name": "ComponentName.ControlName"}]}
+
+// Get control values (multiple)
+{"method": "Control.Get", "params": [
+  {"Name": "Component1.Control1"},
+  {"Name": "Component2.Control2"}
+]}
+
+// Set control value
+{"method": "Control.Set", "params": [{"Name": "ComponentName.ControlName", "Value": -20}]}
+
+// Set control with ramp
+{"method": "Control.Set", "params": [{"Name": "ComponentName.ControlName", "Value": -40, "Ramp": 5}]}
+
+// Get Core status
+{"method": "StatusGet", "params": {}}
+
+// Create change group
+{"method": "ChangeGroup.Create", "params": {"Id": "group-id"}}
+
+// Add controls to change group
+{"method": "ChangeGroup.AddControl", "params": {
+  "Id": "group-id",
+  "Controls": ["Control1", "Control2"]
+}}
+
+// Poll change group
+{"method": "ChangeGroup.Poll", "params": {"Id": "group-id"}}
+
+// Destroy change group
+{"method": "ChangeGroup.Destroy", "params": {"Id": "group-id"}}
+
+// Add log entry
+{"method": "LogEntry", "params": {"Message": "Log message here"}}
+```
+
+### Usage Examples
+```
+# Example 1: Get all components
+Use query_qsys_api with method "Component.GetComponents" and empty params {}
+
+# Example 2: Get specific control value
+Use query_qsys_api with method "Control.Get" and params [{"Name": "Gain1.gain"}]
+
+# Example 3: Set multiple controls
+Use query_qsys_api with method "Control.Set" and params:
+[
+  {"Name": "Gain1.gain", "Value": -10},
+  {"Name": "Gain1.mute", "Value": true}
+]
+
+# Example 4: Set with ramp
+Use query_qsys_api with method "Control.Set" and params:
+[{"Name": "Gain1.gain", "Value": -30, "Ramp": 3}]
 ```
 
 ---
