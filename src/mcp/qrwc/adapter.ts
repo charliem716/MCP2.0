@@ -17,6 +17,7 @@ import {
 } from './validators.js';
 import { QSysError, QSysErrorCode, NetworkError, ValidationError } from '../../shared/types/errors.js';
 import { withErrorRecovery } from '../../shared/utils/error-recovery.js';
+import { discoveryCache } from '../state/discovery-cache.js';
 // Import removed - extractControlValue is now in command-handlers.js
 import {
   handleGetComponents,
@@ -153,6 +154,34 @@ export class QRWCClientAdapter
       this.useSimulation = true;
       logger.info('Control simulator enabled for 33Hz testing');
     }
+
+    // Listen for connection events to manage cache
+    this.setupConnectionHandlers();
+  }
+
+  /**
+   * Setup connection event handlers for cache management
+   */
+  private setupConnectionHandlers(): void {
+    // Listen for connection events from official client
+    this.officialClient.on('connected', () => {
+      logger.info('QRWC connected - discovery cache ready');
+      discoveryCache.onConnectionStateChange(true);
+      // Invalidate control index on reconnect as components may have changed
+      this.invalidateControlIndex();
+    });
+
+    this.officialClient.on('disconnected', () => {
+      logger.info('QRWC disconnected - clearing discovery cache');
+      discoveryCache.onConnectionStateChange(false);
+      // Clear control index on disconnect
+      this.invalidateControlIndex();
+    });
+
+    this.officialClient.on('error', (error: Error) => {
+      logger.error('QRWC connection error', { error });
+      // Don't clear cache on transient errors, only on disconnect
+    });
   }
 
   // ===== State Manager Integration =====

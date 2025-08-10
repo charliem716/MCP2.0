@@ -12,6 +12,7 @@ import {
   isComponentControlsResponse,
   isControlsArrayResponse,
 } from '../types/qsys-api-responses.js';
+import { discoveryCache } from '../state/discovery-cache.js';
 
 /**
  * Safe JSON stringify that handles circular references
@@ -129,9 +130,53 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
         );
       }
       
-      const response = await this.controlSystem.sendCommand('Component.GetControls', { Name: params.component });
+      let controls: QSysControl[];
+      
+      // Check cache first (on-demand caching)
+      const cachedControls = discoveryCache.getControls(params.component);
+      
+      if (cachedControls && !params.includeMetadata) {
+        // Use cached controls if we don't need fresh metadata
+        this.logger.debug('Using cached controls for component', { 
+          component: params.component,
+          count: cachedControls.length,
+          context 
+        });
+        
+        controls = cachedControls.map(ctrl => ({
+          name: ctrl.name,
+          component: ctrl.component,
+          type: ctrl.type,
+          value: ctrl.value ?? '',
+          metadata: params.includeMetadata ? ctrl.metadata : undefined,
+        }));
+      } else {
+        // Cache miss or metadata requested - fetch from Q-SYS
+        this.logger.debug('Fetching controls from Q-SYS', { 
+          component: params.component,
+          cacheHit: !!cachedControls,
+          metadataRequested: params.includeMetadata,
+          context 
+        });
+        
+        const response = await this.controlSystem.sendCommand('Component.GetControls', { 
+          Name: params.component 
+        });
 
-      const controls = this.parseControlsResponse(response, params);
+        controls = this.parseControlsResponse(response, params);
+        
+        // Cache the controls for future use (on-demand, with LRU eviction)
+        if (isQSysApiResponse<QSysComponentControlsResponse>(response) && 
+            response.result && 
+            'Controls' in response.result) {
+          discoveryCache.setControls(params.component, response.result);
+        }
+      }
+
+      // Apply filters
+      if (params.controlType && params.controlType !== 'all') {
+        controls = controls.filter(c => c.type === params.controlType);
+      }
 
       // Try to serialize the controls with proper error handling
       let serializedControls: string;

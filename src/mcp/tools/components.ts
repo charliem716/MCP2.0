@@ -7,6 +7,7 @@ import type {
   QSysComponentGetResponse,
 } from '../types/qsys-api-responses.js';
 import { QSysError, QSysErrorCode, MCPError, MCPErrorCode } from '../../shared/types/errors.js';
+import { discoveryCache } from '../state/discovery-cache.js';
 
 /**
  * Parameters for the list_components tool
@@ -46,17 +47,63 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      // Send QRC command to get component list
-      const response = await this.controlSystem.sendCommand(
-        'Component.GetComponents'
-      );
+      let components: QSysComponent[];
 
-      if (typeof response !== 'object') {
-        throw new QSysError('Invalid response from Q-SYS Core', QSysErrorCode.COMMAND_FAILED,
-          { response });
+      // Check cache first (lightweight component list)
+      const cachedComponents = discoveryCache.getComponents();
+      
+      if (cachedComponents) {
+        this.logger.debug('Using cached component list', { 
+          count: cachedComponents.length,
+          context 
+        });
+        
+        // Convert cached components to full format
+        components = cachedComponents.map(comp => ({
+          name: comp.name,
+          type: comp.type,
+          properties: params.includeProperties ? {} : undefined,
+        }));
+        
+        // If properties are needed, we'll need to fetch from Q-SYS
+        if (params.includeProperties) {
+          this.logger.debug('Properties requested, fetching fresh data from Q-SYS');
+          const response = await this.controlSystem.sendCommand(
+            'Component.GetComponents'
+          );
+          
+          if (typeof response !== 'object') {
+            throw new QSysError('Invalid response from Q-SYS Core', QSysErrorCode.COMMAND_FAILED,
+              { response });
+          }
+          
+          components = this.parseComponentsResponse(response);
+          // Don't cache the full response with properties to keep cache lightweight
+        }
+      } else {
+        // Cache miss - fetch from Q-SYS
+        this.logger.debug('Component cache miss, fetching from Q-SYS', { context });
+        
+        const response = await this.controlSystem.sendCommand(
+          'Component.GetComponents'
+        );
+
+        if (typeof response !== 'object') {
+          throw new QSysError('Invalid response from Q-SYS Core', QSysErrorCode.COMMAND_FAILED,
+            { response });
+        }
+
+        components = this.parseComponentsResponse(response);
+        
+        // Cache the lightweight component list (names and types only)
+        const componentInfos: QSysComponentInfo[] = components.map(comp => ({
+          Name: comp.name,
+          Type: comp.type,
+          Properties: comp.properties,
+        }));
+        discoveryCache.setComponents(componentInfos);
       }
 
-      const components = this.parseComponentsResponse(response);
       const filteredComponents = params.filter
         ? this.filterComponents(components, params.filter)
         : components;
