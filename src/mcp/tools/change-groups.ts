@@ -17,7 +17,7 @@ import { isQSysApiResponse } from '../types/qsys-api-responses.js';
 
 const CreateChangeGroupParamsSchema = BaseToolParamsSchema.extend({
   groupId: z.string().min(1).describe('Unique identifier for the change group'),
-  pollRate: z.number()
+  pollRate: z.coerce.number()
     .min(0.03)
     .max(3600)
     .default(1)
@@ -32,7 +32,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
     super(
       controlSystem,
       'create_change_group',
-      "Create a change group with automatic polling for monitoring control changes. Polling starts immediately at specified rate. If event monitoring is enabled, changes are recorded to database. Example: {groupId:'mixer-controls',pollRate:0.1}.",
+      "Create a change group with automatic polling for monitoring control changes. Polling starts immediately at specified rate and records changes to the event database. Use query_change_events to retrieve recorded events. Note: pollRate accepts numbers (0.1 or '0.1'). Example: {groupId:'mixer-controls',pollRate:0.1}.",
       CreateChangeGroupParamsSchema
     );
   }
@@ -108,7 +108,7 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
     super(
       controlSystem,
       'add_controls_to_change_group',
-      "Add controls to a change group for monitoring. Invalid controls are skipped. Example: {groupId:'mixer-controls',controlNames:['Main.gain','Main.mute']}. Use Component.Control format.",
+      "Add controls to a change group for monitoring. Controls MUST use Component.Control format (e.g., 'Main_Mixer.gain'). Invalid formats are reported in response. Returns detailed feedback about added/skipped/invalid controls. Example: {groupId:'mixer-controls',controlNames:['Main.gain','Main.mute']}.",
       AddControlsToChangeGroupParamsSchema
     );
   }
@@ -121,23 +121,74 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
       Controls: params.controlNames.map(name => ({ Name: name })),
     });
 
-    // Extract the actual count of controls added from the result
+    // Extract detailed result information
     let addedCount = params.controlNames.length;
+    let totalControls = addedCount;
+    let invalidControls: string[] = [];
+    let skippedControls: string[] = [];
+    let warning: string | undefined;
     
-    if (isQSysApiResponse<{ addedCount?: number }>(result) && result.result?.addedCount !== undefined) {
-      addedCount = result.result.addedCount;
+    if (isQSysApiResponse<{ 
+      addedCount?: number;
+      totalControls?: number;
+      invalidControls?: string[];
+      skippedControls?: string[];
+    }>(result)) {
+      if (result.result?.addedCount !== undefined) {
+        addedCount = result.result.addedCount;
+      }
+      if (result.result?.totalControls !== undefined) {
+        totalControls = result.result.totalControls;
+      }
+      if (result.result?.invalidControls) {
+        invalidControls = result.result.invalidControls;
+      }
+      if (result.result?.skippedControls) {
+        skippedControls = result.result.skippedControls;
+      }
+      if ('warning' in result && typeof result.warning === 'string') {
+        warning = result.warning;
+      }
+    }
+
+    const response: {
+      success: boolean;
+      groupId: string;
+      requested: number;
+      added: number;
+      total: number;
+      message: string;
+      invalid?: string[];
+      skipped?: string[];
+      warning?: string;
+    } = {
+      success: addedCount > 0 || params.controlNames.length === 0,
+      groupId: params.groupId,
+      requested: params.controlNames.length,
+      added: addedCount,
+      total: totalControls,
+      message: `Added ${addedCount} of ${params.controlNames.length} controls to change group '${params.groupId}'`,
+    };
+
+    if (invalidControls.length > 0) {
+      response.invalid = invalidControls;
+      response.message += `. ${invalidControls.length} invalid format (expected Component.Control)`;
+    }
+
+    if (skippedControls.length > 0) {
+      response.skipped = skippedControls;
+      response.message += `. ${skippedControls.length} already in group`;
+    }
+
+    if (warning) {
+      response.warning = warning;
     }
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            success: true,
-            groupId: params.groupId,
-            controlsAdded: addedCount,
-            message: `Added ${addedCount} controls to change group '${params.groupId}'`,
-          }),
+          text: JSON.stringify(response),
         },
       ],
     };
@@ -148,6 +199,7 @@ export class AddControlsToChangeGroupTool extends BaseQSysTool<AddControlsToChan
 
 const PollChangeGroupParamsSchema = BaseToolParamsSchema.extend({
   groupId: z.string().min(1).describe('Change group identifier to poll'),
+  showAll: z.boolean().default(false).optional().describe('Show all current values, not just changes (useful for debugging)'),
 });
 
 type PollChangeGroupParams = z.infer<typeof PollChangeGroupParamsSchema>;
@@ -157,7 +209,7 @@ export class PollChangeGroupTool extends BaseQSysTool<PollChangeGroupParams> {
     super(
       controlSystem,
       'poll_change_group',
-      "Poll a change group for changes since last poll. Returns only changed controls. First poll returns all controls. Example: {groupId:'mixer-controls'}. Returns [{Name,Value,String}].",
+      "Manual poll tool for debugging - shows changes since YOUR last manual poll. NOT connected to event database. For recorded events, use query_change_events instead. Use showAll:true to see all current values. First poll always returns all values. Example: {groupId:'mixer-controls',showAll:true}.",
       PollChangeGroupParamsSchema
     );
   }
@@ -167,6 +219,7 @@ export class PollChangeGroupTool extends BaseQSysTool<PollChangeGroupParams> {
   ): Promise<ToolCallResult> {
     const response = await this.controlSystem.sendCommand('ChangeGroup.Poll', {
       Id: params.groupId,
+      showAll: params.showAll,
     });
 
     const result = response as {
@@ -209,7 +262,7 @@ export class DestroyChangeGroupTool extends BaseQSysTool<DestroyChangeGroupParam
     super(
       controlSystem,
       'destroy_change_group',
-      "Destroy a change group, stop polling, and cease event recording. Always destroy unused groups to prevent memory leaks. If event monitoring is enabled, this stops recording for this group. Example: {groupId:'mixer-controls'}.",
+      "Destroy a change group and stop automatic polling/recording. Historical events remain in database. ALWAYS destroy groups after testing to prevent memory leaks and unwanted event recording. Example: {groupId:'mixer-controls'}.",
       DestroyChangeGroupParamsSchema
     );
   }
@@ -335,7 +388,7 @@ export class ListChangeGroupsTool extends BaseQSysTool<ListChangeGroupsParams> {
     super(
       controlSystem,
       'list_change_groups',
-      "List all active change groups with control counts and poll status. MCP-specific tool. Example: {} returns [{id,controlCount,hasAutoPoll}].",
+      "List ALL currently active change groups system-wide. Shows id, control count, and auto-poll status. Use to check what groups exist before creating new ones or to debug unexpected events. Example: {}",
       ListChangeGroupsParamsSchema
     );
   }

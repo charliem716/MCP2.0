@@ -54,8 +54,8 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
     super(
       controlSystem,
       'query_change_events',
-      'Query historical control change events from the event monitoring system. Returns events recorded from active change groups with auto-polling. Use startTime/endTime for time ranges, controlNames/componentNames for filtering, and limit/offset for pagination.',
-      QueryEventsParamsSchema
+      'Query the persistent event database for historical control changes recorded by automatic polling. ALWAYS filter by changeGroupId or controlNames to avoid mixed results. This shows actual recorded events, not manual poll results. Example: {changeGroupId:"mixer-controls",limit:50}. Numeric params accept strings.',
+      QueryEventsParamsSchema as z.ZodSchema<QueryEventsParams>
     );
   }
 

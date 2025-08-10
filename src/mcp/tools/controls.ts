@@ -88,7 +88,7 @@ export const SetControlValuesParamsSchema = BaseToolParamsSchema.extend({
         value: z
           .union([z.number(), z.string(), z.boolean()])
           .describe('Control value'),
-        ramp: z.number().positive().optional().describe('Ramp time in seconds'),
+        ramp: z.coerce.number().positive().optional().describe('Ramp time in seconds'),
       })
     )
     .min(1)

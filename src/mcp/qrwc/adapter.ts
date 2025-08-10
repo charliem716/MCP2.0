@@ -119,6 +119,7 @@ interface ControlGetResult {
 interface SimpleChangeGroup {
   id: string;
   controls: string[];
+  lastPollValues?: Map<string, { Value: unknown; String: string }>;
 }
 
 export class QRWCClientAdapter
@@ -816,6 +817,9 @@ export class QRWCClientAdapter
     
     // Add controls that don't already exist
     let addedCount = 0;
+    const skippedControls: string[] = [];
+    const invalidControls: string[] = [];
+    
     for (const control of controls) {
       // If using simulation, skip validation
       if (this.useSimulation && this.simulator) {
@@ -828,31 +832,61 @@ export class QRWCClientAdapter
       
       // Validate control format and add to group
       const parts = control.split('.');
-      if (parts.length === 2) {
-        const [componentName, controlName] = parts;
-        if (!componentName || !controlName) continue;
-        
-        // Add control to group if not already present
-        // We don't validate against qrwc.components since components with Script Access
-        // may not be loaded in the SDK (like TableMicMeter)
-        if (!group.controls.includes(control)) {
-          group.controls.push(control);
-          addedCount++;
-          logger.debug(`Added control ${control} to change group ${groupId}`);
-        }
+      if (parts.length !== 2) {
+        invalidControls.push(control);
+        logger.warn(`Invalid control format for change group: ${control} (expected Component.Control format)`);
+        continue;
+      }
+      
+      const [componentName, controlName] = parts;
+      if (!componentName || !controlName) {
+        invalidControls.push(control);
+        continue;
+      }
+      
+      // Add control to group if not already present
+      // We don't validate against qrwc.components since components with Script Access
+      // may not be loaded in the SDK (like TableMicMeter)
+      if (!group.controls.includes(control)) {
+        group.controls.push(control);
+        addedCount++;
+        logger.debug(`Added control ${control} to change group ${groupId}`);
+      } else {
+        skippedControls.push(control);
       }
     }
     
     interface ChangeGroupAddResult {
-      result: { addedCount: number };
+      result: { 
+        addedCount: number;
+        totalControls?: number;
+        invalidControls?: string[];
+        skippedControls?: string[];
+      };
       warning?: string;
     }
     
-    const result: ChangeGroupAddResult = { result: { addedCount } };
+    const result: ChangeGroupAddResult = { 
+      result: { 
+        addedCount,
+        totalControls: group.controls.length
+      } 
+    };
+    
+    // Add validation feedback
+    if (invalidControls.length > 0) {
+      result.result.invalidControls = invalidControls;
+      result.warning = `${invalidControls.length} control(s) had invalid format and were skipped`;
+    }
+    
+    if (skippedControls.length > 0) {
+      result.result.skippedControls = skippedControls;
+    }
     
     // If creating a new group and it already existed, add warning
     if (isCreatingNewGroup && existingGroup) {
-      result.warning = `Change group '${groupId}' already exists with ${existingControlCount} controls`;
+      const existingWarning = `Change group '${groupId}' already exists with ${existingControlCount} controls`;
+      result.warning = result.warning ? `${result.warning}. ${existingWarning}` : existingWarning;
     }
     
     return result;
@@ -863,8 +897,7 @@ export class QRWCClientAdapter
    */
   /**
    * Handle ChangeGroup.Poll command
-   * Note: With SDK-based event monitoring, this is primarily for compatibility.
-   * Real events come from SDK control.on('update') listeners.
+   * Implements proper change detection by tracking previous values
    */
   private handleChangeGroupPoll(params?: Record<string, unknown>): unknown {
     if (!params?.['Id']) {
@@ -872,15 +905,21 @@ export class QRWCClientAdapter
     }
     
     const groupId = params['Id'] as string;
+    const showAll = params['showAll'] === true; // Optional parameter to show all values
     const group = this.changeGroups.get(groupId);
     
     if (!group) {
       throw new QSysError('Change group not found', QSysErrorCode.COMMAND_FAILED);
     }
     
-    // Return current values for all controls in the group
-    // No change detection needed - SDK handles that
-    const values: Array<{ Name: string; Value: unknown; String: string }> = [];
+    // Initialize last poll values map if not exists
+    if (!group.lastPollValues) {
+      group.lastPollValues = new Map();
+    }
+    
+    // Collect current values and detect changes
+    const currentValues: Array<{ Name: string; Value: unknown; String: string }> = [];
+    const changedValues: Array<{ Name: string; Value: unknown; String: string }> = [];
     const qrwc = this.officialClient.getQrwc() as QRWCInstance | undefined;
     
     for (const controlPath of group.controls) {
@@ -914,26 +953,55 @@ export class QRWCClientAdapter
         }
       }
       
-      values.push({
+      const currentState = {
         Name: controlPath,
         Value: currentValue,
         String: currentString,
+      };
+      
+      currentValues.push(currentState);
+      
+      // Check if value has changed since last poll
+      const lastValue = group.lastPollValues.get(controlPath);
+      const hasChanged = !lastValue || 
+                        lastValue.Value !== currentValue || 
+                        lastValue.String !== currentString;
+      
+      if (hasChanged) {
+        changedValues.push(currentState);
+        // Update the stored last value
+        group.lastPollValues.set(controlPath, {
+          Value: currentValue,
+          String: currentString,
+        });
+      }
+    }
+    
+    // Emit event for monitoring - only emit if there are changes or it's the first poll
+    if (changedValues.length > 0 || group.lastPollValues.size === 0) {
+      this.emit('changeGroup:poll', {
+        groupId,
+        controls: changedValues.length > 0 ? changedValues : currentValues, // Send all values on first poll
+        timestamp: Date.now()
       });
     }
     
-    // Emit event for monitoring
-    if (values.length > 0) {
-      this.emit('changeGroup:poll', {
-        groupId,
-        controls: values,
-        timestamp: Date.now()
-      });
+    // Return changes for the poll response (or all values if requested or first poll)
+    let returnValues: Array<{ Name: string; Value: unknown; String: string }>;
+    
+    if (showAll) {
+      // Show all current values when explicitly requested
+      returnValues = currentValues;
+    } else {
+      // Normal behavior: show only changes (or all on first poll)
+      returnValues = changedValues.length > 0 ? changedValues : 
+                    (group.lastPollValues.size === 0 ? currentValues : []);
     }
     
     return {
       result: {
         Id: groupId,
-        Changes: values, // Return all current values
+        Changes: returnValues,
       },
     };
   }

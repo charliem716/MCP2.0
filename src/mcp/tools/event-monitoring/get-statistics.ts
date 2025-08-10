@@ -21,7 +21,7 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
     super(
       controlSystem,
       'get_event_statistics',
-      'Get event monitoring statistics and status including total events, unique controls, database size, and buffer status. Use this to check if event monitoring is active and working.',
+      'Get event database statistics: total events, unique controls, database size, active change groups, buffer status. Shows events from ALL change groups system-wide. Use to verify event recording is working. Example: {}',
       GetEventStatisticsParamsSchema
     );
   }
