@@ -202,8 +202,8 @@ describe('SetControlValuesTool', () => {
         validate: true
       }, mockContext);
 
-      // Should report the error in the results but not fail the overall operation
-      expect(result.isError).toBe(false);
+      // Should report isError as true since ALL controls failed (only one control and it failed)
+      expect(result.isError).toBe(true);
       const response = JSON.parse(result.content[0].text);
       expect(response[0]).toMatchObject({
         name: 'TestComponent.test',
