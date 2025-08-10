@@ -117,36 +117,33 @@ We use **separate files** for different configuration:
 
 ## 📈 **Event Monitoring**
 
-The MCP server includes a powerful event monitoring system that records and tracks all Q-SYS control changes from subscribed change groups. This enables historical analysis, pattern detection, and real-time monitoring of your Q-SYS system.
+The MCP server includes a powerful event monitoring system that automatically records and tracks all Q-SYS control changes from subscribed change groups. Event monitoring is **always enabled** for MCP servers - no configuration needed!
 
 ### **Configuration**
 
 Event monitoring is configured through environment variables in your `.env` file:
 
 ```bash
-# Enable event monitoring (default: false)
-EVENT_MONITORING_ENABLED=true
+# Event monitoring is automatically enabled for MCP servers
+# These are optional settings (defaults work perfectly):
 
-# Database storage path for SQLite event databases
-EVENT_MONITORING_DB_PATH=./data/events
+# Database storage path (default: absolute path)
+# EVENT_MONITORING_DB_PATH=/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/events
 
-# Number of days to retain event data (default: 7)
-EVENT_MONITORING_RETENTION_DAYS=7
+# Number of days to retain event data (default: 30)
+# EVENT_MONITORING_RETENTION_DAYS=30
 
 # Event buffer size before flush to database (default: 1000)
-EVENT_MONITORING_BUFFER_SIZE=1000
+# EVENT_MONITORING_BUFFER_SIZE=1000
 
 # Flush interval in milliseconds (default: 100ms)
-EVENT_MONITORING_FLUSH_INTERVAL=100
+# EVENT_MONITORING_FLUSH_INTERVAL=100
 ```
 
 ### **Usage**
 
-1. **Enable Event Monitoring**
-   ```bash
-   # Set in .env file
-   EVENT_MONITORING_ENABLED=true
-   ```
+1. **Automatic Activation**
+   Event monitoring starts automatically when you create change groups and add controls to them. No configuration needed!
 
 2. **Create a Change Group with Auto-Polling**
    Create a change group that automatically polls at the specified rate:
@@ -189,15 +186,16 @@ EVENT_MONITORING_FLUSH_INTERVAL=100
 
 Events are stored in SQLite databases with automatic daily rotation:
 
-- **Location**: `./data/events/` directory (configurable)
+- **Location**: `/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/events/` (uses absolute path)
 - **Database Files**: Named as `events-YYYY-MM-DD.db`
-- **Rotation**: New database created daily at midnight
-- **Cleanup**: Old databases automatically deleted after retention period
+- **Rotation**: New database created daily
+- **Cleanup**: Old databases automatically deleted after retention period (default: 30 days)
 - **Performance**: Optimized for 33Hz+ recording (30+ events/second)
+- **Backups**: Automatic backups stored in `/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/backups/`
 
 ### **MCP Tools for Event Monitoring**
 
-When event monitoring is enabled, two additional tools become available:
+These event monitoring tools are always available:
 
 | Tool | Description |
 |------|-------------|

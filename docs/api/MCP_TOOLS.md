@@ -643,7 +643,7 @@ Event monitoring is automatically enabled when change groups are created with au
   }
 }
 ```
-Note: Events are recorded automatically if EVENT_MONITORING_ENABLED is set to true.
+Note: Events are recorded automatically when change groups are created and actively polling.
 
 ---
 
@@ -739,9 +739,9 @@ const events = await callTool('query_change_events', {
 4. Enable batch operations
 
 ### Event Monitoring Issues
-1. Ensure `EVENT_MONITORING_ENABLED=true`
-2. Check database path permissions
-3. Verify change group was created with appropriate poll rate
+1. Check database path permissions
+2. Verify change group was created with appropriate poll rate
+3. Ensure controls are added to the change group
 4. Check available disk space
 
 ---

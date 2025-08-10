@@ -57,6 +57,7 @@
 
 Once connected, you'll have access to these Q-SYS tools:
 
+### Control Tools
 - **list_components** - "Show me all Q-SYS components"
 - **get_component_controls** - "What controls does the Main Mixer have?"
 - **list_controls** - "List all available controls"
@@ -66,6 +67,15 @@ Once connected, you'll have access to these Q-SYS tools:
 - **send_raw_command** - "Send StatusGet command to Q-SYS"
 - **get_all_controls** - "Get all control values from the system"
 - **query_qsys_api** - "Show Q-SYS API documentation"
+
+### Change Group & Event Monitoring Tools
+- **create_change_group** - "Create a monitoring group for controls"
+- **add_controls_to_change_group** - "Add controls to monitor"
+- **poll_change_group** - "Check for control changes"
+- **query_change_events** - "View historical control changes"
+- **get_event_statistics** - "Show event monitoring statistics"
+
+**Note:** Event monitoring is automatically enabled and records all control changes when you create change groups. Historical data is stored locally in `/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/events`.
 
 ## Example Commands You Can Use
 

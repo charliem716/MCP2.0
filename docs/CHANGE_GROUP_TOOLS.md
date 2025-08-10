@@ -53,8 +53,9 @@ Creates a new change group with automatic polling for monitoring control value c
 
 - Auto-polling starts immediately when the group is created
 - Q-SYS Core handles the polling automatically at the specified rate
-- If event monitoring is enabled, changes are automatically recorded to the database
+- Changes are automatically recorded to the database for historical tracking
 - The poll rate determines both the Core's polling frequency and event recording rate
+- Event monitoring is always active when change groups exist
 
 ---
 
@@ -274,7 +275,7 @@ Destroys a change group and stops Q-SYS Core from polling it. Also cleans up all
 
 - Stops Q-SYS Core from auto-polling this group
 - Clears all stored control values and history
-- Stops event recording for this group if monitoring is enabled
+- Stops event recording for this group
 - Group ID can be reused after destruction
 
 ---
