@@ -17,6 +17,8 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
+    // Clear all mocks
+    jest.clearAllMocks();
   });
 
   describe('formatControlsResponse', () => {
@@ -207,8 +209,8 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-            { Name: 'router.input.select', Value: 1 },
-          { Name: 'matrix.output.select', Value: 2 }
+            { Name: 'router.input.select', Value: 1, String: '1', Type: 'Integer' },
+            { Name: 'matrix.output.select', Value: 2, String: '2', Type: 'Integer' }
           ]
         }
       });
@@ -239,7 +241,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         }
       });
 
-      const result = await tool.execute({ component: "TestComponent" });
+      const result = await tool.execute({ component: "TestComponent", includeMetadata: true });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].metadata).toEqual({
@@ -270,7 +272,7 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         }
       });
 
-      const result = await tool.execute({ component: "TestComponent" });
+      const result = await tool.execute({ component: "TestComponent", includeMetadata: true });
       const controls = JSON.parse(result.content[0].text);
 
       expect(controls[0].metadata).toMatchObject({
@@ -299,9 +301,10 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         }
       });
 
-      const result = await tool.execute({ component: "TestComponent" });
+      const result = await tool.execute({ component: "TestComponent", includeMetadata: true });
       const controls = JSON.parse(result.content[0].text);
 
+      // Should have both metadata sources
       expect(controls[0].metadata).toMatchObject({
         min: -100,
         max: 20,
@@ -341,11 +344,11 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-            { Name: 'ctrl1', Value: null },
-          { Name: 'ctrl2', Value: undefined },
-          { Name: 'ctrl3', Value: { complex: 'object' } },
-          { Name: 'ctrl4', Value: [1, 2, 3] },
-          { Name: 'ctrl5' } // No Value property
+            { Name: 'ctrl1', Value: null, String: '', Type: 'Unknown' },
+            { Name: 'ctrl2', Value: undefined, String: '', Type: 'Unknown' },
+            { Name: 'ctrl3', Value: { complex: 'object' }, String: '[object]', Type: 'Unknown' },
+            { Name: 'ctrl4', Value: [1, 2, 3], String: '1,2,3', Type: 'Unknown' },
+            { Name: 'ctrl5', String: '', Type: 'Unknown' } // No Value property
           ]
         }
       });

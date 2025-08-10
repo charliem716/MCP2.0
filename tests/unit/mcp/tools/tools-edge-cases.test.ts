@@ -14,6 +14,8 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
       isConnected: jest.fn().mockReturnValue(true),
       sendCommand: jest.fn(),
     };
+    // Clear all mocks
+    jest.clearAllMocks();
   });
 
   describe('ListComponentsTool - branch coverage', () => {

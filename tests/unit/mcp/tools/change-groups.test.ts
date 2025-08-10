@@ -103,7 +103,7 @@ describe('Change Group Tools', () => {
           ],
         }
       );
-      expect(result.content[0].text).toContain('"controlsAdded":2');
+      expect(result.content[0].text).toContain('"added":2');
     });
 
     it('should require at least one control', async () => {

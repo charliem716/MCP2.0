@@ -79,7 +79,7 @@ describe('Tool Descriptions Validation', () => {
     expect(description).toMatch(/max|limit|100/i);
     
     // Check for examples with control paths
-    expect(description).toMatch(/[A-Za-z\s]+\.(gain|Audio\.gain)/);
+    expect(description).toMatch(/[A-Za-z\s_0-9]+\.(gain|mute|input\.\d+\.gain)/);
   });
 
   it('should have detailed description for set_control_values tool', () => {
