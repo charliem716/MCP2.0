@@ -99,13 +99,9 @@ class ConfigManager {
       // 1. First try absolute path (for MCP mode from Claude Desktop)
       // 2. Then try relative to current working directory
       // 3. Try relative to the dist directory (when running from Claude Desktop)
+      // Always use absolute path since Claude Desktop runs from root directory
       const possiblePaths = [
-        '/Users/charliemccarrel/Desktop/Builds/MCP2.0/qsys-core.config.json',
-        path.join(process.cwd(), 'qsys-core.config.json'),
-        path.join(process.cwd(), 'dist', 'config', '../../qsys-core.config.json'),
-        path.join(process.cwd(), 'dist', 'config', '../../../qsys-core.config.json'),
-        // Add explicit path resolution from dist/config to project root
-        path.resolve(process.cwd(), 'qsys-core.config.json')
+        '/Users/charliemccarrel/Desktop/Builds/MCP2.0/qsys-core.config.json'
       ];
       
       let configPath: string | null = null;
@@ -161,17 +157,16 @@ class ConfigManager {
       debugTests: process.env['DEBUG_TESTS'] === 'true'
     };
 
-    // Add event monitoring config if enabled
-    const eventMonitoringEnabled = process.env['EVENT_MONITORING_ENABLED'] === 'true';
-    if (eventMonitoringEnabled) {
-      config.eventMonitoring = {
-        enabled: true,
-        dbPath: process.env['EVENT_MONITORING_DB_PATH'] ?? './data/events',
-        retentionDays: parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] ?? '7', 10),
-        bufferSize: parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] ?? '1000', 10),
-        flushInterval: parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] ?? '100', 10)
-      };
-    }
+    // Always include event monitoring config - it's controlled by change groups, not env vars
+    // Use absolute path for database to ensure it works from any working directory
+    const defaultDbPath = path.resolve('/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/events');
+    config.eventMonitoring = {
+      enabled: true,
+      dbPath: process.env['EVENT_MONITORING_DB_PATH'] ?? defaultDbPath,
+      retentionDays: parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] ?? '7', 10),
+      bufferSize: parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] ?? '1000', 10),
+      flushInterval: parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] ?? '100', 10)
+    };
 
     return config;
   }

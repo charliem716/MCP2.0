@@ -100,6 +100,7 @@ export class DefaultMCPServerFactory implements IMCPServerFactory {
     
     // Get event monitoring config from centralized config manager
     const mcpConfig = configManager.get('mcp');
+    // Check if event monitoring is configured
     const eventMonitoringEnabled = mcpConfig.eventMonitoring?.enabled ?? false;
     const repoType = eventMonitoringEnabled ? 'monitored' : 'simple';
     

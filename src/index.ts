@@ -24,7 +24,8 @@ let loggerClosed = false;
  * This is the composition root where all dependencies are wired together
  */
 async function initializeMCPServer(): Promise<MCPServer> {
-  const appConfig = configManager.getConfig();
+  try {
+    const appConfig = configManager.getConfig();
   
   const mcpConfig: MCPServerConfig = {
     name: 'qsys-mcp-server',
@@ -84,10 +85,25 @@ async function initializeMCPServer(): Promise<MCPServer> {
   }
   
   return new MCPServer(mcpConfig, dependencies);
+  } catch (error) {
+    if (process.env['NODE_ENV'] === 'production') {
+      process.stderr.write(`[ERROR] Failed to initialize MCP server: ${error}\n`);
+      if (error instanceof Error) {
+        process.stderr.write(`[ERROR] Stack trace: ${error.stack}\n`);
+      }
+    }
+    throw error;
+  }
 }
 
 async function main(): Promise<void> {
   try {
+    // Debug for MCP mode
+    if (process.env['NODE_ENV'] === 'production') {
+      process.stderr.write('[DEBUG] MCP Server starting in production mode\n');
+      process.stderr.write(`[DEBUG] Working directory: ${process.cwd()}\n`);
+    }
+    
     logger.info('🚀 Starting MCP Voice/Text-Controlled Q-SYS Demo...');
 
     // Configuration is validated by ConfigManager on initialization
@@ -316,6 +332,11 @@ if (isMCPMode) {
 
 // Start the application
 main().catch(async (error: Error) => {
+  // Output to stderr for MCP debugging
+  if (process.env['NODE_ENV'] === 'production') {
+    process.stderr.write(`[ERROR] Application failed to start: ${error.message}\n`);
+    process.stderr.write(`[ERROR] Stack: ${error.stack}\n`);
+  }
   logger.error('💥 Application failed to start:', error);
   await cleanup();
   process.exit(1);

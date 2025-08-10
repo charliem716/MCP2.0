@@ -61,8 +61,8 @@ export class SQLiteEventMonitor extends EventEmitter {
     this.config = {
       enabled: config?.enabled !== undefined 
         ? config.enabled 
-        : process.env['EVENT_MONITORING_ENABLED'] !== 'false',
-      dbPath: config?.dbPath ?? process.env['EVENT_MONITORING_DB_PATH'] ?? './data/events',
+        : true, // Always enabled - controlled by change groups
+      dbPath: config?.dbPath ?? process.env['EVENT_MONITORING_DB_PATH'] ?? '/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/events',
       retentionDays: config?.retentionDays ?? parseInt(process.env['EVENT_MONITORING_RETENTION_DAYS'] ?? '30', 10),
       bufferSize: config?.bufferSize ?? parseInt(process.env['EVENT_MONITORING_BUFFER_SIZE'] ?? '1000', 10),
       flushInterval: config?.flushInterval ?? parseInt(process.env['EVENT_MONITORING_FLUSH_INTERVAL'] ?? '100', 10),
@@ -229,8 +229,13 @@ export class SQLiteEventMonitor extends EventEmitter {
       return ':memory:';
     }
     
+    // Use absolute path to ensure it works from any working directory
+    const absolutePath = path.isAbsolute(this.config.dbPath) 
+      ? this.config.dbPath 
+      : path.resolve('/Users/charliemccarrel/Desktop/Builds/MCP2.0', this.config.dbPath);
+    
     const date = new Date().toISOString().split('T')[0];
-    const basePath = this.config.dbPath.replace(/\.db$/, '');
+    const basePath = absolutePath.replace(/\.db$/, '');
     return `${basePath}-${date}.db`;
   }
 

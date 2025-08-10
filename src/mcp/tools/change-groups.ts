@@ -71,7 +71,7 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
       message: result.warning ?? `Change group '${params.groupId}' created with auto-polling`,
       pollRate,
       frequency: pollRate <= 0.03 ? '33Hz' : `${(1/pollRate).toFixed(1)}Hz`,
-      recording: process.env['EVENT_MONITORING_ENABLED'] === 'true',
+      recording: true, // Always true - event monitoring is active when change groups exist
     };
 
     if (result.warning) {

@@ -49,8 +49,10 @@ export class EventDatabaseBackupManager {
   private currentDbPath?: string;
   
   constructor(config?: BackupConfig) {
+    // Use absolute path for backups to work from any directory
+    const defaultBackupPath = '/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/backups';
     this.config = {
-      backupPath: config?.backupPath ?? process.env['EVENT_BACKUP_PATH'] ?? './data/backups',
+      backupPath: config?.backupPath ?? process.env['EVENT_BACKUP_PATH'] ?? defaultBackupPath,
       maxBackups: config?.maxBackups ?? parseInt(process.env['EVENT_MAX_BACKUPS'] ?? '7', 10),
       compressionEnabled: config?.compressionEnabled !== false,
       autoBackupInterval: config?.autoBackupInterval ?? parseInt(process.env['EVENT_BACKUP_INTERVAL'] || '86400000', 10), // 24 hours default
