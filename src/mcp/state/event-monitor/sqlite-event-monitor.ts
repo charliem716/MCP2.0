@@ -338,8 +338,10 @@ export class SQLiteEventMonitor extends EventEmitter {
     startTime?: number;
     endTime?: number;
     controlPaths?: string[];
+    componentNames?: string[];
     changeGroupId?: string;
     limit?: number;
+    offset?: number;
   }): Promise<EventRecord[]> {
     if (!this.db) return [];
     
@@ -365,6 +367,12 @@ export class SQLiteEventMonitor extends EventEmitter {
       queryParams.push(...params.controlPaths);
     }
     
+    if (params.componentNames && params.componentNames.length > 0) {
+      const placeholders = params.componentNames.map(() => '?').join(',');
+      query += ` AND component_name IN (${placeholders})`;
+      queryParams.push(...params.componentNames);
+    }
+    
     if (params.changeGroupId) {
       query += ' AND change_group_id = ?';
       queryParams.push(params.changeGroupId);
@@ -375,6 +383,11 @@ export class SQLiteEventMonitor extends EventEmitter {
     if (params.limit) {
       query += ' LIMIT ?';
       queryParams.push(params.limit);
+    }
+    
+    if (params.offset) {
+      query += ' OFFSET ?';
+      queryParams.push(params.offset);
     }
     
     try {

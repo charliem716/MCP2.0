@@ -170,10 +170,12 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
       // Query events with provided parameters
       const queryParams: {
         limit?: number;
+        offset?: number;
         startTime?: number;
         endTime?: number;
         changeGroupId?: string;
         controlPaths?: string[];
+        componentNames?: string[];
       } = {
         limit: params.limit ?? 1000,
       };
@@ -182,6 +184,8 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
       if (params.endTime !== undefined) queryParams.endTime = params.endTime;
       if (params.changeGroupId !== undefined) queryParams.changeGroupId = params.changeGroupId;
       if (params.controlNames !== undefined) queryParams.controlPaths = params.controlNames;
+      if (params.componentNames !== undefined) queryParams.componentNames = params.componentNames;
+      if (params.offset !== undefined) queryParams.offset = params.offset;
 
       let events: DatabaseEventRow[];
       try {
