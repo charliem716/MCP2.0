@@ -171,14 +171,16 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
       query_type: 'tools',
       overview: {
         description:
-          'Available MCP Tools for Q-SYS Control - 16 specialized tools for comprehensive system management',
+          'Available MCP Tools for Q-SYS Control - 17 total tools (16 Q-SYS + 1 testing) for comprehensive system management',
         note: 'The send_raw_command tool has been deprecated for stability. Use these dedicated tools instead.',
         categories: {
-          discovery: 'list_components, list_controls, get_component_controls',
-          control: 'get_control_values, set_control_values, qsys_component_get',
-          monitoring:
+          discovery: 'list_components, list_controls, qsys_component_get',
+          control: 'get_control_values, set_control_values',
+          change_groups:
             'create_change_group, add_controls_to_change_group, poll_change_group, list_change_groups, remove_controls_from_change_group, clear_change_group, destroy_change_group',
-          system: 'query_core_status, query_qsys_api, echo',
+          event_monitoring: 'query_change_events, get_event_statistics',
+          system: 'query_core_status, query_qsys_api',
+          testing: 'echo',
         },
       },
       tools: [
@@ -548,7 +550,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
               ],
               descriptions: {
                 tools:
-                  'Complete reference for all 17 MCP tools with parameters, examples, and workflows',
+                  'Complete reference for all 17 MCP tools (16 Q-SYS + 1 testing) with parameters, examples, and workflows',
                 methods: 'Q-SYS Core API methods and command reference',
                 components: 'Available component types and their capabilities',
                 controls: 'Control types, data formats, and value ranges',
@@ -1132,6 +1134,94 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
             'Throws if groupId is empty',
             "Throws if change group doesn't exist",
             'Throws if Q-SYS Core is not connected',
+          ],
+        },
+        {
+          name: 'query_change_events',
+          description: 'Query historical control change events from the persistent event database',
+          usage: 'Query events with filters for time range, components, controls, and change groups',
+          parameters: {
+            startTime: 'Start time (Unix timestamp in milliseconds) - optional',
+            endTime: 'End time (Unix timestamp in milliseconds) - optional',
+            changeGroupId: 'Filter by specific change group ID - optional',
+            controlNames: 'Array of control names to filter - optional',
+            componentNames: 'Array of component names to filter - optional',
+            limit: 'Maximum events to return (default: 1000, max: 10000)',
+            offset: 'Number of events to skip for pagination',
+          },
+          example: {
+            tool: 'query_change_events',
+            arguments: {
+              startTime: Date.now() - 300000, // Last 5 minutes
+              limit: 100,
+            },
+          },
+          examples: [
+            {
+              arguments: { limit: 50 },
+              description: 'Get last 50 events',
+            },
+            {
+              arguments: { 
+                changeGroupId: 'mixer-controls',
+                limit: 100,
+              },
+              description: 'Events for specific change group',
+            },
+            {
+              arguments: {
+                componentNames: ['Main Mixer', 'Zone 1 Gain'],
+                startTime: Date.now() - 3600000,
+              },
+              description: 'Events from specific components in last hour',
+            },
+          ],
+          returns: 'Array of events with timestamps, control names, values, and metadata',
+          use_cases: [
+            'Historical analysis of control changes',
+            'Audit trail for system modifications',
+            'Performance monitoring over time',
+            'Debugging control sequences',
+            'Usage pattern analysis',
+          ],
+          notes: [
+            'Events are captured automatically at 33Hz polling rate',
+            'Database persists across sessions',
+            'Use filters to avoid large result sets',
+            'Pagination supported for large queries',
+          ],
+        },
+        {
+          name: 'get_event_statistics',
+          description: 'Get comprehensive statistics about the event monitoring database',
+          usage: 'No parameters required - returns current database statistics',
+          parameters: {},
+          example: {
+            tool: 'get_event_statistics',
+            arguments: {},
+          },
+          returns: {
+            totalEvents: 'Total number of events in database',
+            uniqueControls: 'Number of unique controls tracked',
+            databaseSize: 'Database file size in bytes',
+            oldestEvent: 'Timestamp of oldest event',
+            newestEvent: 'Timestamp of newest event',
+            eventRate: 'Current events per second',
+            componentBreakdown: 'Event counts by component',
+            controlTypeBreakdown: 'Event counts by control type',
+            hourlyDistribution: 'Event distribution over last 24 hours',
+          },
+          use_cases: [
+            'Monitor event recording health',
+            'Check database growth rate',
+            'Identify most active components',
+            'Verify event capture is working',
+            'Plan database maintenance',
+          ],
+          notes: [
+            'Lightweight query - safe to call frequently',
+            'Useful for dashboards and monitoring',
+            'Shows system-wide activity patterns',
           ],
         },
       ],
