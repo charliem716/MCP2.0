@@ -105,46 +105,65 @@ Report: Total events captured, change detection accuracy, any missing events
 
 ---
 
-## TEST 3: High-Frequency Event Capture (33Hz Test - UPDATED)
+## TEST 3: High-Frequency Event Capture (33Hz Audio Meter Test)
 ```
-Test high-frequency event capture at Q-SYS native 33Hz rate with change detection:
+Test high-frequency event capture at Q-SYS native 33Hz rate with audio meters:
 
-IMPORTANT: With change detection, the system only records when values actually change.
-At 33Hz (30ms polls), changes must persist long enough to be detected.
+IMPORTANT: Audio meters provide naturally changing values that properly test 33Hz polling.
+Manual set operations are NOT suitable for testing high-frequency capture since the system
+only records actual changes detected during polling, not set operations.
 
 1. Get initial event count from get_event_statistics
 
-2. Create change group "hz33_test" with pollRate=0.03 (33Hz)
+2. Find audio meter controls:
+   - Use list_components to find meter/audio components
+   - Look for components with names containing "meter", "Meter", or type "meter2"
+   - Use get_component_controls to find meter controls (meter.1, level, peak, rms)
+   - Common examples: "TableMicMeter.meter.1", "TableMicMeter.meter.2", "AudioMeter.peak"
+   - NOTE: Multi-part control names ARE supported (Component.Control.Index format)
 
-3. Add a single control (any gain or level control)
+3. Create change group "meter_33hz_test"
 
-4. Rapidly change the control value 30 times:
-   ```
-   for i in 1 to 30:
-     set_control_values with value = -30 + i
-     wait 60ms (2 poll cycles to ensure detection)
-   ```
+4. Add 2-4 meter controls to the group (don't overload with too many)
 
-5. Wait 2 seconds for all events to be recorded
+5. Start auto-polling at 33Hz:
+   - Use create_monitored_change_group with pollRate=0.03 (30ms intervals)
+   OR
+   - Use regular change group with ChangeGroup.AutoPoll rate=0.03
 
-6. Query events for this change group (changeGroupId="hz33_test", limit=100)
+6. Monitor for 10 seconds (should generate ~333 poll cycles)
 
-7. Get final event count from get_event_statistics
+7. Query events for this change group (changeGroupId="meter_33hz_test", limit=1000)
 
-Expected behavior:
-- First poll captures initial value
-- Each change should be detected if it persists for at least 1-2 poll cycles
-- Some rapid changes might be missed if they occur between polls
+8. Get final event count from get_event_statistics
+
+Expected behavior with ACTIVE AUDIO:
+- Continuous stream of events as meter values change
+- Event rate should approach 33Hz per control if audio is active
+- Total events: up to 333 * number_of_controls (if constantly changing)
+
+Expected behavior with SILENCE:
+- Few or no events (meters don't change without audio)
+- This is correct behavior - only changes are recorded
 
 Report:
-- Events captured: X out of 30
-- Missing events: [list any gaps in value sequence]
-- Time span of events: first to last timestamp
-- Actual capture rate: events/second
-- Change detection accuracy: % of changes captured
-- Any buffer overflows reported?
+- New events captured: X
+- Expected poll cycles: 333
+- Events per second: X/10
+- Capture efficiency: (events/expected_polls) * 100%
+- Per control:
+  - Number of events
+  - Number of unique values (indicates variation)
+  - Value range (min to max in dB)
 
-Note: If many changes are missed, increase the wait time between changes or reduce poll rate.
+Analysis:
+- 0 events = No audio signal or wrong controls
+- <10% efficiency = Mostly silence, occasional audio
+- >80% efficiency = Active audio with continuous meter movement
+- 100% efficiency = Meters changing every poll cycle
+
+Note: This test requires active audio in the Q-SYS system. If testing without audio,
+use a signal generator or play audio through the system to see meter movement.
 ```
 
 ---

@@ -832,13 +832,17 @@ export class QRWCClientAdapter
       
       // Validate control format and add to group
       const parts = control.split('.');
-      if (parts.length !== 2) {
+      if (parts.length < 2) {
         invalidControls.push(control);
-        logger.warn(`Invalid control format for change group: ${control} (expected Component.Control format)`);
+        logger.warn(`Invalid control format for change group: ${control} (expected Component.Control or Component.Control.Index format)`);
         continue;
       }
       
-      const [componentName, controlName] = parts;
+      // Support both Component.Control and Component.Control.Index formats
+      // Examples: "Main Gain.gain" or "TableMicMeter.meter.1"
+      const componentName = parts[0];
+      const controlName = parts.slice(1).join('.'); // Join remaining parts for multi-part control names
+      
       if (!componentName || !controlName) {
         invalidControls.push(control);
         continue;
@@ -938,8 +942,12 @@ export class QRWCClientAdapter
       } else {
         // Use real Q-SYS Core values
         const parts = controlPath.split('.');
-        if (parts.length !== 2) continue;
-        const [componentName, controlName] = parts;
+        if (parts.length < 2) continue;
+        
+        // Support both Component.Control and Component.Control.Index formats
+        const componentName = parts[0];
+        const controlName = parts.slice(1).join('.'); // Join remaining parts for multi-part control names
+        
         if (!componentName || !controlName || !qrwc) continue;
         const component = qrwc.components[componentName];
         const control = component?.controls?.[controlName];
