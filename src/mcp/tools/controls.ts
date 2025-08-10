@@ -112,7 +112,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     super(
       qrwcClient,
       'list_controls',
-      "List controls for a specific component. REQUIRED: Use exact component name from list_components (may include spaces/special chars). Returns control names for use in get/set operations. Example: {component:'Matrix_Mixer 9x6'} returns ['input.1.gain','input.1.mute']. Use includeMetadata=true for min/max values.",
+      "List controls for a specific component. REQUIRED: Use exact component name from list_components (may include spaces/special chars). Returns control names for use in get/set operations. Example: {component:'Matrix_Mixer 9x6'} returns ['input.1.gain','input.1.mute']. Use includeMetadata=true for min/max values. For detailed docs, use query_qsys_api with {query_type:'tools',search:'list_controls'}.",
       ListControlsParamsSchema
     );
   }
@@ -448,7 +448,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
     super(
       qrwcClient,
       'get_control_values',
-      "Get current values of Q-SYS controls. FORMAT: Use EXACT control names from list_controls output (e.g., 'input.1.gain', 'threshold_1'). For component controls, use 'ComponentName.controlName' format where ComponentName matches list_components output exactly (including spaces). Example: ['Matrix_Mixer 9x6.input.1.gain', 'Main Gain.mute']. Max 100 controls. Returns [{name,value,timestamp}].",
+      "Get current values of Q-SYS controls. FORMAT: Use EXACT control names from list_controls output (e.g., 'input.1.gain', 'threshold_1'). For component controls, use 'ComponentName.controlName' format where ComponentName matches list_components output exactly (including spaces). Example: ['Matrix_Mixer 9x6.input.1.gain', 'Main Gain.mute']. Max 100 controls. Returns [{name,value,timestamp}]. See query_qsys_api {query_type:'tools'} for examples.",
       GetControlValuesParamsSchema
     );
   }
@@ -662,7 +662,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     super(
       qrwcClient,
       'set_control_values',
-      "Set Q-SYS control values. FORMAT: 'ComponentName.controlName' where ComponentName is from list_components (exact match with spaces). Example: [{name:'Matrix_Mixer 9x6.input.1.gain',value:-10,ramp:2.5}]. RAMP PARAMETER: Use 'ramp' (in seconds) for hardware-level timing delays and smooth transitions. Ramp creates cascading effects when used with different values across multiple controls in a single batch. Example for cascading mute: [{name:'input.1.mute',value:true},{name:'input.2.mute',value:true,ramp:0.5},{name:'input.3.mute',value:true,ramp:1.0}]. VALIDATION BEHAVIOR: validate:true (default) provides honest error reporting - tells you which controls exist/don't exist. validate:false provides optimistic reporting - all controls report success in the response, but only real controls actually change in Q-SYS (fake controls are silently ignored by the core). Use validate:true for debugging, validate:false for bulk operations where you want to avoid partial failure stopping the batch. Values: gains in dB (-100 to 20), mutes as boolean, positions 0-1.",
+      "Set Q-SYS control values. FORMAT: 'ComponentName.controlName' where ComponentName is from list_components (exact match with spaces). Example: [{name:'Matrix_Mixer 9x6.input.1.gain',value:-10,ramp:2.5}]. RAMP PARAMETER: Use 'ramp' (in seconds) for hardware-level timing delays and smooth transitions. Ramp creates cascading effects when used with different values across multiple controls in a single batch. Example for cascading mute: [{name:'input.1.mute',value:true},{name:'input.2.mute',value:true,ramp:0.5},{name:'input.3.mute',value:true,ramp:1.0}]. VALIDATION BEHAVIOR: validate:true (default) provides honest error reporting - tells you which controls exist/don't exist. validate:false provides optimistic reporting - all controls report success in the response, but only real controls actually change in Q-SYS (fake controls are silently ignored by the core). Use validate:true for debugging, validate:false for bulk operations where you want to avoid partial failure stopping the batch. Values: gains in dB (-100 to 20), mutes as boolean, positions 0-1. For advanced examples and best practices, query_qsys_api {query_type:'tools',search:'set_control'}.",
       SetControlValuesParamsSchema
     );
   }
