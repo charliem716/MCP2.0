@@ -160,3 +160,17 @@ coverage/
 data/backups/
 *.db-shm
 *.db-wal
+
+# Event monitoring databases
+data/events-*.db
+data/test-*.db
+test-filter-verify-*.db
+
+# Temporary test scripts
+test-*.mjs
+test-*.js
+!tests/**/*.mjs
+!tests/**/*.js
+
+# Temporary documentation
+fix-*.md
