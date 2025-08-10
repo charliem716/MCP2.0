@@ -1,81 +1,26 @@
 # MCP Server for Q-SYS Control
 
-**✅ PRODUCTION READY** - Model Context Protocol (MCP) server for Q-SYS audio/video systems using the official @q-sys/qrwc SDK. Enables AI agents to discover, control, and monitor Q-SYS components.
+Model Context Protocol (MCP) server for Q-SYS audio/video systems using the official @q-sys/qrwc SDK. Enables AI agents to discover, control, and monitor Q-SYS components through a standardized interface.
 
-## 🎉 **BREAKTHROUGH: Q-SYS Connection SUCCESS!**
-
-**We've successfully connected to a live Q-SYS Core with 42 components and 3,074+ controls!**
-
-### 🏆 **Key Achievements**
-
-- ✅ **Complete MCP Server** - Full Model Context Protocol implementation
-- ✅ **Official @q-sys/qrwc SDK Integration** - Using Q-SYS's official WebSocket library
-- ✅ **Live Q-SYS Core Connection** - Connected to professional AV system at 192.168.50.150:443
-- ✅ **42 Components Discovered** - Full access to audio, video, and control systems
-- ✅ **3,074+ Controls Available** - Real-time control and monitoring of all Q-SYS components
-- ✅ **10 Change Group Tools** - Advanced monitoring with historical querying
-- ✅ **Type-Safe Implementation** - 97.1% ESLint warning reduction, strict TypeScript
-- ✅ **Production Ready** - 75/75 tests passing, comprehensive error handling
-
-### 🎛️ **Connected Q-SYS System Overview**
-
-Your Q-SYS system includes:
-
-- **Audio**: 15 components (mixers, gain controls, mics, soundbar)
-- **Video**: 8 components (displays, video switching, cameras, HDMI routing)
-- **Conference**: 5 components (Zoom Room, Microsoft Teams integration)
-- **Control**: 9 components (touchpanels, UCI controllers, encoders)
-- **Building**: 9 components (HVAC, status monitoring, date/time)
-
-## 🚀 **Quick Start**
-
-### **Test the Q-SYS Connection**
-
-```bash
-# Test basic connection
-npm run test:connection
-
-# Test component interaction
-node tests/integration/qsys/test-component-control.mjs
-
-# Run main application
-npm run dev
-```
-
-### **Setup Your Q-SYS Core**
-
-1. **Follow the setup guides:**
-   - [`QRWC_SETUP_GUIDE.md`](QRWC_SETUP_GUIDE.md) - Complete Q-SYS Core configuration
-   - [`QSYS_SETUP.md`](QSYS_SETUP.md) - Quick setup instructions
-
-2. **Configure your Core IP:**
-   - Edit `qsys-core.config.json` with your Q-SYS Core's IP address
-   - The application will automatically load your configuration
-
-### **Development**
+## Quick Start
 
 ```bash
 # Install dependencies
 npm install
 
-# Run development server (connects to Q-SYS)
+# Configure Q-SYS Core connection
+./setup-env.sh
+
+# Test connection
+npm run test:connection
+
+# Run development server
 npm run dev
-
-# Run tests
-npm test
-
-# Run linting
-npm run lint
-
-# Type checking
-npm run type-check
 ```
 
-## 🔧 **Configuration**
+## Configuration
 
-### **Q-SYS Core Configuration**
-
-Edit `qsys-core.config.json`:
+Edit `qsys-core.config.json` with your Q-SYS Core settings:
 
 ```json
 {
@@ -93,293 +38,104 @@ Edit `qsys-core.config.json`:
 }
 ```
 
-### **Configuration Setup (No Duplication!)**
+Environment variables in `.env`:
+- `OPENAI_API_KEY` - For AI agent integration
+- `LOG_LEVEL` - Logging verbosity (default: info)
+- Event monitoring settings (optional - defaults work out of the box)
 
-We use **separate files** for different configuration:
+## Features
 
-```bash
-# Q-SYS Core settings (IP, port, credentials):
-# → Edit qsys-core.config.json
+### MCP Tools (17 Available)
 
-# OpenAI API key and environment settings:
-# → Edit .env file
+**Core Control** (5 tools)
+- `list_components` - Discover Q-SYS components
+- `list_controls` - List component controls
+- `get_control_values` - Read control values
+- `set_control_values` - Set control values with validation
+- `qsys_component_get` - Get component details
 
-# Setup both files:
-./setup-env.sh
-```
+**Change Groups** (7 tools)
+- Create, manage, and poll control change groups
+- Support for auto-polling at configurable rates (up to 33Hz)
+- Add/remove controls dynamically
 
-| File                        | Purpose                               |
-| --------------------------- | ------------------------------------- |
-| **`qsys-core.config.json`** | Q-SYS Core connection settings        |
-| **`.env`**                  | OpenAI API key, environment variables |
+**Event Monitoring** (2 tools)
+- `query_change_events` - Query historical control changes
+- `get_event_statistics` - Database statistics and health
 
-**See [`OPENAI_SETUP.md`](OPENAI_SETUP.md) for complete setup instructions.**
+**System** (2 tools)
+- `query_core_status` - Q-SYS Core health monitoring
+- `query_qsys_api` - Direct API access
 
-## 📈 **Event Monitoring**
+**Testing** (1 tool)
+- `echo` - MCP connectivity test
 
-The MCP server includes a powerful event monitoring system that automatically records and tracks all Q-SYS control changes from subscribed change groups. Event monitoring is **always enabled** for MCP servers - no configuration needed!
+### Event Monitoring
 
-### **Configuration**
+Automatic SQLite-based event recording for all subscribed change groups:
+- 33Hz+ polling support (30+ events/second)
+- Daily database rotation with configurable retention
+- Sub-millisecond query performance
+- Automatic backups
 
-Event monitoring is configured through environment variables in your `.env` file:
 
-```bash
-# Event monitoring is automatically enabled for MCP servers
-# These are optional settings (defaults work perfectly):
+## Technology Stack
 
-# Database storage path (default: absolute path)
-# EVENT_MONITORING_DB_PATH=/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/events
+- **TypeScript 5.8.4** - Type-safe implementation
+- **@q-sys/qrwc 0.4.1-beta** - Official Q-SYS SDK
+- **Model Context Protocol** - AI agent integration standard
+- **WebSocket (WSS)** - Secure Q-SYS Core communication on port 443
+- **SQLite** - Event monitoring and persistence
+- **Jest** - Testing framework
 
-# Number of days to retain event data (default: 30)
-# EVENT_MONITORING_RETENTION_DAYS=30
-
-# Event buffer size before flush to database (default: 1000)
-# EVENT_MONITORING_BUFFER_SIZE=1000
-
-# Flush interval in milliseconds (default: 100ms)
-# EVENT_MONITORING_FLUSH_INTERVAL=100
-```
-
-### **Usage**
-
-1. **Automatic Activation**
-   Event monitoring starts automatically when you create change groups and add controls to them. No configuration needed!
-
-2. **Create a Change Group with Auto-Polling**
-   Create a change group that automatically polls at the specified rate:
-   ```javascript
-   // Example: Create group with 33Hz polling (30ms intervals)
-   await mcp.callTool('create_change_group', {
-     groupId: 'volume-monitoring',
-     pollRate: 0.03  // Poll rate in seconds (0.03 = 33Hz)
-   });
-   ```
-
-3. **Add Controls to Monitor**
-   Add the controls you want to track to the change group:
-   ```javascript
-   await mcp.callTool('add_controls_to_change_group', {
-     groupId: 'volume-monitoring',
-     controlNames: ['Zone1.Volume', 'Zone2.Volume', 'MainMix.Volume']
-   });
-   ```
-
-4. **Query Historical Events**
-   Use the query tools to analyze recorded events:
-   ```javascript
-   // Get events from the last hour
-   const events = await mcp.callTool('query_change_events', {
-     startTime: Date.now() - 3600000,
-     changeGroupId: 'volume-monitoring',
-     limit: 100
-   });
-   ```
-
-5. **Get Statistics**
-   Monitor the health and status of event recording:
-   ```javascript
-   const stats = await mcp.callTool('get_event_statistics', {});
-   // Returns: total events, unique controls, database size, etc.
-   ```
-
-### **Storage**
-
-Events are stored in SQLite databases with automatic daily rotation:
-
-- **Location**: `/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/events/` (uses absolute path)
-- **Database Files**: Named as `events-YYYY-MM-DD.db`
-- **Rotation**: New database created daily
-- **Cleanup**: Old databases automatically deleted after retention period (default: 30 days)
-- **Performance**: Optimized for 33Hz+ recording (30+ events/second)
-- **Backups**: Automatic backups stored in `/Users/charliemccarrel/Desktop/Builds/MCP2.0/data/backups/`
-
-### **MCP Tools for Event Monitoring**
-
-These event monitoring tools are always available:
-
-| Tool | Description |
-|------|-------------|
-| `query_change_events` | Query historical events with filters for time range, control names, and change groups |
-| `get_event_statistics` | Get monitoring statistics including event counts, database size, and buffer status |
-
-### **Performance Characteristics**
-
-- **Recording Rate**: 60+ events per second verified (exceeds 33Hz requirement)
-- **Query Speed**: Sub-millisecond for most queries
-- **Storage Efficiency**: ~10MB per million events
-- **Memory Usage**: < 50MB overhead with 1000-event buffer
-- **Retention**: Configurable from 1-30 days
-
-## 📊 **Project Status**
-
-### **✅ Phase 1: Q-SYS Remote WebSocket Control (QRWC) - COMPLETE**
-
-- ✅ **1.1**: Project Setup & Infrastructure
-- ✅ **1.2**: Official @q-sys/qrwc SDK Integration
-- ✅ **1.3**: WebSocket Connection (WSS on port 443)
-- ✅ **1.4**: Component Discovery & Access (42 components found)
-- ✅ **1.5**: Real-time Event Handling
-- ✅ **1.6**: Error Handling & Reconnection Logic
-- ✅ **1.7**: Configuration System (JSON + Environment)
-- ✅ **1.8**: Testing & Verification
-
-### **✅ Phase 2: MCP Server Implementation - COMPLETE**
-
-- ✅ **MCP Server Protocol** - Full Model Context Protocol implementation
-- ✅ **Q-SYS Tools Suite** - Complete MCP tools for component discovery, control, and monitoring
-- ✅ **Change Groups** - Advanced monitoring with 10 tools (75/75 tests passing)
-- ✅ **Real-time State Management** - LRU cache, persistence, and synchronization
-- ✅ **Event Cache System** - Historical event querying and real-time streaming
-- ✅ **API Integration** - REST endpoints and WebSocket handlers
-- ✅ **Production Ready** - Type-safe, 97.1% ESLint warning reduction
-
-### **🔮 Phase 3: AI Agent Integration - READY FOR EXTERNAL AGENTS**
-
-- ✅ **MCP Server Ready** - Full protocol implementation for AI agent connections
-- ✅ **Tool Suite Complete** - All Q-SYS control tools exposed via MCP
-- ✅ **External Agent Support** - Any MCP-compatible AI agent can connect
-- ℹ️ **Note**: AI agents are implemented as separate programs that connect to this MCP server
-
-## 🛠️ **Technology Stack**
-
-### **Core Technologies**
-
-- **TypeScript 5.8.4** - Strict typing and modern JavaScript
-- **@q-sys/qrwc 0.4.1-beta** - Official Q-SYS Remote WebSocket Control SDK
-- **Model Context Protocol (MCP)** - Standard protocol for AI tool integration
-- **WebSocket (WSS)** - Secure WebSocket connection to Q-SYS Core
-- **Winston** - Structured logging with metadata
-- **Jest** - Testing framework with async support (75/75 tests passing)
-
-### **Q-SYS Integration**
-
-- **Official Q-SYS SDK** - Using @q-sys/qrwc for WebSocket communication
-- **Real-time Events** - Component state updates and control changes
-- **Professional Audio/Video Control** - Full access to Q-SYS design components
-- **SSL/HTTPS Support** - Secure connections with self-signed certificate support
-
-## 📁 **Project Structure**
+## Project Structure
 
 ```
 src/
-├── mcp/                    # Model Context Protocol Server
-│   ├── qrwc/              # Q-SYS Remote WebSocket Control
-│   │   ├── adapter.ts     # QRWC adapter with change groups
-│   │   └── command-handlers.ts # Q-SYS command processing
-│   ├── tools/             # MCP tools for Q-SYS control
-│   │   ├── change-groups.ts   # Change group monitoring (10 tools)
-│   │   ├── controls.ts    # Component control tools
-│   │   ├── discovery.ts   # Component discovery tools
-│   │   └── status.ts      # System status tools
-│   ├── state/             # State management system
-│   │   ├── cache/         # LRU cache with persistence
-│   │   ├── change-group/  # Change group execution
-│   │   └── event-cache/   # Historical event querying
-│   └── server.ts          # MCP server implementation
-├── api/                   # REST API and WebSocket handlers
-├── shared/                # Shared utilities and types
-└── index.ts               # Main application entry point
-tests/                     # Test suites (75/75 passing)
-├── unit/                  # Unit tests for all components
-└── integration/           # Integration tests
-docs/                      # Technical documentation
-scripts/                   # Build and utility scripts
-
-# Configuration & Testing
-qsys-core.config.json     # Q-SYS Core connection configuration
-.env                       # OpenAI API key and environment settings
+├── mcp/                 # Model Context Protocol server
+│   ├── qrwc/           # Q-SYS WebSocket adapter
+│   ├── tools/          # MCP tool implementations
+│   ├── state/          # State management (cache, persistence, events)
+│   └── server.ts       # MCP server entry point
+├── api/                # REST API and WebSocket handlers
+├── shared/             # Shared utilities and types
+└── index.ts            # Main application entry
+tests/                  # Unit and integration tests
 ```
 
-## 🧪 **Testing & Verification**
-
-### **Connection Tests**
+## Development
 
 ```bash
-# Test Q-SYS Core connection
-npm run test:connection
-# Expected: ✅ 42 components discovered
-
-# Test component control
-node tests/integration/qsys/test-component-control.mjs
-# Expected: ✅ Real-time component interaction working
-```
-
-### **Application Tests**
-
-```bash
-# Run all tests
+# Run tests
 npm test
 
 # Run with coverage
 npm run test:coverage
 
+# Linting
+npm run lint
+
 # Type checking
 npm run type-check
 ```
 
-## 📖 **Documentation**
+## Documentation
 
-### **Setup & Configuration**
+- [Q-SYS Setup Guide](QRWC_SETUP_GUIDE.md) - Q-SYS Core configuration
+- [MCP Tools API Reference](docs/api/MCP_TOOLS.md) - Tool documentation
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues
 
-- [**QRWC Setup Guide**](QRWC_SETUP_GUIDE.md) - Complete Q-SYS Core configuration
-- [**Q-SYS Setup**](QSYS_SETUP.md) - Quick setup instructions
-- [**OpenAI Setup**](OPENAI_SETUP.md) - OpenAI API key configuration for Phase 3
-- [**Run Instructions**](RUN_INSTRUCTIONS.md) - Development setup
+## Requirements
 
-### **Technical Documentation**
+- Node.js 18+
+- Q-SYS Core with API access enabled
+- Network connectivity to Q-SYS Core (port 443)
 
-- [**Implementation Plan**](implementation.md) - Complete technical implementation
-- [**Project Checklist**](checklist.md) - Phase completion tracking
-- [**QRC Overview**](qrc-overview.md) - Q-SYS Remote Control overview
-- [**Component Control**](qrc-component-control.md) - Component interaction guide
+## Technical Notes
 
-### **Production & Operations**
+Q-SYS requires secure WebSocket connections (WSS) on port 443. The server handles self-signed certificates automatically with `rejectUnauthorized: false`.
 
-- [**Production Deployment Guide**](docs/DEPLOYMENT.md) - Complete deployment instructions
-- [**MCP Tools API Reference**](docs/api/MCP_TOOLS.md) - Comprehensive API documentation
-- [**Troubleshooting Guide**](docs/TROUBLESHOOTING.md) - Common issues and solutions
-- [**Configuration Reference**](docs/CONFIGURATION.md) - Configuration options explained
-
-### **Project Management**
-
-- [**PRD Document**](mcp_voice_text_prd_v_2.md) - Product requirements
-- [**Cursor Rules**](CURSOR.md) - Development guidelines
-
-## 🎯 **Key Discovery: WSS Protocol**
-
-**Critical Technical Breakthrough:** Q-SYS Cores require **Secure WebSocket (WSS)** connections, not
-standard WebSocket (WS).
-
-```javascript
-// ❌ This doesn't work:
-const socket = new WebSocket('ws://core-ip:443/qrc-public-api/v0');
-
-// ✅ This works:
-const socket = new WebSocket('wss://core-ip:443/qrc-public-api/v0', {
-  rejectUnauthorized: false, // For self-signed certificates
-});
-```
-
-## 🏆 **Live System Results**
-
-**Connected to professional Q-SYS installation:**
-
-```bash
-📦 Components found: 42
-🎛️ Total controls: 3,074+
-
-Categories discovered:
-├── Audio: 15 components (mixers, mics, gain controls)
-├── Video: 8 components (displays, switchers, cameras)
-├── Conference: 5 components (Zoom Room, Teams integration)
-├── Control: 9 components (touchpanels, encoders)
-└── System: 9 components (HVAC, monitoring, time sync)
-```
-
-## 📄 **License**
+## License
 
 MIT License - see LICENSE file for details.
-
----
-
-**🎉 MCP SERVER COMPLETE!** Production-ready MCP server for Q-SYS control. External AI agents can connect to this server to provide natural language control of professional audio/video systems.
