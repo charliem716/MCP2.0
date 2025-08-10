@@ -32,15 +32,14 @@ const QueryEventsParamsSchema = BaseToolParamsSchema.extend({
     .optional()
     .describe('Filter by component names'),
   limit: z
-    .number()
-    .min(1)
-    .max(10000)
+    .union([z.number(), z.string().transform(v => parseInt(v, 10))])
+    .pipe(z.number().min(1).max(10000))
     .default(1000)
     .optional()
     .describe('Maximum number of events to return (default: 1000, max: 10000)'),
   offset: z
-    .number()
-    .min(0)
+    .union([z.number(), z.string().transform(v => parseInt(v, 10))])
+    .pipe(z.number().min(0))
     .optional()
     .describe('Number of events to skip for pagination'),
 });
