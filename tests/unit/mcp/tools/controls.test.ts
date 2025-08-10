@@ -4,6 +4,7 @@ import {
   SetControlValuesTool,
 } from '../../../../src/mcp/tools/controls';
 import { globalLogger } from '../../../../src/shared/utils/logger';
+import { discoveryCache } from '../../../../src/mcp/state/discovery-cache';
 
 jest.mock('../../../../src/shared/utils/logger', () => ({
   globalLogger: {
@@ -20,6 +21,7 @@ describe('ListControlsTool', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    discoveryCache.clear();
     mockQrwcClient = {
       sendCommand: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true),
@@ -326,9 +328,9 @@ describe('ListControlsTool', () => {
         result: {
           Name: 'TestComponent',
           Controls: [
-            { Name: 'Control1', Value: 0, Position: null },
-            { Name: 'Control2', Value: 1, Position: undefined },
-            { Name: 'Control3', Value: 2 }, // No Position property
+            { Name: 'Control1', Value: 0, Position: null, String: '0', Type: 'Float' },
+            { Name: 'Control2', Value: 1, Position: undefined, String: '1', Type: 'Float' },
+            { Name: 'Control3', Value: 2, String: '2', Type: 'Float' }, // No Position property
           ],
         },
       });
@@ -347,6 +349,7 @@ describe('GetControlValuesTool', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    discoveryCache.clear();
     mockQrwcClient = {
       sendCommand: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true),
@@ -452,6 +455,7 @@ describe('SetControlValuesTool', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    discoveryCache.clear();
     mockQrwcClient = {
       sendCommand: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true),
@@ -820,6 +824,7 @@ describe('ListControlsTool - Type handling regression', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    discoveryCache.clear();
     mockQrwcClient = {
       sendCommand: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true),

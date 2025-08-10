@@ -1,5 +1,6 @@
 import { ListComponentsTool, GetComponentControlsTool } from '../../../../src/mcp/tools/components';
 import { QSysError, MCPError, QSysErrorCode, MCPErrorCode } from '../../../../src/shared/types/errors.js';
+import { discoveryCache } from '../../../../src/mcp/state/discovery-cache';
 
 describe('ListComponentsTool - Edge Cases for 80% Coverage', () => {
   let mockQrwcClient: any;
@@ -18,6 +19,9 @@ describe('ListComponentsTool - Edge Cases for 80% Coverage', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
+    // Clear cache for test isolation
+    jest.clearAllMocks();
+    discoveryCache.clear();
   });
 
   describe('formatComponentsResponse', () => {

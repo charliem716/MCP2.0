@@ -155,13 +155,15 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
       return {
         Name: comp.Name,
         Type: comp.Type,
-        Properties: comp.Properties.reduce(
-          (acc, prop) => {
-            acc[prop.Name] = prop.Value;
-            return acc;
-          },
-          {} as Record<string, unknown>
-        ),
+        Properties: comp.Properties && Array.isArray(comp.Properties)
+          ? comp.Properties.reduce(
+              (acc, prop) => {
+                acc[prop.Name] = prop.Value;
+                return acc;
+              },
+              {} as Record<string, unknown>
+            )
+          : {},
       };
     });
   }

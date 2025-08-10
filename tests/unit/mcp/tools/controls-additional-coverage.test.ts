@@ -200,7 +200,8 @@ describe('Controls Additional Coverage', () => {
           validate: false
         });
 
-        expect(result.isError).toBe(false);
+        // When ALL controls fail due to invalid response format, isError should be true
+        expect(result.isError).toBe(true);
         const results = JSON.parse(result.content[0].text);
         // Should report failure due to unexpected response format
         expect(results[0].success).toBe(false);
@@ -215,7 +216,8 @@ describe('Controls Additional Coverage', () => {
           validate: false
         });
 
-        expect(result.isError).toBe(false);
+        // When ALL controls fail due to invalid response format, isError should be true
+        expect(result.isError).toBe(true);
         const results = JSON.parse(result.content[0].text);
         // String response is invalid format, should report failure
         expect(results[0].success).toBe(false);
@@ -230,7 +232,8 @@ describe('Controls Additional Coverage', () => {
           validate: false
         });
 
-        expect(result.isError).toBe(false);
+        // When ALL controls fail due to invalid response format, isError should be true
+        expect(result.isError).toBe(true);
         const results = JSON.parse(result.content[0].text);
         // Null response is invalid, should report failure
         expect(results[0].success).toBe(false);
@@ -250,8 +253,8 @@ describe('Controls Additional Coverage', () => {
           validate: false
         });
 
-        // Even with Q-SYS errors, we return success and put details in results
-        expect(result.isError).toBe(false);
+        // When ALL controls fail due to Q-SYS error, isError should be true
+        expect(result.isError).toBe(true);
         const results = JSON.parse(result.content[0].text);
         expect(results[0].success).toBe(false);
         expect(results[0].error).toContain('Invalid control name');
@@ -370,8 +373,8 @@ describe('Controls Additional Coverage', () => {
           controls: [{ name: 'Test', value: 1 }]
         });
 
-        // Even with errors, we return success and put details in results
-        expect(result.isError).toBe(false);
+        // When ALL controls fail due to Q-SYS error, isError should be true
+        expect(result.isError).toBe(true);
         const results = JSON.parse(result.content[0].text);
         expect(results[0].success).toBe(false);
         expect(results[0].error).toContain('Control is read-only');

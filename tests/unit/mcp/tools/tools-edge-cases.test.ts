@@ -5,6 +5,7 @@ import {
   SetControlValuesTool,
   ListControlsTool,
 } from '../../../../src/mcp/tools/controls';
+import { discoveryCache } from '../../../../src/mcp/state/discovery-cache';
 
 describe('MCP Tools - Edge Cases for 100% Coverage', () => {
   let mockQrwcClient: any;
@@ -14,8 +15,9 @@ describe('MCP Tools - Edge Cases for 100% Coverage', () => {
       isConnected: jest.fn().mockReturnValue(true),
       sendCommand: jest.fn(),
     };
-    // Clear all mocks
+    // Clear all mocks and cache for test isolation
     jest.clearAllMocks();
+    discoveryCache.clear();
   });
 
   describe('ListComponentsTool - branch coverage', () => {

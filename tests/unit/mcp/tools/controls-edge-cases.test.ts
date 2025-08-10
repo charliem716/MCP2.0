@@ -1,4 +1,5 @@
 import { ListControlsTool, GetControlValuesTool, SetControlValuesTool } from '../../../../src/mcp/tools/controls';
+import { discoveryCache } from '../../../../src/mcp/state/discovery-cache';
 
 describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
   let mockQrwcClient: any;
@@ -17,8 +18,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
-    // Clear all mocks
+    // Clear all mocks and cache to ensure test isolation
     jest.clearAllMocks();
+    discoveryCache.clear();
   });
 
   describe('formatControlsResponse', () => {
@@ -320,9 +322,9 @@ describe('ListControlsTool - Edge Cases for 80% Coverage', () => {
         result: {
           Name: "TestComponent",
           Controls: [
-            { Name: 'SimpleControl', Value: 1 },
-          { Name: 'AnotherControl', Value: 2 },
-          { Name: 'Gain', Value: 3 }
+            { Name: 'SimpleControl', Value: 1, String: '1', Type: 'Integer' },
+            { Name: 'AnotherControl', Value: 2, String: '2', Type: 'Integer' },
+            { Name: 'Gain', Value: 3, String: '3', Type: 'Float' }
           ]
         }
       });

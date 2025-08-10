@@ -1,4 +1,5 @@
 import { ListComponentsTool } from '../../../../src/mcp/tools/components';
+import { discoveryCache } from '../../../../src/mcp/state/discovery-cache';
 
 describe('ListComponentsTool', () => {
   let mockQrwcClient: any;
@@ -17,6 +18,9 @@ describe('ListComponentsTool', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
+    // Clear all mocks and cache to ensure test isolation
+    jest.clearAllMocks();
+    discoveryCache.clear();
   });
 
   describe('executeInternal', () => {
@@ -139,6 +143,9 @@ describe('ListComponentsTool', () => {
       expect(components).toHaveLength(1);
       expect(components[0].Name).toBe('Component1');
       expect(components[0].Type).toBe('type1');
+
+      // Clear cache before testing different response format
+      discoveryCache.clear();
 
       // Test components property format - this will return empty array as it doesn't match expected format
       const componentsResponse = {
