@@ -25,9 +25,6 @@ import {
   createRemoveControlsFromChangeGroupTool,
   createClearChangeGroupTool,
   createListChangeGroupsTool,
-  // BUG-132: EventCache-dependent tools removed
-  // createReadChangeGroupEventsTool,
-  // createSubscribeToChangeEventsTool,
 } from '../tools/change-groups.js';
 // Event monitoring tools (BUG-150: Event monitoring restored with SQLite)
 import {

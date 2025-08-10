@@ -118,6 +118,38 @@ The system uses multiple configuration sources:
 - MCP server implementation ready for AI agent connections
 - **Event Monitoring Restored**: SQLite-based event tracking with MCP tools
 - Event monitoring tools (`query_change_events`, `get_event_statistics`) fully operational
+- **16 MCP Tools Available**: Full suite of control, monitoring, and utility tools
+
+### MCP Tools Inventory (17 Total: 16 Q-SYS + 1 Testing)
+
+**Core Control Tools (5):**
+- `list_components` - List all Q-SYS components
+- `list_controls` - List controls for a specific component  
+- `get_control_values` - Get current values of controls
+- `set_control_values` - Set control values with optional validation
+- `qsys_component_get` - Get detailed component information
+
+**System Status Tools (1):**
+- `query_core_status` - Get Q-SYS Core status and health
+
+**Change Group Tools (7):**
+- `create_change_group` - Create a new change group
+- `add_controls_to_change_group` - Add controls to group
+- `poll_change_group` - Poll for control changes
+- `list_change_groups` - List all active change groups
+- `remove_controls_from_change_group` - Remove specific controls
+- `clear_change_group` - Clear all controls from group
+- `destroy_change_group` - Destroy a change group
+
+**Event Monitoring Tools (2):**
+- `query_change_events` - Query historical control changes
+- `get_event_statistics` - Get event database statistics
+
+**Utility Tools (1):**
+- `query_qsys_api` - Send raw Q-SYS API commands
+
+**Testing Tools (1):**
+- `echo` - Test MCP connectivity (legacy testing tool)
 
 ### Important Notes
 

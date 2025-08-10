@@ -86,7 +86,7 @@ describe('MCPToolRegistry', () => {
     it('should list all registered tools', async () => {
       const tools = await registry.listTools();
 
-      expect(tools).toHaveLength(17);
+      expect(tools).toHaveLength(17); // 16 Q-SYS tools + 1 echo tool
       expect(tools).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
