@@ -37,7 +37,7 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
     super(
       controlSystem,
       'list_components',
-      "List Q-SYS components with regex filtering. Filter by name/type patterns ('mixer', '^Main', 'gain|delay'). Use includeProperties=true for details. Example: {filter:'mixer',includeProperties:true}. For advanced usage and examples, use query_qsys_api with {query_type:'tools'}.",
+      "List Q-SYS components with regex filtering. Filter by name/type patterns ('mixer', '^Main', 'gain|delay'). Use includeProperties=true for details. Example: {filter:'mixer',includeProperties:true}. For advanced usage and examples, use get_api_documentation with {query_type:'tools'}.",
       ListComponentsParamsSchema
     );
   }
@@ -247,7 +247,7 @@ export class GetComponentControlsTool extends BaseQSysTool<GetComponentControlsP
     super(
       controlSystem,
       'qsys_component_get',
-      "Get control values from a single component efficiently. Returns values, positions (0-1), and formatted strings. Example: {component:'Main Mixer',controls:['gain','mute']}. For detailed documentation, use query_qsys_api with {query_type:'tools',search:'component_get'}.",
+      "Get control values from a single component efficiently. Returns values, positions (0-1), and formatted strings. Example: {component:'Main Mixer',controls:['gain','mute']}. For detailed documentation, use get_api_documentation with {query_type:'tools',search:'component_get'}.",
       GetComponentControlsParamsSchema
     );
   }

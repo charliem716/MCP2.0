@@ -6,9 +6,9 @@ import type { IControlSystem } from '../interfaces/control-system.js';
 import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 
 /**
- * Parameters for the query_qsys_api tool
+ * Parameters for the get_api_documentation tool
  */
-export const QueryQSysAPIParamsSchema = z.object({
+export const GetAPIDocumentationParamsSchema = z.object({
   requestId: z
     .string()
     .uuid()
@@ -47,27 +47,27 @@ export const QueryQSysAPIParamsSchema = z.object({
     .describe('Get details for specific method'),
 });
 
-export type QueryQSysAPIParams = z.infer<typeof QueryQSysAPIParamsSchema>;
+export type GetAPIDocumentationParams = z.infer<typeof GetAPIDocumentationParamsSchema>;
 
 /**
- * Tool to query Q-SYS API reference for available methods and parameters
+ * Tool to get Q-SYS API documentation and reference information
  */
-export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
+export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationParams> {
   private apiReference: QSysAPIReference;
 
   constructor(qrwcClient: IControlSystem) {
     super(
       qrwcClient,
-      'query_qsys_api',
-      "API documentation for Q-SYS MCP tools. Query types: 'tools', 'methods', 'components', 'controls', 'examples'. Supports search and filtering. Example: {query_type:'tools',search:'gain'}.",
-      QueryQSysAPIParamsSchema
+      'get_api_documentation',
+      "Get comprehensive API documentation and reference for Q-SYS MCP tools. Query types: 'tools', 'methods', 'components', 'controls', 'examples'. Supports search and filtering. This is a documentation tool, not for direct API execution. Example: {query_type:'tools',search:'gain'}.",
+      GetAPIDocumentationParamsSchema
     );
 
     this.apiReference = new QSysAPIReference();
   }
 
   protected async executeInternal(
-    params: QueryQSysAPIParams,
+    params: GetAPIDocumentationParams,
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
@@ -109,7 +109,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     }
   }
 
-  private queryMethods(params: QueryQSysAPIParams) {
+  private queryMethods(params: GetAPIDocumentationParams) {
     const methods = this.apiReference.queryMethods({
       component_type: params.component_type ?? '',
       method_category: params.method_category ?? '',
@@ -150,7 +150,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
     };
   }
 
-  private queryExamples(params: QueryQSysAPIParams) {
+  private queryExamples(params: GetAPIDocumentationParams) {
     const examples = this.apiReference.getExamples(params.method_name);
 
     return {
@@ -177,7 +177,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           change_groups:
             'create_change_group, add_controls_to_change_group, poll_change_group, list_change_groups, remove_controls_from_change_group, clear_change_group, destroy_change_group',
           event_monitoring: 'query_change_events, get_event_statistics',
-          system: 'query_core_status, query_qsys_api',
+          system: 'query_core_status, get_api_documentation',
           testing: 'echo',
         },
       },
@@ -531,7 +531,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
           note: 'Enterprise-grade monitoring comparable to dedicated network management systems',
         },
         {
-          name: 'query_qsys_api',
+          name: 'get_api_documentation',
           description:
             'Comprehensive self-documenting API reference system with intelligent search, contextual examples, and guided learning paths for Q-SYS MCP mastery',
           usage:
@@ -610,7 +610,7 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
             'Performance optimization recommendations',
           ],
           example: {
-            tool: 'query_qsys_api',
+            tool: 'get_api_documentation',
             arguments: {
               query_type: 'methods',
               search: 'gain',
@@ -1302,5 +1302,5 @@ export class QueryQSysAPITool extends BaseQSysTool<QueryQSysAPIParams> {
 /**
  * Export the tool factory function
  */
-export const createQueryQSysAPITool = (qrwcClient: IControlSystem) =>
-  new QueryQSysAPITool(qrwcClient);
+export const createGetAPIDocumentationTool = (qrwcClient: IControlSystem) =>
+  new GetAPIDocumentationTool(qrwcClient);

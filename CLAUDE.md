@@ -146,7 +146,7 @@ The system uses multiple configuration sources:
 - `get_event_statistics` - Get event database statistics
 
 **Utility Tools (1):**
-- `query_qsys_api` - Send raw Q-SYS API commands
+- `get_api_documentation` - Get API documentation and reference
 
 **Testing Tools (1):**
 - `echo` - Test MCP connectivity (legacy testing tool)

@@ -65,7 +65,7 @@ Environment variables in `.env`:
 
 **System** (2 tools)
 - `query_core_status` - Q-SYS Core health monitoring
-- `query_qsys_api` - Direct API access
+- `get_api_documentation` - API documentation and reference
 
 **Testing** (1 tool)
 - `echo` - MCP connectivity test

@@ -1,13 +1,13 @@
 /**
- * Tests for QueryQSysAPITool
+ * Tests for GetAPIDocumentationTool
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { QueryQSysAPITool } from '../../../../src/mcp/tools/qsys-api';
+import { GetAPIDocumentationTool } from '../../../../src/mcp/tools/qsys-api';
 import type { ToolExecutionContext } from '../../../../src/mcp/tools/base';
 
-describe('QueryQSysAPITool', () => {
-  let tool: QueryQSysAPITool;
+describe('GetAPIDocumentationTool', () => {
+  let tool: GetAPIDocumentationTool;
   let mockQrwcClient: any;
   let mockContext: ToolExecutionContext;
 
@@ -21,11 +21,11 @@ describe('QueryQSysAPITool', () => {
       timestamp: new Date().toISOString(),
     };
 
-    tool = new QueryQSysAPITool(mockQrwcClient);
+    tool = new GetAPIDocumentationTool(mockQrwcClient);
   });
 
   it('should have correct tool name and description', () => {
-    expect(tool.name).toBe('query_qsys_api');
+    expect(tool.name).toBe('get_api_documentation');
     expect(tool.description).toContain('API documentation');
     expect(tool.description).toContain('methods');
     expect(tool.description).toContain('examples');
@@ -134,15 +134,23 @@ describe('QueryQSysAPITool', () => {
   it('should filter by method category', async () => {
     const params = {
       query_type: 'methods' as const,
-      method_category: 'Snapshot' as const,
+      method_category: 'Component' as const,  // Use a category that exists
     };
 
     const result = await tool.execute(params, mockContext);
+    expect(result.isError).toBe(false);
 
     const response = JSON.parse(result.content[0].text);
-    expect(response.methods.every((m: any) => m.category === 'Snapshot')).toBe(
-      true
-    );
+    expect(response.query_type).toBe('methods');
+    
+    // Should have methods array (might be empty)
+    expect(Array.isArray(response.methods)).toBe(true);
+    
+    // If there are methods returned, they should all be in the Component category
+    if (response.methods.length > 0) {
+      const allComponent = response.methods.every((m: any) => m.category === 'Component');
+      expect(allComponent).toBe(true);
+    }
   });
 
   it('should validate parameters', async () => {

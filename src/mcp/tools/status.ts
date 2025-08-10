@@ -51,7 +51,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     super(
       qrwcClient,
       'query_core_status',
-      'Get Q-SYS system health telemetry. Use includeDetails for firmware/hardware info, includeNetworkInfo for network status, includePerformance for metrics. Returns device temperatures, fan speeds, memory usage, power consumption, and network health from Core and peripherals. Example: {includePerformance:true} for temperature monitoring. For complete telemetry details, use query_qsys_api {query_type:\'tools\',search:\'status\'}.',
+      'Get Q-SYS system health telemetry. Use includeDetails for firmware/hardware info, includeNetworkInfo for network status, includePerformance for metrics. Returns device temperatures, fan speeds, memory usage, power consumption, and network health from Core and peripherals. Example: {includePerformance:true} for temperature monitoring. For complete telemetry details, use get_api_documentation {query_type:\'tools\',search:\'status\'}.',
       QueryCoreStatusParamsSchema
     );
   }

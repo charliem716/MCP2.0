@@ -16,7 +16,7 @@ import {
   createSetControlValuesTool,
 } from '../tools/controls.js';
 import { createQueryCoreStatusTool } from '../tools/status.js';
-import { createQueryQSysAPITool } from '../tools/qsys-api.js';
+import { createGetAPIDocumentationTool } from '../tools/qsys-api.js';
 import {
   createCreateChangeGroupTool,
   createAddControlsToChangeGroupTool,
@@ -118,7 +118,7 @@ export class MCPToolRegistry {
       createGetControlValuesTool(this.controlSystem),
       createSetControlValuesTool(this.controlSystem),
       createQueryCoreStatusTool(this.controlSystem),
-      createQueryQSysAPITool(this.controlSystem),
+      createGetAPIDocumentationTool(this.controlSystem),
       // Change Group tools
       createCreateChangeGroupTool(this.controlSystem),
       createAddControlsToChangeGroupTool(this.controlSystem),
