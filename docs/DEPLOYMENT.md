@@ -1,6 +1,70 @@
 # Production Deployment Guide
 
-## 📋 Prerequisites
+## 🚀 Quick Start
+
+### Prerequisites
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Q-SYS Core details
+   ```
+
+3. **Configure Q-SYS connection:**
+   ```bash
+   cp qsys-core.config.example.json qsys-core.config.json
+   # Edit with your Q-SYS Core credentials
+   ```
+
+### Running the Application
+
+#### Development Mode
+```bash
+npm run dev
+```
+
+#### Production Mode
+```bash
+npm run build
+npm start
+```
+
+### What Happens When You Run It
+
+1. **Configuration Validation**: The app validates all environment variables
+2. **QRWC Client Creation**: Creates a WebSocket client with your Q-SYS settings
+3. **Connection to Q-SYS Core**: Attempts to connect to your Q-SYS Core
+   - If successful: "✅ Connected to Q-SYS Core"
+   - If failed: Error message with details
+4. **QRC Commands Initialization**: Sets up the command interface
+5. **Ready State**: "🎯 Application is ready and running"
+
+### Graceful Shutdown
+
+Press `Ctrl+C` to stop the application. It will:
+- Dispose of QRC commands
+- Disconnect from Q-SYS Core
+- Clean up all resources
+
+### Quick Troubleshooting
+
+**Connection Failed:**
+- Check Q-SYS Core is accessible at configured host/port
+- Verify username/password are correct
+- Ensure firewall allows connection on port 443
+
+**Environment Errors:**
+- Run `npm run check:env` to validate configuration
+- Check `.env.example` for required variables
+
+---
+
+## 📋 Full Deployment Prerequisites
 
 ### System Requirements
 - **Node.js**: Version 20.x or higher
