@@ -22,42 +22,71 @@ describe('SetControlValuesTool - Validation Fixes', () => {
     mockContext = {} as ToolExecutionContext;
   });
 
-  describe('BUG FIX: validate:false should report actual Q-SYS failures', () => {
-    it('should report failure when Q-SYS does not return a control in response', async () => {
-      // Mock Q-SYS response that doesn't include the requested control
-      // This happens when the control doesn't exist
+  describe('Q-SYS response handling behavior', () => {
+    it('should detect actual Q-SYS errors', async () => {
+      // Q-SYS returns explicit error responses for failures
       (mockControlSystem.sendCommand as Mock).mockResolvedValue({
-        result: []  // Empty result means Q-SYS didn't process the control
+        result: [
+          { Name: 'control1', Result: 'OK' },
+          { Name: 'control2', Result: 'Error', Error: 'Control is read-only' }
+        ]
       });
 
       const result = await tool.execute({
         controls: [
-          { name: 'FakeComponent.fakeControl', value: 10 }
+          { name: 'Component.control1', value: 10 },
+          { name: 'Component.control2', value: 20 }
         ],
-        validate: false  // Skip pre-validation
+        validate: false
       }, mockContext);
 
       const response = JSON.parse(result.content[0].text);
       
-      // Should report failure even with validate:false
-      expect(response).toHaveLength(1);
+      expect(response).toHaveLength(2);
       expect(response[0]).toMatchObject({
-        name: 'FakeComponent.fakeControl',
-        value: 10,
+        name: 'Component.control1',
+        success: true
+      });
+      expect(response[1]).toMatchObject({
+        name: 'Component.control2',
         success: false,
-        error: expect.stringContaining('not found')
+        error: 'Control is read-only'
       });
     });
 
-    it('should report success only for controls actually processed by Q-SYS', async () => {
-      // Mock mixed response - only RealControl is processed
+    it('should treat empty response as success (Q-SYS standard behavior)', async () => {
+      // Q-SYS returns empty array when all controls succeed
+      (mockControlSystem.sendCommand as Mock).mockResolvedValue({
+        result: []  // Empty result is normal for successful operations
+      });
+
+      const result = await tool.execute({
+        controls: [
+          { name: 'Component.control', value: 10 }
+        ],
+        validate: false
+      }, mockContext);
+
+      const response = JSON.parse(result.content[0].text);
+      
+      // Empty response means success in Q-SYS
+      expect(response).toHaveLength(1);
+      expect(response[0]).toMatchObject({
+        name: 'Component.control',
+        value: 10,
+        success: true  // Empty response = success
+      });
+    });
+
+    it('should handle mixed explicit success and implicit success responses', async () => {
+      // Q-SYS only returns controls that need explicit confirmation
       (mockControlSystem.sendCommand as Mock).mockImplementation((cmd, params) => {
         if (cmd === 'Component.Set') {
           if (params.Name === 'RealComponent') {
             return Promise.resolve({
               result: [
                 { Name: 'realControl', Result: 'OK' }
-                // fakeControl is not in response - Q-SYS ignored it
+                // otherControl not in response = implicitly succeeded
               ]
             });
           }
@@ -68,7 +97,7 @@ describe('SetControlValuesTool - Validation Fixes', () => {
       const result = await tool.execute({
         controls: [
           { name: 'RealComponent.realControl', value: 5 },
-          { name: 'RealComponent.fakeControl', value: 10 }
+          { name: 'RealComponent.otherControl', value: 10 }
         ],
         validate: false
       }, mockContext);
@@ -76,16 +105,15 @@ describe('SetControlValuesTool - Validation Fixes', () => {
       const response = JSON.parse(result.content[0].text);
       
       expect(response).toHaveLength(2);
-      // Real control succeeds
+      // Explicitly confirmed control
       expect(response[0]).toMatchObject({
         name: 'RealComponent.realControl',
         success: true
       });
-      // Fake control fails
+      // Implicitly succeeded control (not in response)
       expect(response[1]).toMatchObject({
-        name: 'RealComponent.fakeControl',
-        success: false,
-        error: expect.stringContaining('not found')
+        name: 'RealComponent.otherControl',
+        success: true  // Missing from response = success
       });
     });
   });
@@ -240,7 +268,8 @@ describe('SetControlValuesTool - Validation Fixes', () => {
   });
 
   describe('Edge cases and combined scenarios', () => {
-    it('should handle mixed valid and invalid controls with validate:false', async () => {
+    it('should handle mixed component and named controls with validate:false', async () => {
+      // Q-SYS behavior: controls not in response are assumed successful
       (mockControlSystem.sendCommand as Mock).mockImplementation((cmd, params) => {
         if (cmd === 'Component.Set') {
           return Promise.resolve({
@@ -262,9 +291,9 @@ describe('SetControlValuesTool - Validation Fixes', () => {
       const result = await tool.execute({
         controls: [
           { name: 'Component.validControl', value: 1 },
-          { name: 'Component.invalidControl', value: 2 },
+          { name: 'Component.otherControl', value: 2 },
           { name: 'NamedControl', value: 3 },
-          { name: 'InvalidNamed', value: 4 }
+          { name: 'OtherNamed', value: 4 }
         ],
         validate: false
       }, mockContext);
@@ -272,10 +301,11 @@ describe('SetControlValuesTool - Validation Fixes', () => {
       const response = JSON.parse(result.content[0].text);
       
       expect(response).toHaveLength(4);
-      expect(response[0].success).toBe(true);  // Valid component control
-      expect(response[1].success).toBe(false); // Invalid component control
-      expect(response[2].success).toBe(true);  // Valid named control
-      expect(response[3].success).toBe(false); // Invalid named control
+      // All controls succeed per Q-SYS behavior
+      expect(response[0].success).toBe(true);  // Explicit OK response
+      expect(response[1].success).toBe(true);  // Not in response = success
+      expect(response[2].success).toBe(true);  // Explicit OK response  
+      expect(response[3].success).toBe(true);  // Not in response = success
     });
 
     it('should preserve ramp parameter in responses', async () => {

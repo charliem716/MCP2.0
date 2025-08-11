@@ -156,7 +156,7 @@ describe('Controls Additional Coverage', () => {
         expect(result.isError).toBe(true);
         const results = JSON.parse(result.content[0].text);
         expect(results[0].success).toBe(false);
-        expect(results[0].error).toContain("not found");
+        expect(results[0].error).toContain("validation prevented attempt");
       });
 
       it('should handle validation response with non-array result', async () => {

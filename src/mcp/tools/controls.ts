@@ -750,7 +750,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         : control.name;
       
       const controlResult = qsysResponse.result.find(r => r.Name === searchName);
-      const response = this.createControlResponse(control, controlResult, validationSkipped);
+      const response = this.createControlResponse(control, controlResult, validationSkipped, qsysResponse.result);
       jsonResults.push(response);
     }
     
@@ -764,7 +764,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
   private createControlResponse(
     control: { name: string; value: ControlValue; ramp?: number | undefined },
     controlResult?: { Name: string; Result: string; Error?: string },
-    validationSkipped = false
+    validationSkipped = false,
+    qsysResponse?: any[]
   ): ControlSetResponse {
     // Control explicitly failed at Q-SYS level
     if (controlResult?.Result === 'Error') {
@@ -776,26 +777,14 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       };
     }
     
-    // When validate:false, assume success if no explicit error
-    // Q-SYS may not return results for controls it silently ignores
-    if (validationSkipped && !controlResult) {
+    // When control not in response, assume success
+    // BUG-203: Q-SYS Component.Set often doesn't return successfully set controls
+    // Empty response array [] from Q-SYS typically means success for all controls
+    if (!controlResult) {
       return {
         name: control.name,
         value: control.value,
-        success: true, // Assume success when validation is skipped
-      };
-    }
-    
-    // When validate:true and control not in response, check if it's actually an error
-    // Q-SYS Component.Set may not return all controls in the response even when successful
-    // Only mark as error if we're certain it failed (when Q-SYS explicitly returns an error)
-    if (!validationSkipped && !controlResult) {
-      // For Component.Set, Q-SYS only returns controls that had errors or explicit success
-      // Absence from response usually means success (Q-SYS accepted the value)
-      return {
-        name: control.name,
-        value: control.value,
-        success: true, // Assume success when Q-SYS doesn't explicitly report an error
+        success: true,
       };
     }
     
