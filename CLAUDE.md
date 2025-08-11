@@ -163,7 +163,7 @@ The system uses multiple configuration sources:
 5. **Type safety**: Maintain strict TypeScript standards - no `any` types or type assertions without
    validation
 6. **SDK ONLY - NO WORKAROUNDS**: 
-   - DO NOT use `sendRawCommand()` - it doesn't work (see BUG-201)
+   - DO NOT use `sendRawCommand()` - it doesn't work (see BULLETIN-201)
    - DO NOT try to implement ramp/fade - SDK doesn't support it
    - DO NOT attempt raw WebSocket commands - Q-SYS ignores them
    - See `docs/SDK-LIMITATIONS.md` for full details

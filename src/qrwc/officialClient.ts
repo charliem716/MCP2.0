@@ -337,7 +337,7 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
    * - Component.GetComponents
    * - All other raw JSON-RPC commands
    * 
-   * See BUG-201 for full investigation details.
+   * See BULLETIN-201 for full investigation details.
    * 
    * @deprecated This method exists but does not work. Use SDK methods only.
    */

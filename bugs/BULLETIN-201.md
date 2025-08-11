@@ -1,12 +1,14 @@
-# BUG-201: Ramp Parameter Not Functional Due to Official SDK Limitation
+# BULLETIN-201: SDK Limitations - Ramp Parameter and sendRawCommand
+
+## Type: Technical Bulletin / Known Limitation
 
 ## Summary
-The `ramp` parameter in the `set_control_values` MCP tool is accepted syntactically but does not produce the expected smooth transition behavior. Control values jump immediately to the target value instead of ramping over the specified duration.
+This bulletin documents permanent technical limitations of the Q-SYS integration due to constraints in the official `@q-sys/qrwc` TypeScript SDK. These are not bugs in our implementation but fundamental SDK limitations that cannot be worked around.
 
-## Root Cause Analysis
+## Documented Limitations
 
-### Issue
-The ramp functionality fails because:
+### 1. Ramp Parameter Non-Functional
+The ramp functionality cannot work because:
 
 1. **SDK Limitation**: The official `@q-sys/qrwc` TypeScript SDK does not support ramp parameters in its `control.update()` method
 2. **Interface Mismatch**: The SDK's `IComponentSetRequest` interface only supports:
@@ -93,27 +95,36 @@ No additional tests needed as this documents existing behavior rather than chang
 - This is a limitation of the underlying SDK, not our implementation
 - Functionality will remain ready for when/if the SDK adds support
 
-## Update: sendRawCommand Investigation (2025-08-11)
+### 2. sendRawCommand Non-Functional (Investigated 2025-08-11)
 
-### Comprehensive Testing Results
-We thoroughly tested `sendRawCommand` to determine if it could bypass SDK limitations:
+Comprehensive testing confirmed `sendRawCommand` cannot bypass SDK limitations:
 
-#### Test Methodology
+**Test Methodology:**
 1. Direct WebSocket connection to Q-SYS Core
 2. sendRawCommand after SDK connection
 3. Various command formats including Control.Set with Ramp
 
-#### Results: sendRawCommand is NON-FUNCTIONAL
+**Results: sendRawCommand is NON-FUNCTIONAL**
 - **All raw commands timeout** - Q-SYS doesn't respond to raw JSON-RPC messages
 - **Protocol mismatch** - SDK uses proprietary protocol, not standard JSON-RPC
 - **Cannot bypass SDK** - Raw commands are ignored by Q-SYS Core
 
-#### Critical Finding
+**Critical Finding:**
 ```
 sendRawCommand exists in the code but DOES NOT WORK.
 Q-SYS requires the SDK's proprietary protocol handling.
 Raw WebSocket commands are completely ignored.
 ```
 
-## Status
-**PERMANENTLY BLOCKED** - Cannot be fixed without official SDK support. Do not attempt workarounds.
+## Bulletin Status
+**PERMANENT LIMITATION** - These are SDK constraints, not bugs. Cannot be fixed without official SDK updates from QSC.
+
+## Action Required
+- **For Developers**: Do not attempt workarounds - they are technically impossible
+- **For Users**: Contact QSC to request SDK enhancements if these features are needed
+- **For Project**: Keep ramp parameter in API for future compatibility when SDK adds support
+
+## References
+- `docs/SDK-LIMITATIONS.md` - Comprehensive limitation documentation
+- `src/qrwc/officialClient.ts` - sendRawCommand marked as @deprecated
+- Test scripts demonstrating failures (removed from repo)

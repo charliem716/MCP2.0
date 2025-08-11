@@ -209,7 +209,7 @@ mcp-voice-text-qsys/
 2. **sendRawCommand is broken** - Timeouts on all commands due to protocol mismatch
 3. **Must use SDK methods exclusively** - No workarounds exist
 
-See `docs/SDK-LIMITATIONS.md` and `bugs/BUG-201.md` for full details.
+See `docs/SDK-LIMITATIONS.md` and `bugs/BULLETIN-201.md` for full details.
 
 ## Implementation Phases
 

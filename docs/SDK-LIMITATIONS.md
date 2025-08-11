@@ -22,7 +22,7 @@ control.update(value, ramp) // ❌ Does not exist
 **Impact**: 
 - Smooth transitions between control values are impossible
 - The `ramp` parameter in our API is preserved for future compatibility but does nothing
-- See BUG-201 for full details
+- See BULLETIN-201 for full details
 
 ### 2. sendRawCommand is Non-Functional
 
@@ -94,7 +94,7 @@ Until QSC updates their SDK, these limitations are **permanent and unfixable**.
 
 ## References
 
-- BUG-201: Ramp parameter investigation and sendRawCommand testing
+- BULLETIN-201: Ramp parameter investigation and sendRawCommand testing
 - test-sendraw-comprehensive.mjs: Test script proving sendRawCommand doesn't work
 - test-sendraw-debug.mjs: Debug script showing protocol mismatch
 

@@ -90,7 +90,7 @@ export const SetControlValuesParamsSchema = BaseToolParamsSchema.extend({
           .union([z.number(), z.string(), z.boolean()])
           .describe('Control value'),
         ramp: z.coerce.number().positive().optional()
-          .describe('Ramp time in seconds (NOTE: Currently non-functional due to official SDK limitation - see BUG-201)'),
+          .describe('Ramp time in seconds (NOTE: Currently non-functional due to official SDK limitation - see BULLETIN-201)'),
       })
     )
     .min(1)
@@ -782,7 +782,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     
     // Add ramp time if specified
     // NOTE: Ramp is preserved in the response but not actually functional
-    // due to official SDK limitation - see BUG-201
+    // due to official SDK limitation - see BULLETIN-201
     if (control.ramp !== undefined) {
       response.rampTime = control.ramp;
     }
