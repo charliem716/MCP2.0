@@ -326,9 +326,16 @@ export class MCPServer {
       this.isConnected = true;
       logger.info('MCP server started successfully with stdio transport');
       
-      // Try to connect to Q-SYS but don't block on it
-      // Tools will handle connection errors gracefully
-      this.attemptQSysConnection();
+      // Connect to Q-SYS and wait for it
+      try {
+        await this.officialQrwcClient.connect();
+        logger.info('Q-SYS Core connected successfully');
+        this.setupReconnectionHandlers();
+      } catch (error) {
+        logger.warn('Q-SYS Core connection failed - tools will handle this gracefully', { 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+      }
       
       // Handle graceful shutdown
       this.setupGracefulShutdown();
@@ -338,23 +345,6 @@ export class MCPServer {
     }
   }
   
-  /**
-   * Attempt to connect to Q-SYS (non-blocking)
-   */
-  private attemptQSysConnection(): void {
-    // Fire and forget - don't await
-    this.officialQrwcClient.connect()
-      .then(() => {
-        logger.info('Q-SYS Core connected successfully');
-        this.setupReconnectionHandlers();
-      })
-      .catch(error => {
-        logger.warn('Q-SYS Core connection failed - tools will handle this gracefully', { 
-          error: error instanceof Error ? error.message : String(error) 
-        });
-        // Tools will return user-friendly errors when Q-SYS is not connected
-      });
-  }
 
   /**
    * Set up reconnection handlers for Q-SYS Core connection

@@ -60,9 +60,9 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
         
         // Convert cached components to full format
         components = cachedComponents.map(comp => ({
-          name: comp.name,
-          type: comp.type,
-          properties: params.includeProperties ? {} : undefined,
+          Name: comp.name,
+          Type: comp.type,
+          Properties: params.includeProperties ? {} : undefined,
         }));
         
         // If properties are needed, we'll need to fetch from Q-SYS
@@ -97,9 +97,9 @@ export class ListComponentsTool extends BaseQSysTool<ListComponentsParams> {
         
         // Cache the lightweight component list (names and types only)
         const componentInfos: QSysComponentInfo[] = components.map(comp => ({
-          Name: comp.name,
-          Type: comp.type,
-          Properties: comp.properties,
+          Name: comp.Name,
+          Type: comp.Type,
+          Properties: comp.Properties,
         }));
         discoveryCache.setComponents(componentInfos);
       }
