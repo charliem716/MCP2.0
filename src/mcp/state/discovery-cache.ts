@@ -258,7 +258,7 @@ export class DiscoveryCache extends EventEmitter {
    * Check if a specific control exists in cache
    */
   hasControl(componentName: string, controlName: string): boolean | null {
-    this.cleanExpired();
+    this.cleanExpiredControls();
     
     const componentControls = this.controls.get(componentName);
     if (!componentControls) {
@@ -373,7 +373,7 @@ export class DiscoveryCache extends EventEmitter {
       cachedControlSets: this.controls.size,
       totalControlCount,
       cacheUtilization: (this.controls.size / this.config.maxCachedControlSets) * 100,
-      oldestControlSet: this.controlAccessOrder[0],
+      ...(this.controlAccessOrder[0] ? { oldestControlSet: this.controlAccessOrder[0] } : {}),
     };
   }
 }

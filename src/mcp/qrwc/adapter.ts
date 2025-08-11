@@ -121,6 +121,7 @@ interface SimpleChangeGroup {
   id: string;
   controls: string[];
   lastPollValues?: Map<string, { Value: unknown; String: string }>;
+  lastPollTime?: number;
 }
 
 export class QRWCClientAdapter
@@ -1016,12 +1017,23 @@ export class QRWCClientAdapter
       }
     }
     
-    // Emit event for monitoring - only emit if there are changes or it's the first poll
-    if (changedValues.length > 0 || group.lastPollValues.size === 0) {
+    // Track poll time for high-frequency detection
+    const now = Date.now();
+    const timeSinceLastPoll = group.lastPollTime ? now - group.lastPollTime : Infinity;
+    
+    // For high-frequency monitoring (33Hz), always emit to capture the actual polling rate
+    // This ensures meter monitoring captures all samples even if values don't change
+    // Check BEFORE updating lastPollTime
+    const isHighFrequency = this.autoPollTimers.has(groupId) && timeSinceLastPoll < 100;
+    
+    group.lastPollTime = now;
+    
+    // Emit event for monitoring - emit if there are changes, first poll, or high-frequency monitoring
+    if (changedValues.length > 0 || group.lastPollValues.size === 0 || isHighFrequency) {
       this.emit('changeGroup:poll', {
         groupId,
-        controls: changedValues.length > 0 ? changedValues : currentValues, // Send all values on first poll
-        timestamp: Date.now()
+        controls: changedValues.length > 0 ? changedValues : currentValues, // Send changes or all values
+        timestamp: now
       });
     }
     
@@ -1091,65 +1103,66 @@ export class QRWCClientAdapter
       // Use recursive setTimeout for precise high-frequency polling
       let isPolling = false;
       let lastPollTime = Date.now();
+      let currentTimerId: NodeJS.Timeout | null = null;
       
       const highFrequencyPoll = () => {
-        const timerId = setTimeout(async () => {
-          // Skip if previous poll is still running
-          if (isPolling) {
-            highFrequencyPoll();
+        // Skip if previous poll is still running
+        if (isPolling) {
+          currentTimerId = setTimeout(() => highFrequencyPoll(), intervalMs);
+          this.autoPollTimers.set(groupId, currentTimerId as NodeJS.Timeout);
+          return;
+        }
+        
+        isPolling = true;
+        const pollStartTime = Date.now();
+        
+        try {
+          // Use synchronous poll for high-frequency to avoid async overhead
+          const pollResult = this.handleChangeGroupPoll({ Id: groupId });
+          
+          // Track actual poll rate for debugging
+          const actualInterval = pollStartTime - lastPollTime;
+          if (actualInterval > intervalMs * 2) {
+            logger.debug('High-frequency poll lagging', { 
+              groupId, 
+              targetMs: intervalMs, 
+              actualMs: actualInterval 
+            });
+          }
+          lastPollTime = pollStartTime;
+          
+          // Reset failure count on success
+          this.autoPollFailureCounts.delete(groupId);
+        } catch (error) {
+          logger.error('High-frequency auto-poll failed', { groupId, error });
+          const failures = (this.autoPollFailureCounts.get(groupId) ?? 0) + 1;
+          this.autoPollFailureCounts.set(groupId, failures);
+          
+          if (failures >= this.MAX_AUTOPOLL_FAILURES) {
+            if (currentTimerId) clearTimeout(currentTimerId);
+            this.autoPollTimers.delete(groupId);
+            this.autoPollFailureCounts.delete(groupId);
+            logger.error('Auto-poll stopped due to repeated failures', { groupId, failures });
+            isPolling = false;
             return;
           }
-          
-          isPolling = true;
-          const pollStartTime = Date.now();
-          
-          try {
-            // Use synchronous poll for high-frequency to avoid async overhead
-            const pollResult = this.handleChangeGroupPoll({ Id: groupId });
-            
-            // Track actual poll rate for debugging
-            const actualInterval = pollStartTime - lastPollTime;
-            if (actualInterval > intervalMs * 2) {
-              logger.debug('High-frequency poll lagging', { 
-                groupId, 
-                targetMs: intervalMs, 
-                actualMs: actualInterval 
-              });
-            }
-            lastPollTime = pollStartTime;
-            
-            // Reset failure count on success
-            this.autoPollFailureCounts.delete(groupId);
-          } catch (error) {
-            logger.error('High-frequency auto-poll failed', { groupId, error });
-            const failures = (this.autoPollFailureCounts.get(groupId) ?? 0) + 1;
-            this.autoPollFailureCounts.set(groupId, failures);
-            
-            if (failures >= this.MAX_AUTOPOLL_FAILURES) {
-              clearTimeout(timerId);
-              this.autoPollTimers.delete(groupId);
-              this.autoPollFailureCounts.delete(groupId);
-              logger.error('Auto-poll stopped due to repeated failures', { groupId, failures });
-              isPolling = false;
-              return;
-            }
-          } finally {
-            isPolling = false;
-          }
-          
-          // Schedule next poll precisely based on target interval
-          const processingTime = Date.now() - pollStartTime;
-          const nextDelay = Math.max(1, intervalMs - processingTime);
-          
-          // Continue polling if timer hasn't been cleared
-          if (this.autoPollTimers.has(groupId)) {
-            highFrequencyPoll();
-          }
-        }, intervalMs);
+        } finally {
+          isPolling = false;
+        }
         
-        // Store the timer ID for cleanup
-        this.autoPollTimers.set(groupId, timerId as unknown as NodeJS.Timeout);
+        // Schedule next poll precisely based on target interval
+        const processingTime = Date.now() - pollStartTime;
+        const nextDelay = Math.max(1, intervalMs - processingTime);
+        
+        // Continue polling if timer hasn't been cleared
+        if (this.autoPollTimers.has(groupId)) {
+          currentTimerId = setTimeout(() => highFrequencyPoll(), nextDelay);
+          this.autoPollTimers.set(groupId, currentTimerId as NodeJS.Timeout);
+        }
       };
+      
+      // Set initial timer placeholder to indicate polling is active
+      this.autoPollTimers.set(groupId, null as unknown as NodeJS.Timeout);
       
       // Start the high-frequency polling
       highFrequencyPoll();
