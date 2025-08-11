@@ -58,20 +58,19 @@ describe('BUG-200: SetControlValuesTool validation fix', () => {
           };
         }
 
-        if (cmd === 'Control.Get') {
-          if (params.Name === 'SystemGain') {
-            return {
-              result: { Name: 'SystemGain', Value: -5 }
-            };
-          }
-          if (params.Name === 'NonExistentControl') {
-            return {
-              error: { code: -1, message: 'Control not found: NonExistentControl' }
-            };
-          }
-          return {
-            error: { code: -1, message: `Control not found: ${params.Name}` }
-          };
+        if (cmd === 'Control.GetValues') {
+          // Handle the new batch validation format
+          const names = params.Names || [];
+          const validControls = ['SystemGain'];
+          const result = names
+            .filter((name: string) => validControls.includes(name))
+            .map((name: string) => ({
+              Name: name,
+              Value: name === 'SystemGain' ? -5 : 0,
+              String: name === 'SystemGain' ? '-5' : '0',
+              Position: 0.5
+            }));
+          return { result };
         }
 
         if (cmd === 'Component.Set' && params.Name === 'ValidComponent') {
@@ -182,10 +181,14 @@ describe('BUG-200: SetControlValuesTool validation fix', () => {
     it('should return isError:true only when ALL controls fail', async () => {
       // Setup all controls to fail validation
       mockControlSystem.sendCommand.mockImplementation(async (cmd) => {
-        if (cmd === 'Component.GetControls' || cmd === 'Control.Get') {
+        if (cmd === 'Component.GetControls') {
           return {
             error: { code: -1, message: 'Not found' }
           };
+        }
+        if (cmd === 'Control.GetValues') {
+          // Return empty array - no controls found
+          return { result: [] };
         }
         return { error: { code: -1, message: 'Unknown command' } };
       });

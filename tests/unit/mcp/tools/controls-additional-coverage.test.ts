@@ -146,7 +146,7 @@ describe('Controls Additional Coverage', () => {
     describe('validateControls edge cases', () => {
       it('should handle validation response without result', async () => {
         mockQrwcClient.sendCommand
-          .mockResolvedValueOnce({}) // Validation response without result
+          .mockResolvedValueOnce({}) // Validation response without result (Control.GetValues returns empty)
           .mockResolvedValueOnce({ success: true }); // Set response
 
         const result = await tool.execute({
@@ -156,7 +156,7 @@ describe('Controls Additional Coverage', () => {
         expect(result.isError).toBe(true);
         const results = JSON.parse(result.content[0].text);
         expect(results[0].success).toBe(false);
-        expect(results[0].error).toContain("Control 'Test' not found");
+        expect(results[0].error).toContain("not found");
       });
 
       it('should handle validation response with non-array result', async () => {
@@ -361,7 +361,11 @@ describe('Controls Additional Coverage', () => {
     describe('error response from Q-SYS', () => {
       it('should handle Q-SYS error response during set', async () => {
         mockQrwcClient.sendCommand
-          .mockResolvedValueOnce({ result: { Name: 'Test', Value: 0 } }) // Validation OK - single control
+          .mockResolvedValueOnce({ 
+            result: [
+              { Name: 'Test', Value: 0, String: '0', Position: 0.5 }
+            ]
+          }) // Validation OK using Control.GetValues
           .mockResolvedValueOnce({
             error: {
               code: -32603,

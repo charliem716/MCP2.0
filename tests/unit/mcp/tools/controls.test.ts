@@ -471,10 +471,14 @@ describe('SetControlValuesTool', () => {
   });
 
   it('should set named control values successfully', async () => {
-    // Mock validation responses first, then set responses
+    // Mock validation response using Control.GetValues (batch validation)
     mockQrwcClient.sendCommand
-      .mockResolvedValueOnce({ result: { Name: 'MainGain', Value: 0 } }) // Validation for MainGain
-      .mockResolvedValueOnce({ result: { Name: 'MainMute', Value: 0 } }) // Validation for MainMute
+      .mockResolvedValueOnce({ 
+        result: [
+          { Name: 'MainGain', Value: 0, String: '0', Position: 0.5 },
+          { Name: 'MainMute', Value: 0, String: 'false', Position: 0 }
+        ]
+      }) // Control.GetValues for batch validation
       .mockResolvedValue({ 
         result: [
           { Name: 'MainGain', Result: 'OK' },
@@ -489,9 +493,8 @@ describe('SetControlValuesTool', () => {
       ],
     });
 
-    // When validation is enabled (default), it makes additional calls
-    // 2 calls for validation + 1 call for batch setting = 3 total
-    expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(3);
+    // With batch validation: 1 call for Control.GetValues + 1 call for Control.Set = 2 total
+    expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(2);
     expect(result.isError).toBe(false);
     const results = JSON.parse(result.content[0].text);
     expect(results).toHaveLength(2);
@@ -607,9 +610,14 @@ describe('SetControlValuesTool', () => {
 
   it('should handle mixed named and component controls', async () => {
     // Mock validation responses for named control and component controls
-    mockQrwcClient.sendCommand.mockImplementation(async (cmd: string) => {
-      if (cmd === 'Control.Get') {
-        return { result: { Name: 'MainGain', Value: 0 } };
+    mockQrwcClient.sendCommand.mockImplementation(async (cmd: string, params: any) => {
+      if (cmd === 'Control.GetValues') {
+        // Batch validation for named controls
+        return { 
+          result: [
+            { Name: 'MainGain', Value: 0, String: '0', Position: 0.5 }
+          ]
+        };
       }
       if (cmd === 'Component.GetControls') {
         return { 

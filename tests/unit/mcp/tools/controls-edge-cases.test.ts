@@ -495,7 +495,11 @@ describe('SetControlValuesTool - Additional Edge Cases', () => {
 
     it('should validate by default', async () => {
       mockQrwcClient.sendCommand
-        .mockResolvedValueOnce({ result: { Name: 'TestControl', Value: 0 } }) // Validation response for Control.Get
+        .mockResolvedValueOnce({ 
+          result: [
+            { Name: 'TestControl', Value: 0, String: '0', Position: 0.5 }
+          ]
+        }) // Validation response for Control.GetValues
         .mockResolvedValueOnce({ 
           result: [{ Name: 'TestControl', Result: 'Success' }]
         }); // Set response
@@ -506,8 +510,8 @@ describe('SetControlValuesTool - Additional Edge Cases', () => {
       });
 
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(2);
-      expect(mockQrwcClient.sendCommand).toHaveBeenNthCalledWith(1, 'Control.Get', {
-        Name: 'TestControl'
+      expect(mockQrwcClient.sendCommand).toHaveBeenNthCalledWith(1, 'Control.GetValues', {
+        Names: ['TestControl']
       });
       expect(mockQrwcClient.sendCommand).toHaveBeenNthCalledWith(2, 'Control.Set', {
         Controls: [{
