@@ -723,7 +723,9 @@ export class QRWCClientAdapter
 
     // Clear all autoPoll timers
     for (const [id, timer] of this.autoPollTimers) {
+      // Clear both interval and timeout timers
       clearInterval(timer);
+      clearTimeout(timer);
       logger.debug(`Cleared AutoPoll timer for change group ${id}`);
     }
     this.autoPollTimers.clear();
@@ -1073,7 +1075,9 @@ export class QRWCClientAdapter
     // Clear existing timer if any
     const existingTimer = this.autoPollTimers.get(groupId);
     if (existingTimer) {
+      // Clear both interval and timeout timers
       clearInterval(existingTimer);
+      clearTimeout(existingTimer);
       this.autoPollTimers.delete(groupId);
     }
     
@@ -1081,28 +1085,100 @@ export class QRWCClientAdapter
     // Convert rate (in seconds) to milliseconds, with minimum of 30ms
     const intervalMs = Math.max(30, Math.round(rate * 1000));
     
-    const timer = setInterval(() => {
-      void (async () => {
-        try {
-          await this.sendCommand('ChangeGroup.Poll', { Id: groupId });
-        } catch (error) {
-          logger.error('Auto-poll failed', { groupId, error });
-          // Increment failure count
-          const failures = (this.autoPollFailureCounts.get(groupId) ?? 0) + 1;
-          this.autoPollFailureCounts.set(groupId, failures);
-          
-          // Stop auto-polling if too many failures
-          if (failures >= this.MAX_AUTOPOLL_FAILURES) {
-            clearInterval(timer);
-            this.autoPollTimers.delete(groupId);
-            this.autoPollFailureCounts.delete(groupId);
-            logger.error('Auto-poll stopped due to repeated failures', { groupId, failures });
+    // For high-frequency polling (< 100ms), use a different strategy
+    // to avoid overlapping async operations
+    if (intervalMs < 100) {
+      // Use recursive setTimeout for precise high-frequency polling
+      let isPolling = false;
+      let lastPollTime = Date.now();
+      
+      const highFrequencyPoll = () => {
+        const timerId = setTimeout(async () => {
+          // Skip if previous poll is still running
+          if (isPolling) {
+            highFrequencyPoll();
+            return;
           }
-        }
-      })();
-    }, intervalMs);
+          
+          isPolling = true;
+          const pollStartTime = Date.now();
+          
+          try {
+            // Use synchronous poll for high-frequency to avoid async overhead
+            const pollResult = this.handleChangeGroupPoll({ Id: groupId });
+            
+            // Track actual poll rate for debugging
+            const actualInterval = pollStartTime - lastPollTime;
+            if (actualInterval > intervalMs * 2) {
+              logger.debug('High-frequency poll lagging', { 
+                groupId, 
+                targetMs: intervalMs, 
+                actualMs: actualInterval 
+              });
+            }
+            lastPollTime = pollStartTime;
+            
+            // Reset failure count on success
+            this.autoPollFailureCounts.delete(groupId);
+          } catch (error) {
+            logger.error('High-frequency auto-poll failed', { groupId, error });
+            const failures = (this.autoPollFailureCounts.get(groupId) ?? 0) + 1;
+            this.autoPollFailureCounts.set(groupId, failures);
+            
+            if (failures >= this.MAX_AUTOPOLL_FAILURES) {
+              clearTimeout(timerId);
+              this.autoPollTimers.delete(groupId);
+              this.autoPollFailureCounts.delete(groupId);
+              logger.error('Auto-poll stopped due to repeated failures', { groupId, failures });
+              isPolling = false;
+              return;
+            }
+          } finally {
+            isPolling = false;
+          }
+          
+          // Schedule next poll precisely based on target interval
+          const processingTime = Date.now() - pollStartTime;
+          const nextDelay = Math.max(1, intervalMs - processingTime);
+          
+          // Continue polling if timer hasn't been cleared
+          if (this.autoPollTimers.has(groupId)) {
+            highFrequencyPoll();
+          }
+        }, intervalMs);
+        
+        // Store the timer ID for cleanup
+        this.autoPollTimers.set(groupId, timerId as unknown as NodeJS.Timeout);
+      };
+      
+      // Start the high-frequency polling
+      highFrequencyPoll();
+    } else {
+      // For lower frequencies (>= 100ms), use standard setInterval
+      const timer = setInterval(() => {
+        void (async () => {
+          try {
+            await this.sendCommand('ChangeGroup.Poll', { Id: groupId });
+          } catch (error) {
+            logger.error('Auto-poll failed', { groupId, error });
+            // Increment failure count
+            const failures = (this.autoPollFailureCounts.get(groupId) ?? 0) + 1;
+            this.autoPollFailureCounts.set(groupId, failures);
+            
+            // Stop auto-polling if too many failures
+            if (failures >= this.MAX_AUTOPOLL_FAILURES) {
+              clearInterval(timer);
+              this.autoPollTimers.delete(groupId);
+              this.autoPollFailureCounts.delete(groupId);
+              logger.error('Auto-poll stopped due to repeated failures', { groupId, failures });
+            }
+          }
+        })();
+      }, intervalMs);
+      
+      this.autoPollTimers.set(groupId, timer);
+    }
     
-    this.autoPollTimers.set(groupId, timer);
     this.autoPollFailureCounts.delete(groupId); // Reset failure count
     
     logger.info('Auto-polling configured for change group', { 
@@ -1128,7 +1204,9 @@ export class QRWCClientAdapter
     // Clear timer if exists
     const timer = this.autoPollTimers.get(groupId);
     if (timer) {
+      // Clear both interval and timeout timers
       clearInterval(timer);
+      clearTimeout(timer);
       this.autoPollTimers.delete(groupId);
     }
     
