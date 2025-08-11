@@ -629,6 +629,8 @@ async function processSingleControl(
 
   try {
     // Update through official client
+    // NOTE: Ramp parameter is not supported by the official SDK's control.update() method
+    // The SDK only accepts a value parameter, not timing information - see BUG-201
     await client.setControlValue(componentName, controlName, newValue);
     
     // Update local state

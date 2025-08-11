@@ -89,7 +89,8 @@ export const SetControlValuesParamsSchema = BaseToolParamsSchema.extend({
         value: z
           .union([z.number(), z.string(), z.boolean()])
           .describe('Control value'),
-        ramp: z.coerce.number().positive().optional().describe('Ramp time in seconds'),
+        ramp: z.coerce.number().positive().optional()
+          .describe('Ramp time in seconds (NOTE: Currently non-functional due to official SDK limitation - see BUG-201)'),
       })
     )
     .min(1)
@@ -662,7 +663,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     super(
       qrwcClient,
       'set_control_values',
-      "Set Q-SYS control values. Format: [{name:'Component.control',value:-10,ramp:2.5}]. Use exact ComponentName from list_components. Ramp (seconds) for smooth transitions. validate:true (default) reports errors, validate:false for bulk ops. Values: gains dB (-100 to 20), mutes boolean, positions 0-1. See get_api_documentation {query_type:'tools'} for examples.",
+      "Set Q-SYS control values. Format: [{name:'Component.control',value:-10,ramp:2.5}]. Use exact ComponentName from list_components. Ramp parameter accepted but NON-FUNCTIONAL (SDK limitation). validate:true (default) reports errors, validate:false for bulk ops. Values: gains dB (-100 to 20), mutes boolean, positions 0-1. See get_api_documentation {query_type:'tools'} for examples.",
       SetControlValuesParamsSchema
     );
   }
@@ -780,6 +781,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     };
     
     // Add ramp time if specified
+    // NOTE: Ramp is preserved in the response but not actually functional
+    // due to official SDK limitation - see BUG-201
     if (control.ramp !== undefined) {
       response.rampTime = control.ramp;
     }
