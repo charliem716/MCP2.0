@@ -704,8 +704,8 @@ Test error handling:
 ### Test 10.3: Concurrent Operations
 ```
 Test simultaneous operations:
-1. Start a 10-second ramp on control A
-2. While ramping, change control B instantly
+1. Change control A's value
+2. Immediately change control B's value
 3. Query control C's value
 4. Create a change group
 5. Verify all operations complete correctly

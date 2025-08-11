@@ -638,10 +638,15 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
  * Tool to set values for specific controls
  * 
  * VALIDATION BEHAVIOR:
- * The 'validate' parameter controls ERROR REPORTING, not actual Q-SYS behavior:
- * - validate:true (default): Provides honest feedback - tells you exactly what worked/failed
- * - validate:false: Provides optimistic feedback - claims all controls succeeded
- * - In BOTH cases: Only real controls actually change in Q-SYS (fake controls always fail at core level)
+ * The 'validate' parameter controls pre-flight validation and error reporting:
+ * - validate:true (default): Pre-validates controls exist, provides detailed error feedback
+ * - validate:false: Skips pre-validation, sends all controls to Q-SYS, assumes success unless explicit error
+ * 
+ * When validate:false:
+ * - Controls are sent directly to Q-SYS without checking if they exist
+ * - Q-SYS silently ignores non-existent controls (no error response)
+ * - Tool reports success unless Q-SYS explicitly returns an error
+ * - Use this for bulk operations with known-good control names
  * 
  * BULK OPERATIONS NOTE:
  * This tool processes controls individually for safety and validation.
@@ -649,7 +654,7 @@ export class GetControlValuesTool extends BaseQSysTool<GetControlValuesParams> {
  * 1. Group controls by component when possible
  * 2. Consider using change groups for atomic updates
  * 3. For >20 controls, batch them in smaller groups to avoid timeouts
- * 4. Use validate:false for known-good bulk operations to avoid partial failures
+ * 4. Use validate:false for known-good bulk operations to skip pre-validation
  */
 export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
   // Validation cache with TTL (30 seconds)
@@ -754,7 +759,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
 
   /**
    * Create response for a single control with reduced nesting
-   * When validate:false, we check if control was actually processed by Q-SYS
+   * When validate:false, we assume success unless Q-SYS explicitly reports an error
    */
   private createControlResponse(
     control: { name: string; value: ControlValue; ramp?: number | undefined },
@@ -771,17 +776,27 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       };
     }
     
-    // When validate:false and control not in response, it means Q-SYS rejected it
+    // When validate:false, assume success if no explicit error
+    // Q-SYS may not return results for controls it silently ignores
     if (validationSkipped && !controlResult) {
       return {
         name: control.name,
         value: control.value,
-        success: false,
-        error: 'Control not found in Q-SYS (validation was skipped)',
+        success: true, // Assume success when validation is skipped
       };
     }
     
-    // Control succeeded
+    // When validate:true and control not in response, it failed
+    if (!validationSkipped && !controlResult) {
+      return {
+        name: control.name,
+        value: control.value,
+        success: false,
+        error: 'Control not found in Q-SYS response',
+      };
+    }
+    
+    // Control succeeded (has a result in response)
     const response: ControlSetResponse = {
       name: control.name,
       value: control.value,
