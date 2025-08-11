@@ -1309,65 +1309,80 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       message: string;
     }> = [];
 
-    // For named controls, we need to validate individually
-    // But we can do them in parallel within the batch
-    const promises = batch.map(async control => {
-      try {
-        const response = await this.controlSystem.sendCommand('Control.Get', {
-          Name: control.name,
-        });
+    // Use Control.GetValues for batch validation of named controls
+    // This is more efficient and properly supported by Q-SYS API
+    try {
+      const controlNames = batch.map(c => c.name);
+      const response = await this.controlSystem.sendCommand('Control.GetValues', {
+        Names: controlNames,
+      });
 
-        if (isQSysApiResponse(response) && response.error) {
+      // Check if we got a valid response
+      if (isQSysApiResponse(response) && response.error) {
+        // Global error - all controls failed
+        for (const control of batch) {
           this.cacheResult(control.name, false);
-          return {
+          errors.push({
             controlName: control.name,
             value: control.value,
             message:
               // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- API response may not have error.message
               response.error.message ??
               `Control '${control.name}' not found`,
-          };
-        } else if (isQSysApiResponse(response) && response.result) {
-          // For Control.Get, result should be an object with Name property
-          if (typeof response.result === 'object' && response.result !== null && 'Name' in response.result) {
-            // Control exists - validation passed
+          });
+        }
+      } else if (response && typeof response === 'object' && 'result' in response) {
+        // Parse the result to see which controls exist
+        const result = response.result;
+        const foundControls = new Set<string>();
+        
+        if (Array.isArray(result)) {
+          // Result is an array of control info
+          for (const controlInfo of result) {
+            if (controlInfo && typeof controlInfo === 'object' && 'Name' in controlInfo) {
+              foundControls.add(controlInfo.Name);
+            }
+          }
+        }
+        
+        // Check each control in the batch
+        for (const control of batch) {
+          if (foundControls.has(control.name)) {
+            // Control exists
             this.cacheResult(control.name, true);
-            return null;
           } else {
-            // Invalid result format
+            // Control not found
             this.cacheResult(control.name, false);
-            return {
+            errors.push({
               controlName: control.name,
               value: control.value,
               message: `Control '${control.name}' not found`,
-            };
+            });
           }
-        } else {
-          // No result means control not found
+        }
+      } else {
+        // Invalid response format - assume all controls failed
+        for (const control of batch) {
           this.cacheResult(control.name, false);
-          return {
+          errors.push({
             controlName: control.name,
             value: control.value,
-            message: `Control '${control.name}' not found`,
-          };
+            message: `Failed to validate control '${control.name}'`,
+          });
         }
-      } catch (error) {
+      }
+    } catch (error) {
+      // Error validating batch - mark all as failed
+      for (const control of batch) {
         this.cacheResult(control.name, false);
-        return {
+        errors.push({
           controlName: control.name,
           value: control.value,
           message:
             error instanceof Error
               ? error.message
-              : `Control '${control.name}' not found`,
-        };
-      }
-    });
-
-    const results = await Promise.all(promises);
-    for (const result of results) {
-      if (result) {
-        errors.push(result);
+              : `Failed to validate control '${control.name}'`,
+        });
       }
     }
 

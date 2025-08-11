@@ -52,8 +52,8 @@ describe('SetControlValuesTool', () => {
             jsonrpc: '2.0',
             id: 2,
             result: [
-              { Name: 'Main Output Gain.gain', Result: 'Success' },
-              { Name: 'Main Output Gain.mute', Result: 'Success' }
+              { Name: 'gain', Result: 'Success' },
+              { Name: 'mute', Result: 'Success' }
             ]
           };
         }
@@ -102,15 +102,17 @@ describe('SetControlValuesTool', () => {
             }
           };
         }
-        if (command === 'Control.Get') {
+        if (command === 'Control.GetValues') {
+          // Return array format for Control.GetValues
+          const names = params.Names || [];
           return {
             jsonrpc: '2.0',
             id: 2,
-            result: {
-              Name: params.Name,
+            result: names.map((name: string) => ({
+              Name: name,
               Value: 0,
               String: '0.0'
-            }
+            }))
           };
         }
         if (command === 'Control.Set') {
@@ -130,7 +132,7 @@ describe('SetControlValuesTool', () => {
             jsonrpc: '2.0',
             id: 4,
             result: [
-              { Name: `${params.Name}.gain`, Result: 'Success' }
+              { Name: 'gain', Result: 'Success' }
             ]
           };
         }
@@ -220,7 +222,7 @@ describe('SetControlValuesTool', () => {
             jsonrpc: '2.0',
             id: 1,
             result: [
-              { Name: 'Quick.control', Result: 'Success' }
+              { Name: 'control', Result: 'Success' }
             ]
           };
         }
@@ -269,7 +271,7 @@ describe('SetControlValuesTool', () => {
             jsonrpc: '2.0',
             id: 2,
             result: [
-              { Name: 'Fader.level', Result: 'Success' }
+              { Name: 'level', Result: 'Success' }
             ]
           };
         }
@@ -321,8 +323,8 @@ describe('SetControlValuesTool', () => {
             jsonrpc: '2.0',
             id: 2,
             result: [
-              { Name: 'Mixer.mute1', Result: 'Success' },
-              { Name: 'Mixer.mute2', Result: 'Success' }
+              { Name: 'mute1', Result: 'Success' },
+              { Name: 'mute2', Result: 'Success' }
             ]
           };
         }
@@ -362,7 +364,7 @@ describe('SetControlValuesTool', () => {
             jsonrpc: '2.0',
             id: 2,
             result: [
-              { Name: 'Switch.state', Result: 'Success' }
+              { Name: 'state', Result: 'Success' }
             ]
           };
         }
