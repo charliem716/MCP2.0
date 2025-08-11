@@ -730,7 +730,7 @@ Test simultaneous operations:
 
 **COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-TEST: Verify All 16 MCP Tools
+TEST: Verify All 17 MCP Tools (16 Q-SYS + 1 Testing)
 
 Please test EVERY MCP tool to ensure all are working:
 
@@ -758,7 +758,7 @@ EVENT MONITORING (test both):
 15. get_event_statistics - Get current stats
 
 UTILITY (test 1):
-16. query_qsys_api - Send "StatusGet" command
+16. get_api_documentation - Query for Q-SYS API documentation
 
 TESTING (test 1):
 17. echo - Echo "tool test complete"
@@ -780,7 +780,7 @@ Tool Coverage Checklist:
 [ ] 13. destroy_change_group - [PASS/FAIL]
 [ ] 14. query_change_events - [PASS/FAIL]
 [ ] 15. get_event_statistics - [PASS/FAIL]
-[ ] 16. query_qsys_api - [PASS/FAIL]
+[ ] 16. get_api_documentation - [PASS/FAIL]
 [ ] 17. echo - [PASS/FAIL]
 
 Total Working: [X/17]
@@ -821,9 +821,9 @@ SEQUENCE 3 - Event Monitoring:
 
 SEQUENCE 4 - Advanced API:
 1. qsys_component_get for detailed component info
-2. query_qsys_api with raw "Component.GetControls" command
-3. Compare results with list_controls tool
-4. Use query_qsys_api for custom commands
+2. get_api_documentation with query_type "methods" to learn API
+3. Compare available methods with list_controls tool output
+4. Use get_api_documentation for component-specific documentation
 
 SEQUENCE 5 - Complete Tool Coverage:
 1. Use echo to test connectivity
@@ -980,45 +980,55 @@ get_event_statistics:
 
 ### Test 11.5.5: Utility & Testing Tools (2 tools)
 ```
-query_qsys_api (Utility) - COMPREHENSIVE TESTING:
+get_api_documentation (Utility) - COMPREHENSIVE TESTING:
 
-BASIC COMMANDS:
-- Send "Component.GetComponents" with no params to list all components
-- Send "Component.GetControls" with {"Name": "ComponentName"} params
-- Send "Component.Get" with {"Name": "ComponentName"} to get details
-- Send "Control.Get" with control list array
-- Send "Control.Set" with control values array
+DOCUMENTATION QUERIES:
+- Query with query_type: "tools" to get all MCP tool documentation
+- Query with query_type: "methods" to get Q-SYS API method reference
+- Query with query_type: "components" to get component type documentation
+- Query with query_type: "controls" to get control type documentation
+- Query with query_type: "examples" to get usage examples
 
-COMPONENT-SPECIFIC COMMANDS:
-- Send "Mixer.GetCrosspoints" with mixer component name
-- Send "Router.GetStatus" if router component exists
-- Send "Snapshot.Load" with snapshot number (if snapshots exist)
-- Send "ChangeGroup.Create" with Id parameter
-- Send "ChangeGroup.AddControl" with group Id and controls
+FILTERED QUERIES:
+- Query methods with method_category: "Component"
+- Query methods with method_category: "Control"
+- Query methods with method_category: "ChangeGroup"
+- Query methods with method_category: "Status"
+- Query methods with method_category: "Authentication"
 
-STATUS & MONITORING:
-- Send "StatusGet" with no params for Core status
-- Send "Component.GetStatus" with component name
-- Send "LogEntry" to add a log entry
+COMPONENT-SPECIFIC DOCUMENTATION:
+- Query with component_type: "mixer" for mixer documentation
+- Query with component_type: "gain" for gain control docs
+- Query with component_type: "router" for routing docs
+- Query with component_type: "snapshot" for snapshot docs
+- Query with component_type: "delay" for delay processor docs
+- Query with component_type: "eq" for EQ documentation
+
+SEARCH FUNCTIONALITY:
+- Search for "ramp" in method names/descriptions
+- Search for "mute" across all documentation
+- Search for "Component.Set" specific method
+- Search for component_name: "Gain1" if it exists
+- Test with method_name: "Control.Get" for specific details
 
 ERROR HANDLING:
-- Send invalid command like "InvalidCommand" (should error)
-- Send valid command with wrong params (should error)
-- Send command with malformed JSON params
-- Send empty method name
-- Test timeout with long-running command
+- Query with invalid query_type (should error)
+- Query with invalid component_type (should error)
+- Query with empty parameters
+- Query with malformed search strings
+- Test response format consistency
 
 COMPARISON TESTS:
-- Send "Component.GetComponents" and compare with list_components tool
-- Send "Component.GetControls" and compare with list_controls tool  
-- Send "Control.Get" and compare with get_control_values tool
-- Send "Control.Set" and compare with set_control_values tool
+- Get tool documentation and verify all 16 Q-SYS tools listed
+- Compare method documentation with actual tool behavior
+- Verify control type documentation matches get_control_values output
+- Check component documentation against list_components results
 
 ADVANCED USAGE:
-- Send batch commands if supported
-- Test command rate limiting
-- Verify response format consistency
-- Test with component names containing special characters
+- Combine multiple filters (component_type + method_category)
+- Use search with specific query_type
+- Test documentation completeness
+- Verify examples are accurate and runnable
 
 echo:
 - Echo simple string "test"
@@ -1031,85 +1041,81 @@ echo:
 
 ---
 
-## SECTION 11.6: RAW Q-SYS API DEEP DIVE
-Comprehensive testing of query_qsys_api tool
+## SECTION 11.6: API DOCUMENTATION DEEP DIVE
+Comprehensive testing of get_api_documentation tool
 
-### Test 11.6.1: Discovery Commands
+### Test 11.6.1: Documentation Discovery
 ```
-Test component and control discovery via raw API:
-1. Use query_qsys_api with "Component.GetComponents" method
-2. Parse response to get component list
-3. For first 3 components, send "Component.GetControls" with their names
-4. Send "Component.Get" for detailed component properties
-5. Compare all results with standard MCP tools (list_components, list_controls)
-6. Document any differences in response format
+Test API documentation discovery:
+1. Use get_api_documentation with query_type "tools" to list all MCP tools
+2. Use get_api_documentation with query_type "methods" to get API methods
+3. For each method_category, query specific documentation
+4. Use query_type "examples" to get usage examples
+5. Compare documentation with actual tool behavior
+6. Verify all 16 Q-SYS tools are documented
 ```
 
-### Test 11.6.2: Control Operations
+### Test 11.6.2: Control Documentation
 ```
-Test control manipulation via raw API:
+Test control type documentation:
 1. First use list_controls to find real control names
-2. Use query_qsys_api with "Control.Get" method:
-   - params: [{"Name": "ComponentName.ControlName"}]
-3. Use query_qsys_api with "Control.Set" method:
-   - params: [{"Name": "ComponentName.ControlName", "Value": -20}]
-4. Test with multiple controls in single command:
-   - params: [{"Name": "Control1", "Value": 0}, {"Name": "Control2", "Value": 1}]
-5. Test with ramp parameter (non-functional per BULLETIN-201):
-   - params: [{"Name": "ControlName", "Value": -40, "Ramp": 5}]
-   - Note: Ramp accepted but ignored by Q-SYS SDK
-6. Compare results with get_control_values and set_control_values tools
+2. Use get_api_documentation with query_type "controls":
+   - Learn about control value types and ranges
+3. Use get_api_documentation with query_type "components":
+   - Get documentation for specific component types
+4. Search for "ramp" in documentation:
+   - Verify it mentions ramp parameter is non-functional (BULLETIN-201)
+5. Search for "validation" in method documentation:
+   - Check if BUG-203 behavior is documented
+6. Compare documentation with actual control behavior from testing
 ```
 
-### Test 11.6.3: Change Group Management
+### Test 11.6.3: Change Group Documentation
 ```
-Test change group operations via raw API:
-1. Send "ChangeGroup.Create" with {"Id": "test-api-group"}
-2. Send "ChangeGroup.AddControl" with:
-   - {"Id": "test-api-group", "Controls": ["Control1", "Control2"]}
-3. Send "ChangeGroup.AddComponentControl" for component controls
-4. Send "ChangeGroup.Poll" to check for changes
-5. Send "ChangeGroup.Clear" to empty the group
-6. Send "ChangeGroup.Destroy" to remove it
-7. Compare with standard change group tools
-```
-
-### Test 11.6.4: System Commands
-```
-Test system-level commands:
-1. Send "StatusGet" for Core status (no params)
-2. Send "Component.GetStatus" for component health
-3. Send "LogEntry" with message to add system log:
-   - params: {"Message": "Test log from MCP"}
-4. Send "Design.Get" to get design information
-5. Send "Mixer.GetCrosspoints" if mixer components exist
-6. Send "Router.GetStatus" if router components exist
-7. Document all successful commands for reference
+Test change group documentation:
+1. Query with method_category "ChangeGroup" for all change group methods
+2. Search for "create_change_group" in tools documentation
+3. Search for "poll" to understand polling behavior
+4. Query for "33Hz" to find polling rate documentation
+5. Compare documented methods with actual MCP tools:
+   - create_change_group, add_controls_to_change_group, etc.
+6. Verify all 7 change group tools are documented
+7. Check if event monitoring integration is documented
 ```
 
-### Test 11.6.5: Error Scenarios
+### Test 11.6.4: System Documentation
 ```
-Test error handling with invalid commands:
-1. Send completely invalid method: "This.Does.Not.Exist"
-2. Send valid method with wrong params:
-   - "Component.GetControls" with {"InvalidParam": "value"}
-3. Send malformed params:
-   - "Control.Set" with non-JSON params
-4. Send empty method: ""
-5. Send null params vs empty params vs no params
-6. Test very long method names (1000+ chars)
-7. Verify all errors are handled gracefully
+Test system-level documentation:
+1. Query with method_category "Status" for status methods
+2. Search for "query_core_status" in tools documentation
+3. Query component_type "mixer" for mixer-specific docs
+4. Query component_type "router" for routing documentation
+5. Search for "event" to find event monitoring documentation
+6. Verify query_change_events and get_event_statistics are documented
+7. Create a reference list of all documented capabilities
 ```
 
-### Test 11.6.6: Performance Comparison
+### Test 11.6.5: Documentation Error Handling
 ```
-Compare raw API vs MCP tools performance:
-1. Time 100 operations using get_control_values
-2. Time same 100 operations using query_qsys_api with "Control.Get"
-3. Time batch operations with both approaches
-4. Compare response parsing overhead
-5. Identify when to use raw API vs MCP tools
-6. Document performance differences
+Test documentation tool error handling:
+1. Query with invalid query_type: "This.Does.Not.Exist"
+2. Query with invalid component_type: "InvalidType"
+3. Query with invalid method_category: "BadCategory"
+4. Send empty parameters to get_api_documentation
+5. Search with very long search strings (1000+ chars)
+6. Combine incompatible filters
+7. Verify all errors return helpful messages
+```
+
+### Test 11.6.6: Documentation Completeness
+```
+Verify documentation completeness:
+1. Get documentation for all 16 Q-SYS tools
+2. Verify each tool has description and parameters documented
+3. Check that all query_types return meaningful data
+4. Verify all component_types have documentation
+5. Ensure all method_categories are covered
+6. Document any gaps in documentation coverage
 ```
 
 ---
@@ -1181,7 +1187,7 @@ Simulate live event control using all relevant tools:
    - Use list_components to find input channels
    - Use get_control_values to check current state
    - Use set_control_values to enable channels sequentially
-   - Use query_qsys_api for custom DSP commands
+   - Use get_api_documentation to learn about DSP controls
 2. Show start:
    - create_change_group "show-start"
    - add_controls_to_change_group for all show controls
@@ -1246,76 +1252,69 @@ Test abuse prevention:
 
 ---
 
-## Q-SYS API COMMAND REFERENCE
-Quick reference for query_qsys_api tool usage
+## API DOCUMENTATION REFERENCE
+Quick reference for get_api_documentation tool usage
 
-### Common Commands
+### Query Types
 ```javascript
-// Component Discovery
-{"method": "Component.GetComponents", "params": {}}
+// Get all MCP tool documentation
+{"query_type": "tools"}
 
-// Get controls for a specific component  
-{"method": "Component.GetControls", "params": {"Name": "ComponentName"}}
+// Get Q-SYS API method reference  
+{"query_type": "methods"}
 
-// Get component details
-{"method": "Component.Get", "params": {"Name": "ComponentName"}}
+// Get component type documentation
+{"query_type": "components"}
 
-// Get control values (single)
-{"method": "Control.Get", "params": [{"Name": "ComponentName.ControlName"}]}
+// Get control type documentation
+{"query_type": "controls"}
 
-// Get control values (multiple)
-{"method": "Control.Get", "params": [
-  {"Name": "Component1.Control1"},
-  {"Name": "Component2.Control2"}
-]}
+// Get usage examples
+{"query_type": "examples"}
+```
 
-// Set control value
-{"method": "Control.Set", "params": [{"Name": "ComponentName.ControlName", "Value": -20}]}
+### Filtered Queries
+```javascript
+// Get methods by category
+{"query_type": "methods", "method_category": "Component"}
+{"query_type": "methods", "method_category": "Control"}
+{"query_type": "methods", "method_category": "ChangeGroup"}
+{"query_type": "methods", "method_category": "Status"}
+{"query_type": "methods", "method_category": "Authentication"}
 
-// Set control with ramp (NOTE: Ramp parameter accepted but non-functional per BULLETIN-201)
-{"method": "Control.Set", "params": [{"Name": "ComponentName.ControlName", "Value": -40, "Ramp": 5}]}
+// Get component-specific documentation
+{"query_type": "components", "component_type": "mixer"}
+{"query_type": "components", "component_type": "gain"}
+{"query_type": "components", "component_type": "router"}
+{"query_type": "components", "component_type": "snapshot"}
+{"query_type": "components", "component_type": "delay"}
+{"query_type": "components", "component_type": "eq"}
 
-// Get Core status
-{"method": "StatusGet", "params": {}}
+// Search for specific terms
+{"query_type": "methods", "search": "ramp"}
+{"query_type": "controls", "search": "mute"}
 
-// Create change group
-{"method": "ChangeGroup.Create", "params": {"Id": "group-id"}}
+// Get specific method details
+{"query_type": "methods", "method_name": "Control.Get"}
 
-// Add controls to change group
-{"method": "ChangeGroup.AddControl", "params": {
-  "Id": "group-id",
-  "Controls": ["Control1", "Control2"]
-}}
-
-// Poll change group
-{"method": "ChangeGroup.Poll", "params": {"Id": "group-id"}}
-
-// Destroy change group
-{"method": "ChangeGroup.Destroy", "params": {"Id": "group-id"}}
-
-// Add log entry
-{"method": "LogEntry", "params": {"Message": "Log message here"}}
+// Get documentation for specific component
+{"query_type": "components", "component_name": "Gain1"}
 ```
 
 ### Usage Examples
 ```
-# Example 1: Get all components
-Use query_qsys_api with method "Component.GetComponents" and empty params {}
+# Example 1: Get API documentation for all tools
+Use get_api_documentation with query_type "tools"
 
-# Example 2: Get specific control value
-Use query_qsys_api with method "Control.Get" and params [{"Name": "Gain1.gain"}]
+# Example 2: Get documentation for control methods
+Use get_api_documentation with query_type "methods" and method_category "Control"
 
-# Example 3: Set multiple controls
-Use query_qsys_api with method "Control.Set" and params:
-[
-  {"Name": "Gain1.gain", "Value": -10},
-  {"Name": "Gain1.mute", "Value": true}
-]
+# Example 3: Get component-specific documentation
+Use get_api_documentation with query_type "components" and component_type "mixer"
 
-# Example 4: Set with ramp (non-functional)
-Use query_qsys_api with method "Control.Set" and params:
-[{"Name": "Gain1.gain", "Value": -30, "Ramp": 3}]
-NOTE: Ramp parameter accepted but ignored (BULLETIN-201)
+# Example 4: Search for ramp parameter documentation
+Use get_api_documentation with query_type "methods" and search "ramp"
+NOTE: Documentation should mention ramp parameter is non-functional (BULLETIN-201)
 ```
 
 ---
@@ -1407,7 +1406,7 @@ Maximum stress test:
 5. create/add/poll/destroy_change_group - Full cycle
 6. query_change_events - Verify monitoring
 7. get_event_statistics - Check statistics
-8. query_qsys_api - Test raw API access
+8. get_api_documentation - Test API documentation access
 ```
 
 ### Comprehensive Validation (15 minutes)
@@ -1429,7 +1428,7 @@ Maximum stress test:
    - destroy_change_group - Cleanup
    - query_change_events - Historical data
    - get_event_statistics - Full stats
-   - query_qsys_api - Custom commands
+   - get_api_documentation - API reference
    
 2. INTEGRATION TESTS:
    - Tool chaining scenarios
