@@ -149,7 +149,7 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
           component: ctrl.component,
           type: ctrl.type,
           value: ctrl.value ?? '',
-          metadata: params.includeMetadata ? ctrl.metadata : undefined,
+          ...(params.includeMetadata && ctrl.metadata ? { metadata: ctrl.metadata } : {}),
         }));
       } else {
         // Cache miss or metadata requested - fetch from Q-SYS
@@ -712,7 +712,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     },
     controls: Array<{ name: string; value: ControlValue; ramp?: number | undefined }>,
     isComponentResponse = false,
-    componentName?: string
+    componentName?: string,
+    validationSkipped = false
   ): ControlSetResponse[] {
     const jsonResults: ControlSetResponse[] = [];
     
@@ -744,7 +745,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         : control.name;
       
       const controlResult = qsysResponse.result.find(r => r.Name === searchName);
-      const response = this.createControlResponse(control, controlResult, false);
+      const response = this.createControlResponse(control, controlResult, validationSkipped);
       jsonResults.push(response);
     }
     
@@ -753,8 +754,7 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
 
   /**
    * Create response for a single control with reduced nesting
-   * Note: When validate:false, Q-SYS may silently ignore invalid controls
-   * but we still report them as "successful" per the optimistic reporting mode
+   * When validate:false, we check if control was actually processed by Q-SYS
    */
   private createControlResponse(
     control: { name: string; value: ControlValue; ramp?: number | undefined },
@@ -771,9 +771,17 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       };
     }
     
-    // Control succeeded (either explicit success or not found in response)
-    // Note: With validate:false, fake controls appear here as "success" even though
-    // Q-SYS silently ignored them
+    // When validate:false and control not in response, it means Q-SYS rejected it
+    if (validationSkipped && !controlResult) {
+      return {
+        name: control.name,
+        value: control.value,
+        success: false,
+        error: 'Control not found in Q-SYS (validation was skipped)',
+      };
+    }
+    
+    // Control succeeded
     const response: ControlSetResponse = {
       name: control.name,
       value: control.value,
@@ -866,8 +874,14 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
+      // Trim control names to handle accidental spaces
+      const trimmedControls = params.controls.map(control => ({
+        ...control,
+        name: control.name.trim()
+      }));
+      
       // Track validation results but don't abort on errors
-      let validControls = params.controls;
+      let validControls = trimmedControls;
       const validationErrorResults: ControlSetResponse[] = [];
       
       // Validation controls error REPORTING, not Q-SYS behavior
@@ -875,13 +889,13 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       // validate:false = optimistic reporting (claims everything works, but Q-SYS still rejects fake controls)
       if (params.validate !== false) {
         const validationErrors = await this.validateControlsExistOptimized(
-          params.controls
+          trimmedControls
         );
         
         if (validationErrors.length > 0) {
           // Separate valid from invalid controls
           const invalidControlNames = new Set(validationErrors.map(e => e.controlName));
-          validControls = params.controls.filter(c => !invalidControlNames.has(c.name));
+          validControls = trimmedControls.filter(c => !invalidControlNames.has(c.name));
           
           // Create error results for invalid controls with clear messaging
           validationErrorResults.push(...validationErrors.map(error => ({
@@ -900,10 +914,10 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
           });
         }
       } else {
-        // With validate:false, we send ALL controls to Q-SYS
-        // Q-SYS will silently ignore fake controls but we'll report them as "successful"
-        this.logger.debug('Skipping validation, will send all controls to Q-SYS', {
-          controlCount: params.controls.length,
+        // With validate:false, we still need to check Q-SYS response for actual failures
+        // We send all controls but will report actual Q-SYS errors honestly
+        this.logger.debug('Skipping pre-validation, will rely on Q-SYS response', {
+          controlCount: trimmedControls.length,
           validate: false,
           context
         });
@@ -928,7 +942,13 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         
         // Process named control results  
         const namedControlsOriginal = validControls.filter(c => !c.name.includes('.'));
-        const namedResults = this.processControlSetResponse(qsysResponse, namedControlsOriginal, false);
+        const namedResults = this.processControlSetResponse(
+          qsysResponse, 
+          namedControlsOriginal, 
+          false,
+          undefined,
+          params.validate === false
+        );
         allResults.push(...namedResults);
       }
       
@@ -952,7 +972,8 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
           qsysResponse, 
           componentControlsOriginal, 
           true, 
-          componentName
+          componentName,
+          params.validate === false
         );
         allResults.push(...componentResults);
       }
@@ -1084,20 +1105,30 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
         const componentName = parts[0];
         const controlName = parts.slice(1).join('.');
 
-        if (componentName) {
-          if (!componentValidations.has(componentName)) {
-            componentValidations.set(componentName, []);
-          }
-          const validations = componentValidations.get(componentName);
-          if (validations) {
-            validations.push({
-              controlName,
-              fullName: control.name,
-              value: control.value,
-            });
-          }
+        if (!componentName || !controlName) {
+          // Invalid format - missing component or control name
+          errors.push({
+            controlName: control.name,
+            value: control.value,
+            message: `Invalid control name format '${control.name}'. Expected format: 'ComponentName.controlName'`,
+          });
+          this.cacheResult(control.name, false);
+          continue;
+        }
+        
+        if (!componentValidations.has(componentName)) {
+          componentValidations.set(componentName, []);
+        }
+        const validations = componentValidations.get(componentName);
+        if (validations) {
+          validations.push({
+            controlName,
+            fullName: control.name,
+            value: control.value,
+          });
         }
       } else {
+        // Named control (without dot)
         namedControls.push({ name: control.name, value: control.value });
       }
     }
@@ -1203,6 +1234,27 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
               value: info.value,
               message: `Control '${info.controlName}' not found on component '${componentName}'`,
             });
+          }
+        }
+      } else if (response && typeof response === 'object' && 'result' in response) {
+        // Handle case where response has result but doesn't match strict type guard
+        const res = response as any;
+        if (res.result && res.result.Controls && Array.isArray(res.result.Controls)) {
+          const returnedControlNames = new Set(
+            res.result.Controls.map((c: { Name: string }) => c.Name)
+          );
+
+          for (const info of controlInfos) {
+            if (returnedControlNames.has(info.controlName)) {
+              this.cacheResult(info.fullName, true);
+            } else {
+              this.cacheResult(info.fullName, false);
+              errors.push({
+                controlName: info.fullName,
+                value: info.value,
+                message: `Control '${info.controlName}' not found on component '${componentName}'`,
+              });
+            }
           }
         }
       }
