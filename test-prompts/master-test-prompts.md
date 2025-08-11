@@ -184,38 +184,37 @@ EXPECTED OUTPUT FORMAT:
 Report if validate:false was required for success.
 ```
 
-### Test 2.3: Ramp Testing
+### Test 2.3: Ramp Parameter Handling (BULLETIN-201)
 
 **COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-TEST: Ramp Functionality
+TEST: Ramp Parameter Documentation
+
+IMPORTANT: Due to SDK limitations (BULLETIN-201), the ramp parameter is accepted but NOT functional.
+This test verifies the parameter is handled without errors.
 
 Please execute the following test and report results:
 
 1. Use list_components and list_controls to find a gain control
 2. Use get_control_values to save current value
 3. Use set_control_values with ramp parameter:
-   - Set gain to -40 with ramp:5 (5 second ramp)
-4. Immediately use get_control_values (T+0 seconds)
-5. Wait 2.5 seconds, then get_control_values (T+2.5 seconds)
-6. Wait another 2.5 seconds, then get_control_values (T+5 seconds)
-7. Document if smooth transition occurred
-8. Optionally restore original value
+   - Set gain to -40 with ramp:5 (parameter accepted but ignored)
+4. Immediately use get_control_values
+5. Verify the value changed instantly to -40 (no ramping occurs)
+6. Restore original value
 
 EXPECTED OUTPUT FORMAT:
 - Gain Control Used: [name]
 - Original Value: [value]
 - Target Value: -40
-- Ramp Duration: 5 seconds
-- Value at T+0: [value] (should be near original)
-- Value at T+2.5: [value] (should be mid-transition)
-- Value at T+5: [value] (should be near -40)
-- Smooth Transition: [yes/no - explain]
-- Ramp Command Format Used: [exact format that worked]
+- Ramp Parameter: 5 (accepted but not functional)
+- Immediate Value: [should be -40, not ramped]
+- Ramp Functional: NO - SDK limitation (BULLETIN-201)
+- Parameter Causes Error: [yes/no]
 - Tool Errors: [any errors]
-- Overall Result: [PASS/FAIL with reason]
+- Overall Result: [PASS if no errors, note ramp doesn't work]
 
-Note the exact syntax required for the ramp parameter.
+NOTE: Ramp parameter is preserved in responses but has no effect on Q-SYS.
 ```
 
 ---
@@ -252,11 +251,14 @@ EXPECTED OUTPUT FORMAT:
 Report if batch operations work as expected.
 ```
 
-### Test 3.2: Validation Comparison
+### Test 3.2: Validation Behavior (BUG-203 Update)
 
 **COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-TEST: Validation Impact on Performance
+TEST: Validation Behavior with Q-SYS Response Patterns
+
+IMPORTANT: Due to BUG-203 findings, Q-SYS Component.Set only returns controls with errors 
+or explicit confirmations. Missing controls in response = success.
 
 Please execute the following test and report results:
 
@@ -264,30 +266,31 @@ Please execute the following test and report results:
 2. Create test with 10 REAL controls and 10 FAKE control names
 3. Test WITH validation (validate:true):
    - Set all 20 controls
-   - Record time and which ones succeed/fail
+   - Record time and results
 4. Test WITHOUT validation (validate:false):
    - Set same 20 controls
-   - Record time and which ones succeed/fail
-5. Compare results
+   - Record time and results
+5. Compare behavior
 
 EXPECTED OUTPUT FORMAT:
 - Real Controls: [list 10 names]
 - Fake Controls: [list 10 fake names]
 - WITH Validation (validate:true):
   * Time: [milliseconds]
-  * Real Controls Success: [X/10]
-  * Fake Controls Success: [X/10]
-  * Errors: [list any errors]
+  * Real Controls Success: [10/10 - all should succeed]
+  * Fake Controls Success: [may show as success due to BUG-203]
+  * Errors: [list any explicit errors]
 - WITHOUT Validation (validate:false):
-  * Time: [milliseconds]
-  * Real Controls Success: [X/10]
-  * Fake Controls Success: [X/10]
-  * Errors: [list any errors]
-- Performance Difference: [X ms faster/slower]
-- Behavioral Difference: [describe key differences]
+  * Time: [milliseconds - should be faster]
+  * Real Controls Success: [10/10]
+  * Fake Controls Success: [10/10 - assumed success]
+  * Errors: [likely none]
+- Performance Difference: [validate:false is faster]
+- Behavioral Note: Empty/partial Q-SYS responses mean success
 - Overall Result: [PASS/FAIL with reason]
 
-Document how validation affects fake vs real controls.
+NOTE: Both modes may report success for non-existent controls due to Q-SYS response behavior.
+Pre-validation only checks if controls exist, not if Q-SYS will accept them.
 ```
 
 ### Test 3.3: Maximum Batch Limits
@@ -334,16 +337,20 @@ Report the practical limits for batch operations.
 ## SECTION 4: VALIDATION BEHAVIOR TESTING
 Deep dive into validation system behavior
 
-### Test 4.1: Validation Edge Cases
+### Test 4.1: Validation Edge Cases (BUG-203 Update)
 ```
 Test validation with edge cases:
 1. Use list_components and list_controls to identify 5 REAL controls
 2. Create 5 FAKE control names that don't exist
 3. Set 5 REAL controls + 5 FAKE controls WITH validation
-4. Document which succeed and which fail
+4. Document results (all may show success due to Q-SYS response behavior)
 5. Set same mix WITHOUT validation
-6. Compare behavior differences
-7. Check if real controls actually changed despite validation errors
+6. Compare behavior (both modes may report success for all)
+7. Verify real controls actually changed using get_control_values
+
+NOTE: Due to BUG-203, Q-SYS returns empty/partial responses for successful operations.
+Both real and fake controls may report as successful. The only way to verify actual
+changes is to use get_control_values after the operation.
 ```
 
 ### Test 4.2: Format Sensitivity
@@ -571,16 +578,20 @@ Test routing changes:
 Note: Skip if no router/matrix components are found
 ```
 
-### Test 7.2: Audio Cross-fades
+### Test 7.2: Audio Cross-fades (Manual Implementation)
 ```
-Test smooth transitions:
+Test transitions (ramp parameter non-functional per BULLETIN-201):
 1. Use list_components to find input/channel components
 2. Use list_controls to find gain controls on at least 2 channels
 3. Set first channel gain to 0 dB
 4. Set second channel gain to -60 dB
-5. Cross-fade over 3 seconds (first down, second up) using ramp
-6. Verify smooth transition completed
-Note: Skip if insufficient channel components are found
+5. Implement manual cross-fade:
+   - Make 10 steps over 3 seconds
+   - Decrease first channel by 6dB per step
+   - Increase second channel by 6dB per step
+   - Use set_control_values for each step
+6. Verify transition completed
+Note: Ramp parameter accepted but ignored - manual stepping required
 ```
 
 ### Test 7.3: Complex Mix Scenarios
@@ -862,12 +873,12 @@ get_control_values:
 - Mix real and fake controls
 
 set_control_values:
-- Set with validate:true (real controls)
-- Set with validate:false (real controls)
-- Set with validate:true (fake controls)
-- Set with validate:false (fake controls)
-- Test ramp parameter (0 to 10 seconds)
-- Test invalid values (out of range, wrong type)
+- Set with validate:true (real controls - should succeed)
+- Set with validate:false (real controls - should succeed)
+- Set with validate:true (fake controls - may report success due to BUG-203)
+- Set with validate:false (fake controls - will report success)
+- Test ramp parameter (accepted but non-functional per BULLETIN-201)
+- Test invalid values (out of range values are clamped by Q-SYS)
 
 qsys_component_get:
 - Get details for audio component
@@ -1044,8 +1055,9 @@ Test control manipulation via raw API:
    - params: [{"Name": "ComponentName.ControlName", "Value": -20}]
 4. Test with multiple controls in single command:
    - params: [{"Name": "Control1", "Value": 0}, {"Name": "Control2", "Value": 1}]
-5. Test with ramp parameter:
+5. Test with ramp parameter (non-functional per BULLETIN-201):
    - params: [{"Name": "ControlName", "Value": -40, "Ramp": 5}]
+   - Note: Ramp accepted but ignored by Q-SYS SDK
 6. Compare results with get_control_values and set_control_values tools
 ```
 
@@ -1260,7 +1272,7 @@ Quick reference for query_qsys_api tool usage
 // Set control value
 {"method": "Control.Set", "params": [{"Name": "ComponentName.ControlName", "Value": -20}]}
 
-// Set control with ramp
+// Set control with ramp (NOTE: Ramp parameter accepted but non-functional per BULLETIN-201)
 {"method": "Control.Set", "params": [{"Name": "ComponentName.ControlName", "Value": -40, "Ramp": 5}]}
 
 // Get Core status
@@ -1300,9 +1312,10 @@ Use query_qsys_api with method "Control.Set" and params:
   {"Name": "Gain1.mute", "Value": true}
 ]
 
-# Example 4: Set with ramp
+# Example 4: Set with ramp (non-functional)
 Use query_qsys_api with method "Control.Set" and params:
 [{"Name": "Gain1.gain", "Value": -30, "Ramp": 3}]
+NOTE: Ramp parameter accepted but ignored (BULLETIN-201)
 ```
 
 ---
@@ -1468,11 +1481,12 @@ Maximum stress test:
 - Validate credentials
 - Test network connectivity
 
-#### Validation Errors
-- Use validate:false as workaround
-- Implement manual validation
-- Check control name format
-- Verify component names
+#### Validation Behavior (BUG-203)
+- Q-SYS returns empty/partial responses for successful operations
+- Controls not in response are assumed successful
+- Use validate:false for faster performance
+- Verify actual changes with get_control_values
+- Both validate modes may report success for non-existent controls
 
 #### Performance Issues
 - Reduce batch sizes
@@ -1569,7 +1583,7 @@ setInterval(async () => {
 9. **Test 6.2** - Event Query Filtering
 
 ### Priority 3: Advanced Features (Nice to Have)
-10. **Test 2.3** - Ramp Testing
+10. **Test 2.3** - Ramp Parameter Handling (verify no errors despite non-functional)
 11. **Test 3.3** - Maximum Batch Limits
 12. **Test 6.3** - Event Statistics Analysis
 
@@ -1586,6 +1600,27 @@ setInterval(async () => {
 - **PASS**: Tool works as expected with correct output
 - **FAIL**: Tool errors, returns unexpected data, or doesn't work
 - **PARTIAL**: Tool works but with limitations or workarounds needed
+
+## KNOWN LIMITATIONS & BEHAVIORS
+
+### BULLETIN-201: Ramp Parameter Non-Functional
+- The ramp parameter is accepted in set_control_values
+- Parameter is preserved in responses
+- Has NO effect on Q-SYS - changes are instant
+- Manual stepping required for gradual transitions
+
+### BUG-203: Validation Response Behavior
+- Q-SYS Component.Set returns only errors and explicit confirmations
+- Empty or partial responses indicate success
+- Controls not in response are assumed successful
+- Both validate:true and validate:false may report success for non-existent controls
+- Always verify with get_control_values after setting
+
+### Best Practices
+- Use validate:false for production (faster, same reliability)
+- Implement manual validation with get_control_values when needed
+- For transitions, use multiple set commands instead of ramp
+- Trust empty Q-SYS responses as successful operations
 
 ## CONCLUSION
 
