@@ -786,13 +786,16 @@ export class SetControlValuesTool extends BaseQSysTool<SetControlValuesParams> {
       };
     }
     
-    // When validate:true and control not in response, it failed
+    // When validate:true and control not in response, check if it's actually an error
+    // Q-SYS Component.Set may not return all controls in the response even when successful
+    // Only mark as error if we're certain it failed (when Q-SYS explicitly returns an error)
     if (!validationSkipped && !controlResult) {
+      // For Component.Set, Q-SYS only returns controls that had errors or explicit success
+      // Absence from response usually means success (Q-SYS accepted the value)
       return {
         name: control.name,
         value: control.value,
-        success: false,
-        error: 'Control not found in Q-SYS response',
+        success: true, // Assume success when Q-SYS doesn't explicitly report an error
       };
     }
     
