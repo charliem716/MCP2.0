@@ -96,14 +96,16 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
         throw validationError;
       }
 
-      // Check QRWC connection with timeout
-      const connectionCheck = async () => {
-        if (!this.controlSystem.isConnected()) {
-          throw new QSysError('Q-SYS Core not connected', QSysErrorCode.CONNECTION_FAILED);
-        }
-      };
-      
-      await withTimeout(connectionCheck(), 5000, 'Connection check');
+      // Check QRWC connection with timeout (unless tool opts out)
+      if (!this.skipConnectionCheck()) {
+        const connectionCheck = async () => {
+          if (!this.controlSystem.isConnected()) {
+            throw new QSysError('Q-SYS Core not connected', QSysErrorCode.CONNECTION_FAILED);
+          }
+        };
+        
+        await withTimeout(connectionCheck(), 5000, 'Connection check');
+      }
 
       // Execute the tool-specific logic with timeout and error boundary
       const result = await safeAsyncOperation(
@@ -179,6 +181,14 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       }
       throw error;
     }
+  }
+
+  /**
+   * Override to skip connection check for specific tools
+   * Default is false (connection check is performed)
+   */
+  protected skipConnectionCheck(): boolean {
+    return false;
   }
 
   /**

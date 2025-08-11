@@ -56,10 +56,87 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     );
   }
 
+  /**
+   * Override to allow status queries even when disconnected
+   * Status.Get command can work without active connection
+   */
+  protected override skipConnectionCheck(): boolean {
+    return true;
+  }
+
   protected async executeInternal(
     params: QueryCoreStatusParams,
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
+    // First check if we're connected
+    const isConnected = this.controlSystem.isConnected();
+    
+    if (!isConnected) {
+      // Return disconnected status without throwing error
+      const disconnectedStatus = {
+        coreInfo: {
+          name: 'Unknown',
+          version: 'Unknown',
+          model: 'Unknown',
+          platform: 'Unknown',
+          serialNumber: 'Unknown',
+          firmwareVersion: 'Unknown',
+          buildTime: 'Unknown',
+          designName: 'Not Connected',
+        },
+        connectionStatus: {
+          connected: false,
+          uptime: 'N/A',
+          lastSeen: new Date().toISOString(),
+        },
+        systemHealth: {
+          status: 'disconnected',
+          temperature: 0,
+          fanSpeed: 0,
+          powerSupplyStatus: 'unknown',
+        },
+        designInfo: {
+          designCompiled: false,
+          compileTime: 'Unknown',
+          processingLoad: 0,
+          componentCount: 0,
+          snapshotCount: 0,
+          activeServices: [],
+        },
+        networkInfo: {
+          ipAddress: 'Unknown',
+          macAddress: 'Unknown',
+          gateway: 'Unknown',
+          dnsServers: [],
+          ntpServer: 'Unknown',
+          networkMode: 'Unknown',
+        },
+        performanceMetrics: {
+          cpuUsage: 0,
+          memoryUsage: 0,
+          memoryUsedMB: 0,
+          memoryTotalMB: 0,
+          audioLatency: 0,
+          networkLatency: 0,
+          fanSpeed: 0,
+        },
+        _metadata: {
+          error: 'Q-SYS Core not connected',
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(disconnectedStatus),
+          },
+        ],
+        isError: false,
+      };
+    }
+
     try {
       // Send command to get core status
       const response = await this.controlSystem.sendCommand('Status.Get');
