@@ -194,6 +194,23 @@ mcp-voice-text-qsys/
    - getUserMedia API
    - Audio streaming
 
+## Critical SDK Constraints
+
+### ⚠️ MANDATORY: Use Official SDK Only
+
+**DO NOT ATTEMPT**:
+- Using `sendRawCommand()` - it is NON-FUNCTIONAL (see SDK-LIMITATIONS.md)
+- Bypassing SDK for any Q-SYS operations
+- Direct WebSocket connections to Q-SYS Core
+- Implementing ramp/fade functionality until SDK supports it
+
+**KNOWN LIMITATIONS**:
+1. **Ramp parameter does not work** - SDK's control.update() only accepts value
+2. **sendRawCommand is broken** - Timeouts on all commands due to protocol mismatch
+3. **Must use SDK methods exclusively** - No workarounds exist
+
+See `docs/SDK-LIMITATIONS.md` and `bugs/BUG-201.md` for full details.
+
 ## Implementation Phases
 
 ### Phase 1: Foundation (Week 1)

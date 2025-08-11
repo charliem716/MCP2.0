@@ -324,7 +324,22 @@ export class OfficialQRWCClient extends EventEmitter<OfficialQRWCClientEvents> {
 
   /**
    * Send a raw command through the WebSocket
-   * Used for commands not directly supported by the QRWC library
+   * 
+   * ⚠️ WARNING: This method is NON-FUNCTIONAL - DO NOT USE ⚠️
+   * 
+   * Testing on 2025-08-11 confirmed that Q-SYS does NOT respond to raw JSON-RPC
+   * commands sent via WebSocket. The official SDK uses a proprietary protocol
+   * that cannot be bypassed. All raw commands will timeout.
+   * 
+   * Specifically tested and confirmed NOT working:
+   * - Control.Set with Ramp parameter
+   * - Status.Get
+   * - Component.GetComponents
+   * - All other raw JSON-RPC commands
+   * 
+   * See BUG-201 for full investigation details.
+   * 
+   * @deprecated This method exists but does not work. Use SDK methods only.
    */
   async sendRawCommand(method: string, params: unknown): Promise<unknown> {
     const ws = this.ws;
