@@ -326,15 +326,20 @@ export class MCPServer {
       this.isConnected = true;
       logger.info('MCP server started successfully with stdio transport');
       
-      // Connect to Q-SYS and wait for it
+      // Connect to Q-SYS with retry logic for initial connection
+      // BUG-205: Fix connection state issues in MCP mode
       try {
         await this.officialQrwcClient.connect();
         logger.info('Q-SYS Core connected successfully');
         this.setupReconnectionHandlers();
       } catch (error) {
-        logger.warn('Q-SYS Core connection failed - tools will handle this gracefully', { 
+        logger.warn('Initial Q-SYS Core connection failed - retrying in background', { 
           error: error instanceof Error ? error.message : String(error) 
         });
+        
+        // Schedule background retry to establish connection
+        // This ensures tools can work once connection is established
+        this.scheduleBackgroundConnectionRetry();
       }
       
       // Handle graceful shutdown
@@ -381,6 +386,48 @@ export class MCPServer {
     this.officialQrwcClient.on('reconnecting', attempt => {
       logger.info('Attempting to reconnect to Q-SYS Core', { attempt });
     });
+  }
+
+  /**
+   * Schedule background retry for Q-SYS connection
+   * BUG-205: Ensures connection can be established after initial failure
+   */
+  private scheduleBackgroundConnectionRetry(): void {
+    let retryCount = 0;
+    const maxRetries = 5;
+    const retryDelay = 5000; // 5 seconds
+    
+    const attemptConnection = async () => {
+      if (this.officialQrwcClient.isConnected()) {
+        logger.info('Q-SYS Core connected successfully in background');
+        this.setupReconnectionHandlers();
+        return;
+      }
+      
+      if (retryCount >= maxRetries) {
+        logger.error('Failed to connect to Q-SYS Core after maximum retries');
+        return;
+      }
+      
+      retryCount++;
+      logger.debug('Attempting Q-SYS Core connection in background', { attempt: retryCount });
+      
+      try {
+        await this.officialQrwcClient.connect();
+        logger.info('Q-SYS Core connected successfully in background');
+        this.setupReconnectionHandlers();
+      } catch (error) {
+        logger.debug('Background Q-SYS connection attempt failed', { 
+          attempt: retryCount,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        // Schedule next retry
+        setTimeout(attemptConnection, retryDelay);
+      }
+    };
+    
+    // Start first retry attempt after a short delay
+    setTimeout(attemptConnection, retryDelay);
   }
 
   /**
