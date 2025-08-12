@@ -438,10 +438,10 @@ export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationPar
         },
         {
           name: 'set_control_values',
-          description: 'Set values for Q-SYS controls with optional ramp time',
+          description: 'Set values for Q-SYS controls with optional ramp time (NOTE: ramp parameter is NON-FUNCTIONAL - see BULLETIN-201)',
           parameters: {
             controls:
-              'Array of control objects with name, value, and optional ramp',
+              'Array of control objects with name, value, and optional ramp (WARNING: ramp parameter is accepted but NON-FUNCTIONAL due to SDK limitation)',
           },
           examples: [
             {
@@ -458,7 +458,7 @@ export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationPar
               arguments: {
                 controls: [{ name: 'Master Volume', value: -20, ramp: 2.5 }],
               },
-              note: 'Ramp creates a smooth 2.5-second transition',
+              note: 'IMPORTANT: Ramp parameter is accepted but NON-FUNCTIONAL due to SDK limitation (BULLETIN-201). Value changes happen immediately.',
             },
           ],
           value_ranges: {
@@ -1229,7 +1229,7 @@ export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationPar
         'For simple operations, use get_control_values and set_control_values',
         "Use component.control naming format (e.g., 'Main Gain.gain') for clarity",
         'Boolean values (true/false) are automatically converted to Q-SYS format (1/0)',
-        'Add ramp parameter for smooth audio transitions',
+        'NOTE: Ramp parameter is NON-FUNCTIONAL due to SDK limitation (BULLETIN-201) - value changes are immediate',
         'Use change groups for efficient monitoring of multiple controls',
         'Always destroy change groups when no longer needed to prevent memory leaks',
         'Set appropriate poll rates during group creation: 0.03s (33Hz) for meters, 0.1-0.5s for UI, 1-5s for monitoring',
@@ -1244,10 +1244,10 @@ export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationPar
           ],
         },
         {
-          task: 'Adjust volume with fade',
+          task: 'Adjust volume instantly',
           steps: [
             '1. Use get_control_values to check current level',
-            '2. Use set_control_values with ramp parameter for smooth transition',
+            '2. Use set_control_values to set new level (NOTE: ramp parameter is non-functional - changes are immediate)',
           ],
         },
         {

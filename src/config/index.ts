@@ -115,10 +115,16 @@ class ConfigManager {
       if (configPath) {
         const configContent = fs.readFileSync(configPath, 'utf-8');
         const parsed = JSON.parse(configContent) as unknown;
-        // Extract the qsysCore property from the JSON
-        if (parsed && typeof parsed === 'object' && 'qsysCore' in parsed) {
-          const configObj = parsed as { qsysCore?: unknown };
-          fileConfig = configObj.qsysCore as FileConfig;
+        // Handle both flat config structure and wrapped qsysCore structure
+        if (parsed && typeof parsed === 'object') {
+          if ('qsysCore' in parsed) {
+            // New structure with qsysCore wrapper
+            const configObj = parsed as { qsysCore?: unknown };
+            fileConfig = configObj.qsysCore as FileConfig;
+          } else if ('host' in parsed) {
+            // Legacy flat structure (compatible with direct test script)
+            fileConfig = parsed as FileConfig;
+          }
         }
       }
     } catch (error) {
@@ -129,7 +135,7 @@ class ConfigManager {
     // Merge with environment variables (env takes precedence)
     const host = process.env['QSYS_HOST'] ?? fileConfig.host ?? 'localhost';
     const port = parseInt(process.env['QSYS_PORT'] ?? String(fileConfig.port ?? 443), 10);
-    const username = process.env['QSYS_USERNAME'] ?? fileConfig.username ?? '';
+    const username = process.env['QSYS_USERNAME'] ?? fileConfig.username ?? (fileConfig as any).user ?? '';
     const password = process.env['QSYS_PASSWORD'] ?? fileConfig.password ?? '';
     
     const config = {
