@@ -68,123 +68,41 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     params: QueryCoreStatusParams,
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
-    // First check if we're connected
-    const isConnected = this.controlSystem.isConnected();
-    
-    if (!isConnected) {
-      // Return disconnected status without throwing error
-      const disconnectedStatus = {
-        coreInfo: {
-          name: 'Unknown',
-          version: 'Unknown',
-          model: 'Unknown',
-          platform: 'Unknown',
-          serialNumber: 'Unknown',
-          firmwareVersion: 'Unknown',
-          buildTime: 'Unknown',
-          designName: 'Not Connected',
-        },
-        connectionStatus: {
-          connected: false,
-          uptime: 'N/A',
-          lastSeen: new Date().toISOString(),
-        },
-        systemHealth: {
-          status: 'disconnected',
-          temperature: 0,
-          fanSpeed: 0,
-          powerSupplyStatus: 'unknown',
-        },
-        designInfo: {
-          designCompiled: false,
-          compileTime: 'Unknown',
-          processingLoad: 0,
-          componentCount: 0,
-          snapshotCount: 0,
-          activeServices: [],
-        },
-        networkInfo: {
-          ipAddress: 'Unknown',
-          macAddress: 'Unknown',
-          gateway: 'Unknown',
-          dnsServers: [],
-          ntpServer: 'Unknown',
-          networkMode: 'Unknown',
-        },
-        performanceMetrics: {
-          cpuUsage: 0,
-          memoryUsage: 0,
-          memoryUsedMB: 0,
-          memoryTotalMB: 0,
-          audioLatency: 0,
-          networkLatency: 0,
-          fanSpeed: 0,
-        },
-        _metadata: {
-          error: 'Q-SYS Core not connected',
-          timestamp: new Date().toISOString(),
-        },
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(disconnectedStatus),
-          },
-        ],
-        isError: false,
-      };
-    }
-
     try {
-      // Send command to get core status
-      const response = await this.controlSystem.sendCommand('Status.Get');
-
-      if (!response.result) {
-        throw new MCPError(
-          'No result in response from Q-SYS Core',
-          MCPErrorCode.PROTOCOL_ERROR,
-          { response }
-        );
-      }
-
-      const status = this.parseStatusResponse(response.result, params);
-
+      // Always use component-based status since Status.Get is not supported
+      const statusData = await this.getStatusFromComponents(params);
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(status),
+            text: JSON.stringify(statusData),
           },
         ],
         isError: false,
       };
     } catch (error) {
-      this.logger.warn(
-        'StatusGet command failed, falling back to component-based status',
-        { error }
-      );
-
-      // Fallback: Get status from status components
-      try {
-        const statusData = await this.getStatusFromComponents(params);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(statusData),
-            },
-          ],
-          isError: false,
-        };
-      } catch (fallbackError) {
-        this.logger.error('Failed to get status from components', {
-          error: fallbackError,
-          context,
-        });
-        throw fallbackError;
-      }
+      this.logger.error('Failed to get status from components', {
+        error: error,
+        context,
+      });
+      
+      // Return a minimal status response on error
+      const errorStatus = {
+        error: 'Failed to retrieve status',
+        message: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+        connected: this.controlSystem.isConnected()
+      };
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(errorStatus),
+          },
+        ],
+        isError: true,
+      };
     }
   }
 
