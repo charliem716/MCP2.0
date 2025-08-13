@@ -11,7 +11,6 @@ import { withTimeout, safeAsyncOperation, formatUserError } from '../../shared/u
 export const BaseToolParamsSchema = z.object({
   requestId: z
     .string()
-    .uuid()
     .optional()
     .describe('Optional request ID for tracking'),
 });

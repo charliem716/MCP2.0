@@ -11,7 +11,6 @@ import { MCPError, MCPErrorCode } from '../../shared/types/errors.js';
 export const GetAPIDocumentationParamsSchema = z.object({
   requestId: z
     .string()
-    .uuid()
     .optional()
     .describe('Optional request ID for tracking'),
   query_type: z
