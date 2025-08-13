@@ -184,37 +184,46 @@ EXPECTED OUTPUT FORMAT:
 Report if validate:false was required for success.
 ```
 
-### Test 2.3: Ramp Parameter Handling (BULLETIN-201)
+### Test 2.3: Component Get Operations
 
 **COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-TEST: Ramp Parameter Documentation
-
-IMPORTANT: Due to SDK limitations (BULLETIN-201), the ramp parameter is accepted but NOT functional.
-This test verifies the parameter is handled without errors.
+TEST: Component Get Operations
 
 Please execute the following test and report results:
 
-1. Use list_components and list_controls to find a gain control
-2. Use get_control_values to save current value
-3. Use set_control_values with ramp parameter:
-   - Set gain to -40 with ramp:5 (parameter accepted but ignored)
-4. Immediately use get_control_values
-5. Verify the value changed instantly to -40 (no ramping occurs)
-6. Restore original value
+1. Use list_components to find 3 different component types
+2. For each component, use qsys_component_get to retrieve:
+   - All control values in a single call
+   - Control metadata (ranges, types, positions)
+   - Component properties
+3. Compare efficiency with individual get_control_values calls
+4. Verify all control data is retrieved correctly
+5. Document response format differences
 
 EXPECTED OUTPUT FORMAT:
-- Gain Control Used: [name]
-- Original Value: [value]
-- Target Value: -40
-- Ramp Parameter: 5 (accepted but not functional)
-- Immediate Value: [should be -40, not ramped]
-- Ramp Functional: NO - SDK limitation (BULLETIN-201)
-- Parameter Causes Error: [yes/no]
+- Components Tested:
+  * Component 1: [name] (type: [type])
+    - Control Count: [number]
+    - Response Time: [ms]
+  * Component 2: [name] (type: [type])
+    - Control Count: [number]
+    - Response Time: [ms]
+  * Component 3: [name] (type: [type])
+    - Control Count: [number]
+    - Response Time: [ms]
+- Efficiency Comparison:
+  * qsys_component_get time: [ms for all controls]
+  * get_control_values time: [ms for same controls]
+  * Performance Gain: [X% faster/slower]
+- Data Completeness:
+  * Values Retrieved: [all/partial]
+  * Metadata Included: [yes/no]
+  * Position Data: [included/not included]
 - Tool Errors: [any errors]
-- Overall Result: [PASS if no errors, note ramp doesn't work]
+- Overall Result: [PASS/FAIL with reason]
 
-NOTE: Ramp parameter is preserved in responses but has no effect on Q-SYS.
+NOTE: qsys_component_get is most efficient for getting ALL controls from one component.
 ```
 
 ---
@@ -579,19 +588,45 @@ Note: Skip if no router/matrix components are found
 ```
 
 ### Test 7.2: Audio Cross-fades (Manual Implementation)
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test transitions (ramp parameter non-functional per BULLETIN-201):
+TEST: Manual Audio Cross-fade Implementation
+
+Please execute the following test and report results:
+
 1. Use list_components to find input/channel components
 2. Use list_controls to find gain controls on at least 2 channels
 3. Set first channel gain to 0 dB
 4. Set second channel gain to -60 dB
 5. Implement manual cross-fade:
-   - Make 10 steps over 3 seconds
+   - Make 10 steps over 3 seconds (300ms per step)
    - Decrease first channel by 6dB per step
    - Increase second channel by 6dB per step
    - Use set_control_values for each step
-6. Verify transition completed
-Note: Ramp parameter accepted but ignored - manual stepping required
+6. Verify transition completed smoothly
+
+EXPECTED OUTPUT FORMAT:
+- Channels Used:
+  * Channel 1: [control name]
+  * Channel 2: [control name]
+- Initial State:
+  * Channel 1: 0 dB
+  * Channel 2: -60 dB
+- Cross-fade Execution:
+  * Steps Completed: [10/10]
+  * Total Time: [actual seconds]
+  * Per-Step Time: [average ms]
+- Final State:
+  * Channel 1: -60 dB
+  * Channel 2: 0 dB
+- Transition Quality:
+  * Smooth: [yes/no]
+  * Timing Accurate: [yes/no]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with details]
+
+NOTE: Manual stepping required as SDK does not support ramp parameter.
 ```
 
 ### Test 7.3: Complex Mix Scenarios
@@ -652,15 +687,40 @@ Test emergency procedures:
 Tests audio processing components
 
 ### Test 9.1: EQ Control
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test equalizer adjustments:
+TEST: Equalizer Control Testing
+
+Please execute the following test and report results:
+
 1. Use list_components to find EQ components
 2. Use list_controls to find frequency, gain, and Q controls
-3. If found, adjust 3 bands
-4. Create a "speech intelligibility" preset
-5. Create a "music" preset
-6. Switch between presets with ramps
-Note: Skip if no EQ components found
+3. If found, adjust 3 bands:
+   - Low: 100Hz, -3dB, Q=0.7
+   - Mid: 1kHz, +2dB, Q=1.0
+   - High: 8kHz, +1dB, Q=0.5
+4. Create a "speech intelligibility" preset (boost 2-4kHz)
+5. Create a "music" preset (slight smile curve)
+6. Switch between presets and verify changes
+
+EXPECTED OUTPUT FORMAT:
+- EQ Components Found: [list or "none"]
+- EQ Controls Available:
+  * Bands: [number]
+  * Parameters per Band: [freq/gain/Q/bypass]
+- Band Adjustments:
+  * Low Band: Set to 100Hz/-3dB/Q=0.7 [success/fail]
+  * Mid Band: Set to 1kHz/+2dB/Q=1.0 [success/fail]
+  * High Band: Set to 8kHz/+1dB/Q=0.5 [success/fail]
+- Preset Creation:
+  * Speech Preset: [created/failed]
+  * Music Preset: [created/failed]
+  * Preset Switching: [working/not working]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL or "No EQ found"]
+
+NOTE: Skip if no EQ components found. Preset switching will be instant (no ramp).
 ```
 
 ### Test 9.2: Dynamics Processing
@@ -877,7 +937,7 @@ set_control_values:
 - Set with validate:false (real controls - should succeed)
 - Set with validate:true (fake controls - may report success due to BUG-203)
 - Set with validate:false (fake controls - will report success)
-- Test ramp parameter (accepted but non-functional per BULLETIN-201)
+- Test with multiple controls in single call (batch operation)
 - Test invalid values (out of range values are clamped by Q-SYS)
 
 qsys_component_get:
@@ -1005,7 +1065,7 @@ COMPONENT-SPECIFIC DOCUMENTATION:
 - Query with component_type: "eq" for EQ documentation
 
 SEARCH FUNCTIONALITY:
-- Search for "ramp" in method names/descriptions
+- Search for "control" in method names/descriptions
 - Search for "mute" across all documentation
 - Search for "Component.Set" specific method
 - Search for component_name: "Gain1" if it exists
@@ -1056,18 +1116,40 @@ Test API documentation discovery:
 ```
 
 ### Test 11.6.2: Control Documentation
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test control type documentation:
+TEST: Control Type Documentation
+
+Please execute the following test and report results:
+
 1. First use list_controls to find real control names
 2. Use get_api_documentation with query_type "controls":
    - Learn about control value types and ranges
 3. Use get_api_documentation with query_type "components":
    - Get documentation for specific component types
-4. Search for "ramp" in documentation:
-   - Verify it mentions ramp parameter is non-functional (BULLETIN-201)
-5. Search for "validation" in method documentation:
-   - Check if BUG-203 behavior is documented
+4. Search for "validation" in method documentation:
+   - Check if validation behavior is documented
+5. Search for common control types (gain, mute, position):
+   - Verify documentation matches actual behavior
 6. Compare documentation with actual control behavior from testing
+
+EXPECTED OUTPUT FORMAT:
+- Control Documentation Found:
+  * Control Types Documented: [list types]
+  * Value Ranges Included: [yes/no]
+  * Metadata Documented: [yes/no]
+- Component Documentation:
+  * Component Types Listed: [count]
+  * Examples Provided: [yes/no]
+- Search Results:
+  * Validation Info: [found/not found]
+  * Control Type Info: [complete/partial]
+- Documentation Accuracy:
+  * Matches Actual Behavior: [yes/no with details]
+  * Gaps Found: [list any gaps]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with details]
 ```
 
 ### Test 11.6.3: Change Group Documentation
@@ -1136,13 +1218,36 @@ Test update rate limits:
 ```
 
 ### Test 12.2: Parallel Operations
+
+**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
-Test concurrent load:
-1. Start 5 long ramps (10 seconds each)
-2. While ramping, perform 20 instant sets
-3. While setting, query 30 values
-4. Monitor response times
+TEST: Concurrent Operations Load Test
+
+Please execute the following test and report results:
+
+1. Create 5 change groups to monitor different components
+2. While monitoring, perform 20 instant control sets
+3. While setting, query 30 control values
+4. Monitor response times throughout
 5. Check for any timeouts or failures
+
+EXPECTED OUTPUT FORMAT:
+- Concurrent Operations:
+  * Change Groups Created: [5/5]
+  * Control Sets Performed: [20/20]
+  * Control Queries Performed: [30/30]
+- Response Times:
+  * Average Set Time: [ms]
+  * Average Query Time: [ms]
+  * Max Response Time: [ms]
+- System Performance:
+  * Timeouts: [none/count]
+  * Failures: [none/list]
+  * Degradation: [none/describe]
+- Cleanup:
+  * Change Groups Destroyed: [5/5]
+- Tool Errors: [any errors]
+- Overall Result: [PASS/FAIL with performance assessment]
 ```
 
 ### Test 12.3: Memory & Resource Usage
@@ -1191,7 +1296,7 @@ Simulate live event control using all relevant tools:
 2. Show start:
    - create_change_group "show-start"
    - add_controls_to_change_group for all show controls
-   - Use set_control_values with ramps for smooth transitions
+   - Use set_control_values for scene changes
    - poll_change_group to monitor
 3. Emergency stop:
    - Use set_control_values without validation for speed
@@ -1291,7 +1396,7 @@ Quick reference for get_api_documentation tool usage
 {"query_type": "components", "component_type": "eq"}
 
 // Search for specific terms
-{"query_type": "methods", "search": "ramp"}
+{"query_type": "methods", "search": "control"}
 {"query_type": "controls", "search": "mute"}
 
 // Get specific method details
@@ -1312,9 +1417,9 @@ Use get_api_documentation with query_type "methods" and method_category "Control
 # Example 3: Get component-specific documentation
 Use get_api_documentation with query_type "components" and component_type "mixer"
 
-# Example 4: Search for ramp parameter documentation
-Use get_api_documentation with query_type "methods" and search "ramp"
-NOTE: Documentation should mention ramp parameter is non-functional (BULLETIN-201)
+# Example 4: Search for control methods documentation
+Use get_api_documentation with query_type "methods" and search "control"
+NOTE: Should return all control-related API methods
 ```
 
 ---
@@ -1376,7 +1481,7 @@ Maximum stress test:
 4. Perform 500 control changes
 5. Query 10,000 historical events
 6. Create 10 change groups
-7. Execute 5 parallel cross-fades
+7. Execute 5 parallel control changes
 8. Maintain all operations for 30 minutes
 9. Verify no degradation
 10. Generate performance report
@@ -1457,7 +1562,7 @@ Maximum stress test:
 
 ### Advanced Features (Nice to Have)
 - ✅ Complex routing
-- ✅ Cross-fades
+- ✅ Manual transitions
 - ✅ Emergency procedures
 - ✅ High-frequency monitoring
 - ✅ Production optimizations
@@ -1582,7 +1687,7 @@ setInterval(async () => {
 9. **Test 6.2** - Event Query Filtering
 
 ### Priority 3: Advanced Features (Nice to Have)
-10. **Test 2.3** - Ramp Parameter Handling (verify no errors despite non-functional)
+10. **Test 2.3** - Component Get Operations (bulk retrieval efficiency)
 11. **Test 3.3** - Maximum Batch Limits
 12. **Test 6.3** - Event Statistics Analysis
 
@@ -1602,11 +1707,10 @@ setInterval(async () => {
 
 ## KNOWN LIMITATIONS & BEHAVIORS
 
-### BULLETIN-201: Ramp Parameter Non-Functional
-- The ramp parameter is accepted in set_control_values
-- Parameter is preserved in responses
-- Has NO effect on Q-SYS - changes are instant
+### SDK Limitations
+- The ramp parameter is NOT functional (changes are instant)
 - Manual stepping required for gradual transitions
+- Use multiple set_control_values calls for smooth changes
 
 ### BUG-203: Validation Response Behavior
 - Q-SYS Component.Set returns only errors and explicit confirmations
@@ -1618,7 +1722,7 @@ setInterval(async () => {
 ### Best Practices
 - Use validate:false for production (faster, same reliability)
 - Implement manual validation with get_control_values when needed
-- For transitions, use multiple set commands instead of ramp
+- For transitions, use multiple set commands with delays
 - Trust empty Q-SYS responses as successful operations
 
 ## CONCLUSION
