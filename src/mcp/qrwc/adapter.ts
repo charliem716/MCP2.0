@@ -305,12 +305,15 @@ export class QRWCClientAdapter
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         // Allow Status.Get to work even when disconnected
-        if (
-          !this.isConnected() &&
-          (command as string) !== 'Status.Get' &&
-          (command as string) !== 'StatusGet'
-        ) {
-          throw new QSysError('Not connected', QSysErrorCode.CONNECTION_FAILED);
+        if (!this.isConnected()) {
+          // Check if this is a Status.Get command which should work when disconnected
+          const isStatusCommand = 
+            (command as string) === 'Status.Get' || 
+            (command as string) === 'StatusGet';
+          
+          if (!isStatusCommand) {
+            throw new QSysError('Not connected', QSysErrorCode.CONNECTION_FAILED);
+          }
         }
 
         // Safely log params without circular references

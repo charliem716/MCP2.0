@@ -69,7 +69,38 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     context: ToolExecutionContext
   ): Promise<ToolCallResult> {
     try {
-      // Always use component-based status since Status.Get is not supported
+      // Check if connected first
+      if (!this.controlSystem.isConnected()) {
+        // Return disconnected status without trying to query components
+        const disconnectedStatus = {
+          Platform: 'Q-SYS Designer',
+          State: 'Disconnected',
+          DesignName: 'Unknown',
+          DesignCode: '',
+          IsRedundant: false,
+          IsEmulator: false,
+          Status: {
+            Code: 5,
+            String: 'Not connected to Q-SYS Core',
+          },
+          connectionStatus: {
+            connected: false,
+            message: 'MCP server is not connected to Q-SYS Core'
+          }
+        };
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(disconnectedStatus),
+            },
+          ],
+          isError: false,
+        };
+      }
+      
+      // If connected, try to get component-based status
       const statusData = await this.getStatusFromComponents(params);
       return {
         content: [
