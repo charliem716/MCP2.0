@@ -120,9 +120,10 @@ function createLoggerConfig(serviceName: string): LoggerConfig {
   const transports: winston.transport[] = [];
 
   // In MCP mode, no transports at all to avoid any output
-  if (isMCPMode) {
+  if (isMCPMode || (isProduction && process.env['MCP_MODE'] === 'true')) {
     // MCP mode: No transports - all logging is disabled
     // This prevents any stdout pollution that would break JSON-RPC
+    // Also check explicit MCP_MODE env var for backward compatibility
   } else if (isTest) {
     // In test environment, only log errors to console
     transports.push(

@@ -101,6 +101,17 @@ export class ManageConnectionTool extends BaseQSysTool<ManageConnectionInput> {
   }
 
   /**
+   * Override to skip connection check for connection management actions
+   * These actions need to work even when disconnected
+   */
+  protected override skipConnectionCheck(): boolean {
+    // For manage_connection tool, we need to check the action parameter
+    // to determine if we should skip the connection check
+    // This is a special case because some actions need to work when disconnected
+    return true; // Skip connection check for all actions - we'll handle it per-action
+  }
+
+  /**
    * Execute the connection management action (internal implementation)
    */
   protected async executeInternal(input: ManageConnectionInput): Promise<ToolExecutionResult> {
@@ -328,6 +339,7 @@ export class ManageConnectionTool extends BaseQSysTool<ManageConnectionInput> {
     const startTime = Date.now();
     
     try {
+      // Diagnostics can run even when disconnected to help troubleshoot
       // If control system has built-in diagnostics, use them
       if (this.controlSystem.runDiagnostics) {
         const diagnostics = await this.controlSystem.runDiagnostics();
@@ -437,6 +449,11 @@ export class ManageConnectionTool extends BaseQSysTool<ManageConnectionInput> {
     const startTime = Date.now();
     
     try {
+      // Test requires an active connection
+      if (!this.controlSystem.isConnected()) {
+        throw new ValidationError('Cannot test connection quality when not connected', []);
+      }
+      
       const testType = input.type || 'basic';
       
       // If control system has built-in testing, use it
