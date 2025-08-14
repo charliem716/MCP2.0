@@ -71,7 +71,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
     try {
       // Check if connected first
       if (!this.controlSystem.isConnected()) {
-        // Return disconnected status without trying to query components
+        // Return disconnected status without trying to query anything
         const disconnectedStatus = {
           Platform: 'Q-SYS Designer',
           State: 'Disconnected',
@@ -100,17 +100,40 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
         };
       }
       
-      // If connected, try to get component-based status
-      const statusData = await this.getStatusFromComponents(params);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(statusData),
-          },
-        ],
-        isError: false,
-      };
+      // If connected, try Status.Get first
+      try {
+        const response = await this.controlSystem.sendCommand('Status.Get');
+        
+        // Parse and format the status response
+        const formattedStatus = this.parseStatusResponse(response, params);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(formattedStatus),
+            },
+          ],
+          isError: false,
+        };
+      } catch (statusError) {
+        // Status.Get failed, fall back to component scanning
+        this.logger.debug('Status.Get failed, falling back to component scanning', { 
+          error: statusError,
+          context 
+        });
+        
+        const statusData = await this.getStatusFromComponents(params);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(statusData),
+            },
+          ],
+          isError: false,
+        };
+      }
     } catch (error) {
       this.logger.error('Failed to get status from components', {
         error: error,

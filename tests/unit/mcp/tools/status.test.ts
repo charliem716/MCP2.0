@@ -137,18 +137,25 @@ describe('QueryCoreStatusTool', () => {
       expect(status).toBeDefined();
     });
 
-    it('should show error when not connected', async () => {
+    it('should return disconnected status when not connected', async () => {
       mockQrwcClient.isConnected.mockReturnValue(false);
 
       const result = await tool.execute({});
 
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Q-SYS Core not connected');
+      expect(result.isError).toBe(false);
+      const status = JSON.parse(result.content[0].text);
+      expect(status.State).toBe('Disconnected');
+      expect(status.Status.String).toBe('Not connected to Q-SYS Core');
+      expect(status.connectionStatus.connected).toBe(false);
+      expect(status.connectionStatus.message).toContain('not connected to Q-SYS Core');
     });
   });
 
   describe('StatusGet fallback to component scanning', () => {
     it('should fallback to component scanning when StatusGet fails', async () => {
+      // Mark as connected
+      mockQrwcClient.isConnected.mockReturnValue(true);
+      
       // First call fails (StatusGet)
       mockQrwcClient.sendCommand
         .mockRejectedValueOnce(new Error('StatusGet command not supported'))
@@ -263,6 +270,9 @@ describe('QueryCoreStatusTool', () => {
     });
 
     it('should return no components message when no status components found', async () => {
+      // Mark as connected
+      mockQrwcClient.isConnected.mockReturnValue(true);
+      
       mockQrwcClient.sendCommand
         .mockRejectedValueOnce(new Error('StatusGet command not supported'))
         .mockResolvedValueOnce({
@@ -285,6 +295,9 @@ describe('QueryCoreStatusTool', () => {
     });
 
     it('should handle component control retrieval errors gracefully', async () => {
+      // Mark as connected
+      mockQrwcClient.isConnected.mockReturnValue(true);
+      
       mockQrwcClient.sendCommand
         .mockRejectedValueOnce(new Error('StatusGet command not supported'))
         .mockResolvedValueOnce({
@@ -476,21 +489,23 @@ describe('QueryCoreStatusTool - Type handling regression', () => {
       // Mock adapter returning fallback data (not throwing error)
       mockQrwcClient.sendCommand
         .mockResolvedValueOnce({
-          // This is what adapter returns when StatusGet fails
-          Platform: 'Q-SYS Core (API: StatusGet not supported)',
-          State: 'Active',
-          DesignName: 'Design with 43 components',
-          DesignCode: '43_components',
-          IsRedundant: false,
-          IsEmulator: false,
-          Status: {
-            Code: 0,
-            String: 'OK',
-          },
-          Version: 'QRWC Connection Active',
-          IsConnected: true,
-          ComponentCount: 43,
-          ControlCount: 156,
+          result: {
+            // This is what adapter returns when StatusGet fails
+            Platform: 'Q-SYS Core (API: StatusGet not supported)',
+            State: 'Active',
+            DesignName: 'Design with 43 components',
+            DesignCode: '43_components',
+            IsRedundant: false,
+            IsEmulator: false,
+            Status: {
+              Code: 0,
+              String: 'OK',
+            },
+            Version: 'QRWC Connection Active',
+            IsConnected: true,
+            ComponentCount: 43,
+            ControlCount: 156,
+          }
         })
         .mockResolvedValueOnce({
           // Component.GetComponents response
@@ -541,8 +556,8 @@ describe('QueryCoreStatusTool - Type handling regression', () => {
       );
 
       // Check logger was called about fallback detection
-      expect(tool.logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('StatusGet command failed'),
+      expect(tool.logger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Status.Get failed, falling back to component scanning'),
         expect.any(Object)
       );
     });
