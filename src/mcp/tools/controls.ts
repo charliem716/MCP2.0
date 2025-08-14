@@ -335,23 +335,46 @@ export class ListControlsTool extends BaseQSysTool<ListControlsParams> {
     const lowerName = name.toLowerCase();
 
     // Infer type from control name patterns
-    if (lowerName.includes('gain') || lowerName.includes('level'))
+    // Check for position/level controls first (more specific patterns)
+    if (lowerName.includes('position') || 
+        lowerName.includes('stepper') || 
+        lowerName.includes('fader') ||
+        lowerName.includes('slider'))
+      return 'position';
+    
+    // Gain/level controls (but not position-related)
+    if ((lowerName.includes('gain') || lowerName.includes('level')) &&
+        !lowerName.includes('position'))
       return 'gain';
+    
     if (lowerName.includes('mute')) return 'mute';
+    
     if (
       lowerName.includes('input_select') ||
       lowerName.includes('input.select')
     )
       return 'input_select';
+    
     if (
       lowerName.includes('output_select') ||
       lowerName.includes('output.select')
     )
       return 'output_select';
 
-    // Check control Type
+    // Check control Type for additional hints
     if (control.Type === 'Boolean') return 'mute';
-    if (control.Type === 'Float' && control.String.includes('dB'))
+    
+    // Position controls often have 0-1 range
+    if (control.Type === 'Float' && 
+        control.ValueMin === 0 && 
+        control.ValueMax === 1)
+      return 'position';
+    
+    // Gain controls typically use dB
+    if (control.Type === 'Float' && 
+        control.String && 
+        typeof control.String === 'string' && 
+        control.String.includes('dB'))
       return 'gain';
 
     return 'unknown';
