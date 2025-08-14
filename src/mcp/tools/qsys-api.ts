@@ -168,11 +168,12 @@ export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationPar
       query_type: 'tools',
       overview: {
         description:
-          'Available MCP Tools for Q-SYS Control - 17 total tools (16 Q-SYS + 1 testing) for comprehensive system management',
+          'Available MCP Tools for Q-SYS Control - 18 total tools (17 Q-SYS + 1 testing) for comprehensive system management',
         note: 'The send_raw_command tool has been deprecated for stability. Use these dedicated tools instead.',
         categories: {
           discovery: 'list_components, list_controls, qsys_component_get',
           control: 'get_control_values, set_control_values',
+          connection: 'manage_connection',
           change_groups:
             'create_change_group, add_controls_to_change_group, poll_change_group, list_change_groups, remove_controls_from_change_group, clear_change_group, destroy_change_group',
           event_monitoring: 'query_change_events, get_event_statistics',
@@ -466,6 +467,63 @@ export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationPar
             position: '0.0 to 1.0',
             crosspoint: 'Input number for router selection',
           },
+        },
+        {
+          name: 'manage_connection',
+          description: 'Comprehensive connection management for Q-SYS Core - monitor health, trigger reconnection, run diagnostics, test quality, switch IP',
+          parameters: {
+            action: 'Required: status, reconnect, diagnose, test, configure, history, monitor, reset, or switch',
+            verbose: 'For status: include extended diagnostics (boolean)',
+            force: 'For reconnect: bypass circuit breaker (boolean)',
+            maxAttempts: 'For reconnect: override retry count (number)',
+            timeout: 'For reconnect: connection timeout in ms (number)',
+            type: 'For test: basic, latency, throughput, or comprehensive',
+            settings: 'For configure: connection config object',
+            timeRange: 'For history: 1h, 24h, 7d, or 30d',
+            eventType: 'For history: all, connections, disconnections, or errors',
+            target: 'For switch: {host: "IP address", port?: number}',
+          },
+          examples: [
+            {
+              tool: 'manage_connection',
+              arguments: { action: 'status', verbose: true },
+              description: 'Get detailed connection health and metrics',
+            },
+            {
+              tool: 'manage_connection',
+              arguments: { action: 'reconnect', force: true, maxAttempts: 10 },
+              description: 'Force reconnection after Core restart',
+            },
+            {
+              tool: 'manage_connection',
+              arguments: { action: 'diagnose' },
+              description: 'Run comprehensive connection diagnostics',
+            },
+            {
+              tool: 'manage_connection',
+              arguments: { action: 'test', type: 'latency' },
+              description: 'Test connection latency',
+            },
+            {
+              tool: 'manage_connection',
+              arguments: { action: 'history', timeRange: '1h', eventType: 'errors' },
+              description: 'Get recent connection errors',
+            },
+            {
+              tool: 'manage_connection',
+              arguments: { action: 'switch', target: { host: '192.168.1.100', port: 443 } },
+              description: 'Switch to different Q-SYS Core IP',
+            },
+          ],
+          use_cases: [
+            'Troubleshooting connection issues',
+            'Recovery from Core restart',
+            'Monitoring connection health',
+            'Performance testing and optimization',
+            'Connection event analysis',
+            'Switching between development and production cores',
+            'Failover to backup Q-SYS Core',
+          ],
         },
         {
           name: 'query_core_status',

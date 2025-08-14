@@ -118,9 +118,10 @@ The system uses multiple configuration sources:
 - MCP server implementation ready for AI agent connections
 - **Event Monitoring Restored**: SQLite-based event tracking with MCP tools
 - Event monitoring tools (`query_change_events`, `get_event_statistics`) fully operational
-- **16 MCP Tools Available**: Full suite of control, monitoring, and utility tools
+- **Connection Management Added**: Full connection control and diagnostics (FR-002)
+- **18 MCP Tools Available**: Full suite of control, monitoring, connection, and utility tools
 
-### MCP Tools Inventory (17 Total: 16 Q-SYS + 1 Testing)
+### MCP Tools Inventory (18 Total: 17 Q-SYS + 1 Testing)
 
 **Core Control Tools (5):**
 - `list_components` - List all Q-SYS components
@@ -128,6 +129,9 @@ The system uses multiple configuration sources:
 - `get_control_values` - Get current values of controls
 - `set_control_values` - Set control values with optional validation
 - `qsys_component_get` - Get detailed component information
+
+**Connection Management Tools (1):**
+- `manage_connection` - Manage Q-SYS Core connection and diagnostics
 
 **System Status Tools (1):**
 - `query_core_status` - Get Q-SYS Core status and health

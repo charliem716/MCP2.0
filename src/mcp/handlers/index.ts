@@ -31,6 +31,8 @@ import {
   createQueryChangeEventsTool,
   createGetEventStatisticsTool,
 } from '../tools/event-monitoring/index.js';
+// Connection management tool (FR-002: Connection management for Q-SYS Core)
+import { createManageConnectionTool } from '../tools/connection.js';
 // BUG-132: EventCacheManager removed - using simplified state management
 import type { BaseQSysTool, ToolExecutionResult } from '../tools/base.js';
 
@@ -119,6 +121,8 @@ export class MCPToolRegistry {
       createSetControlValuesTool(this.controlSystem),
       createQueryCoreStatusTool(this.controlSystem),
       createGetAPIDocumentationTool(this.controlSystem),
+      // Connection management tool
+      createManageConnectionTool(this.controlSystem),
       // Change Group tools
       createCreateChangeGroupTool(this.controlSystem),
       createAddControlsToChangeGroupTool(this.controlSystem),

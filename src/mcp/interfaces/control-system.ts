@@ -8,6 +8,15 @@
 import type { 
   QSysApiResponse
 } from '../types/qsys-api-responses.js';
+import type {
+  ConnectionEvent,
+  ReconnectOptions,
+  DiagnosticsResult,
+  TestResult,
+  ConnectionConfig,
+  CoreTarget,
+} from '../types/connection.js';
+import type { ConnectionHealth } from '../../qrwc/connection/ConnectionManager.js';
 
 /**
  * Command names supported by the control system
@@ -16,9 +25,51 @@ import type {
 export type ControlSystemCommand = string;
 
 /**
- * Control system interface that all implementations must follow
+ * Connection management capabilities for control systems
+ * Optional methods that enhance connection control and monitoring
  */
-export interface IControlSystem {
+export interface IConnectionManageable {
+  /**
+   * Get current connection health and metrics
+   */
+  getConnectionHealth?(): ConnectionHealth;
+
+  /**
+   * Manually trigger reconnection with options
+   */
+  reconnect?(options?: ReconnectOptions): Promise<void>;
+
+  /**
+   * Get connection event history
+   */
+  getConnectionHistory?(limit?: number): ConnectionEvent[];
+
+  /**
+   * Run comprehensive connection diagnostics
+   */
+  runDiagnostics?(): Promise<DiagnosticsResult>;
+
+  /**
+   * Test connection quality
+   */
+  testConnection?(type: 'basic' | 'latency' | 'throughput' | 'comprehensive'): Promise<TestResult>;
+
+  /**
+   * Update connection configuration at runtime
+   */
+  updateConnectionConfig?(config: Partial<ConnectionConfig>): void;
+
+  /**
+   * Switch to a different core (future capability)
+   */
+  switchCore?(target: CoreTarget): Promise<void>;
+}
+
+/**
+ * Control system interface that all implementations must follow
+ * Now includes optional connection management capabilities
+ */
+export interface IControlSystem extends IConnectionManageable {
   /**
    * Check if the control system is connected
    */

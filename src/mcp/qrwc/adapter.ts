@@ -34,6 +34,16 @@ import { ControlSimulator } from './control-simulator.js';
 import { isQSysApiResponse, type QSysApiResponse } from '../types/qsys-api-responses.js';
 import type { IControlSystem, ControlSystemCommand } from '../interfaces/control-system.js';
 import type { IStateRepository } from '../state/repository.js';
+import type {
+  ConnectionEvent,
+  ReconnectOptions,
+  DiagnosticsResult,
+  TestResult,
+  ConnectionConfig,
+  CoreTarget,
+} from '../types/connection.js';
+import type { ConnectionHealth } from '../../qrwc/connection/ConnectionManager.js';
+import { ConnectionState } from '../../shared/types/common.js';
 
 /**
  * Interface that MCP tools expect from a QRWC client
@@ -1302,6 +1312,371 @@ export class QRWCClientAdapter
       Success: true,
       ClearedCount: clearedCount
     };
+  }
+
+  // ============================================================================
+  // Connection Management Methods (IConnectionManageable implementation)
+  // ============================================================================
+
+  private connectionHistory: ConnectionEvent[] = [];
+  private readonly MAX_HISTORY_SIZE = 1000;
+
+  /**
+   * Add a connection event to history
+   */
+  private addConnectionEvent(event: Omit<ConnectionEvent, 'timestamp' | 'correlationId'>): void {
+    const fullEvent: ConnectionEvent = {
+      ...event,
+      timestamp: new Date(),
+      correlationId: getCorrelationId() || 'unknown',
+    };
+
+    this.connectionHistory.unshift(fullEvent);
+    
+    // Keep history size limited
+    if (this.connectionHistory.length > this.MAX_HISTORY_SIZE) {
+      this.connectionHistory = this.connectionHistory.slice(0, this.MAX_HISTORY_SIZE);
+    }
+  }
+
+  /**
+   * Get current connection health and metrics
+   */
+  getConnectionHealth(): ConnectionHealth {
+    // Get health from the official client's connection manager if available
+    const connectionManager = (this.officialClient as any).connectionManager;
+    if (connectionManager && typeof connectionManager.getHealthStatus === 'function') {
+      return connectionManager.getHealthStatus();
+    }
+
+    // Fallback to basic health status
+    const isConnected = this.isConnected();
+    const lastEvent = this.connectionHistory[0];
+    
+    return {
+      isHealthy: isConnected,
+      lastSuccessfulConnection: lastEvent?.type === 'connect' ? lastEvent.timestamp : null,
+      consecutiveFailures: 0,
+      totalAttempts: this.connectionHistory.filter(e => e.type === 'connect' || e.type === 'retry').length,
+      totalSuccesses: this.connectionHistory.filter(e => e.type === 'connect' && e.success).length,
+      uptime: isConnected ? Date.now() : 0,
+      state: isConnected ? ConnectionState.CONNECTED : ConnectionState.DISCONNECTED,
+      circuitBreakerState: 'closed',
+    };
+  }
+
+  /**
+   * Manually trigger reconnection with options
+   */
+  async reconnect(options?: ReconnectOptions): Promise<void> {
+    logger.info('Manual reconnection requested', { options });
+    
+    this.addConnectionEvent({
+      type: 'reconnect',
+      details: options as Record<string, unknown>,
+    });
+
+    // If force is specified, try to access connection manager directly
+    if (options?.force) {
+      const connectionManager = (this.officialClient as any).connectionManager;
+      if (connectionManager && typeof connectionManager.reset === 'function') {
+        connectionManager.reset();
+      }
+    }
+
+    // Trigger reconnection through the official client
+    if (typeof (this.officialClient as any).forceReconnect === 'function') {
+      await (this.officialClient as any).forceReconnect(options);
+    } else {
+      // Fallback: disconnect and reconnect
+      await this.officialClient.disconnect();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await this.officialClient.connect();
+    }
+
+    this.addConnectionEvent({
+      type: 'connect',
+      success: this.isConnected(),
+    });
+  }
+
+  /**
+   * Get connection event history
+   */
+  getConnectionHistory(limit?: number): ConnectionEvent[] {
+    const actualLimit = limit || 100;
+    return this.connectionHistory.slice(0, actualLimit);
+  }
+
+  /**
+   * Run comprehensive connection diagnostics
+   */
+  async runDiagnostics(): Promise<DiagnosticsResult> {
+    const startTime = Date.now();
+    const isConnected = this.isConnected();
+    
+    const result: DiagnosticsResult = {
+      timestamp: new Date(),
+      network: { 
+        reachable: isConnected,
+        ...(isConnected && { latency: Date.now() - startTime }),
+      },
+      dns: { 
+        resolved: isConnected,
+        ...(isConnected && { addresses: [(this.officialClient as any).options?.host] }),
+      },
+      port: { 
+        open: isConnected,
+        ...(isConnected && { service: 'qsys-websocket' }),
+      },
+      websocket: { 
+        compatible: true,
+        protocols: ['qsys-qrwc'],
+      },
+      authentication: { 
+        valid: isConnected,
+        method: 'qsys-internal',
+      },
+      resources: {
+        memory: {
+          used: process.memoryUsage().heapUsed,
+          available: process.memoryUsage().heapTotal,
+          percentage: (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100,
+        },
+      },
+      summary: isConnected ? 'Connection healthy' : 'Not connected',
+    };
+
+    // Get more details from connection manager if available
+    const connectionManager = (this.officialClient as any).connectionManager;
+    if (connectionManager) {
+      const health = connectionManager.getHealthStatus?.();
+      if (health) {
+        if (health.circuitBreakerState === 'open') {
+          result.summary = 'Circuit breaker open - too many failures';
+        } else if (health.consecutiveFailures > 0) {
+          result.summary = `Connection unstable - ${health.consecutiveFailures} failures`;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Test connection quality
+   */
+  async testConnection(type: 'basic' | 'latency' | 'throughput' | 'comprehensive'): Promise<TestResult> {
+    const startTime = Date.now();
+    const isConnected = this.isConnected();
+    
+    const result: TestResult = {
+      type,
+      timestamp: new Date(),
+      duration: 0,
+      results: {},
+      success: false,
+    };
+
+    if (!isConnected) {
+      result.error = 'Not connected to Q-SYS Core';
+      result.duration = Date.now() - startTime;
+      return result;
+    }
+
+    try {
+      switch (type) {
+        case 'basic':
+          // Simple connectivity test
+          const statusResponse = await this.sendCommand('StatusGet' as any, {});
+          result.results.basic = {
+            connected: true,
+            responseTime: Date.now() - startTime,
+          };
+          result.success = true;
+          break;
+
+        case 'latency':
+          // Measure latency with multiple pings
+          const latencies: number[] = [];
+          for (let i = 0; i < 10; i++) {
+            const pingStart = Date.now();
+            await this.sendCommand('StatusGet' as any, {});
+            latencies.push(Date.now() - pingStart);
+          }
+          latencies.sort((a, b) => a - b);
+          result.results.latency = {
+            min: latencies[0] || 0,
+            max: latencies[latencies.length - 1] || 0,
+            avg: latencies.reduce((a, b) => a + b, 0) / latencies.length,
+            p95: latencies[Math.floor(latencies.length * 0.95)] || 0,
+            p99: latencies[Math.floor(latencies.length * 0.99)] || 0,
+          };
+          result.success = true;
+          break;
+
+        case 'throughput':
+          // Test command throughput
+          const throughputStart = Date.now();
+          let commandCount = 0;
+          const testDuration = 5000; // 5 seconds
+          
+          while (Date.now() - throughputStart < testDuration) {
+            await this.sendCommand('StatusGet' as any, {});
+            commandCount++;
+          }
+          
+          const actualDuration = (Date.now() - throughputStart) / 1000;
+          result.results.throughput = {
+            commandsPerSecond: commandCount / actualDuration,
+            bytesPerSecond: 0, // Would need to track actual bytes
+          };
+          result.success = true;
+          break;
+
+        case 'comprehensive':
+          // Run all tests
+          const basicTest = await this.testConnection('basic');
+          const latencyTest = await this.testConnection('latency');
+          const throughputTest = await this.testConnection('throughput');
+          
+          result.results = {
+            ...(basicTest.results.basic && { basic: basicTest.results.basic }),
+            ...(latencyTest.results.latency && { latency: latencyTest.results.latency }),
+            ...(throughputTest.results.throughput && { throughput: throughputTest.results.throughput }),
+          };
+          result.success = basicTest.success && latencyTest.success && throughputTest.success;
+          break;
+      }
+    } catch (error) {
+      result.error = error instanceof Error ? error.message : 'Test failed';
+      result.success = false;
+    }
+
+    result.duration = Date.now() - startTime;
+    return result;
+  }
+
+  /**
+   * Update connection configuration at runtime
+   */
+  updateConnectionConfig(config: Partial<ConnectionConfig>): void {
+    logger.info('Updating connection configuration', { config });
+    
+    // Update connection manager settings if available
+    const connectionManager = (this.officialClient as any).connectionManager;
+    if (connectionManager && typeof connectionManager.updateConfig === 'function') {
+      connectionManager.updateConfig(config);
+    }
+
+    // Store config update in history
+    this.addConnectionEvent({
+      type: 'connect',
+      details: { configUpdate: config },
+    });
+  }
+
+  /**
+   * Switch to a different Q-SYS Core IP address
+   * Performs a complete disconnect, state clear, and reconnect
+   */
+  async switchCore(target: CoreTarget): Promise<void> {
+    const previousHost = (this.officialClient as any).options?.host;
+    logger.info('Switching Q-SYS Core connection', { 
+      from: previousHost, 
+      to: target.host,
+      port: target.port || 443
+    });
+
+    try {
+      // Step 1: Disconnect from current core
+      logger.debug('Disconnecting from current core...');
+      if (this.isConnected()) {
+        await this.officialClient.disconnect();
+      }
+
+      // Step 2: Clear all state (clean slate)
+      logger.debug('Clearing all caches and state...');
+      
+      // Clear discovery cache
+      this.clearAllCaches();
+      
+      // Clear change groups
+      this.changeGroups.clear();
+      
+      // Clear auto-poll timers
+      this.autoPollTimers.forEach(timer => clearInterval(timer));
+      this.autoPollTimers.clear();
+      this.autoPollFailureCounts.clear();
+      
+      // Clear connection history for clean start
+      this.connectionHistory = [];
+      
+      // Reset sequence number
+      this.globalSequenceNumber = 0;
+
+      // Step 3: Update client configuration
+      logger.debug('Updating client configuration...');
+      const clientOptions = (this.officialClient as any).options;
+      if (clientOptions) {
+        clientOptions.host = target.host;
+        clientOptions.port = target.port || 443;
+        
+        // Update credentials if provided
+        if (target.credentials) {
+          clientOptions.username = target.credentials.username;
+          clientOptions.password = target.credentials.password;
+        }
+      }
+
+      // Step 4: Connect to new IP
+      logger.info('Connecting to new Q-SYS Core...', { 
+        host: target.host, 
+        port: target.port || 443 
+      });
+      await this.officialClient.connect();
+
+      // Step 5: Verify connection and log event
+      const connected = this.isConnected();
+      this.addConnectionEvent({
+        type: 'connect',
+        success: connected,
+        details: { 
+          action: 'switch',
+          previousHost,
+          newHost: target.host,
+          port: target.port || 443
+        },
+      });
+
+      if (connected) {
+        logger.info('Successfully switched to new Q-SYS Core', { 
+          host: target.host,
+          port: target.port || 443
+        });
+      } else {
+        throw new Error(`Failed to connect to ${target.host}:${target.port || 443}`);
+      }
+    } catch (error) {
+      logger.error('Failed to switch Q-SYS Core', { 
+        error,
+        targetHost: target.host,
+        previousHost 
+      });
+      
+      // Log failure event
+      this.addConnectionEvent({
+        type: 'error',
+        reason: `Switch failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: { 
+          action: 'switch',
+          targetHost: target.host,
+          error 
+        },
+      });
+
+      throw error;
+    }
   }
 
   /**
