@@ -310,7 +310,7 @@ export class QRWCClientAdapter
           (command as string) !== 'Status.Get' &&
           (command as string) !== 'StatusGet'
         ) {
-          throw new QSysError('QRWC client not connected', QSysErrorCode.CONNECTION_FAILED);
+          throw new QSysError('Not connected', QSysErrorCode.CONNECTION_FAILED);
         }
 
         // Safely log params without circular references

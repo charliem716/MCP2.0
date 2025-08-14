@@ -99,7 +99,11 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       if (!this.skipConnectionCheck()) {
         const connectionCheck = async () => {
           if (!this.controlSystem.isConnected()) {
-            throw new QSysError('Q-SYS Core not connected', QSysErrorCode.CONNECTION_FAILED);
+            // Provide more helpful error message
+            throw new QSysError(
+              'Not connected to Q-SYS Core. Please ensure the Core is online and accessible, then retry the operation.',
+              QSysErrorCode.CONNECTION_FAILED
+            );
           }
         };
         
