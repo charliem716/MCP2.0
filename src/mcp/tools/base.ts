@@ -98,13 +98,25 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
       // Check QRWC connection with timeout (unless tool opts out)
       if (!this.skipConnectionCheck()) {
         const connectionCheck = async () => {
-          if (!this.controlSystem.isConnected()) {
-            // Provide more helpful error message
-            throw new QSysError(
-              'Not connected to Q-SYS Core. Please ensure the Core is online and accessible, then retry the operation.',
-              QSysErrorCode.CONNECTION_FAILED
-            );
+          // BUG-208: Wait briefly for connection to establish (race condition fix)
+          // Give the connection up to 2 seconds to establish before failing
+          const maxWaitTime = 2000; // 2 seconds
+          const checkInterval = 100; // Check every 100ms
+          const startTime = Date.now();
+          
+          while (Date.now() - startTime < maxWaitTime) {
+            if (this.controlSystem.isConnected()) {
+              return; // Connection established, proceed
+            }
+            // Wait a bit before checking again
+            await new Promise(resolve => setTimeout(resolve, checkInterval));
           }
+          
+          // Still not connected after waiting
+          throw new QSysError(
+            'Not connected to Q-SYS Core. Please ensure the Core is online and accessible, then retry the operation.',
+            QSysErrorCode.CONNECTION_FAILED
+          );
         };
         
         await withTimeout(connectionCheck(), 5000, 'Connection check');

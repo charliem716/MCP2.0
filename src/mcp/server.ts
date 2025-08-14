@@ -328,8 +328,15 @@ export class MCPServer {
       
       // Connect to Q-SYS with retry logic for initial connection
       // BUG-205: Fix connection state issues in MCP mode
+      // BUG-208: Add initial connection timeout to prevent race condition
       try {
-        await this.officialQrwcClient.connect();
+        // Use a longer timeout for initial connection (5 seconds)
+        const connectionPromise = this.officialQrwcClient.connect();
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Initial connection timeout')), 5000);
+        });
+        
+        await Promise.race([connectionPromise, timeoutPromise]);
         logger.info('Q-SYS Core connected successfully');
         this.setupReconnectionHandlers();
       } catch (error) {
