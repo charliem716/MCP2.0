@@ -434,15 +434,16 @@ Verify each tool works as expected.
 ### Test 5.3: Persistent State Recovery
 ```
 Test persistence across restarts:
-1. Set 10 controls to specific test values
-2. Note the timestamp
-3. Simulate a connection loss (use manage_connection with action:"disconnect")
-4. Reset circuit breaker if needed (use manage_connection with action:"resetCircuitBreaker")
-5. Reconnect to Q-SYS (use manage_connection with action:"reconnect", timeout must be ≥1000)
-6. Verify controls retained their values using get_control_values
-7. Check if any state was lost during disconnect
+1. Ensure connected (use manage_connection with action:"reconnect")
+2. Set 10 controls to specific test values
+3. Note the timestamp from get_control_values
+4. Force disconnect (use manage_connection with action:"reset", force:true)
+5. Reset circuit breaker if needed (use manage_connection with action:"reset", resetCircuitBreaker:true)
+6. Reconnect to Q-SYS (use manage_connection with action:"reconnect", timeout:30000)
+7. Verify controls retained their values using get_control_values
+8. Check if any state was lost during disconnect
 
-Note: If reconnection fails due to circuit breaker, reset it before attempting reconnect.
+Note: Maximum timeout is 60000ms. The reset action with force:true performs disconnect+reconnect.
 ```
 
 ---
