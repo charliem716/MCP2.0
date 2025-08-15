@@ -399,7 +399,7 @@ Please execute the following test to verify ALL 7 change group tools:
 
 1. Use create_change_group to create group with ID "test-batch"
 2. Use add_controls_to_change_group to add 5 real controls
-3. Use poll_change_group to check for changes
+3. Use poll_change_group to check for changes (showAll parameter must be boolean: true or false)
 4. Use list_change_groups to verify group exists
 5. Use remove_controls_from_change_group to remove 2 controls
 6. Use clear_change_group to empty the group
