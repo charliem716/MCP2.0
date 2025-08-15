@@ -384,9 +384,10 @@ Test state management:
 2. Get current values for these 20 controls
 3. Save this state snapshot
 4. Change all 20 controls to different values
-5. Verify changes applied
+5. Verify changes applied (readback with get_control_values)
 6. Restore original state from snapshot
-7. Verify restoration succeeded
+7. Verify restoration succeeded (readback with get_control_values)
+8. Confirm restored values match original snapshot from step 2
 ```
 
 ### Test 5.2: Change Group Management
