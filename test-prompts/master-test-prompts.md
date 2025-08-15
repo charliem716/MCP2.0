@@ -21,19 +21,23 @@ Please execute the following test and report results:
 
 1. Use the echo tool with message "connection test" to verify MCP connectivity
 2. Use query_core_status to check the Q-SYS Core connection status
-3. Report the Core's firmware version, model, and design name
-4. Report total component count if available
+3. Report the Core's platform, version (if available), and design name
+4. Report total component count
 5. Note any connection warnings, errors, or unexpected responses
 
 EXPECTED OUTPUT FORMAT:
 - Echo Response: [success/failure - actual response]
 - Core Status: [connected/disconnected]
-- Core Model: [model name]
-- Firmware Version: [version]
+- Core Platform: [platform name, e.g., "Q-SYS Designer"]
+- Version: [version or "Unknown" - this is normal for Q-SYS Designer]
 - Design Name: [name]
-- Component Count: [number or "not available"]
+- Component Count: [number - should match design component count]
 - Errors/Warnings: [list any issues]
 - Overall Result: [PASS/FAIL with reason]
+
+NOTE: Fields like firmwareVersion, serialNumber, and network details may show 
+"Unknown" especially on Q-SYS Designer. This is expected behavior due to Q-SYS 
+API limitations. See docs/STATUS-LIMITATIONS.md for details.
 
 Report any unexpected behavior or deviations from expected results.
 ```
@@ -927,10 +931,10 @@ qsys_component_get:
 query_core_status:
 - Call with no parameters
 - Check status includes:
-  * Core model and version
-  * Network information
-  * System health metrics
-  * Connected clients
+  * Core platform and version (may be "Unknown")
+  * Design name and component count
+  * Connection status
+  * System status (OK/Error)
 - Call repeatedly to check for changes
 ```
 
@@ -1459,8 +1463,8 @@ EXPECTED OUTPUT FORMAT:
 - Diagnostic Results: [summary of issues found]
 - Basic Test Results: [pass/fail with details]
 - Core Information:
-  * Model: [model name]
-  * Firmware: [version]
+  * Platform: [platform name]
+  * Version: [version or "Unknown"]
   * Design: [name]
   * Components: [count]
 - Connection Issues: [list any problems]
