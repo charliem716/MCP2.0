@@ -85,7 +85,7 @@ export class QueryCoreStatusTool extends BaseQSysTool<QueryCoreStatusParams> {
           },
           connectionStatus: {
             connected: false,
-            message: 'MCP server is not connected to Q-SYS Core'
+            message: 'MCP server is not connected to Q-SYS Core. Use manage_connection tool to diagnose: {action:"diagnose"}'
           }
         };
         

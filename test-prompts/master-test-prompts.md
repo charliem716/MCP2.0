@@ -14,7 +14,6 @@ Copy the entire prompt block (including expected output format) for each test.
 
 ### Test 1.1: Initial Connection Verification
 
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Initial Connection Verification
 
@@ -41,7 +40,6 @@ Report any unexpected behavior or deviations from expected results.
 
 ### Test 1.2: Component Discovery
 
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Component Discovery
 
@@ -69,7 +67,6 @@ Note if list_components returns unexpected format or errors.
 
 ### Test 1.3: Control Enumeration
 
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Control Enumeration
 
@@ -109,7 +106,6 @@ Include specific examples of control names for reference.
 
 ### Test 2.1: Simple Get Operations
 
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Simple Get Operations
 
@@ -144,8 +140,6 @@ Note if get_control_values accepts the control name format you're using.
 ```
 
 ### Test 2.2: Simple Set Operations
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Simple Set Operations
 
@@ -185,8 +179,6 @@ Report if validate:false was required for success.
 ```
 
 ### Test 2.3: Component Get Operations
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Component Get Operations
 
@@ -231,8 +223,6 @@ NOTE: qsys_component_get is most efficient for getting ALL controls from one com
 ## SECTION 3: BATCH OPERATIONS & PERFORMANCE
 
 ### Test 3.1: Small Batch Operations
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Small Batch Operations (10 Controls)
 
@@ -261,8 +251,6 @@ Report if batch operations work as expected.
 ```
 
 ### Test 3.2: Validation Behavior (BUG-203 Update)
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Validation Behavior with Q-SYS Response Patterns
 
@@ -303,8 +291,6 @@ Pre-validation only checks if controls exist, not if Q-SYS will accept them.
 ```
 
 ### Test 3.3: Maximum Batch Limits
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Maximum Batch Size Limits
 
@@ -401,7 +387,6 @@ Test state management:
 
 ### Test 5.2: Change Group Management
 
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Complete Change Group Lifecycle
 
@@ -457,8 +442,6 @@ Test persistence across restarts:
 ## SECTION 6: EVENT MONITORING & TRACKING
 
 ### Test 6.1: Basic Event Monitoring
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Basic Event Monitoring
 
@@ -491,8 +474,6 @@ Confirm event monitoring is capturing changes.
 ```
 
 ### Test 6.2: Event Query Filtering
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Event Query Filtering
 
@@ -527,7 +508,6 @@ Document the correct filter syntax.
 
 ### Test 6.3: Event Statistics Analysis
 
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Event Statistics Analysis
 
@@ -588,8 +568,6 @@ Note: Skip if no router/matrix components are found
 ```
 
 ### Test 7.2: Audio Cross-fades (Manual Implementation)
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Manual Audio Cross-fade Implementation
 
@@ -687,8 +665,6 @@ Test emergency procedures:
 Tests audio processing components
 
 ### Test 9.1: EQ Control
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Equalizer Control Testing
 
@@ -787,8 +763,6 @@ Test simultaneous operations:
 ## SECTION 11: MCP PROTOCOL TESTING
 
 ### Test 11.1: Complete MCP Tool Coverage
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Verify All 17 MCP Tools (16 Q-SYS + 1 Testing)
 
@@ -1116,8 +1090,6 @@ Test API documentation discovery:
 ```
 
 ### Test 11.6.2: Control Documentation
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Control Type Documentation
 
@@ -1218,8 +1190,6 @@ Test update rate limits:
 ```
 
 ### Test 12.2: Parallel Operations
-
-**COPY THIS ENTIRE PROMPT TO AGENT:**
 ```
 TEST: Concurrent Operations Load Test
 
@@ -1472,7 +1442,34 @@ Verify production readiness:
 10. Generate readiness report
 ```
 
-### Test 15.3: Stress Test Ultimate
+### Test 15.3: Connection Tool Diagnosis
+```
+TEST: Connection Tool Diagnosis
+
+Please execute the following test and report results:
+
+1. Use the manage_connection tool with action "status" to check connection status
+2. Use manage_connection with action "diagnose" to run connection diagnostics
+3. Use manage_connection with action "test" and type "basic" for connectivity test
+4. Use query_core_status to verify Q-SYS Core information
+5. Report any connection issues, warnings, or errors
+
+EXPECTED OUTPUT FORMAT:
+- Connection Status: [connected/disconnected]
+- Diagnostic Results: [summary of issues found]
+- Basic Test Results: [pass/fail with details]
+- Core Information:
+  * Model: [model name]
+  * Firmware: [version]
+  * Design: [name]
+  * Components: [count]
+- Connection Issues: [list any problems]
+- Overall Result: [PASS/FAIL with reason]
+
+Note: The tool name is "manage_connection", not "functions.connection_tool"
+```
+
+### Test 15.4: Stress Test Ultimate
 ```
 Maximum stress test:
 1. Connect to largest available Q-SYS system

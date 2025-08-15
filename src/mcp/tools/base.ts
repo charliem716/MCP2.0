@@ -114,7 +114,7 @@ export abstract class BaseQSysTool<TParams = Record<string, unknown>> {
           
           // Still not connected after waiting
           throw new QSysError(
-            'Not connected to Q-SYS Core. Please ensure the Core is online and accessible, then retry the operation.',
+            'Not connected to Q-SYS Core. Use manage_connection tool with action:"diagnose" to troubleshoot, or action:"reconnect" to retry connection. Example: {action:"diagnose"}',
             QSysErrorCode.CONNECTION_FAILED
           );
         };
