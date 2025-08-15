@@ -436,10 +436,13 @@ Verify each tool works as expected.
 Test persistence across restarts:
 1. Set 10 controls to specific test values
 2. Note the timestamp
-3. Simulate a connection loss
-4. Reconnect to Q-SYS
-5. Verify controls retained their values
-6. Check if any state was lost during disconnect
+3. Simulate a connection loss (use manage_connection with action:"disconnect")
+4. Reset circuit breaker if needed (use manage_connection with action:"resetCircuitBreaker")
+5. Reconnect to Q-SYS (use manage_connection with action:"reconnect", timeout must be ≥1000)
+6. Verify controls retained their values using get_control_values
+7. Check if any state was lost during disconnect
+
+Note: If reconnection fails due to circuit breaker, reset it before attempting reconnect.
 ```
 
 ---
