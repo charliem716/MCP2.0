@@ -454,56 +454,72 @@ Note: Maximum timeout is 60000ms. The reset action with force:true performs disc
 ```
 TEST: Basic Event Monitoring
 
+IMPORTANT: Event monitoring ONLY captures changes through change group polling, 
+not direct set_control_values calls. This test uses change groups as designed.
+
 Please execute the following test and report results:
 
-1. Use get_event_statistics to check monitoring status
-2. Note the current total event count
-3. Use set_control_values to change 5 different controls
-4. Wait 2 seconds for events to be recorded
-5. Use query_change_events with no filters to get recent events
-6. Verify your 5 changes appear in the results
-7. Use get_event_statistics again to verify count increased by 5
+1. Use list_components to find available components
+2. Use get_event_statistics to check monitoring status and note event count
+3. Create a change group using create_change_group with id: "test-monitor"
+4. Add 5 controls to the group using add_controls_to_change_group
+   (Use real control names like "Matrix_Mixer 9x6.input.1.gain")
+5. Use set_control_values to change those 5 controls
+6. Use poll_change_group to poll the change group (this records events)
+7. Use query_change_events with no filters to get recent events
+8. Verify your 5 changes appear in the results
+9. Use get_event_statistics again to verify count increased
+10. Clean up with destroy_change_group
 
 EXPECTED OUTPUT FORMAT:
+- Components Found: [list first 3 component names]
 - Initial Statistics:
   * Monitoring Enabled: [yes/no]
   * Initial Event Count: [number]
-- Controls Changed: [list 5 control names and values]
+- Change Group Created: [id]
+- Controls Added: [list 5 control names]
+- Controls Changed: [list values set]
+- Poll Result: [success/failure]
 - Query Results:
   * Events Found: [number]
   * Your Changes Present: [yes/no - list them]
-  * Timestamps Correct: [yes/no]
+  * Change Group ID Matches: [yes/no]
 - Final Statistics:
   * Final Event Count: [number]
-  * Count Increased By: [should be 5 or more]
+  * Count Increased: [yes/no]
 - Tool Errors: [any errors]
 - Overall Result: [PASS/FAIL with reason]
 
-Confirm event monitoring is capturing changes.
+Confirm event monitoring is capturing changes via change group polling.
 ```
 
 ### Test 6.2: Event Query Filtering
 ```
 TEST: Event Query Filtering
 
+NOTE: Remember events are only recorded via change group polling.
+
 Please execute the following test and report results:
 
-1. Make 3 changes to component "Gain1" (if it exists)
-2. Make 3 changes to component "Gain2" (if it exists)
-3. Test query_change_events filters:
-   - Query with componentNames:["Gain1"] 
+1. Use list_components to find 2 components with multiple controls
+2. Create change group "filter-test" and add 3 controls from each component
+3. Use set_control_values to modify the 6 controls with different values
+4. Poll the change group to record the events
+5. Test query_change_events filters:
+   - Query with componentNames:[first_component_name] 
    - Query with limit:5
    - Query with offset:2
-   - Query last 60 seconds (use startTime)
+   - Query last 60 seconds (use startTime in ISO format)
    - Combine componentNames + limit filters
-4. Verify each filter works correctly
+6. Verify each filter works correctly
+7. Clean up with destroy_change_group
 
 EXPECTED OUTPUT FORMAT:
-- Changes Made:
-  * Gain1: [list 3 changes]
-  * Gain2: [list 3 changes]
+- Components Used: [list 2 component names]
+- Controls Modified: [list 6 control paths]
+- Poll Success: [yes/no]
 - Filter Tests:
-  * componentNames Filter: [returns only Gain1 - yes/no]
+  * componentNames Filter: [returns only first component - yes/no]
   * limit:5 Filter: [returns max 5 - yes/no]
   * offset:2 Filter: [skips first 2 - yes/no]
   * Time Filter: [returns recent only - yes/no]
@@ -523,29 +539,33 @@ TEST: Event Statistics Analysis
 Please execute the following test and report results:
 
 1. Use get_event_statistics to get baseline
-2. Make 20 rapid changes across 5 different components
-3. Wait 3 seconds for processing
-4. Use get_event_statistics again
-5. Verify statistics accurately reflect your changes
+2. Use list_components to find 5 components with controls
+3. Create change group "stats-test" 
+4. Add 4 controls from each of the 5 components (20 total)
+5. Make rapid changes to all 20 controls using set_control_values
+6. Poll the change group to record all events
+7. Use get_event_statistics again
+8. Verify statistics accurately reflect your changes
+9. Clean up with destroy_change_group
 
 EXPECTED OUTPUT FORMAT:
 - Baseline Statistics:
   * Total Events: [number]
   * Unique Controls: [number]
-  * Database Size: [bytes]
-- Changes Made: [brief summary of 20 changes]
+- Components Used: [list 5 names]
+- Controls Added: 20 (4 per component)
+- Poll Success: [yes/no]
 - Updated Statistics:
   * Total Events: [increased by ~20]
   * Unique Controls: [number]
-  * Events by Component: [show top 5]
-  * Hourly Distribution: [if available]
+  * Events Recorded: [actual increase]
 - Statistics Accuracy:
   * Event Count Correct: [yes/no]
-  * Component Breakdown Correct: [yes/no]
+  * All Controls Captured: [yes/no]
 - Tool Errors: [any errors]
 - Overall Result: [PASS/FAIL with reason]
 
-Verify statistics are tracking correctly.
+Verify statistics are tracking correctly via change groups.
 ```
 
 ### Test 6.4: High-Frequency Event Handling
