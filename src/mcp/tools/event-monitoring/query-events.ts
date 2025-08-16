@@ -59,6 +59,14 @@ export class QueryChangeEventsTool extends BaseQSysTool<QueryEventsParams> {
     );
   }
 
+  /**
+   * Override to skip connection check - queries local SQLite database
+   * Event data is stored locally and doesn't require Q-SYS connection
+   */
+  protected override skipConnectionCheck(): boolean {
+    return true;
+  }
+
   protected async executeInternal(params: QueryEventsParams): Promise<ToolCallResult> {
     const startTime = Date.now();
 

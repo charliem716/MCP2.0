@@ -1227,6 +1227,11 @@ export class QRWCClientAdapter
     
     const groupId = params['Id'] as string;
     
+    // Check if group exists
+    if (!this.changeGroups.has(groupId)) {
+      throw new QSysError(`Change group '${groupId}' not found`, QSysErrorCode.COMMAND_FAILED);
+    }
+    
     // Clear timer if exists
     const timer = this.autoPollTimers.get(groupId);
     if (timer) {

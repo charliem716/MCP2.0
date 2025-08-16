@@ -580,6 +580,11 @@ describe('QueryCoreStatusTool - Type handling regression', () => {
           IsConnected: true,
         },
       });
+      
+      // Mock Component.GetComponents response for component count
+      mockQrwcClient.sendCommand.mockResolvedValueOnce({
+        result: Array(15).fill({ Name: 'Component', Type: 'Generic' })
+      });
 
       const result = await tool.execute({});
 
@@ -594,9 +599,10 @@ describe('QueryCoreStatusTool - Type handling regression', () => {
       expect(statusData.coreInfo.platform).toBe('Core 110f');
       expect(statusData.coreInfo.designName).toBe('Conference Room');
 
-      // Should only call StatusGet, not component scanning
-      expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(1);
+      // Should call StatusGet and Component.GetComponents for component count
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledTimes(2);
       expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Status.Get');
+      expect(mockQrwcClient.sendCommand).toHaveBeenCalledWith('Component.GetComponents');
     });
   });
 });

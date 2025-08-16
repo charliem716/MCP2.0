@@ -57,6 +57,9 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
       Rate: pollRate,
     });
 
+    // Check if group already exists (indicated by warning)
+    const isDuplicate = result.warning?.includes('already exists');
+    
     const response: {
       success: boolean;
       groupId: string;
@@ -65,8 +68,9 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
       pollRate: number;
       frequency: string;
       recording: boolean;
+      error?: string;
     } = {
-      success: true,
+      success: !isDuplicate,
       groupId: params.groupId,
       message: result.warning ?? `Change group '${params.groupId}' created with auto-polling`,
       pollRate,
@@ -75,7 +79,11 @@ export class CreateChangeGroupTool extends BaseQSysTool<CreateChangeGroupParams>
     };
 
     if (result.warning) {
-      response.warning = result.warning;
+      if (isDuplicate) {
+        response.error = result.warning;
+      } else {
+        response.warning = result.warning;
+      }
     }
 
     return {

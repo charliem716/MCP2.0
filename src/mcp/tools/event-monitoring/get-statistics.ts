@@ -26,6 +26,14 @@ export class GetEventStatisticsTool extends BaseQSysTool<GetEventStatisticsParam
     );
   }
 
+  /**
+   * Override to skip connection check - reads local database statistics
+   * Statistics are computed from local SQLite database without Q-SYS connection
+   */
+  protected override skipConnectionCheck(): boolean {
+    return true;
+  }
+
   protected async executeInternal(
     params: GetEventStatisticsParams
   ): Promise<ToolCallResult> {

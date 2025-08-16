@@ -58,11 +58,19 @@ export class GetAPIDocumentationTool extends BaseQSysTool<GetAPIDocumentationPar
     super(
       qrwcClient,
       'get_api_documentation',
-      "Get comprehensive API documentation and reference for Q-SYS MCP tools. Query types: 'tools', 'methods', 'components', 'controls', 'examples'. Supports search and filtering. This is a documentation tool, not for direct API execution. Example: {query_type:'tools',search:'gain'}.",
+      "Get comprehensive API documentation and reference for Q-SYS MCP tools. Query types: 'tools' (MCP tools), 'methods' (Q-SYS API methods), 'components' (component types), 'controls' (control types), 'examples' (usage examples). The component_type parameter filters methods that work with that component type. The search parameter searches method names and descriptions only. Example: {query_type:'tools',search:'gain'}.",
       GetAPIDocumentationParamsSchema
     );
 
     this.apiReference = new QSysAPIReference();
+  }
+
+  /**
+   * Override to skip connection check - documentation tool works offline
+   * Returns static API reference data without needing Q-SYS connection
+   */
+  protected override skipConnectionCheck(): boolean {
+    return true;
   }
 
   protected async executeInternal(

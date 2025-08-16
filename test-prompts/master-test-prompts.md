@@ -540,32 +540,38 @@ Please execute the following test and report results:
 
 1. Use get_event_statistics to get baseline
 2. Use list_components to find 5 components with controls
-3. Create change group "stats-test" 
-4. Add 4 controls from each of the 5 components (20 total)
-5. Make rapid changes to all 20 controls using set_control_values
-6. Poll the change group to record all events
-7. Use get_event_statistics again
-8. Verify statistics accurately reflect your changes
-9. Clean up with destroy_change_group
+3. Create change group "stats-test" with pollRate: 0.1
+4. Use list_controls to verify control names for each component
+5. Add 4 valid controls from each of the 5 components (20 total)
+6. Make rapid changes to all 20 controls using set_control_values
+7. Wait 2 seconds for auto-polling to capture events
+8. Destroy the change group to stop polling
+9. Use get_event_statistics again
+10. Calculate the event increase
 
 EXPECTED OUTPUT FORMAT:
 - Baseline Statistics:
   * Total Events: [number]
   * Unique Controls: [number]
 - Components Used: [list 5 names]
-- Controls Added: 20 (4 per component)
-- Poll Success: [yes/no]
+- Controls Added: 20 (4 per component verified with list_controls)
+- Set Control Results:
+  * Successful: [number]
+  * Failed: [number with reasons]
+- Wait Period: 2 seconds
+- Change Group Destroyed: [yes/no]
 - Updated Statistics:
-  * Total Events: [increased by ~20]
+  * Total Events: [new total]
+  * Event Increase: [new total - baseline]
   * Unique Controls: [number]
-  * Events Recorded: [actual increase]
-- Statistics Accuracy:
-  * Event Count Correct: [yes/no]
-  * All Controls Captured: [yes/no]
-- Tool Errors: [any errors]
-- Overall Result: [PASS/FAIL with reason]
+- Statistics Notes:
+  * Auto-polling at 0.1s generated additional events
+  * Event count includes both manual changes and poll updates
+- Tool Errors: [any errors with details]
+- Overall Result: [PASS if all controls set and events recorded]
 
-Verify statistics are tracking correctly via change groups.
+NOTE: Event count will be >20 due to auto-polling at 10Hz
+NOTE: poll_change_group showAll parameter must be boolean, not string
 ```
 
 ### Test 6.4: High-Frequency Event Handling
