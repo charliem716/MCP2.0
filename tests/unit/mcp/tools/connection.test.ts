@@ -6,8 +6,6 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { ManageConnectionTool } from '../../../../src/mcp/tools/connection.js';
 import type { IControlSystem } from '../../../../src/mcp/interfaces/control-system.js';
 import type { ConnectionHealth } from '../../../../src/qrwc/connection/ConnectionManager.js';
-import { ConnectionState } from '../../../../src/shared/types/common.js';
-import type { ConnectionEvent } from '../../../../src/mcp/types/connection.js';
 
 describe('ManageConnectionTool', () => {
   let mockControlSystem: jest.Mocked<IControlSystem>;
@@ -19,11 +17,8 @@ describe('ManageConnectionTool', () => {
       isConnected: jest.fn(),
       sendCommand: jest.fn(),
       getConnectionHealth: jest.fn(),
-      reconnect: jest.fn(),
-      getConnectionHistory: jest.fn(),
-      runDiagnostics: jest.fn(),
-      testConnection: jest.fn(),
-      updateConnectionConfig: jest.fn(),
+      switchCore: jest.fn(),
+      disconnect: jest.fn(),
     } as any;
 
     // Create tool instance
@@ -33,7 +28,10 @@ describe('ManageConnectionTool', () => {
   describe('Tool Metadata', () => {
     it('should have correct name and description', () => {
       expect(tool.name).toBe('manage_connection');
-      expect(tool.description).toContain('Manage Q-SYS connection');
+      expect(tool.description).toContain('Manage Q-SYS Core connection');
+      expect(tool.description).toContain('status');
+      expect(tool.description).toContain('connect');
+      expect(tool.description).toContain('disconnect');
       expect(tool.description.length).toBeLessThan(240); // MCP limit
     });
   });
@@ -48,203 +46,219 @@ describe('ManageConnectionTool', () => {
         consecutiveFailures: 0,
         totalAttempts: 10,
         totalSuccesses: 10,
-        uptime: 3600000,
-        state: ConnectionState.CONNECTED,
+        lastError: null,
         circuitBreakerState: 'closed',
+        connectionState: 'connected' as any,
       };
-      mockControlSystem.getConnectionHealth!.mockReturnValue(mockHealth);
+      mockControlSystem.getConnectionHealth.mockReturnValue(mockHealth);
 
       // Act
       const result = await tool.execute({ action: 'status' });
 
       // Assert
       expect(result.isError).toBe(false);
-      expect(result.content[0].type).toBe('text');
-      const data = JSON.parse(result.content[0].text!);
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
       expect(data.action).toBe('status');
       expect(data.data.connected).toBe(true);
-      expect(data.data.health).toEqual(mockHealth);
+      expect(data.data.message).toContain('Connected');
+      expect(data.data.uptime).toBeGreaterThanOrEqual(0);
     });
 
-    it('should return verbose status with history when requested', async () => {
-      // Arrange
-      mockControlSystem.isConnected.mockReturnValue(true);
-      const mockEvents: ConnectionEvent[] = [
-        {
-          timestamp: new Date(),
-          type: 'connect',
-          correlationId: 'test-1',
-          success: true,
-        },
-        {
-          timestamp: new Date(),
-          type: 'disconnect',
-          correlationId: 'test-2',
-          reason: 'Network error',
-        },
-      ];
-      mockControlSystem.getConnectionHistory!.mockReturnValue(mockEvents);
-
-      // Act
-      const result = await tool.execute({ action: 'status', verbose: true });
-
-      // Assert
-      expect(result.isError).toBe(false);
-      const data = JSON.parse(result.content[0].text!);
-      expect(data.data.history).toBeDefined();
-      expect(data.data.history.summary.connections).toBe(1);
-      expect(data.data.history.summary.disconnections).toBe(1);
-    });
-  });
-
-  describe('Reconnect Action', () => {
-    it('should trigger reconnection', async () => {
-      // Arrange
-      mockControlSystem.reconnect!.mockResolvedValue(undefined);
-      mockControlSystem.isConnected.mockReturnValue(true);
-
-      // Act
-      const result = await tool.execute({ 
-        action: 'reconnect',
-        force: true,
-        maxAttempts: 5,
-      });
-
-      // Assert
-      expect(result.isError).toBe(false);
-      const data = JSON.parse(result.content[0].text!);
-      expect(data.success).toBe(true);
-      expect(data.action).toBe('reconnect');
-      expect(data.data.connected).toBe(true);
-      expect(mockControlSystem.reconnect).toHaveBeenCalledWith({
-        force: true,
-        maxAttempts: 5,
-      });
-    });
-
-    it('should handle reconnection failure', async () => {
-      // Arrange
-      mockControlSystem.reconnect!.mockRejectedValue(new Error('Connection failed'));
-      
-      // Act
-      const result = await tool.execute({ action: 'reconnect' });
-
-      // Assert
-      expect(result.isError).toBe(true);
-      const data = JSON.parse(result.content[0].text!);
-      expect(data.success).toBe(false);
-      expect(data.error.message).toBe('Connection failed');
-    });
-  });
-
-  describe('Diagnose Action', () => {
-    it('should run diagnostics when connected', async () => {
-      // Arrange
-      mockControlSystem.isConnected.mockReturnValue(true);
-      mockControlSystem.runDiagnostics!.mockResolvedValue({
-        timestamp: new Date(),
-        network: { reachable: true, latency: 10 },
-        dns: { resolved: true, addresses: ['192.168.1.100'] },
-        port: { open: true, service: 'qsys-websocket' },
-        websocket: { compatible: true, protocols: ['qrwc'] },
-        authentication: { valid: true, method: 'internal' },
-        resources: {
-          memory: { used: 100000, available: 200000, percentage: 50 },
-        },
-        summary: 'Connection healthy',
-      });
-
-      // Act
-      const result = await tool.execute({ action: 'diagnose' });
-
-      // Assert
-      expect(result.isError).toBe(false);
-      const data = JSON.parse(result.content[0].text!);
-      expect(data.success).toBe(true);
-      expect(data.data.summary).toBe('Connection healthy');
-    });
-
-    it('should provide basic diagnostics when methods not available', async () => {
+    it('should return connection status when disconnected', async () => {
       // Arrange
       mockControlSystem.isConnected.mockReturnValue(false);
-      mockControlSystem.runDiagnostics = undefined;
 
       // Act
-      const result = await tool.execute({ action: 'diagnose' });
+      const result = await tool.execute({ action: 'status' });
 
       // Assert
       expect(result.isError).toBe(false);
-      const data = JSON.parse(result.content[0].text!);
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
-      expect(data.data.summary).toContain('not established');
+      expect(data.action).toBe('status');
+      expect(data.data.connected).toBe(false);
+      expect(data.data.message).toContain('Not connected');
     });
   });
 
-  describe('History Action', () => {
-    it('should retrieve connection history', async () => {
+  describe('Connect Action', () => {
+    it('should connect to Q-SYS Core with host and default port', async () => {
       // Arrange
-      const mockEvents: ConnectionEvent[] = [
-        { timestamp: new Date(), type: 'connect', correlationId: '1', success: true },
-        { timestamp: new Date(), type: 'error', correlationId: '2', reason: 'Timeout' },
-        { timestamp: new Date(), type: 'disconnect', correlationId: '3' },
-      ];
-      mockControlSystem.getConnectionHistory!.mockReturnValue(mockEvents);
+      mockControlSystem.switchCore.mockResolvedValue(undefined);
+      mockControlSystem.isConnected.mockReturnValue(true);
 
       // Act
       const result = await tool.execute({ 
-        action: 'history',
-        timeRange: '1h',
-        eventType: 'all',
+        action: 'connect',
+        host: '192.168.1.100'
       });
 
       // Assert
       expect(result.isError).toBe(false);
-      const data = JSON.parse(result.content[0].text!);
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
-      expect(data.data.summary.totalEvents).toBe(3);
-      expect(data.data.summary.connections).toBe(1);
-      expect(data.data.summary.errors).toBe(1);
+      expect(data.action).toBe('connect');
+      expect(data.data.connected).toBe(true);
+      expect(data.data.host).toBe('192.168.1.100');
+      expect(data.data.port).toBe(443);
+      expect(data.data.message).toContain('Connected to Q-SYS Core at 192.168.1.100');
+      
+      // Verify switchCore was called
+      expect(mockControlSystem.switchCore).toHaveBeenCalledWith({
+        host: '192.168.1.100',
+        port: 443
+      });
     });
 
-    it('should filter history by event type', async () => {
+    it('should connect with custom port', async () => {
       // Arrange
-      const mockEvents: ConnectionEvent[] = [
-        { timestamp: new Date(), type: 'connect', correlationId: '1' },
-        { timestamp: new Date(), type: 'error', correlationId: '2' },
-        { timestamp: new Date(), type: 'error', correlationId: '3' },
-      ];
-      mockControlSystem.getConnectionHistory!.mockReturnValue(mockEvents);
+      mockControlSystem.switchCore.mockResolvedValue(undefined);
+      mockControlSystem.isConnected.mockReturnValue(true);
 
       // Act
       const result = await tool.execute({ 
-        action: 'history',
-        eventType: 'errors',
+        action: 'connect',
+        host: '192.168.1.100',
+        port: 8080
       });
 
       // Assert
-      const data = JSON.parse(result.content[0].text!);
-      expect(data.data.events.length).toBe(2);
-      expect(data.data.events.every((e: any) => e.type === 'error')).toBe(true);
+      expect(result.isError).toBe(false);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.data.port).toBe(8080);
+      
+      // Verify switchCore was called with custom port
+      expect(mockControlSystem.switchCore).toHaveBeenCalledWith({
+        host: '192.168.1.100',
+        port: 8080
+      });
     });
-  });
 
-  describe('Input Validation', () => {
-    it('should reject invalid action', async () => {
+    it('should switch cores when already connected', async () => {
+      // Arrange - already connected to a different core
+      mockControlSystem.isConnected.mockReturnValue(true);
+      mockControlSystem.switchCore.mockResolvedValue(undefined);
+
+      // Act - connect to new core
+      const result = await tool.execute({ 
+        action: 'connect',
+        host: '192.168.1.200'
+      });
+
+      // Assert
+      expect(result.isError).toBe(false);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.success).toBe(true);
+      expect(data.data.host).toBe('192.168.1.200');
+      
+      // Verify switchCore was called (it handles disconnecting from current)
+      expect(mockControlSystem.switchCore).toHaveBeenCalledWith({
+        host: '192.168.1.200',
+        port: 443
+      });
+    });
+
+    it('should handle connection failure', async () => {
+      // Arrange
+      mockControlSystem.switchCore.mockRejectedValue(new Error('Connection refused'));
+      mockControlSystem.isConnected.mockReturnValue(false);
+
       // Act
-      const result = await tool.execute({ action: 'invalid' as any });
+      const result = await tool.execute({ 
+        action: 'connect',
+        host: '192.168.1.100'
+      });
 
       // Assert
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Invalid');
+      const data = JSON.parse(result.content[0].text);
+      expect(data.success).toBe(false);
+      expect(data.error.message).toContain('Connection refused');
+    });
+  });
+
+  describe('Disconnect Action', () => {
+    it('should disconnect from Q-SYS Core', async () => {
+      // Arrange
+      mockControlSystem.disconnect!.mockResolvedValue(undefined);
+      mockControlSystem.isConnected.mockReturnValue(false);
+
+      // Act
+      const result = await tool.execute({ action: 'disconnect' });
+
+      // Assert
+      expect(result.isError).toBe(false);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.success).toBe(true);
+      expect(data.action).toBe('disconnect');
+      expect(data.data.connected).toBe(false);
+      expect(data.data.message).toContain('Successfully disconnected');
+      
+      // Verify disconnect was called
+      expect(mockControlSystem.disconnect).toHaveBeenCalled();
     });
 
-    it('should validate reconnect parameters', async () => {
+    it('should handle disconnect when already disconnected', async () => {
+      // Arrange
+      mockControlSystem.isConnected.mockReturnValue(false);
+      mockControlSystem.disconnect!.mockResolvedValue(undefined);
+
+      // Act
+      const result = await tool.execute({ action: 'disconnect' });
+
+      // Assert
+      expect(result.isError).toBe(false);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.success).toBe(true);
+      expect(data.data.message).toContain('Successfully disconnected');
+    });
+
+    it('should handle disconnect failure', async () => {
+      // Arrange
+      mockControlSystem.disconnect!.mockRejectedValue(new Error('Disconnect failed'));
+
+      // Act
+      const result = await tool.execute({ action: 'disconnect' });
+
+      // Assert
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.success).toBe(false);
+      expect(data.error.message).toContain('Disconnect failed');
+    });
+  });
+
+  describe('Validation', () => {
+    it('should validate required host parameter for connect', async () => {
+      // Act - missing host
+      const result = await tool.execute({ 
+        action: 'connect'
+      } as any);
+
+      // Assert
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('validation');
+    });
+
+    it('should validate port range', async () => {
+      // Act - invalid port
+      const result = await tool.execute({ 
+        action: 'connect',
+        host: '192.168.1.100',
+        port: 99999
+      });
+
+      // Assert
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('validation');
+    });
+
+    it('should handle unknown action', async () => {
       // Act
       const result = await tool.execute({ 
-        action: 'reconnect',
-        maxAttempts: 999, // exceeds max
-      });
+        action: 'unknown'
+      } as any);
 
       // Assert
       expect(result.isError).toBe(true);

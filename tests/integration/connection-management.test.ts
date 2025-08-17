@@ -49,9 +49,9 @@ describe('Connection Management Tool Integration', () => {
       expect(connectionTool?.description).toContain('Manage Q-SYS connection');
     });
 
-    it('should have 18 total tools registered', () => {
+    it('should have 17 total tools registered', () => {
       const tools = registry.listTools();
-      expect(tools.length).toBe(18); // 17 Q-SYS + 1 testing
+      expect(tools.length).toBe(17); // 16 Q-SYS + 1 testing
     });
   });
 
@@ -70,25 +70,24 @@ describe('Connection Management Tool Integration', () => {
       expect(response.data.connected).toBeDefined();
     });
 
-    it('should execute diagnose action', async () => {
+    it('should execute connect action', async () => {
       const result = await registry.executeTool('manage_connection', {
-        action: 'diagnose',
+        action: 'connect',
+        host: '192.168.1.100',
       });
 
       expect(result).toBeDefined();
       expect(result.isError).toBe(false);
       
       const response = JSON.parse(result.content[0].text!);
-      expect(response.success).toBe(true);
-      expect(response.action).toBe('diagnose');
-      expect(response.data.network).toBeDefined();
-      expect(response.data.summary).toBeDefined();
+      expect(response.action).toBe('connect');
+      expect(response.data.host).toBe('192.168.1.100');
+      expect(response.data.port).toBe(443);
     });
 
-    it('should execute history action', async () => {
+    it('should execute disconnect action', async () => {
       const result = await registry.executeTool('manage_connection', {
-        action: 'history',
-        timeRange: '1h',
+        action: 'disconnect',
       });
 
       expect(result).toBeDefined();
@@ -96,8 +95,8 @@ describe('Connection Management Tool Integration', () => {
       
       const response = JSON.parse(result.content[0].text!);
       expect(response.success).toBe(true);
-      expect(response.action).toBe('history');
-      expect(response.data.summary).toBeDefined();
+      expect(response.action).toBe('disconnect');
+      expect(response.data.connected).toBeDefined();
     });
 
     it('should validate invalid actions', async () => {
